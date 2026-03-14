@@ -1,0 +1,63 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "jsx": "preserve",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@/app/*": [
+        "./app/*"
+      ],
+      "@/lib/*": [
+        "./lib/*"
+      ],
+      "@/components/*": [
+        "./components/*"
+      ],
+      "@/types/*": [
+        "./types/*"
+      ],
+      "@/middleware/*": [
+        "./middleware/*"
+      ],
+      "@/services/*": [
+        "./services/*"
+      ],
+      "@/hooks/*": [
+        "./hooks/*"
+      ]
+    },
+    "allowJs": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
