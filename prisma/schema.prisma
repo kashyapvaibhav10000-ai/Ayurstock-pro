@@ -414,3 +414,18 @@ model ActivityLog {
   @@index([shopId, createdAt])
   @@index([userId])
 }
+
+// Import Job - Background PDF processing status
+model ImportJob {
+  id          String   @id @default(cuid())
+  status      String   @default("processing")
+  currentPage Int      @default(0)
+  totalPages  Int      @default(0)
+  message     String?
+  error       String?
+  medicines   String?  // JSON string of parsed medicines
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+}

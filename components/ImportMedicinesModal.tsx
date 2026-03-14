@@ -75,7 +75,7 @@ export default function ImportMedicinesModal({
   const [preview, setPreview] = useState<MedicineWithStatus[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<'upload' | 'preview'>('upload');
+  const [step, setStep] = useState<'upload' | 'processing' | 'preview'>('upload');
   const [parseError, setParseError] = useState<string>('');
   const [companies, setCompanies] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
@@ -84,6 +84,8 @@ export default function ImportMedicinesModal({
   const [sequentialImport, setSequentialImport] = useState(false);
   const [currentImportIndex, setCurrentImportIndex] = useState<number>(-1);
   const [importProgress, setImportProgress] = useState({ completed: 0, total: 0, failed: 0 });
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
@@ -148,29 +150,69 @@ export default function ImportMedicinesModal({
         headers,
       });
 
-      if (response.data.success) {
-        const normalized = (response.data.data || []).map((row: ParsedMedicine) => {
-          const category = row.category || detectCategory(row.packing || row.name);
-          const options = PACKAGING_OPTIONS[category] || [];
-          const packing = row.packing || (options.length > 0 ? options[0] : '');
-          return {
-            ...row,
-            category,
-            packing,
-            status: 'pending' as ImportStatus,
-          } as MedicineWithStatus;
-        });
-        setPreview(normalized);
-        setSelectedRows(new Set(Array.from({ length: response.data.data.length }, (_, i) => i)));
-        setStep('preview');
+      if (response.data.success && response.data.jobId) {
+        setJobId(response.data.jobId);
+        setStep('processing');
+        // Start polling for progress
+        startPolling(response.data.jobId);
       } else {
-        setParseError(response.data.message || 'Failed to parse file');
+        setParseError(response.data.message || 'Failed to start import job');
       }
     } catch (error) {
       const message = axios.isAxiosError(error) ? error.response?.data?.message : 'Failed to upload file';
       setParseError(message || 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const startPolling = (jobId: string) => {
+    const poll = async () => {
+      try {
+        const response = await axios.get(`/api/medicines/import/progress?jobId=${jobId}`);
+        if (response.data.success) {
+          const jobData = response.data;
+
+          if (jobData.status === 'done') {
+            // Import completed successfully
+            const normalized = (jobData.medicines || []).map((row: ParsedMedicine) => {
+              const category = row.category || detectCategory(row.packing || row.name);
+              const options = PACKAGING_OPTIONS[category] || [];
+              const packing = row.packing || (options.length > 0 ? options[0] : '');
+              return {
+                ...row,
+                category,
+                packing,
+                status: 'pending' as ImportStatus,
+              } as MedicineWithStatus;
+            });
+            setPreview(normalized);
+            setSelectedRows(new Set(Array.from({ length: normalized.length }, (_, i) => i)));
+            stopPolling();
+          } else if (jobData.status === 'error') {
+            // Import failed
+            setParseError(jobData.error || 'Import failed');
+            stopPolling();
+          }
+          // For 'processing' status, continue polling
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+        setParseError('Failed to check import progress');
+        stopPolling();
+      }
+    };
+
+    // Poll immediately, then every 2 seconds
+    poll();
+    const interval = setInterval(poll, 2000);
+    setPollingInterval(interval);
+  };
+
+  const stopPolling = () => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
     }
   };
 
@@ -391,6 +433,8 @@ export default function ImportMedicinesModal({
     setSequentialImport(false);
     setCurrentImportIndex(-1);
     setImportProgress({ completed: 0, total: 0, failed: 0 });
+    setJobId(null);
+    stopPolling();
     onClose();
   };
 
@@ -440,6 +484,16 @@ export default function ImportMedicinesModal({
                 <p className="text-sm text-red-600">{parseError}</p>
               </div>
             )}
+          </div>
+        ) : step === 'processing' ? (
+          <div className="space-y-4">
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-lg font-medium text-gray-700">Processing PDF...</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Extracting medicine data from your file. This may take a few moments.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -646,7 +700,7 @@ export default function ImportMedicinesModal({
               disabled={!file || loading}
               className="bg-green-600 hover:bg-green-700"
             >
-              {loading ? 'Processing...' : 'Parse File'}
+              {loading ? 'Starting Import...' : 'Parse File'}
             </Button>
           ) : (
             <div className="flex gap-2">
