@@ -1,0 +1,147 @@
+ayurstock-pro/
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── login/
+│   │   │   │   └── page.tsx
+│   │   │   ├── invite/
+│   │   │   │   └── [token]/page.tsx
+│   │   │   └── logout/
+│   │   │       └── route.ts
+│   │   ├── (dashboard)/
+│   │   │   ├── layout.tsx
+│   │   │   ├── dashboard/
+│   │   │   │   └── page.tsx
+│   │   │   ├── billing/
+│   │   │   │   ├── retail/page.tsx
+│   │   │   │   └── wholesale/page.tsx
+│   │   │   ├── medicines/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── [id]/page.tsx
+│   │   │   ├── inventory/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── batches/page.tsx
+│   │   │   ├── purchases/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── [id]/page.tsx
+│   │   │   ├── suppliers/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── [id]/page.tsx
+│   │   │   ├── reports/
+│   │   │   │   ├── page.tsx
+│   │   │   │   ├── daily-sales/page.tsx
+│   │   │   │   ├── low-stock/page.tsx
+│   │   │   │   └── near-expiry/page.tsx
+│   │   │   ├── users/
+│   │   │   │   └── page.tsx
+│   │   │   └── settings/
+│   │   │       └── page.tsx
+│   │   ├── api/
+│   │   │   ├── auth/
+│   │   │   │   ├── login/route.ts
+│   │   │   │   ├── logout/route.ts
+│   │   │   │   └── verify/route.ts
+│   │   │   ├── users/
+│   │   │   │   ├── route.ts
+│   │   │   │   ├── [id]/route.ts
+│   │   │   │   └── invite/route.ts
+│   │   │   ├── medicines/
+│   │   │   │   ├── route.ts
+│   │   │   │   ├── [id]/route.ts
+│   │   │   │   └── search/route.ts
+│   │   │   ├── inventory/
+│   │   │   │   ├── route.ts
+│   │   │   │   ├── batches/route.ts
+│   │   │   │   └── [id]/route.ts
+│   │   │   ├── purchases/
+│   │   │   │   ├── route.ts
+│   │   │   │   └── [id]/route.ts
+│   │   │   ├── sales/
+│   │   │   │   ├── route.ts
+│   │   │   │   ├── [id]/route.ts
+│   │   │   │   └── returns/route.ts
+│   │   │   ├── suppliers/
+│   │   │   │   ├── route.ts
+│   │   │   │   └── [id]/route.ts
+│   │   │   └── reports/
+│   │   │       ├── daily-sales/route.ts
+│   │   │       ├── low-stock/route.ts
+│   │   │       └── outstanding-credit/route.ts
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── lib/
+│   │   ├── auth/
+│   │   │   ├── jwt.ts
+│   │   │   ├── password.ts
+│   │   │   └── session.ts
+│   │   ├── db/
+│   │   │   └── prisma.ts
+│   │   ├── validation/
+│   │   │   ├── auth.ts
+│   │   │   ├── medicines.ts
+│   │   │   ├── sales.ts
+│   │   │   ├── purchases.ts
+│   │   │   └── common.ts
+│   │   ├── middleware/
+│   │   │   ├── auth.ts
+│   │   │   ├── rbac.ts
+│   │   │   └── errorHandler.ts
+│   │   ├── services/
+│   │   │   ├── medicineService.ts
+│   │   │   ├── inventoryService.ts
+│   │   │   ├── billingService.ts
+│   │   │   ├── purchaseService.ts
+│   │   │   ├── reportService.ts
+│   │   │   └── userService.ts
+│   │   ├── utils/
+│   │   │   ├── apiResponse.ts
+│   │   │   ├── dates.ts
+│   │   │   ├── invoice.ts
+│   │   │   └── constants.ts
+│   │   └── hooks/
+│   │       ├── useAuth.ts
+│   │       ├── useShop.ts
+│   │       └── useBilling.ts
+│   ├── components/
+│   │   ├── auth/
+│   │   │   ├── LoginForm.tsx
+│   │   │   └── PINLock.tsx
+│   │   ├── layout/
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── Header.tsx
+│   │   │   └── MobileNav.tsx
+│   │   ├── billing/
+│   │   │   ├── BillingCart.tsx
+│   │   │   ├── MedicineSearch.tsx
+│   │   │   ├── BatchPicker.tsx
+│   │   │   ├── CheckoutPanel.tsx
+│   │   │   └── InvoicePrint.tsx
+│   │   ├── inventory/
+│   │   │   ├── BatchTable.tsx
+│   │   │   ├── StockWarning.tsx
+│   │   │   └── ExpiryWarning.tsx
+│   │   ├── common/
+│   │   │   ├── Button.tsx
+│   │   │   ├── Modal.tsx
+│   │   │   ├── Table.tsx
+│   │   │   └── Loading.tsx
+│   │   └── reports/
+│   │       ├── SalesChart.tsx
+│   │       └── InventoryReport.tsx
+│   ├── types/
+│   │   ├── index.ts
+│   │   ├── api.ts
+│   │   ├── models.ts
+│   │   └── auth.ts
+│   ├── middleware.ts
+│   └── env.ts
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/
+├── public/
+├── .env.local
+├── .env.example
+├── tsconfig.json
+├── tailwind.config.ts
+├── next.config.js
+└── package.json

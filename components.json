@@ -1,0 +1,10 @@
+{
+  "style": "default",
+  "rsc": true,
+  "tsx": true,
+  "aliasPrefix": "@",
+  "alias": {
+    "@/components/ui": "./components/ui",
+    "@/lib/utils": "./lib/utils"
+  }
+}

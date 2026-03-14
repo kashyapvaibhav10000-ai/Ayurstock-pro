@@ -1,0 +1,48 @@
+
+> ayurstock-pro@0.1.0 dev
+> next dev --hostname 0.0.0.0
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Network:      http://0.0.0.0:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1796ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 2.2s (745 modules)
+ GET /login 200 in 2379ms
+ ✓ Compiled in 131ms (339 modules)
+ ✓ Compiled /middleware in 189ms (72 modules)
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 2.2s (1772 modules)
+ GET /dashboard 200 in 2462ms
+ ✓ Compiled /_not-found in 172ms (1775 modules)
+ GET /_next/static/css/app/layout.css?v=1773330244476 404 in 235ms
+ GET /_next/static/chunks/app/layout.js 404 in 231ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 232ms
+ GET /_next/static/chunks/main-app.js?v=1773330244476 404 in 234ms
+ ✓ Compiled / in 194ms (1779 modules)
+ GET / 307 in 326ms
+ GET /dashboard 200 in 131ms
+ GET /_next/static/css/app/layout.css?v=1773330250094 404 in 33ms
+ GET /_next/static/chunks/main-app.js?v=1773330250094 404 in 31ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 31ms
+ GET /_next/static/chunks/app/layout.js 404 in 31ms
+ GET / 307 in 63ms
+ GET /dashboard 200 in 47ms
+ GET /_next/static/css/app/layout.css?v=1773330256549 404 in 28ms
+ GET /_next/static/chunks/main-app.js?v=1773330256549 404 in 27ms
+ GET /_next/static/chunks/app/layout.js 404 in 25ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 27ms
+ GET / 307 in 85ms
+ GET /dashboard 200 in 81ms
+ GET /_next/static/css/app/layout.css?v=1773330263261 404 in 31ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 28ms
+ GET /_next/static/chunks/main-app.js?v=1773330263261 404 in 27ms
+ GET /_next/static/chunks/app/layout.js 404 in 28ms
+ ✓ Compiled /login in 359ms (1024 modules)
+ GET /login 200 in 616ms
+ GET /_next/static/css/app/layout.css?v=1773330314009 404 in 53ms
+ GET /_next/static/chunks/app/layout.js 404 in 19ms
+ GET /_next/static/chunks/main-app.js?v=1773330314009 404 in 22ms
