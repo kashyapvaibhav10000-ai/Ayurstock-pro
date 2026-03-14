@@ -16,14 +16,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'jobId parameter is required' }, { status: 400 });
     }
 
-    const job = importJobStore.getJob(jobId);
+    const job = await importJobStore.getJob(jobId);
     if (!job) {
       return NextResponse.json({ success: false, message: 'Job not found' }, { status: 404 });
     }
 
     return NextResponse.json({
       success: true,
-      jobId: job.jobId,
+      jobId: job.id,
       status: job.status,
       currentPage: job.currentPage,
       totalPages: job.totalPages,

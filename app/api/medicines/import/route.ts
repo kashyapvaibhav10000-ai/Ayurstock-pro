@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { parseMedicineImportFile } from '@/lib/medicine-importer';
+import { importJobStore } from '@/lib/importJobStore';
+import { randomUUID } from 'node:crypto';
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,20 +33,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Generate job ID and create job record
+    const jobId = randomUUID();
+
+    // For now, we'll do synchronous processing but store in job for consistency
+    // TODO: Implement actual background processing with page-by-page OCR
     const buffer = Buffer.from(await file.arrayBuffer());
     const rows = await parseMedicineImportFile(file, buffer);
 
     if (rows.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'No medicines found in the file' },
-        { status: 400 }
-      );
+      await importJobStore.createJob(jobId, 0);
+      await importJobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'No medicines found in the file',
+      });
+      return NextResponse.json({
+        success: false,
+        message: 'No medicines found in the file',
+      }, { status: 400 });
     }
+
+    // Create job and mark as completed immediately
+    await importJobStore.createJob(jobId, 1);
+    await importJobStore.updateJob(jobId, {
+      status: 'done',
+      currentPage: 1,
+      totalPages: 1,
+      medicines: rows,
+      message: `Extracted ${rows.length} medicines`,
+    });
 
     return NextResponse.json({
       success: true,
-      data: rows,
-      message: `Extracted ${rows.length} medicines`,
+      jobId,
+      message: 'Import job created. Check progress at /api/medicines/import/progress',
     });
   } catch (error) {
     console.error('Import error:', error);
