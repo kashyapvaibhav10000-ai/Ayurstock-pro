@@ -53,6 +53,13 @@ export interface ParsedMedicine {
   tradePrice?: number;
 }
 
+type ImportStatus = 'pending' | 'importing' | 'imported' | 'failed';
+
+interface MedicineWithStatus extends ParsedMedicine {
+  status: ImportStatus;
+  error?: string;
+}
+
 interface ImportMedicinesModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -65,7 +72,7 @@ export default function ImportMedicinesModal({
   onSuccess,
 }: ImportMedicinesModalProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<ParsedMedicine[]>([]);
+  const [preview, setPreview] = useState<MedicineWithStatus[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'upload' | 'preview'>('upload');
@@ -74,6 +81,9 @@ export default function ImportMedicinesModal({
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [newCompany, setNewCompany] = useState<string>('');
   const [creatingCompany, setCreatingCompany] = useState(false);
+  const [sequentialImport, setSequentialImport] = useState(false);
+  const [currentImportIndex, setCurrentImportIndex] = useState<number>(-1);
+  const [importProgress, setImportProgress] = useState({ completed: 0, total: 0, failed: 0 });
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
@@ -147,7 +157,8 @@ export default function ImportMedicinesModal({
             ...row,
             category,
             packing,
-          };
+            status: 'pending' as ImportStatus,
+          } as MedicineWithStatus;
         });
         setPreview(normalized);
         setSelectedRows(new Set(Array.from({ length: response.data.data.length }, (_, i) => i)));
@@ -283,6 +294,75 @@ export default function ImportMedicinesModal({
 
   const selectedCount = useMemo(() => selectedRows.size, [selectedRows]);
 
+  const importSingleMedicine = async (medicine: MedicineWithStatus, index: number) => {
+    try {
+      // Update status to importing
+      setPreview((current) =>
+        current.map((m, i) => (i === index ? { ...m, status: 'importing' as ImportStatus } : m))
+      );
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await axios.post('/api/medicines/import/single', {
+        name: medicine.name,
+        company: medicine.company,
+        category: medicine.category,
+        barcode: medicine.barcode,
+        hsn: medicine.hsn,
+        packing: medicine.packing,
+        mrp: medicine.mrp,
+        tradePrice: medicine.tradePrice,
+      }, { headers });
+
+      if (response.data.success) {
+        // Update status to imported
+        setPreview((current) =>
+          current.map((m, i) => (i === index ? { ...m, status: 'imported' as ImportStatus } : m))
+        );
+        setImportProgress((prev) => ({ ...prev, completed: prev.completed + 1 }));
+        return true;
+      } else {
+        throw new Error(response.data.message || 'Import failed');
+      }
+    } catch (error) {
+      const errorMessage = axios.isAxiosError(error)
+        ? error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : 'Import failed';
+
+      // Update status to failed
+      setPreview((current) =>
+        current.map((m, i) => (i === index ? { ...m, status: 'failed' as ImportStatus, error: errorMessage } : m))
+      );
+      setImportProgress((prev) => ({ ...prev, failed: prev.failed + 1 }));
+      return false;
+    }
+  };
+
+  const handleSequentialImport = async () => {
+    const selectedMedicines = Array.from(selectedRows).sort((a, b) => a - b);
+    setSequentialImport(true);
+    setImportProgress({ completed: 0, total: selectedMedicines.length, failed: 0 });
+
+    for (let i = 0; i < selectedMedicines.length; i++) {
+      const index = selectedMedicines[i];
+      setCurrentImportIndex(index);
+      await importSingleMedicine(preview[index], index);
+      // Small delay between imports
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    setSequentialImport(false);
+    setCurrentImportIndex(-1);
+  };
+
   const handleImport = async () => {
     const selectedMedicines = Array.from(selectedRows).map((index) => preview[index]);
     
@@ -308,6 +388,9 @@ export default function ImportMedicinesModal({
     setSelectedRows(new Set());
     setStep('upload');
     setParseError('');
+    setSequentialImport(false);
+    setCurrentImportIndex(-1);
+    setImportProgress({ completed: 0, total: 0, failed: 0 });
     onClose();
   };
 
@@ -416,8 +499,10 @@ export default function ImportMedicinesModal({
                       <Checkbox
                         checked={selectedRows.size === preview.length}
                         onCheckedChange={toggleSelectAll}
+                        disabled={sequentialImport}
                       />
                     </TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Medicine Name</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Category</TableHead>
@@ -429,23 +514,37 @@ export default function ImportMedicinesModal({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {preview.map((medicine, index) => (
-                    (() => {
-                      const category = medicine.category || detectCategory(medicine.packing || medicine.name);
-                      const packagingOptions = PACKAGING_OPTIONS[category] || [];
-                      return (
-                    <TableRow key={index}>
+                  {preview.map((medicine, index) => {
+                    const category = medicine.category || detectCategory(medicine.packing || medicine.name);
+                    const packagingOptions = PACKAGING_OPTIONS[category] || [];
+                    const isCurrentImporting = sequentialImport && currentImportIndex === index;
+                    const isDisabled = sequentialImport;
+                    return (
+                    <TableRow key={index} className={isCurrentImporting ? 'bg-blue-50 border-blue-200' : ''}>
                       <TableCell>
                         <Checkbox
                           checked={selectedRows.has(index)}
                           onCheckedChange={() => toggleRowSelection(index)}
+                          disabled={isDisabled}
                         />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {medicine.status === 'pending' && <span className="text-gray-400">⏳</span>}
+                          {medicine.status === 'importing' && <span className="text-blue-500 animate-spin">🔄</span>}
+                          {medicine.status === 'imported' && <span className="text-green-500">✅</span>}
+                          {medicine.status === 'failed' && <span className="text-red-500">❌</span>}
+                          <span className="text-xs text-gray-500">
+                            {medicine.status === 'failed' && medicine.error ? medicine.error : medicine.status}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Input
                           value={medicine.name}
                           onChange={(e) => updatePreviewField(index, 'name', e.target.value)}
                           className="min-w-44"
+                          disabled={isDisabled}
                         />
                       </TableCell>
                       <TableCell>
@@ -453,6 +552,7 @@ export default function ImportMedicinesModal({
                           value={medicine.company || ''}
                           onChange={(e) => updatePreviewField(index, 'company', e.target.value)}
                           className="min-w-32"
+                          disabled={isDisabled}
                         />
                       </TableCell>
                       <TableCell>
@@ -460,6 +560,7 @@ export default function ImportMedicinesModal({
                           value={category}
                           onChange={(e) => handleCategoryChange(index, e.target.value)}
                           className="h-9 min-w-28 rounded-md border border-input bg-background px-2 text-sm"
+                          disabled={isDisabled}
                         >
                           {CATEGORY_OPTIONS.map((option) => (
                             <option key={option} value={option}>
@@ -473,6 +574,7 @@ export default function ImportMedicinesModal({
                           value={medicine.hsn || ''}
                           onChange={(e) => updatePreviewField(index, 'hsn', e.target.value)}
                           className="min-w-24"
+                          disabled={isDisabled}
                         />
                       </TableCell>
                       <TableCell>
@@ -480,6 +582,7 @@ export default function ImportMedicinesModal({
                           value={medicine.barcode || ''}
                           onChange={(e) => updatePreviewField(index, 'barcode', e.target.value)}
                           className="min-w-28"
+                          disabled={isDisabled}
                         />
                       </TableCell>
                       <TableCell>
@@ -487,6 +590,7 @@ export default function ImportMedicinesModal({
                           value={medicine.packing || ''}
                           onChange={(e) => updatePreviewField(index, 'packing', e.target.value)}
                           className="h-9 min-w-24 rounded-md border border-input bg-background px-2 text-sm"
+                          disabled={isDisabled}
                         >
                           <option value="">Select</option>
                           {packagingOptions.map((option) => (
@@ -503,6 +607,7 @@ export default function ImportMedicinesModal({
                           value={typeof medicine.mrp === 'number' ? medicine.mrp : ''}
                           onChange={(e) => updatePreviewField(index, 'mrp', e.target.value)}
                           className="min-w-24"
+                          disabled={isDisabled}
                         />
                       </TableCell>
                       <TableCell>
@@ -512,20 +617,27 @@ export default function ImportMedicinesModal({
                           value={typeof medicine.tradePrice === 'number' ? medicine.tradePrice : ''}
                           onChange={(e) => updatePreviewField(index, 'tradePrice', e.target.value)}
                           className="min-w-24"
+                          disabled={isDisabled}
                         />
                       </TableCell>
                     </TableRow>
-                      );
-                    })()
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
+            {sequentialImport && importProgress.completed + importProgress.failed === importProgress.total && importProgress.total > 0 && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-700">
+                  ✅ Import completed: {importProgress.completed} imported, {importProgress.failed} skipped/failed
+                </p>
+              </div>
+            )}
           </div>
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={resetModal} disabled={loading}>
+          <Button variant="outline" onClick={resetModal} disabled={loading || sequentialImport}>
             Cancel
           </Button>
           {step === 'upload' ? (
@@ -537,13 +649,31 @@ export default function ImportMedicinesModal({
               {loading ? 'Processing...' : 'Parse File'}
             </Button>
           ) : (
-            <Button
-              onClick={handleImport}
-              disabled={selectedRows.size === 0 || loading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {loading ? 'Importing...' : `Import Selected (${selectedCount})`}
-            </Button>
+            <div className="flex gap-2">
+              {sequentialImport && (
+                <div className="flex items-center gap-2 text-sm text-gray-600 mr-4">
+                  <span>Importing {importProgress.completed + 1} of {importProgress.total}</span>
+                  {importProgress.failed > 0 && (
+                    <span className="text-red-500">({importProgress.failed} failed)</span>
+                  )}
+                </div>
+              )}
+              <Button
+                onClick={handleSequentialImport}
+                disabled={selectedRows.size === 0 || loading || sequentialImport}
+                variant="outline"
+                className="border-blue-500 text-blue-600 hover:bg-blue-50"
+              >
+                {sequentialImport ? 'Importing...' : `Import One by One (${selectedCount})`}
+              </Button>
+              <Button
+                onClick={handleImport}
+                disabled={selectedRows.size === 0 || loading || sequentialImport}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {loading ? 'Importing...' : `Import Selected (${selectedCount})`}
+              </Button>
+            </div>
           )}
         </DialogFooter>
       </DialogContent>
