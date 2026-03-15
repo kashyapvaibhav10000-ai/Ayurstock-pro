@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import Image from 'next/image';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -85,13 +86,11 @@ export default function DashboardHeader({ user }: { user: AuthUser }) {
   };
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/60 bg-white/70 backdrop-blur">
-      <div className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{pageTitle}</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Fast pharmacy operations with clean workflows and fewer clicks.
-          </p>
+    <>
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
+        <div className="flex items-center gap-4">
+          <Image src="/logo.png" width={80} height={80} alt="AyurStock Pro Logo" />
+          <span className="text-xl font-semibold text-slate-900">{pageTitle}</span>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -119,7 +118,7 @@ export default function DashboardHeader({ user }: { user: AuthUser }) {
             </div>
           </button>
         </div>
-      </div>
+      </header>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-[500px] rounded-2xl border border-slate-200 bg-white shadow-xl">
@@ -161,28 +160,19 @@ export default function DashboardHeader({ user }: { user: AuthUser }) {
               }}
             >
               <Settings className="h-4 w-4" />
-              Open Settings
+              Go to Settings
             </Button>
-            <Button variant="ghost" className="gap-2" onClick={() => setModalOpen(false)}>
-              <X className="h-4 w-4" />
-              Close
-            </Button>
-          </DialogFooter>
-          <div className="mt-4 border-t border-slate-200 pt-4">
             <Button
               variant="destructive"
-              className="w-full gap-2"
-              onClick={() => {
-                setModalOpen(false);
-                void handleLogout();
-              }}
+              className="gap-2"
+              onClick={handleLogout}
             >
               <LogOut className="h-4 w-4" />
               Logout
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-    </header>
+    </>
   );
 }
