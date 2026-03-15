@@ -4,8 +4,10 @@ import { prisma } from '../lib/db';
 async function main() {
   console.log('🌱 Seeding database...');
 
-  const shop = await prisma.shop.create({
-    data: {
+  const shop = await prisma.shop.upsert({
+    where: { gstin: '' },
+    update: {},
+    create: {
       name: 'AyurStock Pro',
       gstin: '',
       address: '',
@@ -18,8 +20,15 @@ async function main() {
 
   const passwordHash = await bcrypt.hash('admin123', 10);
 
-  const adminUser = await prisma.user.create({
-    data: {
+  const adminUser = await prisma.user.upsert({
+    where: {
+      shopId_email: {
+        shopId: shop.id,
+        email: 'admin@demo.com',
+      },
+    },
+    update: {},
+    create: {
       shopId: shop.id,
       name: 'Admin',
       email: 'admin@demo.com',
