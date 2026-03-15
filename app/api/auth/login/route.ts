@@ -28,8 +28,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
+      console.log('No user found for email:', email);
       return createErrorResponse('Access denied. Contact administrator.', 401);
     }
+
+    console.log('User found:', user?.email, 'isActive:', user?.isActive);
 
     // Check if user is active
     if (!user.isActive) {
@@ -37,7 +40,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify password
-    if (!verifyPassword(password, user.passwordHash)) {
+    const passwordValid = verifyPassword(password, user.passwordHash);
+    console.log('Password valid:', passwordValid);
+    if (!passwordValid) {
       return createErrorResponse('Access denied. Contact administrator.', 401);
     }
 
