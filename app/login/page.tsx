@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import Image from 'next/image';
 import { ArrowRight, Lock, Mail, Pill } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
@@ -46,8 +47,8 @@ export default function LoginPage() {
         <div className="w-full max-w-md rounded-[28px] border border-white/20 bg-white/10 p-8 text-white shadow-2xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] sm:p-9">
           <div className="mb-8">
             <div className="mb-5 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-lg">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-200">
-                <Pill className="h-5 w-5" />
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-200">
+                <Image src="/logo.png" width={80} height={80} alt="AyurStock Pro Logo" />
               </div>
               <div>
                 <div className="text-lg font-semibold tracking-tight text-white">AyurStock Pro</div>
@@ -56,9 +57,6 @@ export default function LoginPage() {
             </div>
 
             <h1 className="text-3xl font-semibold tracking-tight text-white">Login to your workspace</h1>
-            <p className="mt-2 text-sm text-white/70">
-              Fast billing, clean inventory control, and modern pharmacy workflows in one premium dashboard.
-            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -107,10 +105,6 @@ export default function LoginPage() {
               {!loading ? <ArrowRight className="h-4 w-4" /> : null}
             </button>
           </form>
-
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-xs text-white/70">
-            Admin-created accounts only. Public signup is disabled to keep shop access controlled and secure.
-          </div>
         </div>
       </div>
     </div>

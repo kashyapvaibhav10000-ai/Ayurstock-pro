@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import Image from 'next/image';
 import { AuthUser } from '@/types';
 
 interface SidebarProps {
@@ -46,10 +47,15 @@ export default function Sidebar({ user }: SidebarProps) {
     >
       <div className="flex items-center justify-between border-b border-slate-200/70 px-5 py-5">
         <div className={`overflow-hidden transition-all ${isOpen ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
-          <div className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-600">
-            AyurStock Pro
+          <div className="flex items-center gap-3">
+            <Image src="/logo.png" width={80} height={80} alt="AyurStock Pro Logo" />
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-600">
+                AyurStock Pro
+              </div>
+              <div className="mt-1 text-lg font-semibold text-slate-900">Pharmacy Workspace</div>
+            </div>
           </div>
-          <div className="mt-1 text-lg font-semibold text-slate-900">Pharmacy Workspace</div>
         </div>
         <button
           onClick={() => setIsOpen((current) => !current)}
