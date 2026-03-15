@@ -1,6 +1,4 @@
-import { fromBuffer } from 'pdf2pic';
-import { promises as fs } from 'fs';
-import path from 'path';
+const pdfParse = require('pdf-parse');
 
 export type ParsedMedicine = {
   name: string
@@ -217,135 +215,15 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
   if (!apiKey) return []
 
   try {
-    // Convert PDF to images
-    const tempDir = process.platform === 'win32' ? process.env.TEMP || 'C:\\temp' : '/tmp';
-    const convert = fromBuffer(pdfBuffer, {
-      density: 200,
-      saveFilename: "page",
-      savePath: tempDir,
-      format: "png",
-      width: 2000,
-      height: 2000
-    })
-
-    const images: Buffer[] = []
-    let pageNum = 1
-    while (true) {
-      try {
-        const result = await convert(pageNum)
-        if (result.path) {
-          const imageBuffer = await fs.readFile(result.path)
-          images.push(imageBuffer)
-          // Clean up temp file
-          await fs.unlink(result.path).catch(() => {})
-        } else {
-          break
-        }
-        pageNum++
-      } catch {
-        break
-      }
-    }
-
-    if (images.length === 0) return []
-
-    // Process in batches of 3 pages
-    const batchSize = 3
-    const allMedicines: ParsedMedicine[] = []
-
-    for (let i = 0; i < images.length; i += batchSize) {
-      const batch = images.slice(i, i + batchSize)
-      const batchPromises = batch.map(async (imageBuffer, idx) => {
-        const base64Image = imageBuffer.toString('base64')
-        return parsePageWithAI(base64Image, apiKey)
-      })
-
-      const batchResults = await Promise.allSettled(batchPromises)
-      for (const result of batchResults) {
-        if (result.status === 'fulfilled') {
-          allMedicines.push(...result.value)
-        }
-      }
-
-      // Small delay between batches to avoid rate limits
-      if (i + batchSize < images.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      }
-    }
-
-    // Deduplicate by name + packing
-    const uniqueMap = new Map<string, ParsedMedicine>()
-    for (const med of allMedicines) {
-      const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`
-      if (!uniqueMap.has(key)) {
-        uniqueMap.set(key, med)
-      }
-    }
-
-    return Array.from(uniqueMap.values())
+    const pdfData = await pdfParse(pdfBuffer);
+    const rawText = pdfData.text;
+    if (!rawText || rawText.trim().length === 0) return [];
+    console.log('PDF text extracted, length:', rawText.length);
+    return await parseMedicinesWithAI(rawText);
   } catch (error) {
-    console.error('AI PDF parsing failed:', error)
+    console.error('PDF parsing failed:', error)
     return []
   }
 }
 
-async function parsePageWithAI(base64Image: string, apiKey: string): Promise<ParsedMedicine[]> {
-  try {
-    const resp = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-exp:free',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a pharmacy data parser. Look at this image of an Ayurvedic medicine price list page. Extract ALL medicine records you can see.\n\nRules:\n- Medicine name is always in ENGLISH CAPITALS\n- Ignore Hindi text completely\n- Ignore symptom descriptions\n- Ignore category headers\n- Brackets are allowed in names e.g. BRAHMI VATI (S.M.Y.)\n- Never include comma-separated symptom lines as medicine names\n- Packing looks like: 30 Cap, 80 Tab, 450 Ml, 100 Gm, 50 ml\n- MRP and Trade Price are the two number columns\n- Same medicine with different packing = separate records\n\nReturn ONLY a valid JSON array. No markdown. No explanation.\nEach item: { name, packing, mrp, tradePrice }'
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/png;base64,${base64Image}`
-                }
-              },
-              {
-                type: 'text',
-                text: 'Extract all medicines from this price list page'
-              }
-            ]
-          }
-        ],
-        temperature: 0,
-        max_tokens: 9000,
-      }),
-    })
-
-    const data = await resp.json().catch(() => null)
-
-    const content =
-      data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || ''
-
-    if (!content || typeof content !== 'string') return []
-
-    const jsonText = extractJsonArray(content)
-
-    const parsed = JSON.parse(jsonText)
-    if (!Array.isArray(parsed)) return []
-
-    const medicines: ParsedMedicine[] = []
-    for (const raw of parsed) {
-      const normalized = normalizeMedicine(raw)
-      if (normalized) medicines.push(normalized)
-    }
-
-    return medicines
-  } catch {
-    return []
-  }
-}
 
