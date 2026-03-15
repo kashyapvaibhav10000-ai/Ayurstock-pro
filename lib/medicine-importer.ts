@@ -15,7 +15,7 @@ export interface ParsedMedicineImportRow {
   mrp?: number;
   packing?: string;
   tradePrice?: number;
-  sourceType: 'text-pdf' | 'ocr-pdf' | 'image-ocr';
+  sourceType: 'text-pdf' | 'ocr-pdf' | 'image-ocr' | 'ai-vision';
 }
 
 const HEADER_PATTERNS = [
