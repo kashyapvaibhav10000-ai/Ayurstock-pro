@@ -34,18 +34,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (file.size > 4 * 1024 * 1024) {
+      return NextResponse.json({
+        success: false,
+        message: 'File too large. Please upload a PDF smaller than 4MB. Try splitting your price list into smaller files.'
+      }, { status: 400 });
+    }
+
     // Generate job ID and create job record
     const jobId = randomUUID();
 
-    // For now, we'll do synchronous processing but store in job for consistency
-    // TODO: Implement actual background processing with page-by-page OCR
+    // Only use AI vision for PDF imports
     const buffer = Buffer.from(await file.arrayBuffer());
     let rows: ParsedMedicineImportRow[] = [];
 
-    // Try AI vision parsing first for PDFs
     if (file.type === 'application/pdf') {
       try {
-        console.log('Attempting AI vision parsing...');
         const aiMedicines = await parsePDFWithAI(buffer);
         if (aiMedicines.length > 0) {
           rows = aiMedicines.map(med => ({
@@ -60,17 +64,18 @@ export async function POST(req: NextRequest) {
             tradePrice: med.tradePrice,
             sourceType: 'ai-vision' as const,
           }));
-          console.log(`AI vision extracted ${rows.length} medicines`);
         }
       } catch (error) {
-        console.warn('AI vision parsing failed, falling back to OCR:', error);
+        return NextResponse.json({
+          success: false,
+          message: 'AI vision parsing failed. Please try a different file or contact support.'
+        }, { status: 500 });
       }
-    }
-
-    // Fallback to traditional OCR if AI failed or no results
-    if (rows.length === 0) {
-      console.log('Using traditional OCR parsing...');
-      rows = await parseMedicineImportFile(file, buffer);
+    } else {
+      return NextResponse.json({
+        success: false,
+        message: 'Only PDF files are supported for import.'
+      }, { status: 400 });
     }
 
     if (rows.length === 0) {
