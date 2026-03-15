@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { parseMedicineImportFile } from '@/lib/medicine-importer';
+import { parseMedicineImportFile, ParsedMedicineImportRow } from '@/lib/medicine-importer';
+import { parsePDFWithAI } from '@/lib/aiParser';
 import { importJobStore } from '@/lib/importJobStore';
 import { randomUUID } from 'node:crypto';
 
@@ -39,7 +40,38 @@ export async function POST(req: NextRequest) {
     // For now, we'll do synchronous processing but store in job for consistency
     // TODO: Implement actual background processing with page-by-page OCR
     const buffer = Buffer.from(await file.arrayBuffer());
-    const rows = await parseMedicineImportFile(file, buffer);
+    let rows: ParsedMedicineImportRow[] = [];
+
+    // Try AI vision parsing first for PDFs
+    if (file.type === 'application/pdf') {
+      try {
+        console.log('Attempting AI vision parsing...');
+        const aiMedicines = await parsePDFWithAI(buffer);
+        if (aiMedicines.length > 0) {
+          rows = aiMedicines.map(med => ({
+            name: med.name,
+            company: '',
+            category: '',
+            hsn: '',
+            barcode: '',
+            rackLocation: '',
+            mrp: med.mrp,
+            packing: med.packing,
+            tradePrice: med.tradePrice,
+            sourceType: 'ai-vision' as const,
+          }));
+          console.log(`AI vision extracted ${rows.length} medicines`);
+        }
+      } catch (error) {
+        console.warn('AI vision parsing failed, falling back to OCR:', error);
+      }
+    }
+
+    // Fallback to traditional OCR if AI failed or no results
+    if (rows.length === 0) {
+      console.log('Using traditional OCR parsing...');
+      rows = await parseMedicineImportFile(file, buffer);
+    }
 
     if (rows.length === 0) {
       await importJobStore.createJob(jobId, 0);
