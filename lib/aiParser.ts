@@ -38,7 +38,7 @@ const MAX_CONCURRENT_REQUESTS = 1 // Reduced to avoid rate limits on free models
 const REQUEST_INTERVAL_MS = 1000 // Increased delay between requests
 const MAX_PDF_PAGES = 100 // Max pages to process (prevent timeouts)
 const MAX_PDF_TEXT_LENGTH = 500000 // Stop processing if text exceeds this (chars)
-const REQUEST_TIMEOUT_MS = 45000 // Timeout per request (45s, leaving buffer for Vercel 60s limit)
+const REQUEST_TIMEOUT_MS = 25000 // 25s per request (shorter to fit in Vercel limit)
 
 const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic/herbal distributor price lists.
 The text may come from OCR (scanned documents) so expect noise, typos, and formatting issues.
@@ -196,104 +196,114 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
 
 }
 
-async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMedicine[]> {
-  // Try each model in the fallback list
-  for (let modelIdx = 0; modelIdx < MODELS.length; modelIdx++) {
-    const model = MODELS[modelIdx];
-    
+// Quick probe to find a model that isn't rate-limited
+async function findWorkingModel(apiKey: string): Promise<string> {
+  console.log('🔍 Probing for a working AI model...');
+  for (const model of MODELS) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s probe timeout
       
-      try {
-        console.log(`📤 Sending chunk to AI (${chunk.length} chars, model: ${model})`);
-        const resp = await fetch(OPENROUTER_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: chunk },
-            ],
-            temperature: 0,
-            max_tokens: 9000,
-          }),
-          signal: controller.signal,
-        });
-
-        const responseText = await resp.text().catch(() => '');
-        console.log(`📋 AI response status: ${resp.status}`);
-        
-        let data: any = null;
-        try {
-          data = JSON.parse(responseText);
-        } catch {
-          console.warn(`⚠️ [${model}] AI response is not valid JSON:`, responseText.substring(0, 200));
-          continue; // Try next model
-        }
-
-        // Check for rate limit or API errors — try next model
-        if (data?.error) {
-          const errMsg = data.error.message || JSON.stringify(data.error);
-          console.warn(`⚠️ [${model}] API error: ${errMsg.substring(0, 200)}`);
-          
-          if (errMsg.toLowerCase().includes('rate limit') || resp.status === 429 || data.error.code === 429 || data.error.code === 42) {
-            console.log(`🔄 Rate limited on ${model}, trying next model...`);
-            await new Promise(r => setTimeout(r, 1000));
-            continue; // Try next model
-          }
-          // For non-rate-limit errors, also try next model
-          continue;
-        }
-
-        const content =
-          data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
-
-        if (!content || typeof content !== 'string') {
-          console.warn(`⚠️ [${model}] Empty content, trying next model...`);
-          console.warn('📋 Response:', responseText.substring(0, 300));
-          continue; // Try next model
-        }
-
-        console.log(`📥 [${model}] AI response: ${content.length} chars`);
-        const jsonText = extractJsonArray(content);
-
-        const parsed = JSON.parse(jsonText);
-        if (!Array.isArray(parsed)) {
-          console.warn(`⚠️ [${model}] Not an array, trying next model...`);
-          continue;
-        }
-
-        console.log(`✅ Parsed ${parsed.length} items from chunk`);
-        const medicines: ParsedMedicine[] = [];
-        for (const raw of parsed) {
-          const normalized = normalizeMedicine(raw);
-          if (normalized) {
-            medicines.push(normalized);
-          }
-        }
-
-        console.log(`💊 After normalization: ${medicines.length} valid medicines`);
-        return medicines;
-      } finally {
-        clearTimeout(timeoutId);
+      const resp = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'user', content: 'Reply with just: ["test"]' },
+          ],
+          temperature: 0,
+          max_tokens: 20,
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      const data = await resp.json().catch(() => null);
+      
+      if (data?.error) {
+        console.log(`  ❌ ${model}: ${(data.error.message || '').substring(0, 80)}`);
+        continue;
       }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.warn(`⏱️ [${model}] Timeout, trying next model...`);
-      } else {
-        console.warn(`❌ [${model}] Error:`, error instanceof Error ? error.message : String(error));
+      
+      const content = data?.choices?.[0]?.message?.content || '';
+      if (content) {
+        console.log(`  ✅ ${model}: working!`);
+        return model;
       }
-      // Try next model
+      console.log(`  ❌ ${model}: empty response`);
+    } catch {
+      console.log(`  ❌ ${model}: timeout or error`);
     }
   }
+  throw new Error('No AI models are currently available. Please try again in a few minutes.');
+}
+
+async function parseChunkWithAI(chunk: string, apiKey: string, model: string): Promise<ParsedMedicine[]> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   
-  // All models failed
-  throw new Error(`All ${MODELS.length} AI models failed (rate limited or unavailable)`);
+  try {
+    console.log(`📤 [${model}] Sending chunk (${chunk.length} chars)`);
+    const resp = await fetch(OPENROUTER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: chunk },
+        ],
+        temperature: 0,
+        max_tokens: 9000,
+      }),
+      signal: controller.signal,
+    });
+
+    const responseText = await resp.text().catch(() => '');
+    
+    let data: any = null;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.warn(`⚠️ Invalid JSON response`);
+      throw new Error('AI returned invalid JSON');
+    }
+
+    if (data?.error) {
+      throw new Error(`AI error: ${(data.error.message || JSON.stringify(data.error)).substring(0, 200)}`);
+    }
+
+    const content = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
+    if (!content) {
+      throw new Error('AI returned empty content');
+    }
+
+    console.log(`📥 AI response: ${content.length} chars`);
+    const jsonText = extractJsonArray(content);
+    const parsed = JSON.parse(jsonText);
+    
+    if (!Array.isArray(parsed)) {
+      throw new Error('AI response was not a JSON array');
+    }
+
+    const medicines: ParsedMedicine[] = [];
+    for (const raw of parsed) {
+      const normalized = normalizeMedicine(raw);
+      if (normalized) medicines.push(normalized);
+    }
+
+    console.log(`✅ ${medicines.length} medicines from chunk`);
+    return medicines;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 
@@ -334,27 +344,28 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
       console.log(`  Chunk ${i + 1}: ${chunk.length} chars`);
     });
 
-    console.log(`\n🤖 Calling AI for each chunk...`);
-    // Use rate limiter to prevent hitting API limits
-    const limiter = new RateLimiter(MAX_CONCURRENT_REQUESTS, REQUEST_INTERVAL_MS);
-    const chunkFunctions = chunks.map(chunk => () => parseChunkWithAI(chunk, apiKey));
-    const results = await limiter.executeAll(chunkFunctions);
+    console.log(`\n🤖 Finding a working AI model...`);
+    const workingModel = await findWorkingModel(apiKey);
+    console.log(`✅ Using model: ${workingModel}`);
 
-    console.log(`\n📊 Processing results from ${results.length} chunks...`);
+    console.log(`\n🤖 Parsing ${chunks.length} chunks with ${workingModel}...`);
+    // Process chunks SEQUENTIALLY to avoid rate limits
     const allMedicines: ParsedMedicine[] = [];
     let successCount = 0;
     let failureCount = 0;
     
-    for (let i = 0; i < results.length; i++) {
-      if (results[i].status === 'fulfilled') {
-        const fulfilledResult = results[i] as PromiseFulfilledResult<ParsedMedicine[]>;
-        const value = fulfilledResult.value;
-        allMedicines.push(...value);
-        console.log(`  Chunk ${i + 1}: ✅ ${value.length} medicines`);
+    for (let i = 0; i < chunks.length; i++) {
+      try {
+        const medicines = await parseChunkWithAI(chunks[i], apiKey, workingModel);
+        allMedicines.push(...medicines);
+        console.log(`  Chunk ${i + 1}/${chunks.length}: ✅ ${medicines.length} medicines`);
         successCount++;
-      } else {
-        const rejectedResult = results[i] as PromiseRejectedResult;
-        console.log(`  Chunk ${i + 1}: ❌ Failed - ${rejectedResult.reason}`);
+        // Small delay between chunks to avoid rate limits
+        if (i < chunks.length - 1) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+      } catch (error) {
+        console.warn(`  Chunk ${i + 1}/${chunks.length}: ❌ ${error instanceof Error ? error.message : String(error)}`);
         failureCount++;
       }
     }
