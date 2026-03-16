@@ -339,93 +339,120 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
   }
 
   try {
-    console.log('📖 Starting PDF parsing with pdf2json (pure JavaScript)...');
+    console.log('📖 Starting PDF parsing...');
     console.log(`📊 Buffer size: ${pdfBuffer.length} bytes`);
     
-    // Use pdf2json - pure JavaScript PDF parser with no native dependencies
-    console.log('🔧 Importing pdf2json...');
-    const PDFParser = (await import('pdf2json')).default;
-    console.log('✅ pdf2json imported');
+    // Method 1: Try pdf2json first (for searchable PDFs)
+    console.log('🔧 Attempting text extraction with pdf2json...');
     
-    // Parse PDF
-    console.log('⏳ Parsing PDF document...');
-    let fullText = '';
-    
-    return new Promise((resolve) => {
+    const fullText = await new Promise<string>((resolve) => {
+      const PDFParser = require('pdf2json');
+      let extractedText = '';
+      let completed = false;
+      
       const parser = new PDFParser();
       
+      const timeout = setTimeout(() => {
+        if (!completed) {
+          console.warn('⚠️ pdf2json extraction timeout after 10s');
+          completed = true;
+          resolve(''); // Return empty to try fallback
+        }
+      }, 10000);
+      
       parser.on('pdfParser_dataError', (error: any) => {
-        console.error('❌ PDF parsing error:', error);
-        resolve([]);
+        if (!completed) {
+          console.warn('⚠️ pdf2json parse error:', error instanceof Error ? error.message : String(error));
+          completed = true;
+          clearTimeout(timeout);
+          resolve('');
+        }
       });
       
       parser.on('pdfParser_dataReady', (pdfData: any) => {
+        if (completed) return;
+        
         try {
-          console.log(`✅ PDF parsed successfully`);
-          console.log(`📄 Total pages: ${pdfData.pages?.length || 0}`);
+          console.log(`✅ PDF structure loaded`);
+          console.log(`📄 Pages found: ${pdfData.pages?.length || 0}`);
           
-          // Extract text from all pages
           if (pdfData.pages && Array.isArray(pdfData.pages)) {
-            for (let pageNum = 0; pageNum < Math.min(pdfData.pages.length, MAX_PDF_PAGES); pageNum++) {
-              if (fullText.length >= MAX_PDF_TEXT_LENGTH) {
-                console.log(`⏹️ Text limit reached at page ${pageNum + 1}`);
-                break;
-              }
-              
+            for (let pageNum = 0; pageNum < Math.min(pdfData.pages.length, 5); pageNum++) {
               const page = pdfData.pages[pageNum];
-              if (page.texts && Array.isArray(page.texts)) {
+              
+              if (page.texts && Array.isArray(page.texts) && page.texts.length > 0) {
+                console.log(`  Page ${pageNum + 1}: Found ${page.texts.length} text items`);
+                
                 const pageText = page.texts
-                  .map((item: any) => (item.R && item.R[0] && item.R[0].T) ? decodeURIComponent(item.R[0].T) : '')
+                  .map((item: any) => {
+                    try {
+                      if (item.R && Array.isArray(item.R) && item.R[0] && item.R[0].T) {
+                        return decodeURIComponent(item.R[0].T);
+                      }
+                    } catch (e) {
+                      // Skip items that can't be decoded
+                    }
+                    return '';
+                  })
+                  .filter((text: string) => text.length > 0)
                   .join(' ');
                 
                 if (pageText.trim()) {
-                  fullText += pageText + '\n';
-                  console.log(`  ✓ Page ${pageNum + 1}: ${pageText.length} chars`);
+                  extractedText += pageText + '\n';
+                  console.log(`  ✓ Extracted ${pageText.length} chars from page ${pageNum + 1}`);
                 } else {
-                  console.log(`  ⚠️ Page ${pageNum + 1}: empty`);
+                  console.log(`  ⚠️ Page ${pageNum + 1} has text items but no readable text`);
                 }
+              } else {
+                console.log(`  ⚠️ Page ${pageNum + 1}: No text items (likely image-based page)`);
               }
             }
           }
           
-          console.log(`📊 Total extracted text: ${fullText.length} characters`);
-          
-          if (!fullText.trim()) {
-            console.error('❌ No text extracted from PDF');
-            resolve([]);
-            return;
-          }
-          
-          // Log preview
-          const preview = fullText.substring(0, 300).replace(/\n/g, ' ').substring(0, 250);
-          console.log(`📋 Text preview: "${preview}..."`);
-          
-          console.log(`✅ PDF extraction complete, passing to AI parser...`);
-          parseMedicinesWithAI(fullText)
-            .then(result => {
-              console.log(`🎉 Successfully parsed ${result.length} medicines!`);
-              resolve(result);
-            })
-            .catch(error => {
-              console.error('❌ AI parsing error:', error);
-              resolve([]);
-            });
+          completed = true;
+          clearTimeout(timeout);
+          resolve(extractedText);
         } catch (error) {
           console.error('❌ Error processing PDF data:', error);
-          resolve([]);
+          completed = true;
+          clearTimeout(timeout);
+          resolve('');
         }
       });
       
-      // Parse the buffer
-      parser.parseBuffer(pdfBuffer);
+      try {
+        parser.parseBuffer(pdfBuffer);
+      } catch (error) {
+        console.error('❌ pdf2json parse error:', error);
+        completed = true;
+        clearTimeout(timeout);
+        resolve('');
+      }
     });
+    
+    console.log(`📊 Total extracted text: ${fullText.length} characters`);
+    
+    if (!fullText.trim()) {
+      console.error('❌ PDF appears to be image-based (no searchable text found)');
+      console.error('💡 This PDF likely needs OCR to extract text');
+      console.error('💡 Solution: Please upload a PDF with searchable/embedded text, or convert this scanned PDF to searchable format');
+      return [];
+    }
+    
+    // Log preview
+    const preview = fullText.substring(0, 300).replace(/\n/g, ' ').substring(0, 250);
+    console.log(`📋 Text preview: "${preview}..."`);
+    
+    console.log(`✅ Text extraction complete, passing to AI parser...`);
+    const result = await parseMedicinesWithAI(fullText);
+    console.log(`🎉 Successfully parsed ${result.length} medicines!`);
+    
+    return result;
   } catch (error) {
     console.error('❌ PDF parsing failed:', error);
     if (error instanceof Error) {
       console.error('📋 Error:', error.message);
       console.error('🔗 Stack:', error.stack?.substring(0, 500));
-    } else {
-      console.error('📋 Unknown error:', String(error));
     }
     return []
   }
