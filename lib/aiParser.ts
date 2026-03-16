@@ -342,27 +342,25 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
     console.log('📖 Starting PDF parsing...');
     console.log(`📊 Buffer size: ${pdfBuffer.length} bytes`);
     
-    // Method 1: Try pdf2json first (for searchable PDFs)
+    // Step 1: Try text extraction first (fast method for searchable PDFs)
     console.log('🔧 Attempting text extraction with pdf2json...');
+    const PDFParser = require('pdf2json');
     
-    const fullText = await new Promise<string>((resolve) => {
-      const PDFParser = require('pdf2json');
+    let fullText = await new Promise<string>((resolve) => {
       let extractedText = '';
-      let completed = false;
-      
       const parser = new PDFParser();
+      let completed = false;
       
       const timeout = setTimeout(() => {
         if (!completed) {
-          console.warn('⚠️ pdf2json extraction timeout after 10s');
+          console.warn('⏱️ pdf2json timeout - PDF may be image-based');
           completed = true;
-          resolve(''); // Return empty to try fallback
+          resolve('');
         }
-      }, 10000);
+      }, 5000);
       
-      parser.on('pdfParser_dataError', (error: any) => {
+      parser.on('pdfParser_dataError', () => {
         if (!completed) {
-          console.warn('⚠️ pdf2json parse error:', error instanceof Error ? error.message : String(error));
           completed = true;
           clearTimeout(timeout);
           resolve('');
@@ -373,38 +371,26 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
         if (completed) return;
         
         try {
-          console.log(`✅ PDF structure loaded`);
-          console.log(`📄 Pages found: ${pdfData.pages?.length || 0}`);
+          console.log(`✅ PDF loaded - ${pdfData.pages?.length || 0} pages`);
           
           if (pdfData.pages && Array.isArray(pdfData.pages)) {
-            for (let pageNum = 0; pageNum < Math.min(pdfData.pages.length, 5); pageNum++) {
+            for (let pageNum = 0; pageNum < Math.min(pdfData.pages.length, 10); pageNum++) {
               const page = pdfData.pages[pageNum];
-              
-              if (page.texts && Array.isArray(page.texts) && page.texts.length > 0) {
-                console.log(`  Page ${pageNum + 1}: Found ${page.texts.length} text items`);
-                
+              if (page.texts && Array.isArray(page.texts)) {
                 const pageText = page.texts
                   .map((item: any) => {
                     try {
-                      if (item.R && Array.isArray(item.R) && item.R[0] && item.R[0].T) {
-                        return decodeURIComponent(item.R[0].T);
-                      }
-                    } catch (e) {
-                      // Skip items that can't be decoded
-                    }
+                      if (item.R && item.R[0]?.T) return decodeURIComponent(item.R[0].T);
+                    } catch (e) {}
                     return '';
                   })
-                  .filter((text: string) => text.length > 0)
+                  .filter((t: string) => t)
                   .join(' ');
                 
                 if (pageText.trim()) {
                   extractedText += pageText + '\n';
-                  console.log(`  ✓ Extracted ${pageText.length} chars from page ${pageNum + 1}`);
-                } else {
-                  console.log(`  ⚠️ Page ${pageNum + 1} has text items but no readable text`);
+                  console.log(`  ✓ Page ${pageNum + 1}: ${pageText.length} chars`);
                 }
-              } else {
-                console.log(`  ⚠️ Page ${pageNum + 1}: No text items (likely image-based page)`);
               }
             }
           }
@@ -413,7 +399,6 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
           clearTimeout(timeout);
           resolve(extractedText);
         } catch (error) {
-          console.error('❌ Error processing PDF data:', error);
           completed = true;
           clearTimeout(timeout);
           resolve('');
@@ -423,37 +408,85 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
       try {
         parser.parseBuffer(pdfBuffer);
       } catch (error) {
-        console.error('❌ pdf2json parse error:', error);
         completed = true;
         clearTimeout(timeout);
         resolve('');
       }
     });
     
-    console.log(`📊 Total extracted text: ${fullText.length} characters`);
+    console.log(`📊 Extracted text: ${fullText.length} characters`);
+    
+    // Step 2: If no text found, use OCR on first page
+    if (!fullText.trim()) {
+      console.log('⚠️ No searchable text - attempting OCR...');
+      
+      try {
+        const pdf2pic = await import('pdf2pic');
+        const Tesseract = (await import('tesseract.js')).default;
+        
+        console.log('🖼️ Converting first page to image...');
+        const { default: fromBuffer } = pdf2pic;
+        
+        const options = {
+          density: 150,
+          savePath: '/tmp',
+          format: 'png',
+          width: 1600,
+          height: 1200,
+          preserveAspectRatio: true
+        };
+        
+        let images: any[] = [];
+        try {
+          const result = await fromBuffer(pdfBuffer, options);
+          images = Array.isArray(result) ? [result[0]] : [result];
+          console.log(`✅ Converted first page to image`);
+        } catch (convError) {
+          console.error('❌ PDF to image conversion failed');
+          return [];
+        }
+        
+        if (images.length > 0) {
+          console.log('🔍 Running OCR (20-30 seconds)...');
+          
+          try {
+            const { data } = await Tesseract.recognize(
+              images[0].buffer || images[0],
+              'eng',
+              {
+                logger: (m: any) => {
+                  if (m.status === 'recognizing text') {
+                    console.log(`  OCR: ${Math.round(m.progress * 100)}%`);
+                  }
+                }
+              }
+            );
+            
+            fullText = data.text;
+            console.log(`✅ OCR: ${fullText.length} chars`);
+          } catch (ocrError) {
+            console.error('❌ OCR failed:', ocrError instanceof Error ? ocrError.message : 'Unknown error');
+            return [];
+          }
+        }
+      } catch (error) {
+        console.error('❌ OCR setup error:', error instanceof Error ? error.message : 'Unknown error');
+        return [];
+      }
+    }
     
     if (!fullText.trim()) {
-      console.error('❌ PDF appears to be image-based (no searchable text found)');
-      console.error('💡 This PDF likely needs OCR to extract text');
-      console.error('💡 Solution: Please upload a PDF with searchable/embedded text, or convert this scanned PDF to searchable format');
+      console.error('❌ No text extracted from PDF');
       return [];
     }
     
-    // Log preview
-    const preview = fullText.substring(0, 300).replace(/\n/g, ' ').substring(0, 250);
-    console.log(`📋 Text preview: "${preview}..."`);
-    
-    console.log(`✅ Text extraction complete, passing to AI parser...`);
+    console.log(`✅ Passing text to AI...`);
     const result = await parseMedicinesWithAI(fullText);
-    console.log(`🎉 Successfully parsed ${result.length} medicines!`);
+    console.log(`🎉 Parsed ${result.length} medicines!`);
     
     return result;
   } catch (error) {
-    console.error('❌ PDF parsing failed:', error);
-    if (error instanceof Error) {
-      console.error('📋 Error:', error.message);
-      console.error('🔗 Stack:', error.stack?.substring(0, 500));
-    }
+    console.error('❌ PDF parsing failed:', error instanceof Error ? error.message : String(error));
     return []
   }
 }
