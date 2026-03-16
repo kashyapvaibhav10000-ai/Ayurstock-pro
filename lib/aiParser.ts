@@ -1,5 +1,3 @@
-const pdfParse = require('pdf-parse');
-
 export type ParsedMedicine = {
   name: string
   packing: string
@@ -9,6 +7,11 @@ export type ParsedMedicine = {
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MODEL = 'meta-llama/llama-3.3-70b-instruct:free'
+const MAX_CONCURRENT_REQUESTS = 2 // Rate limiting: max 2 concurrent API calls
+const REQUEST_INTERVAL_MS = 500 // Minimum delay between requests (ms)
+const MAX_PDF_PAGES = 100 // Max pages to process (prevent timeouts)
+const MAX_PDF_TEXT_LENGTH = 500000 // Stop processing if text exceeds this (chars)
+const REQUEST_TIMEOUT_MS = 45000 // Timeout per request (45s, leaving buffer for Vercel 60s limit)
 
 const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic distributor price lists.
 
@@ -52,6 +55,40 @@ function extractJsonArray(text: string): string {
   }
 
   return cleaned
+}
+
+// Rate limiter: limits concurrent execution
+class RateLimiter {
+  private activeRequests = 0;
+  private queue: Array<() => void> = [];
+
+  constructor(
+    private maxConcurrent: number,
+    private delayBetweenMs: number
+  ) {}
+
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    while (this.activeRequests >= this.maxConcurrent) {
+      await new Promise<void>(resolve => this.queue.push(resolve));
+    }
+
+    this.activeRequests++;
+    try {
+      const result = await fn();
+      await new Promise<void>(resolve => setTimeout(resolve, this.delayBetweenMs));
+      return result;
+    } finally {
+      this.activeRequests--;
+      const next = this.queue.shift();
+      if (next) next();
+    }
+  }
+
+  async executeAll<T>(fns: Array<() => Promise<T>>): Promise<PromiseSettledResult<T>[]> {
+    return Promise.allSettled(
+      fns.map(fn => this.execute(fn))
+    );
+  }
 }
 
 function normalizeMedicine(item: any): ParsedMedicine | null {
@@ -139,44 +176,56 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
 
 async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMedicine[]> {
   try {
-    const resp = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: chunk },
-        ],
-        temperature: 0,
-        max_tokens: 9000,
-      }),
-    })
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    
+    try {
+      const resp = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: chunk },
+          ],
+          temperature: 0,
+          max_tokens: 9000,
+        }),
+        signal: controller.signal,
+      });
 
-    const data = await resp.json().catch(() => null)
+      const data = await resp.json().catch(() => null);
 
-    const content =
-      data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || ''
+      const content =
+        data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
 
-    if (!content || typeof content !== 'string') return []
+      if (!content || typeof content !== 'string') return [];
 
-    const jsonText = extractJsonArray(content)
+      const jsonText = extractJsonArray(content);
 
-    const parsed = JSON.parse(jsonText)
-    if (!Array.isArray(parsed)) return []
+      const parsed = JSON.parse(jsonText);
+      if (!Array.isArray(parsed)) return [];
 
-    const medicines: ParsedMedicine[] = []
-    for (const raw of parsed) {
-      const normalized = normalizeMedicine(raw)
-      if (normalized) medicines.push(normalized)
+      const medicines: ParsedMedicine[] = [];
+      for (const raw of parsed) {
+        const normalized = normalizeMedicine(raw);
+        if (normalized) medicines.push(normalized);
+      }
+
+      return medicines;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    return medicines
-  } catch {
-    return []
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('API request timeout');
+    }
+    return [];
   }
 }
 
@@ -188,8 +237,10 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMe
   const chunks = splitTextIntoChunks(cleanedText, 3000)
   if (chunks.length === 0) return []
 
-  const promises = chunks.map(chunk => parseChunkWithAI(chunk, apiKey))
-  const results = await Promise.allSettled(promises)
+  // Use rate limiter to prevent hitting API limits
+  const limiter = new RateLimiter(MAX_CONCURRENT_REQUESTS, REQUEST_INTERVAL_MS)
+  const chunkFunctions = chunks.map(chunk => () => parseChunkWithAI(chunk, apiKey))
+  const results = await limiter.executeAll(chunkFunctions)
 
   const allMedicines: ParsedMedicine[] = []
   for (const result of results) {
@@ -215,11 +266,41 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
   if (!apiKey) return []
 
   try {
-    const pdfData = await pdfParse(pdfBuffer);
-    const rawText = pdfData.text;
-    if (!rawText || rawText.trim().length === 0) return [];
-    console.log('PDF text extracted, length:', rawText.length);
-    return await parseMedicinesWithAI(rawText);
+    // Dynamically import pdfjs for serverless compatibility
+    const pdfjsLib = await import('pdfjs-dist');
+    const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
+    const pdf = await loadingTask.promise;
+    
+    // Limit pages processed to prevent timeout on large PDFs
+    const totalPages = Math.min(pdf.numPages, MAX_PDF_PAGES);
+    let fullText = '';
+    
+    console.log(`Processing PDF: ${totalPages}/${pdf.numPages} pages`);
+    
+    for (let i = 1; i <= totalPages; i++) {
+      // Stop early if we have enough text
+      if (fullText.length >= MAX_PDF_TEXT_LENGTH) {
+        console.log(`Text length limit reached at page ${i}`);
+        break;
+      }
+      
+      try {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += pageText + '\n';
+      } catch (pageError) {
+        console.warn(`Failed to extract page ${i}:`, pageError);
+        // Continue with next page instead of failing
+        continue;
+      }
+    }
+    
+    if (!fullText.trim()) return [];
+    console.log(`PDF extraction complete: ${totalPages} pages, ${fullText.length} chars`);
+    return await parseMedicinesWithAI(fullText);
   } catch (error) {
     console.error('PDF parsing failed:', error)
     return []

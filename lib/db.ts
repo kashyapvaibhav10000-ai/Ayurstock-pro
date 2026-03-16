@@ -8,4 +8,15 @@ export const prisma =
     log: ['error', 'warn'],
   });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
+
+// Graceful shutdown for serverless
+export async function disconnectPrisma() {
+  try {
+    await prisma.$disconnect();
+  } catch (error) {
+    console.error('Error disconnecting Prisma:', error);
+  }
+}

@@ -68,11 +68,19 @@ export async function POST(req: NextRequest) {
 
     if (file.type === 'application/pdf') {
       try {
-        const pdfModule = await import('pdf-parse');
-        const pdfParse = (pdfModule as { default?: (data: Buffer) => Promise<{ text?: string }> })
-          .default ?? (pdfModule as unknown as (data: Buffer) => Promise<{ text?: string }>);
-        const pdfData = await pdfParse(buffer);
-        parsedRows = parsePurchaseInvoiceText(pdfData.text || '');
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
+        const loadingTask = pdfjsLib.getDocument({ data: buffer });
+        const pdf = await loadingTask.promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(' ');
+          fullText += pageText + '\n';
+        }
+        parsedRows = parsePurchaseInvoiceText(fullText);
       } catch (error) {
         console.warn('PDF text parse failed, falling back to OCR:', error);
       }
