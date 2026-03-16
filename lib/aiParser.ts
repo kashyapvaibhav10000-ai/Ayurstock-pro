@@ -26,11 +26,12 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 // Fallback models — if one is rate-limited, try the next
 // Verified via GET https://openrouter.ai/api/v1/models (queried 2026-03-17)
+// Ordered by speed — faster models first
 const MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',         // 128K ctx, best quality
-  'nousresearch/hermes-3-llama-3.1-405b:free',       // 131K ctx, largest
+  'google/gemma-3-27b-it:free',                      // 131K ctx, fast
   'mistralai/mistral-small-3.1-24b-instruct:free',   // 128K ctx, fast
-  'google/gemma-3-27b-it:free',                      // 131K ctx, good quality
+  'meta-llama/llama-3.3-70b-instruct:free',           // 128K ctx, best quality
+  'nousresearch/hermes-3-llama-3.1-405b:free',        // 131K ctx, largest
   'nvidia/nemotron-3-super-120b-a12b:free',           // 262K ctx, large
 ]
 
@@ -332,7 +333,7 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
     console.log(`📝 Cleaned text sample:\n${cleanedText.substring(0, 200)}`);
     
     console.log(`\n📦 Splitting into chunks...`);
-    const chunks = splitTextIntoChunks(cleanedText, 3000);
+    const chunks = splitTextIntoChunks(cleanedText, 10000);
     console.log(`✅ Created ${chunks.length} chunks`);
     
     if (chunks.length === 0) {
@@ -350,20 +351,22 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
 
     console.log(`\n🤖 Parsing ${chunks.length} chunks with ${workingModel}...`);
     // Process chunks SEQUENTIALLY to avoid rate limits
+    const GLOBAL_DEADLINE = Date.now() + 240000; // 240s hard limit (Vercel = 300s)
     const allMedicines: ParsedMedicine[] = [];
     let successCount = 0;
     let failureCount = 0;
     
     for (let i = 0; i < chunks.length; i++) {
+      // Check global deadline
+      if (Date.now() > GLOBAL_DEADLINE) {
+        console.warn(`\n⏱️ Global timeout reached after ${i} chunks. Returning partial results.`);
+        break;
+      }
       try {
         const medicines = await parseChunkWithAI(chunks[i], apiKey, workingModel);
         allMedicines.push(...medicines);
         console.log(`  Chunk ${i + 1}/${chunks.length}: ✅ ${medicines.length} medicines`);
         successCount++;
-        // Small delay between chunks to avoid rate limits
-        if (i < chunks.length - 1) {
-          await new Promise(r => setTimeout(r, 500));
-        }
       } catch (error) {
         console.warn(`  Chunk ${i + 1}/${chunks.length}: ❌ ${error instanceof Error ? error.message : String(error)}`);
         failureCount++;
