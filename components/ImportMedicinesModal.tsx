@@ -272,11 +272,22 @@ export default function ImportMedicinesModal({
         setParseError(response.data.message || 'Failed to parse file');
         setStep('upload');
       }
-    } catch (error) {
+    } catch (error: any) {
       const data = axios.isAxiosError(error) ? error.response?.data : null;
-      setErrorCode(data?.errorCode || '');
-      setParseError(data?.message || 'Failed to upload file');
-      setStep('upload');
+      
+      // Handle scanned PDF even if returned as 400
+      if (data?.errorCode === 'NO_TEXT') {
+        setPdfType('scanned');
+        setErrorCode('NO_TEXT');
+        setParseError(data?.message || 'This PDF appears to be scanned.');
+        setStep('upload');
+      } else {
+        const serverMessage = data?.message || data?.errorMessage || '';
+        const errorMsg = serverMessage || (error?.message || 'Failed to upload file');
+        setErrorCode(data?.errorCode || '');
+        setParseError(errorMsg);
+        setStep('upload');
+      }
     } finally {
       setLoading(false);
     }

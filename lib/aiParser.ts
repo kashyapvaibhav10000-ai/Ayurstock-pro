@@ -187,74 +187,110 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
 }
 
 async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMedicine[]> {
-  try {
-    // Add timeout to prevent hanging requests
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    
+  const MAX_RETRIES = 2;
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      console.log(`📤 Sending chunk to AI (${chunk.length} chars)`);
-      const resp = await fetch(OPENROUTER_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: chunk },
-          ],
-          temperature: 0,
-          max_tokens: 9000,
-        }),
-        signal: controller.signal,
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      
+      try {
+        console.log(`📤 Sending chunk to AI (${chunk.length} chars, attempt ${attempt}/${MAX_RETRIES})`);
+        const resp = await fetch(OPENROUTER_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              { role: 'user', content: chunk },
+            ],
+            temperature: 0,
+            max_tokens: 9000,
+          }),
+          signal: controller.signal,
+        });
 
-      const data = await resp.json().catch(() => null);
-
-      const content =
-        data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
-
-      if (!content || typeof content !== 'string') {
-        console.warn('⚠️ No content from AI');
-        console.warn('📋 AI response status:', resp.status);
-        console.warn('📋 AI response data:', JSON.stringify(data).substring(0, 500));
-        return [];
-      }
-
-      console.log(`📥 AI response received (${content.length} chars)`);
-      const jsonText = extractJsonArray(content);
-
-      const parsed = JSON.parse(jsonText);
-      if (!Array.isArray(parsed)) {
-        console.warn('⚠️ AI response is not array:', typeof parsed);
-        return [];
-      }
-
-      console.log(`✅ Parsed ${parsed.length} items from chunk`);
-      const medicines: ParsedMedicine[] = [];
-      for (const raw of parsed) {
-        const normalized = normalizeMedicine(raw);
-        if (normalized) {
-          medicines.push(normalized);
+        const responseText = await resp.text().catch(() => '');
+        console.log(`📋 AI response status: ${resp.status}`);
+        
+        let data: any = null;
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          console.warn('⚠️ AI response is not valid JSON:', responseText.substring(0, 300));
+          if (attempt < MAX_RETRIES) {
+            console.log('🔄 Retrying...');
+            await new Promise(r => setTimeout(r, 2000));
+            continue;
+          }
+          throw new Error('AI returned invalid JSON response');
         }
-      }
 
-      console.log(`💊 After normalization: ${medicines.length} valid medicines`);
-      return medicines;
-    } finally {
-      clearTimeout(timeoutId);
+        // Check for API errors
+        if (data?.error) {
+          console.warn('⚠️ AI API error:', JSON.stringify(data.error).substring(0, 300));
+          if (attempt < MAX_RETRIES) {
+            console.log('🔄 Retrying after API error...');
+            await new Promise(r => setTimeout(r, 3000));
+            continue;
+          }
+          throw new Error(`AI API error: ${data.error.message || JSON.stringify(data.error)}`);
+        }
+
+        const content =
+          data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
+
+        if (!content || typeof content !== 'string') {
+          console.warn('⚠️ No content from AI');
+          console.warn('📋 Full AI response:', responseText.substring(0, 500));
+          if (attempt < MAX_RETRIES) {
+            console.log('🔄 Retrying...');
+            await new Promise(r => setTimeout(r, 2000));
+            continue;
+          }
+          throw new Error('AI returned empty content after retries');
+        }
+
+        console.log(`📥 AI response received (${content.length} chars)`);
+        const jsonText = extractJsonArray(content);
+
+        const parsed = JSON.parse(jsonText);
+        if (!Array.isArray(parsed)) {
+          console.warn('⚠️ AI response is not array:', typeof parsed);
+          throw new Error('AI response was not a JSON array');
+        }
+
+        console.log(`✅ Parsed ${parsed.length} items from chunk`);
+        const medicines: ParsedMedicine[] = [];
+        for (const raw of parsed) {
+          const normalized = normalizeMedicine(raw);
+          if (normalized) {
+            medicines.push(normalized);
+          }
+        }
+
+        console.log(`💊 After normalization: ${medicines.length} valid medicines`);
+        return medicines;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('⏱️ AI request timeout');
+      } else {
+        console.warn(`❌ AI parsing error (attempt ${attempt}):`, error instanceof Error ? error.message : String(error));
+      }
+      if (attempt >= MAX_RETRIES) {
+        throw error; // Propagate to caller so it counts as a failure
+      }
+      await new Promise(r => setTimeout(r, 2000));
     }
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.warn('⏱️ AI request timeout');
-    } else {
-      console.warn('❌ AI parsing error:', error instanceof Error ? error.message : String(error));
-    }
-    return [];
   }
+  throw new Error('All AI retry attempts failed');
 }
 
 export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseResult> {
@@ -321,8 +357,11 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
     console.log(`\n📊 Results: ${successCount} successful, ${failureCount} failed`);
     console.log(`💊 Total before dedup: ${allMedicines.length} medicines`);
 
-    if (allMedicines.length === 0 && failureCount > 0) {
-      return { medicines: [], pdfType: 'unknown', errorCode: 'AI_FAILED', errorMessage: `AI parsing failed for all ${failureCount} text chunks. Please try again.` };
+    if (allMedicines.length === 0) {
+      const errorMsg = failureCount > 0
+        ? `AI parsing failed for all ${failureCount} text chunks. The AI model may be temporarily unavailable — please try again in a moment.`
+        : 'No medicines could be extracted. The text may not contain recognizable medicine data.';
+      return { medicines: [], pdfType: 'unknown', errorCode: 'AI_FAILED', errorMessage: errorMsg };
     }
 
     // Deduplicate using name + packing as key
