@@ -339,100 +339,88 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
   }
 
   try {
-    console.log('📖 Starting PDF parsing via OCR (tesseract.js)...');
+    console.log('📖 Starting PDF parsing with pdf2json (pure JavaScript)...');
     console.log(`📊 Buffer size: ${pdfBuffer.length} bytes`);
     
-    // Import OCR and PDF conversion libraries
-    console.log('🔧 Importing dependencies...');
-    const Tesseract = (await import('tesseract.js')).default;
-    const pdf2pic = await import('pdf2pic');
-    const fromBuffer = pdf2pic.default.fromBuffer;
-    console.log('✅ Dependencies imported');
+    // Use pdf2json - pure JavaScript PDF parser with no native dependencies
+    console.log('🔧 Importing pdf2json...');
+    const PDFParser = (await import('pdf2json')).default;
+    console.log('✅ pdf2json imported');
     
-    // Convert PDF to images (first 10 pages max)
-    console.log('🖼️ Converting PDF to images...');
-    let images: any[] = [];
-    try {
-      const options = {
-        density: 200,
-        savePath: '/tmp',
-        format: 'png',
-        width: 1920,
-        height: 1440,
-        preserveAspectRatio: true
-      };
-      
-      const result = await fromBuffer(pdfBuffer, options);
-      images = Array.isArray(result) ? result.slice(0, MAX_PDF_PAGES) : [result];
-      console.log(`✅ Converted to ${images.length} images`);
-    } catch (conversionError) {
-      console.error('⚠️ PDF conversion failed, trying fallback method');
-      // If conversion fails, continue with empty images
-      images = [];
-    }
-    
-    // Extract text using OCR
+    // Parse PDF
+    console.log('⏳ Parsing PDF document...');
     let fullText = '';
     
-    if (images.length > 0) {
-      console.log(`🔍 Running OCR on ${images.length} images...`);
+    return new Promise((resolve) => {
+      const parser = new PDFParser();
       
-      for (let i = 0; i < images.length; i++) {
+      parser.on('pdfParser_dataError', (error: any) => {
+        console.error('❌ PDF parsing error:', error);
+        resolve([]);
+      });
+      
+      parser.on('pdfParser_dataReady', (pdfData: any) => {
         try {
-          if (fullText.length >= MAX_PDF_TEXT_LENGTH) {
-            console.log(`⏹️ Text limit reached at image ${i + 1}`);
-            break;
-          }
+          console.log(`✅ PDF parsed successfully`);
+          console.log(`📄 Total pages: ${pdfData.pages?.length || 0}`);
           
-          console.log(`  Processing image ${i + 1}/${images.length}...`);
-          
-          // Run Tesseract OCR on image
-          const { data } = await Tesseract.recognize(
-            images[i].buffer || images[i],
-            'eng',
-            {
-              logger: (m: any) => {
-                if (m.status === 'recognizing text') {
-                  console.log(`    OCR progress: ${Math.round(m.progress * 100)}%`);
+          // Extract text from all pages
+          if (pdfData.pages && Array.isArray(pdfData.pages)) {
+            for (let pageNum = 0; pageNum < Math.min(pdfData.pages.length, MAX_PDF_PAGES); pageNum++) {
+              if (fullText.length >= MAX_PDF_TEXT_LENGTH) {
+                console.log(`⏹️ Text limit reached at page ${pageNum + 1}`);
+                break;
+              }
+              
+              const page = pdfData.pages[pageNum];
+              if (page.texts && Array.isArray(page.texts)) {
+                const pageText = page.texts
+                  .map((item: any) => (item.R && item.R[0] && item.R[0].T) ? decodeURIComponent(item.R[0].T) : '')
+                  .join(' ');
+                
+                if (pageText.trim()) {
+                  fullText += pageText + '\n';
+                  console.log(`  ✓ Page ${pageNum + 1}: ${pageText.length} chars`);
+                } else {
+                  console.log(`  ⚠️ Page ${pageNum + 1}: empty`);
                 }
               }
             }
-          );
-          
-          const imageText = data.text;
-          if (imageText.trim()) {
-            fullText += imageText + '\n';
-            console.log(`  ✓ Image ${i + 1}: ${imageText.length} chars extracted`);
-          } else {
-            console.log(`  ⚠️ Image ${i + 1}: no text found`);
           }
-        } catch (ocrError) {
-          console.error(`❌ OCR failed for image ${i + 1}:`, ocrError instanceof Error ? ocrError.message : String(ocrError));
-          continue;
+          
+          console.log(`📊 Total extracted text: ${fullText.length} characters`);
+          
+          if (!fullText.trim()) {
+            console.error('❌ No text extracted from PDF');
+            resolve([]);
+            return;
+          }
+          
+          // Log preview
+          const preview = fullText.substring(0, 300).replace(/\n/g, ' ').substring(0, 250);
+          console.log(`📋 Text preview: "${preview}..."`);
+          
+          console.log(`✅ PDF extraction complete, passing to AI parser...`);
+          parseMedicinesWithAI(fullText)
+            .then(result => {
+              console.log(`🎉 Successfully parsed ${result.length} medicines!`);
+              resolve(result);
+            })
+            .catch(error => {
+              console.error('❌ AI parsing error:', error);
+              resolve([]);
+            });
+        } catch (error) {
+          console.error('❌ Error processing PDF data:', error);
+          resolve([]);
         }
-      }
-    } else {
-      console.warn('⚠️ No images generated from PDF');
-    }
-    
-    console.log(`📊 Total extracted text: ${fullText.length} characters`);
-    
-    if (!fullText.trim()) {
-      console.error('❌ No text extracted from PDF via OCR');
-      return [];
-    }
-    
-    // Log preview
-    const preview = fullText.substring(0, 300).replace(/\n/g, ' ').substring(0, 250);
-    console.log(`📋 Text preview: "${preview}..."`);
-    
-    console.log(`✅ OCR extraction complete, passing to AI parser...`);
-    const result = await parseMedicinesWithAI(fullText);
-    console.log(`🎉 Successfully parsed ${result.length} medicines!`);
-    
-    return result;
+      });
+      
+      // Parse the buffer
+      parser.parseBuffer(pdfBuffer);
+    });
   } catch (error) {
-    console.error('❌ PDF parsing via OCR failed:', error);
+    console.error('❌ PDF parsing failed:', error);
     if (error instanceof Error) {
       console.error('📋 Error:', error.message);
       console.error('🔗 Stack:', error.stack?.substring(0, 500));
