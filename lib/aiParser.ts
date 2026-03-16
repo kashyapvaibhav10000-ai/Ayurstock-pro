@@ -23,9 +23,17 @@ export interface ParseResult {
 }
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const MODEL = 'meta-llama/llama-3.3-70b-instruct:free'
-const MAX_CONCURRENT_REQUESTS = 2 // Rate limiting: max 2 concurrent API calls
-const REQUEST_INTERVAL_MS = 500 // Minimum delay between requests (ms)
+
+// Fallback models — if one is rate-limited, try the next
+const MODELS = [
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'google/gemma-2-9b-it:free',
+  'mistralai/mistral-7b-instruct:free',
+]
+
+const MAX_CONCURRENT_REQUESTS = 1 // Reduced to avoid rate limits on free models
+const REQUEST_INTERVAL_MS = 1000 // Increased delay between requests
 const MAX_PDF_PAGES = 100 // Max pages to process (prevent timeouts)
 const MAX_PDF_TEXT_LENGTH = 500000 // Stop processing if text exceeds this (chars)
 const REQUEST_TIMEOUT_MS = 45000 // Timeout per request (45s, leaving buffer for Vercel 60s limit)
@@ -187,15 +195,16 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
 }
 
 async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMedicine[]> {
-  const MAX_RETRIES = 2;
-  
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+  // Try each model in the fallback list
+  for (let modelIdx = 0; modelIdx < MODELS.length; modelIdx++) {
+    const model = MODELS[modelIdx];
+    
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       
       try {
-        console.log(`📤 Sending chunk to AI (${chunk.length} chars, attempt ${attempt}/${MAX_RETRIES})`);
+        console.log(`📤 Sending chunk to AI (${chunk.length} chars, model: ${model})`);
         const resp = await fetch(OPENROUTER_URL, {
           method: 'POST',
           headers: {
@@ -203,7 +212,7 @@ async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMe
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: MODEL,
+            model: model,
             messages: [
               { role: 'system', content: SYSTEM_PROMPT },
               { role: 'user', content: chunk },
@@ -221,47 +230,40 @@ async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMe
         try {
           data = JSON.parse(responseText);
         } catch {
-          console.warn('⚠️ AI response is not valid JSON:', responseText.substring(0, 300));
-          if (attempt < MAX_RETRIES) {
-            console.log('🔄 Retrying...');
-            await new Promise(r => setTimeout(r, 2000));
-            continue;
-          }
-          throw new Error('AI returned invalid JSON response');
+          console.warn(`⚠️ [${model}] AI response is not valid JSON:`, responseText.substring(0, 200));
+          continue; // Try next model
         }
 
-        // Check for API errors
+        // Check for rate limit or API errors — try next model
         if (data?.error) {
-          console.warn('⚠️ AI API error:', JSON.stringify(data.error).substring(0, 300));
-          if (attempt < MAX_RETRIES) {
-            console.log('🔄 Retrying after API error...');
-            await new Promise(r => setTimeout(r, 3000));
-            continue;
+          const errMsg = data.error.message || JSON.stringify(data.error);
+          console.warn(`⚠️ [${model}] API error: ${errMsg.substring(0, 200)}`);
+          
+          if (errMsg.toLowerCase().includes('rate limit') || resp.status === 429 || data.error.code === 429 || data.error.code === 42) {
+            console.log(`🔄 Rate limited on ${model}, trying next model...`);
+            await new Promise(r => setTimeout(r, 1000));
+            continue; // Try next model
           }
-          throw new Error(`AI API error: ${data.error.message || JSON.stringify(data.error)}`);
+          // For non-rate-limit errors, also try next model
+          continue;
         }
 
         const content =
           data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
 
         if (!content || typeof content !== 'string') {
-          console.warn('⚠️ No content from AI');
-          console.warn('📋 Full AI response:', responseText.substring(0, 500));
-          if (attempt < MAX_RETRIES) {
-            console.log('🔄 Retrying...');
-            await new Promise(r => setTimeout(r, 2000));
-            continue;
-          }
-          throw new Error('AI returned empty content after retries');
+          console.warn(`⚠️ [${model}] Empty content, trying next model...`);
+          console.warn('📋 Response:', responseText.substring(0, 300));
+          continue; // Try next model
         }
 
-        console.log(`📥 AI response received (${content.length} chars)`);
+        console.log(`📥 [${model}] AI response: ${content.length} chars`);
         const jsonText = extractJsonArray(content);
 
         const parsed = JSON.parse(jsonText);
         if (!Array.isArray(parsed)) {
-          console.warn('⚠️ AI response is not array:', typeof parsed);
-          throw new Error('AI response was not a JSON array');
+          console.warn(`⚠️ [${model}] Not an array, trying next model...`);
+          continue;
         }
 
         console.log(`✅ Parsed ${parsed.length} items from chunk`);
@@ -280,18 +282,19 @@ async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMe
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('⏱️ AI request timeout');
+        console.warn(`⏱️ [${model}] Timeout, trying next model...`);
       } else {
-        console.warn(`❌ AI parsing error (attempt ${attempt}):`, error instanceof Error ? error.message : String(error));
+        console.warn(`❌ [${model}] Error:`, error instanceof Error ? error.message : String(error));
       }
-      if (attempt >= MAX_RETRIES) {
-        throw error; // Propagate to caller so it counts as a failure
-      }
-      await new Promise(r => setTimeout(r, 2000));
+      // Try next model
     }
   }
-  throw new Error('All AI retry attempts failed');
+  
+  // All models failed
+  throw new Error(`All ${MODELS.length} AI models failed (rate limited or unavailable)`);
 }
+
+
 
 export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseResult> {
   const apiKey = process.env.OPENROUTER_API_KEY
