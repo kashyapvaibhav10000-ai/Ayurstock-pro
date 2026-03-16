@@ -15,30 +15,26 @@ const REQUEST_TIMEOUT_MS = 45000 // Timeout per request (45s, leaving buffer for
 
 const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic distributor price lists.
 
-STRICT RULES for identifying a valid medicine name:
-1. Medicine name is ALWAYS written in FULL ENGLISH CAPITALS
-   example: GANDHAK RASAYAN, BRAHMI VATI (S.M.Y.), MALLASINDUR (KUPIPAKWA)
-2. Medicine name NEVER contains a comma - if a line has a comma SKIP IT
-3. Brackets are ALLOWED in medicine names 
-   example: AROGYAVADHINI GUTIKA (RASA), SAMIRPANNAG RASA (KUPIPAKWA)
-4. Medicine name NEVER starts with a lowercase letter
-5. Medicine name NEVER contains disease words like:
-   Fever, Cough, Acidity, Weakness, Piles, Diabetes, Anaemia,
-   Tuberculosis, Arthritis, Bodyache, Burn, Penile, Leucorrhoea,
-   Metrorrhagia, Indigestion, Duodinal, Toothache, Pulmonary,
-   Urinary, Inflammation, Disorders, Constipation, Jaundice
-6. If a line contains a comma - it is a description - SKIP IT
-7. If a line is in Hindi script - SKIP IT
-8. If a line is a category header like PATENT MEDICINES,
-   CAPSULES, TABLETS, GUGGULU, CHURNA, BHASMA - SKIP IT
-9. Packing examples: 30 Cap, 80 Tab, 450 Ml, 100 Gm,
-   50 ml, 10 Tab, 1 Kg, 500 Mg, 3x10 Cap, 60 Tab
-10. Each medicine may appear multiple times with different
-    packing and price - treat each as separate record
-11. Return ONLY a valid JSON array. No markdown. No backticks.
-    Each item: name (string), packing (string),
-    mrp (number), tradePrice (number)
-12. When unsure if a line is a medicine name or description - SKIP IT`
+IMPORTANT: One medicine can have multiple packing sizes with different prices.
+Create separate records for EACH packing variant.
+
+EXAMPLE INPUT:
+"ADULSA SYRUP   200ML   104.00   130   400ML   192.00   240"
+
+EXPECTED OUTPUT:
+[
+  {"name": "ADULSA SYRUP", "packing": "200ML", "mrp": 130, "tradePrice": 104},
+  {"name": "ADULSA SYRUP", "packing": "400ML", "mrp": 240, "tradePrice": 192}
+]
+
+RULES:
+1. Medicine name is in ALL CAPITALS
+2. Extract ALL packing + price combinations for each medicine
+3. Return separate record for EACH variant, NOT combined
+4. packing format: "200ML", "60TAB", "100GM", "1KG", etc
+5. Prices are EXACT numbers from list (mrp and tradePrice)
+6. Return ONLY valid JSON array, no markdown or extra text
+7. Each item MUST have: name (string), packing (string), mrp (number), tradePrice (number)`
 
 function extractJsonArray(text: string): string {
   let cleaned = text.trim()
@@ -125,26 +121,29 @@ function cleanOcrText(rawOcrText: string): string {
 
   for (const line of lines) {
     const trimmed = line.trim()
-    if (!trimmed) continue
+    if (!trimmed || trimmed.length < 3) continue
 
-    // Remove conditions
-    if (trimmed.includes(',')) continue // 1. Contains comma
-    if (/[\u0900-\u097F]/.test(trimmed)) continue // 2. Contains Hindi unicode
-    const words = trimmed.split(/\s+/)
-    if (words.length > 5 && trimmed !== trimmed.toUpperCase()) continue // 3. More than 5 words and not all caps
-    if (/^[a-z]/.test(trimmed)) continue // 4. Starts with lowercase
-    const lowerTrimmed = trimmed.toLowerCase()
-    if (BAD_WORDS.has(lowerTrimmed) || words.some(word => BAD_WORDS.has(word.toLowerCase()))) continue // 5. Contains bad words
-
-    // Keep conditions
-    let keep = false
-    if (/^\d{3,8}\s?[A-Z#?]?/.test(trimmed)) keep = true // Product code
-    else if (trimmed === trimmed.toUpperCase() && trimmed.length > 0) keep = true // All caps
-    else if (/\b(?:Tab|Cap|Ml|Gm|Mg|Kg)\b/i.test(trimmed)) keep = true // Packing
-    else if (/^\d+(\.\d{1,2})?$/.test(trimmed) && !isNaN(Number(trimmed))) keep = true // Price
-
-    if (keep) {
+    // Skip obvious non-medicine lines
+    if (/[\u0900-\u097F]/.test(trimmed)) continue // Hindi text only
+    if (trimmed.toLowerCase().includes('total') || trimmed.toLowerCase().includes('page')) continue
+    if (trimmed.includes('===') || trimmed.includes('---')) continue
+    
+    // Keep if contains price-like patterns (numbers with decimals)
+    if (/\d+\.\d{2}/.test(trimmed)) {
       cleanedLines.push(trimmed)
+      continue
+    }
+    
+    // Keep if all caps and at least 2 chars (likely medicine name)
+    if (trimmed === trimmed.toUpperCase() && trimmed.length > 2) {
+      cleanedLines.push(trimmed)
+      continue
+    }
+    
+    // Keep if contains measurement units
+    if (/\b(tab|cap|ml|gm|mg|kg|piece|strip|bottle|vial|jar)\b/i.test(trimmed)) {
+      cleanedLines.push(trimmed)
+      continue
     }
   }
 
@@ -181,6 +180,7 @@ async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMe
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     
     try {
+      console.log(`📤 Sending chunk to AI (${chunk.length} chars)`);
       const resp = await fetch(OPENROUTER_URL, {
         method: 'POST',
         headers: {
@@ -204,26 +204,39 @@ async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMe
       const content =
         data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
 
-      if (!content || typeof content !== 'string') return [];
+      if (!content || typeof content !== 'string') {
+        console.warn('⚠️ No content from AI');
+        return [];
+      }
 
+      console.log(`📥 AI response received (${content.length} chars)`);
       const jsonText = extractJsonArray(content);
 
       const parsed = JSON.parse(jsonText);
-      if (!Array.isArray(parsed)) return [];
+      if (!Array.isArray(parsed)) {
+        console.warn('⚠️ AI response is not array:', typeof parsed);
+        return [];
+      }
 
+      console.log(`✅ Parsed ${parsed.length} items from chunk`);
       const medicines: ParsedMedicine[] = [];
       for (const raw of parsed) {
         const normalized = normalizeMedicine(raw);
-        if (normalized) medicines.push(normalized);
+        if (normalized) {
+          medicines.push(normalized);
+        }
       }
 
+      console.log(`💊 After normalization: ${medicines.length} valid medicines`);
       return medicines;
     } finally {
       clearTimeout(timeoutId);
     }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      console.warn('API request timeout');
+      console.warn('⏱️ AI request timeout');
+    } else {
+      console.warn('❌ AI parsing error:', error instanceof Error ? error.message : String(error));
     }
     return [];
   }
