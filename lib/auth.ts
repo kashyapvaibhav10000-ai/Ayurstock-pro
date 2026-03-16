@@ -23,8 +23,13 @@ export function generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string 
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload;
-  } catch {
+    const payload = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    console.log('✓ Token verified successfully');
+    return payload;
+  } catch (error) {
+    const err = error instanceof Error ? error.message : String(error);
+    console.warn('⚠️ Token verification failed:', err);
+    console.warn('⚠️ JWT_SECRET in use:', JWT_SECRET ? 'SET' : 'NOT SET or empty');
     return null;
   }
 }
@@ -88,14 +93,19 @@ export async function verifyAuth(req: NextRequest): Promise<{
     const token = extractRequestToken(req);
 
     if (!token) {
+      console.warn('⚠️ No token found in request');
       return { authenticated: false };
     }
+
+    console.log('✓ Token extracted:', token.substring(0, 20) + '...');
 
     const user = await getAuthUserFromToken(token);
     if (!user) {
+      console.warn('⚠️ Invalid or expired token');
       return { authenticated: false };
     }
 
+    console.log('✓ Auth successful for user:', user.email);
     return {
       authenticated: true,
       user,

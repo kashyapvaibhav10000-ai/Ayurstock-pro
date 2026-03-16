@@ -138,29 +138,35 @@ export default function ImportMedicinesModal({
       const formData = new FormData();
       formData.append('file', file);
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'multipart/form-data',
-      };
-
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
+      const headers: Record<string, string> = {};
+      const authToken = token || localStorage.getItem('token');
+      
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+        console.log('Token found, sending with request');
+      } else {
+        console.warn('No token found in localStorage');
       }
 
       const response = await axios.post('/api/medicines/import', formData, {
         headers,
       });
 
-      if (response.data.success && response.data.jobId) {
-        setJobId(response.data.jobId);
-        setStep('processing');
-        // Start polling for progress
-        startPolling(response.data.jobId);
+      if (response.data.success && response.data.medicines) {
+        setPreview(
+          response.data.medicines.map((med: ParsedMedicine, idx: number) => ({
+            ...med,
+            status: 'imported' as ImportStatus,
+          }))
+        );
+        setStep('preview');
       } else {
-        setParseError(response.data.message || 'Failed to start import job');
+        setParseError(response.data.message || 'Failed to parse file');
       }
     } catch (error) {
       const message = axios.isAxiosError(error) ? error.response?.data?.message : 'Failed to upload file';
       setParseError(message || 'An error occurred');
+      console.error('Upload error:', error);
     } finally {
       setLoading(false);
     }
