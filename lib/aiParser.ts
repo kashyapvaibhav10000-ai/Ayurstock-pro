@@ -5,6 +5,23 @@ export type ParsedMedicine = {
   tradePrice: number
 }
 
+export type PdfType = 'searchable' | 'scanned' | 'unknown';
+
+export type ParseErrorCode =
+  | 'NO_TEXT'
+  | 'EMPTY_AFTER_CLEAN'
+  | 'AI_FAILED'
+  | 'TIMEOUT'
+  | 'NO_API_KEY'
+  | 'PARSE_ERROR';
+
+export interface ParseResult {
+  medicines: ParsedMedicine[];
+  pdfType: PdfType;
+  errorCode?: ParseErrorCode;
+  errorMessage?: string;
+}
+
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MODEL = 'meta-llama/llama-3.3-70b-instruct:free'
 const MAX_CONCURRENT_REQUESTS = 2 // Rate limiting: max 2 concurrent API calls
@@ -154,15 +171,21 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
   const lines = text.split('\n')
   const chunks: string[] = []
   let currentChunk = ''
+  const OVERLAP_LINES = 3 // Add overlap to prevent cutting mid-medicine
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
     const potentialLength = currentChunk.length + line.length + (currentChunk ? 1 : 0)
-    if (potentialLength > maxChars) {
-      if (currentChunk) {
-        chunks.push(currentChunk)
-        currentChunk = ''
-      }
+    
+    if (potentialLength > maxChars && currentChunk) {
+      chunks.push(currentChunk)
+      
+      // Start new chunk with overlap — carry last N lines to prevent data loss
+      const currentLines = currentChunk.split('\n')
+      const overlapLines = currentLines.slice(-OVERLAP_LINES)
+      currentChunk = overlapLines.join('\n')
     }
+    
     currentChunk += (currentChunk ? '\n' : '') + line
   }
 
@@ -171,6 +194,7 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
   }
 
   return chunks
+
 }
 
 async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMedicine[]> {
@@ -242,11 +266,11 @@ async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMe
   }
 }
 
-export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMedicine[]> {
+export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseResult> {
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
     console.error('❌ OPENROUTER_API_KEY not found');
-    return [];
+    return { medicines: [], pdfType: 'unknown', errorCode: 'NO_API_KEY', errorMessage: 'AI API key is not configured. Contact your administrator.' };
   }
 
   try {
@@ -260,10 +284,7 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMe
     
     if (cleanedText.length === 0) {
       console.warn('❌ Text became empty after cleaning!');
-      console.log(`📋 Example kept lines from raw text:`);
-      const sampleLines = rawOcrText.split('\n').slice(0, 20);
-      sampleLines.forEach((line, i) => console.log(`  ${i}: ${line.substring(0, 100)}`));
-      return [];
+      return { medicines: [], pdfType: 'unknown', errorCode: 'EMPTY_AFTER_CLEAN', errorMessage: 'The extracted text did not contain any recognizable medicine data after cleaning.' };
     }
     
     console.log(`📝 Cleaned text sample:\n${cleanedText.substring(0, 200)}`);
@@ -274,7 +295,7 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMe
     
     if (chunks.length === 0) {
       console.warn('❌ No chunks created');
-      return [];
+      return { medicines: [], pdfType: 'unknown', errorCode: 'EMPTY_AFTER_CLEAN', errorMessage: 'No text chunks could be created from the PDF.' };
     }
     
     chunks.forEach((chunk, i) => {
@@ -309,6 +330,10 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMe
     console.log(`\n📊 Results: ${successCount} successful, ${failureCount} failed`);
     console.log(`💊 Total before dedup: ${allMedicines.length} medicines`);
 
+    if (allMedicines.length === 0 && failureCount > 0) {
+      return { medicines: [], pdfType: 'unknown', errorCode: 'AI_FAILED', errorMessage: `AI parsing failed for all ${failureCount} text chunks. Please try again.` };
+    }
+
     // Deduplicate using name + packing as key
     const uniqueMap = new Map<string, ParsedMedicine>();
     for (const med of allMedicines) {
@@ -321,21 +346,25 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMe
     console.log(`✅ After dedup: ${uniqueMap.size} unique medicines`);
     console.log(`\n========== PARSING COMPLETE ==========\n`);
     
-    return Array.from(uniqueMap.values());
+    return { medicines: Array.from(uniqueMap.values()), pdfType: 'searchable' };
   } catch (error) {
     console.error('❌ Error in parseMedicinesWithAI:', error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {
       console.error('Stack:', error.stack.substring(0, 300));
     }
-    return [];
+    return { medicines: [], pdfType: 'unknown', errorCode: 'PARSE_ERROR', errorMessage: error instanceof Error ? error.message : 'An unexpected error occurred during parsing.' };
   }
 }
 
-export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[]> {
+/**
+ * Parse a PDF buffer server-side using pdf2json for text extraction.
+ * Returns structured result with error codes for UI messaging.
+ */
+export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
     console.error('❌ OPENROUTER_API_KEY not set');
-    return [];
+    return { medicines: [], pdfType: 'unknown', errorCode: 'NO_API_KEY', errorMessage: 'AI API key is not configured.' };
   }
 
   try {
@@ -374,7 +403,7 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
           console.log(`✅ PDF loaded - ${pdfData.pages?.length || 0} pages`);
           
           if (pdfData.pages && Array.isArray(pdfData.pages)) {
-            for (let pageNum = 0; pageNum < Math.min(pdfData.pages.length, 10); pageNum++) {
+            for (let pageNum = 0; pageNum < Math.min(pdfData.pages.length, 100); pageNum++) {
               const page = pdfData.pages[pageNum];
               if (page.texts && Array.isArray(page.texts)) {
                 const pageText = page.texts
@@ -419,19 +448,50 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
     if (!fullText.trim()) {
       console.log('⚠️ No searchable text found in PDF');
       console.log('💡 This PDF appears to be image-based (scanned)');
-      console.log('💡 Options: Save for batch processing or upload a searchable PDF');
-      return [];
+      return {
+        medicines: [],
+        pdfType: 'scanned',
+        errorCode: 'NO_TEXT',
+        errorMessage: 'This PDF appears to be scanned/image-based. No searchable text was found. Use the "Run OCR" button to extract text from images.',
+      };
     }
     
     console.log(`✅ Passing text to AI parser...`);
     const result = await parseMedicinesWithAI(fullText);
-    console.log(`🎉 Successfully parsed ${result.length} medicines!`);
+    
+    // Preserve pdfType as searchable since pdf2json found text
+    result.pdfType = 'searchable';
+    console.log(`🎉 Successfully parsed ${result.medicines.length} medicines!`);
     
     return result;
   } catch (error) {
     console.error('❌ PDF parsing failed:', error instanceof Error ? error.message : String(error));
-    return []
+    return {
+      medicines: [],
+      pdfType: 'unknown',
+      errorCode: 'PARSE_ERROR',
+      errorMessage: error instanceof Error ? error.message : 'Failed to process PDF file.',
+    };
   }
+}
+
+/**
+ * Parse pre-extracted text (e.g. from client-side OCR) with AI.
+ * Skips pdf2json extraction since text is already available.
+ */
+export async function parseTextWithAI(extractedText: string): Promise<ParseResult> {
+  if (!extractedText.trim()) {
+    return {
+      medicines: [],
+      pdfType: 'scanned',
+      errorCode: 'NO_TEXT',
+      errorMessage: 'The provided text is empty.',
+    };
+  }
+
+  const result = await parseMedicinesWithAI(extractedText);
+  result.pdfType = 'scanned'; // Text came from client-side OCR
+  return result;
 }
 
 

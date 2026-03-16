@@ -64,19 +64,72 @@ interface ImportPriceListProps {
   onSuccess: (count: number) => void
 }
 
+// ── Error banner with guidance ─────────────────────────────────────────
+function SmartErrorBanner({ errorCode, message }: { errorCode?: string; message: string }) {
+  const isScanned = errorCode === "NO_TEXT"
+
+  const getGuidance = () => {
+    switch (errorCode) {
+      case "NO_TEXT": return 'Click "Run OCR" below to extract text from this scanned PDF using your browser.'
+      case "EMPTY_AFTER_CLEAN": return "The PDF text was extracted but no medicine data was recognized. Try a different file."
+      case "AI_FAILED": return "The AI parsing service failed temporarily. Please try again."
+      case "NO_API_KEY": return "The AI API key is not configured. Contact your administrator."
+      default: return ""
+    }
+  }
+
+  const guidance = getGuidance()
+
+  return (
+    <div className={`rounded-lg p-4 flex items-start gap-3 ${isScanned ? "bg-amber-50 border border-amber-300" : "bg-red-50 border border-red-200"}`}>
+      {isScanned ? <span className="text-xl">📄</span> : <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />}
+      <div className="space-y-1">
+        <span className={`text-sm font-medium ${isScanned ? "text-amber-800" : "text-red-700"}`}>{message}</span>
+        {guidance && <p className={`text-xs ${isScanned ? "text-amber-600" : "text-red-500"}`}>{guidance}</p>}
+      </div>
+    </div>
+  )
+}
+
+// ── OCR Progress bar component ─────────────────────────────────────────
+function OcrProgress({ phase, page, totalPages, percent, message }: {
+  phase: string; page: number; totalPages: number; percent: number; message: string
+}) {
+  return (
+    <div className="space-y-3 py-4">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium text-gray-700">
+          {phase === "loading" ? "📖 Loading PDF..." :
+           phase === "rendering" ? `🖼️ Rendering page ${page}/${totalPages}` :
+           phase === "ocr" ? `🔍 OCR page ${page}/${totalPages}` :
+           phase === "done" ? "✅ OCR complete!" : message}
+        </span>
+        <span className="text-gray-500">{percent}%</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+        <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-300" style={{ width: `${percent}%` }} />
+      </div>
+      <p className="text-xs text-gray-500">{message}</p>
+    </div>
+  )
+}
+
 export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPriceListProps) {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [parsedMedicines, setParsedMedicines] = useState<ParsedMedicine[]>([])
   const [error, setError] = useState<string>("")
-  const [step, setStep] = useState<"upload" | "preview" | "importing">("upload")
+  const [errorCode, setErrorCode] = useState<string>("")
+  const [pdfType, setPdfType] = useState<string>("")
+  const [step, setStep] = useState<"upload" | "ocr" | "preview" | "importing">("upload")
   const [companies, setCompanies] = useState<string[]>([])
   const [selectedCompany, setSelectedCompany] = useState<string>("")
   const [newCompany, setNewCompany] = useState<string>("")
   const [existingKeys, setExistingKeys] = useState<Set<string>>(new Set())
   const [creatingCompany, setCreatingCompany] = useState(false)
+  const [ocrProgress, setOcrProgressState] = useState({ phase: "loading", page: 0, totalPages: 0, percent: 0, message: "" })
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
-  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
+  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
 
   useEffect(() => {
     if (!isOpen) return
@@ -96,7 +149,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
         const res = await fetch("/api/medicines/search?query=&limit=500", { headers: authHeaders })
         const payload = await res.json()
         if (payload.success && Array.isArray(payload.data)) {
-          const keys = new Set(
+          const keys = new Set<string>(
             payload.data.map((row: any) =>
               `${String(row.name || "").toLowerCase()}|${String(row.company || "").toLowerCase()}|${String(row.packing || "").toLowerCase()}`
             )
@@ -144,6 +197,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     if (selectedFile) {
       setFile(selectedFile)
       setError("")
+      setErrorCode("")
     }
   }
 
@@ -152,6 +206,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
 
     setLoading(true)
     setError("")
+    setErrorCode("")
 
     try {
       const formData = new FormData()
@@ -166,6 +221,68 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       const result = await response.json()
 
       if (result.success) {
+        setPdfType(result.pdfType || "searchable")
+        const normalized = (result.medicines || []).map((row: ParsedMedicine) => {
+          const category = row.category || detectCategory(row.packing || row.name)
+          const options = PACKAGING_OPTIONS[category] || []
+          const packing = row.packing || (options.length > 0 ? options[0] : "")
+          return { ...row, category, packing }
+        })
+        setParsedMedicines(normalized)
+        setSelectedCompany("")
+        setNewCompany("")
+        setStep("preview")
+      } else if (result.errorCode === "NO_TEXT") {
+        setPdfType("scanned")
+        setErrorCode("NO_TEXT")
+        setError(result.message || "This PDF appears to be scanned.")
+      } else {
+        setErrorCode(result.errorCode || "")
+        setError(result.message || "Failed to parse file")
+      }
+    } catch (err) {
+      setError("Failed to upload file. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ── Client-side OCR handler ─────────────────────────────────────────
+  const handleRunOcr = async () => {
+    if (!file) return
+    setStep("ocr")
+    setError("")
+    setErrorCode("")
+
+    try {
+      const { ocrPdfInBrowser } = await import("@/lib/pdfOcrClient")
+
+      const extractedText = await ocrPdfInBrowser(file, (progress) => {
+        setOcrProgressState(progress)
+      })
+
+      if (!extractedText.trim()) {
+        setError("OCR completed but no text could be extracted.")
+        setErrorCode("")
+        setStep("upload")
+        return
+      }
+
+      setOcrProgressState({ phase: "done", page: 0, totalPages: 0, percent: 95, message: "Sending to AI parser..." })
+
+      const formData = new FormData()
+      formData.append("extractedText", extractedText)
+
+      const response = await fetch("/api/medicine/import-price-list", {
+        method: "POST",
+        headers: authHeaders,
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setPdfType("scanned")
         const normalized = (result.medicines || []).map((row: ParsedMedicine) => {
           const category = row.category || detectCategory(row.packing || row.name)
           const options = PACKAGING_OPTIONS[category] || []
@@ -177,12 +294,14 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
         setNewCompany("")
         setStep("preview")
       } else {
-        setError(result.message || "Failed to parse file")
+        setErrorCode(result.errorCode || "")
+        setError(result.message || "AI parsing found no medicines.")
+        setStep("upload")
       }
     } catch (err) {
-      setError("Failed to upload file. Please try again.")
-    } finally {
-      setLoading(false)
+      setError(err instanceof Error ? err.message : "OCR processing failed")
+      setErrorCode("")
+      setStep("upload")
     }
   }
 
@@ -296,10 +415,13 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       )
     )
   }, [invalidRows])
+
   const resetModal = () => {
     setFile(null)
     setParsedMedicines([])
     setError("")
+    setErrorCode("")
+    setPdfType("")
     setStep("upload")
     onClose()
   }
@@ -347,13 +469,9 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
           </DialogTitle>
         </DialogHeader>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-500" />
-            <span className="text-red-700">{error}</span>
-          </div>
-        )}
+        {error && <SmartErrorBanner errorCode={errorCode} message={error} />}
 
+        {/* ── Upload Step ──────────────────────────────────────────── */}
         {step === "upload" && (
           <div className="space-y-4">
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
@@ -374,21 +492,62 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-blue-500" />
-                  <span className="text-blue-700">Selected: {file.name}</span>
+                  <span className="text-blue-700">Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
+                </div>
+              </div>
+            )}
+
+            {/* OCR button when scanned PDF detected */}
+            {errorCode === "NO_TEXT" && file && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">🔍 Client-Side OCR Available</p>
+                    <p className="text-xs text-blue-600 mt-1">Extract text from scanned PDF using your browser. Free — runs on your device.</p>
+                  </div>
+                  <Button onClick={handleRunOcr} className="bg-blue-600 hover:bg-blue-700 text-white ml-4">
+                    Run OCR
+                  </Button>
                 </div>
               </div>
             )}
           </div>
         )}
 
+        {/* ── OCR Step ──────────────────────────────────────────────── */}
+        {step === "ocr" && (
+          <div className="space-y-4">
+            <div className="py-4">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xl">🔍</span>
+                <h3 className="text-lg font-medium text-gray-700">Running Client-Side OCR</h3>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                Extracting text from scanned PDF images. Runs entirely in your browser.
+              </p>
+              <OcrProgress {...ocrProgress} />
+            </div>
+          </div>
+        )}
+
+        {/* ── Preview Step ─────────────────────────────────────────── */}
         {step === "preview" && (
           <div className="space-y-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <span className="text-green-700">
-                  Successfully parsed {parsedMedicines.length} medicines
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-green-700">
+                    Successfully parsed {parsedMedicines.length} medicines
+                  </span>
+                </div>
+                {pdfType && (
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    pdfType === "searchable" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                  }`}>
+                    {pdfType === "searchable" ? "✅ Searchable PDF" : "🔍 Scanned (OCR)"}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -521,7 +680,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                             <select
                               value={medicine.action || "skip"}
                               onChange={(event) =>
-                                updateMedicine(index, "action", event.target.value as ParsedMedicine["action"])
+                                updateMedicine(index, "action", event.target.value)
                               }
                               className="h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-xs"
                             >
@@ -568,6 +727,12 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                 {loading ? "Processing..." : "Upload & Preview"}
               </Button>
             </>
+          )}
+
+          {step === "ocr" && (
+            <Button disabled className="bg-blue-600 text-white">
+              OCR Running...
+            </Button>
           )}
 
           {step === "preview" && (
