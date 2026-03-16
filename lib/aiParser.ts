@@ -244,70 +244,126 @@ async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMe
 
 export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMedicine[]> {
   const apiKey = process.env.OPENROUTER_API_KEY
-  if (!apiKey) return []
-
-  console.log(`🧹 Cleaning raw text (${rawOcrText.length} chars)...`);
-  const cleanedText = cleanOcrText(rawOcrText)
-  console.log(`📋 After cleaning: ${cleanedText.length} chars`);
-  console.log(`📝 Cleaned text sample:\n${cleanedText.substring(0, 300)}...`);
-  
-  const chunks = splitTextIntoChunks(cleanedText, 3000)
-  console.log(`📦 Split into ${chunks.length} chunks`);
-  
-  if (chunks.length === 0) {
-    console.warn('❌ No chunks created after cleaning');
+  if (!apiKey) {
+    console.error('❌ OPENROUTER_API_KEY not found');
     return [];
   }
 
-  // Use rate limiter to prevent hitting API limits
-  const limiter = new RateLimiter(MAX_CONCURRENT_REQUESTS, REQUEST_INTERVAL_MS)
-  const chunkFunctions = chunks.map(chunk => () => parseChunkWithAI(chunk, apiKey))
-  const results = await limiter.executeAll(chunkFunctions)
-
-  const allMedicines: ParsedMedicine[] = []
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      allMedicines.push(...result.value)
-    } else if (result.status === 'rejected') {
-      console.warn('⚠️ Chunk parsing rejected:', result.reason);
+  try {
+    console.log(`\n========== PARSING MEDICINES ==========`);
+    console.log(`📥 Input text length: ${rawOcrText.length} characters`);
+    console.log(`📝 First 200 chars:\n${rawOcrText.substring(0, 200)}`);
+    
+    console.log(`\n🧹 Cleaning text...`);
+    const cleanedText = cleanOcrText(rawOcrText);
+    console.log(`✅ After cleaning: ${cleanedText.length} characters`);
+    
+    if (cleanedText.length === 0) {
+      console.warn('❌ Text became empty after cleaning!');
+      console.log(`📋 Example kept lines from raw text:`);
+      const sampleLines = rawOcrText.split('\n').slice(0, 20);
+      sampleLines.forEach((line, i) => console.log(`  ${i}: ${line.substring(0, 100)}`));
+      return [];
     }
-  }
-
-  console.log(`💊 Before dedup: ${allMedicines.length} medicines`);
-
-  // Deduplicate using name + packing as key
-  const uniqueMap = new Map<string, ParsedMedicine>()
-  for (const med of allMedicines) {
-    const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`
-    if (!uniqueMap.has(key)) {
-      uniqueMap.set(key, med)
+    
+    console.log(`📝 Cleaned text sample:\n${cleanedText.substring(0, 200)}`);
+    
+    console.log(`\n📦 Splitting into chunks...`);
+    const chunks = splitTextIntoChunks(cleanedText, 3000);
+    console.log(`✅ Created ${chunks.length} chunks`);
+    
+    if (chunks.length === 0) {
+      console.warn('❌ No chunks created');
+      return [];
     }
-  }
+    
+    chunks.forEach((chunk, i) => {
+      console.log(`  Chunk ${i + 1}: ${chunk.length} chars`);
+    });
 
-  console.log(`✅ After dedup: ${uniqueMap.size} medicines`);
-  return Array.from(uniqueMap.values())
+    console.log(`\n🤖 Calling AI for each chunk...`);
+    // Use rate limiter to prevent hitting API limits
+    const limiter = new RateLimiter(MAX_CONCURRENT_REQUESTS, REQUEST_INTERVAL_MS);
+    const chunkFunctions = chunks.map(chunk => () => parseChunkWithAI(chunk, apiKey));
+    const results = await limiter.executeAll(chunkFunctions);
+
+    console.log(`\n📊 Processing results from ${results.length} chunks...`);
+    const allMedicines: ParsedMedicine[] = [];
+    let successCount = 0;
+    let failureCount = 0;
+    
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].status === 'fulfilled') {
+        const value = results[i].value as ParsedMedicine[];
+        allMedicines.push(...value);
+        console.log(`  Chunk ${i + 1}: ✅ ${value.length} medicines`);
+        successCount++;
+      } else {
+        console.log(`  Chunk ${i + 1}: ❌ Failed - ${(results[i] as any).reason}`);
+        failureCount++;
+      }
+    }
+
+    console.log(`\n📊 Results: ${successCount} successful, ${failureCount} failed`);
+    console.log(`💊 Total before dedup: ${allMedicines.length} medicines`);
+
+    // Deduplicate using name + packing as key
+    const uniqueMap = new Map<string, ParsedMedicine>();
+    for (const med of allMedicines) {
+      const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, med);
+      }
+    }
+
+    console.log(`✅ After dedup: ${uniqueMap.size} unique medicines`);
+    console.log(`\n========== PARSING COMPLETE ==========\n`);
+    
+    return Array.from(uniqueMap.values());
+  } catch (error) {
+    console.error('❌ Error in parseMedicinesWithAI:', error instanceof Error ? error.message : String(error));
+    if (error instanceof Error && error.stack) {
+      console.error('Stack:', error.stack.substring(0, 300));
+    }
+    return [];
+  }
 }
 
 export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[]> {
   const apiKey = process.env.OPENROUTER_API_KEY
-  if (!apiKey) return []
+  if (!apiKey) {
+    console.error('❌ OPENROUTER_API_KEY not set');
+    return [];
+  }
 
   try {
+    console.log('📖 Starting PDF parsing...');
+    
     // Dynamically import pdfjs for serverless compatibility
+    console.log('📦 Importing pdfjs-dist...');
     const pdfjsLib = await import('pdfjs-dist');
-    const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
+    console.log('✅ pdfjs-dist imported successfully');
+    
+    // Convert Buffer to Uint8Array for pdfjs
+    const uint8Array = new Uint8Array(pdfBuffer);
+    console.log(`📊 Buffer converted to Uint8Array: ${uint8Array.length} bytes`);
+    
+    const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+    console.log('⏳ Loading PDF document...');
+    
     const pdf = await loadingTask.promise;
+    console.log(`✅ PDF loaded successfully: ${pdf.numPages} pages`);
     
     // Limit pages processed to prevent timeout on large PDFs
     const totalPages = Math.min(pdf.numPages, MAX_PDF_PAGES);
     let fullText = '';
     
-    console.log(`📖 Processing PDF: ${totalPages}/${pdf.numPages} pages`);
+    console.log(`📖 Processing ${totalPages} pages (max ${MAX_PDF_PAGES})...`);
     
     for (let i = 1; i <= totalPages; i++) {
       // Stop early if we have enough text
       if (fullText.length >= MAX_PDF_TEXT_LENGTH) {
-        console.log(`⏹️ Text length limit reached at page ${i}`);
+        console.log(`⏹️ Text length limit (${MAX_PDF_TEXT_LENGTH}) reached at page ${i}`);
         break;
       }
       
@@ -317,31 +373,33 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
         const pageText = textContent.items
           .map((item: any) => item.str)
           .join(' ');
+        
+        console.log(`  Page ${i}: extracted ${pageText.length} chars`);
         fullText += pageText + '\n';
       } catch (pageError) {
-        console.warn(`⚠️ Failed to extract page ${i}:`, pageError);
-        // Continue with next page instead of failing
+        console.warn(`⚠️ Failed to extract page ${i}:`, pageError instanceof Error ? pageError.message : String(pageError));
         continue;
       }
     }
+    
+    console.log(`📊 Total extracted text: ${fullText.length} characters`);
     
     if (!fullText.trim()) {
       console.warn('❌ No text extracted from PDF');
       return [];
     }
     
-    console.log(`✅ Extracted ${totalPages} pages, ${fullText.length} total chars`);
-    console.log(`📝 Raw text sample (first 300 chars):\n${fullText.substring(0, 300)}`);
+    console.log(`✅ PDF extraction complete, passing to AI parser...`);
     
     const result = await parseMedicinesWithAI(fullText);
-    console.log(`✅ Parsing complete, found ${result.length} medicines`);
+    console.log(`🎉 Final result: ${result.length} medicines extracted`);
     
     return result;
   } catch (error) {
     console.error('❌ PDF parsing failed:', error);
     if (error instanceof Error) {
-      console.error('📋 Error details:', error.message);
-      console.error('🔗 Stack:', error.stack?.substring(0, 200));
+      console.error('📋 Error message:', error.message);
+      console.error('🔗 Stack trace:', error.stack?.substring(0, 300));
     }
     return []
   }
