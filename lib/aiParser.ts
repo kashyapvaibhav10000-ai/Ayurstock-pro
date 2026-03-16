@@ -25,11 +25,12 @@ export interface ParseResult {
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 // Fallback models — if one is rate-limited, try the next
+// All verified to exist on OpenRouter free tier
 const MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'qwen/qwen-2.5-72b-instruct:free',
-  'google/gemma-2-9b-it:free',
-  'mistralai/mistral-7b-instruct:free',
+  'meta-llama/llama-4-scout:free',
+  'deepseek/deepseek-chat-v3-0324:free',
+  'mistralai/mistral-small-3.1-24b-instruct:free',
+  'nvidia/llama-3.1-nemotron-nano-8b-v1:free',
 ]
 
 const MAX_CONCURRENT_REQUESTS = 1 // Reduced to avoid rate limits on free models
