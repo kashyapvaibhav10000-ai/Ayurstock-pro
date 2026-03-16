@@ -233,9 +233,18 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMe
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) return []
 
+  console.log(`🧹 Cleaning raw text (${rawOcrText.length} chars)...`);
   const cleanedText = cleanOcrText(rawOcrText)
+  console.log(`📋 After cleaning: ${cleanedText.length} chars`);
+  console.log(`📝 Cleaned text sample:\n${cleanedText.substring(0, 300)}...`);
+  
   const chunks = splitTextIntoChunks(cleanedText, 3000)
-  if (chunks.length === 0) return []
+  console.log(`📦 Split into ${chunks.length} chunks`);
+  
+  if (chunks.length === 0) {
+    console.warn('❌ No chunks created after cleaning');
+    return [];
+  }
 
   // Use rate limiter to prevent hitting API limits
   const limiter = new RateLimiter(MAX_CONCURRENT_REQUESTS, REQUEST_INTERVAL_MS)
@@ -246,8 +255,12 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMe
   for (const result of results) {
     if (result.status === 'fulfilled') {
       allMedicines.push(...result.value)
+    } else if (result.status === 'rejected') {
+      console.warn('⚠️ Chunk parsing rejected:', result.reason);
     }
   }
+
+  console.log(`💊 Before dedup: ${allMedicines.length} medicines`);
 
   // Deduplicate using name + packing as key
   const uniqueMap = new Map<string, ParsedMedicine>()
@@ -258,6 +271,7 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMe
     }
   }
 
+  console.log(`✅ After dedup: ${uniqueMap.size} medicines`);
   return Array.from(uniqueMap.values())
 }
 
@@ -275,12 +289,12 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
     const totalPages = Math.min(pdf.numPages, MAX_PDF_PAGES);
     let fullText = '';
     
-    console.log(`Processing PDF: ${totalPages}/${pdf.numPages} pages`);
+    console.log(`📖 Processing PDF: ${totalPages}/${pdf.numPages} pages`);
     
     for (let i = 1; i <= totalPages; i++) {
       // Stop early if we have enough text
       if (fullText.length >= MAX_PDF_TEXT_LENGTH) {
-        console.log(`Text length limit reached at page ${i}`);
+        console.log(`⏹️ Text length limit reached at page ${i}`);
         break;
       }
       
@@ -292,17 +306,30 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
           .join(' ');
         fullText += pageText + '\n';
       } catch (pageError) {
-        console.warn(`Failed to extract page ${i}:`, pageError);
+        console.warn(`⚠️ Failed to extract page ${i}:`, pageError);
         // Continue with next page instead of failing
         continue;
       }
     }
     
-    if (!fullText.trim()) return [];
-    console.log(`PDF extraction complete: ${totalPages} pages, ${fullText.length} chars`);
-    return await parseMedicinesWithAI(fullText);
+    if (!fullText.trim()) {
+      console.warn('❌ No text extracted from PDF');
+      return [];
+    }
+    
+    console.log(`✅ Extracted ${totalPages} pages, ${fullText.length} total chars`);
+    console.log(`📝 Raw text sample (first 300 chars):\n${fullText.substring(0, 300)}`);
+    
+    const result = await parseMedicinesWithAI(fullText);
+    console.log(`✅ Parsing complete, found ${result.length} medicines`);
+    
+    return result;
   } catch (error) {
-    console.error('PDF parsing failed:', error)
+    console.error('❌ PDF parsing failed:', error);
+    if (error instanceof Error) {
+      console.error('📋 Error details:', error.message);
+      console.error('🔗 Stack:', error.stack?.substring(0, 200));
+    }
     return []
   }
 }
