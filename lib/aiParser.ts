@@ -339,60 +339,82 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
   }
 
   try {
-    console.log('📖 Starting PDF parsing with pdf-parse...');
+    console.log('📖 Starting PDF parsing with pdfjs-dist...');
     console.log(`📊 Buffer size: ${pdfBuffer.length} bytes`);
     
-    // Import pdf-parse correctly - use the default export from CJS
-    let pdfParse;
-    try {
-      // Try direct require first (for serverless)
-      pdfParse = require('pdf-parse');
-      console.log('✅ pdf-parse imported via require');
-    } catch (importError) {
-      console.warn('⚠️ Direct require failed, trying alternative import');
+    // Use pdfjs-dist - get the main export
+    console.log('🔧 Importing pdfjs-dist...');
+    const { getDocument, version, GlobalWorkerOptions } = await import('pdfjs-dist');
+    console.log(`✅ pdfjs-dist v${version} imported successfully`);
+    
+    // Don't set a worker - use synchronous text extraction
+    console.log('✅ Text extraction in synchronous mode');
+    
+    // Convert Buffer to Uint8Array
+    const uint8Array = new Uint8Array(pdfBuffer);
+    console.log(`✅ Buffer converted to Uint8Array: ${uint8Array.length} bytes`);
+    
+    // Load PDF
+    console.log('⏳ Loading PDF document...');
+    const loadingTask = getDocument({ data: uint8Array });
+    const pdf = await loadingTask.promise;
+    console.log(`✅ PDF loaded: ${pdf.numPages} pages`);
+    
+    // Extract text from all pages
+    let fullText = '';
+    const totalPages = Math.min(pdf.numPages, MAX_PDF_PAGES);
+    console.log(`📖 Extracting text from ${totalPages} pages...`);
+    
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
       try {
-        // Fallback to ESM import
-        const pdfParseModule = await import('pdf-parse');
-        pdfParse = pdfParseModule.default;
-        console.log('✅ pdf-parse imported via ESM');
-      } catch (esmError) {
-        throw new Error(`Failed to import pdf-parse: ${importError instanceof Error ? importError.message : String(importError)}`);
+        if (fullText.length >= MAX_PDF_TEXT_LENGTH) {
+          console.log(`⏹️ Text limit reached at page ${pageNum}`);
+          break;
+        }
+        
+        console.log(`  Processing page ${pageNum}...`);
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str || '')
+          .join(' ');
+        
+        const cleanedPageText = pageText.trim();
+        if (cleanedPageText.length > 0) {
+          fullText += cleanedPageText + '\n';
+          console.log(`  ✓ Page ${pageNum}: ${cleanedPageText.length} chars extracted`);
+        } else {
+          console.log(`  ⚠️ Page ${pageNum}: no text found`);
+        }
+      } catch (error) {
+        console.error(`❌ Failed to extract page ${pageNum}:`, error instanceof Error ? error.message : String(error));
+        continue;
       }
     }
     
-    console.log('🔧 Calling pdfParse with buffer...');
-    const pdfData = await pdfParse(pdfBuffer);
-    console.log(`✅ PDF parsed successfully`);
-    console.log(`📄 Total pages: ${pdfData.numpages}`);
-    console.log(`📝 Extracted text length: ${pdfData.text.length} chars`);
-    
-    if (pdfData.text.length > 0) {
-      console.log(`📋 First 300 chars:\n${pdfData.text.substring(0, 300)}`);
-    } else {
-      console.warn('⚠️ PDF text is empty!');
-    }
-    
-    const fullText = pdfData.text;
+    console.log(`📊 Total extracted text: ${fullText.length} characters`);
     
     if (!fullText.trim()) {
-      console.warn('❌ No text extracted from PDF - returning empty array');
+      console.error('❌ No text extracted from PDF - returning empty');
       return [];
     }
     
-    console.log(`✅ PDF extraction complete, passing ${fullText.length} chars to AI parser...`);
+    // Log preview
+    const preview = fullText.substring(0, 300).replace(/\n/g, ' ').substring(0, 250);
+    console.log(`📋 Text preview: "${preview}..."`);
     
+    console.log(`✅ PDF extraction complete, passing to AI parser...`);
     const result = await parseMedicinesWithAI(fullText);
-    console.log(`🎉 Final result: ${result.length} medicines extracted`);
+    console.log(`🎉 Successfully parsed ${result.length} medicines!`);
     
     return result;
   } catch (error) {
     console.error('❌ PDF parsing failed:', error);
-    console.error('❌ Error type:', typeof error);
-    console.error('❌ Error toString:', String(error));
     if (error instanceof Error) {
-      console.error('📋 Error message:', error.message);
-      console.error('📋 Error name:', error.name);
-      console.error('🔗 Stack trace:', error.stack?.substring(0, 500));
+      console.error('📋 Error:', error.message);
+      console.error('🔗 Stack:', error.stack?.substring(0, 500));
+    } else {
+      console.error('📋 Unknown error:', String(error));
     }
     return []
   }
