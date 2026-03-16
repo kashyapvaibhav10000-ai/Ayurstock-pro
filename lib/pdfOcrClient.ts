@@ -45,7 +45,7 @@ export async function ocrPdfInBrowser(
 
     // Set up the worker — use the bundled worker from pdfjs-dist
     if (typeof window !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -174,7 +174,7 @@ export async function extractTextFromPdf(file: File): Promise<string> {
     const pdfjsLib = await import('pdfjs-dist');
 
     if (typeof window !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
     }
 
     const arrayBuffer = await file.arrayBuffer();
