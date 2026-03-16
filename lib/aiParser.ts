@@ -342,18 +342,18 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
     console.log('📖 Starting PDF parsing...');
     console.log(`📊 Buffer size: ${pdfBuffer.length} bytes`);
     
-    // Step 1: Try text extraction first (fast method for searchable PDFs)
-    console.log('🔧 Attempting text extraction with pdf2json...');
+    // Extract text from PDF using pdf2json
+    console.log('🔧 Extracting text with pdf2json...');
     const PDFParser = require('pdf2json');
     
-    let fullText = await new Promise<string>((resolve) => {
+    const fullText = await new Promise<string>((resolve) => {
       let extractedText = '';
       const parser = new PDFParser();
       let completed = false;
       
       const timeout = setTimeout(() => {
         if (!completed) {
-          console.warn('⏱️ pdf2json timeout - PDF may be image-based');
+          console.warn('⏱️ Extraction timeout');
           completed = true;
           resolve('');
         }
@@ -416,73 +416,16 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
     
     console.log(`📊 Extracted text: ${fullText.length} characters`);
     
-    // Step 2: If no text found, use OCR on first page
     if (!fullText.trim()) {
-      console.log('⚠️ No searchable text - attempting OCR...');
-      
-      try {
-        const pdf2pic = await import('pdf2pic');
-        const Tesseract = (await import('tesseract.js')).default;
-        
-        console.log('🖼️ Converting first page to image...');
-        const { default: fromBuffer } = pdf2pic;
-        
-        const options = {
-          density: 150,
-          savePath: '/tmp',
-          format: 'png',
-          width: 1600,
-          height: 1200,
-          preserveAspectRatio: true
-        };
-        
-        let images: any[] = [];
-        try {
-          const result = await fromBuffer(pdfBuffer, options);
-          images = Array.isArray(result) ? [result[0]] : [result];
-          console.log(`✅ Converted first page to image`);
-        } catch (convError) {
-          console.error('❌ PDF to image conversion failed');
-          return [];
-        }
-        
-        if (images.length > 0) {
-          console.log('🔍 Running OCR (20-30 seconds)...');
-          
-          try {
-            const { data } = await Tesseract.recognize(
-              images[0].buffer || images[0],
-              'eng',
-              {
-                logger: (m: any) => {
-                  if (m.status === 'recognizing text') {
-                    console.log(`  OCR: ${Math.round(m.progress * 100)}%`);
-                  }
-                }
-              }
-            );
-            
-            fullText = data.text;
-            console.log(`✅ OCR: ${fullText.length} chars`);
-          } catch (ocrError) {
-            console.error('❌ OCR failed:', ocrError instanceof Error ? ocrError.message : 'Unknown error');
-            return [];
-          }
-        }
-      } catch (error) {
-        console.error('❌ OCR setup error:', error instanceof Error ? error.message : 'Unknown error');
-        return [];
-      }
-    }
-    
-    if (!fullText.trim()) {
-      console.error('❌ No text extracted from PDF');
+      console.log('⚠️ No searchable text found in PDF');
+      console.log('💡 This PDF appears to be image-based (scanned)');
+      console.log('💡 Options: Save for batch processing or upload a searchable PDF');
       return [];
     }
     
-    console.log(`✅ Passing text to AI...`);
+    console.log(`✅ Passing text to AI parser...`);
     const result = await parseMedicinesWithAI(fullText);
-    console.log(`🎉 Parsed ${result.length} medicines!`);
+    console.log(`🎉 Successfully parsed ${result.length} medicines!`);
     
     return result;
   } catch (error) {

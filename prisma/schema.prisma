@@ -429,3 +429,23 @@ model ImportJob {
 
   @@index([createdAt])
 }
+
+// PDF Import Jobs - Store PDFs for batch processing
+model PdfImportJob {
+  id            String   @id @default(cuid())
+  shopId        String
+  userId        String
+  fileName      String
+  pdfText       String   @db.Text // Extracted text from PDF
+  status        String   @default("pending") // pending, processing, completed, failed
+  medicinesCount Int     @default(0)
+  medicines     String?  @db.Text // JSON string of parsed medicines
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([shopId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
