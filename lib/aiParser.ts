@@ -294,12 +294,14 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParsedMe
     
     for (let i = 0; i < results.length; i++) {
       if (results[i].status === 'fulfilled') {
-        const value = results[i].value as ParsedMedicine[];
+        const fulfilledResult = results[i] as PromiseFulfilledResult<ParsedMedicine[]>;
+        const value = fulfilledResult.value;
         allMedicines.push(...value);
         console.log(`  Chunk ${i + 1}: ✅ ${value.length} medicines`);
         successCount++;
       } else {
-        console.log(`  Chunk ${i + 1}: ❌ Failed - ${(results[i] as any).reason}`);
+        const rejectedResult = results[i] as PromiseRejectedResult;
+        console.log(`  Chunk ${i + 1}: ❌ Failed - ${rejectedResult.reason}`);
         failureCount++;
       }
     }
@@ -337,52 +339,22 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParsedMedicine[
   }
 
   try {
-    console.log('📖 Starting PDF parsing...');
+    console.log('📖 Starting PDF parsing with pdf-parse...');
     
-    // Dynamically import pdfjs for serverless compatibility
-    console.log('📦 Importing pdfjs-dist...');
-    const pdfjsLib = await import('pdfjs-dist');
-    console.log('✅ pdfjs-dist imported successfully');
+    // Use pdf-parse for Node.js compatibility (no DOMMatrix required)
+    // Using require for serverless compatibility
+    const pdfParse = require('pdf-parse/lib/pdf-parse.js');
+    console.log('✅ pdf-parse imported successfully');
     
-    // Convert Buffer to Uint8Array for pdfjs
-    const uint8Array = new Uint8Array(pdfBuffer);
-    console.log(`📊 Buffer converted to Uint8Array: ${uint8Array.length} bytes`);
+    console.log(`📊 Buffer size: ${pdfBuffer.length} bytes`);
     
-    const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
-    console.log('⏳ Loading PDF document...');
+    const pdfData = await pdfParse(pdfBuffer);
+    console.log(`✅ PDF parsed successfully`);
+    console.log(`📄 Total pages: ${pdfData.numpages}`);
+    console.log(`📝 Extracted text length: ${pdfData.text.length} chars`);
+    console.log(`📋 First 300 chars:\n${pdfData.text.substring(0, 300)}`);
     
-    const pdf = await loadingTask.promise;
-    console.log(`✅ PDF loaded successfully: ${pdf.numPages} pages`);
-    
-    // Limit pages processed to prevent timeout on large PDFs
-    const totalPages = Math.min(pdf.numPages, MAX_PDF_PAGES);
-    let fullText = '';
-    
-    console.log(`📖 Processing ${totalPages} pages (max ${MAX_PDF_PAGES})...`);
-    
-    for (let i = 1; i <= totalPages; i++) {
-      // Stop early if we have enough text
-      if (fullText.length >= MAX_PDF_TEXT_LENGTH) {
-        console.log(`⏹️ Text length limit (${MAX_PDF_TEXT_LENGTH}) reached at page ${i}`);
-        break;
-      }
-      
-      try {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
-        
-        console.log(`  Page ${i}: extracted ${pageText.length} chars`);
-        fullText += pageText + '\n';
-      } catch (pageError) {
-        console.warn(`⚠️ Failed to extract page ${i}:`, pageError instanceof Error ? pageError.message : String(pageError));
-        continue;
-      }
-    }
-    
-    console.log(`📊 Total extracted text: ${fullText.length} characters`);
+    const fullText = pdfData.text;
     
     if (!fullText.trim()) {
       console.warn('❌ No text extracted from PDF');
