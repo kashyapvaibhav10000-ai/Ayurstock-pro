@@ -30,7 +30,8 @@ const MAX_PDF_PAGES = 100 // Max pages to process (prevent timeouts)
 const MAX_PDF_TEXT_LENGTH = 500000 // Stop processing if text exceeds this (chars)
 const REQUEST_TIMEOUT_MS = 45000 // Timeout per request (45s, leaving buffer for Vercel 60s limit)
 
-const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic distributor price lists.
+const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic/herbal distributor price lists.
+The text may come from OCR (scanned documents) so expect noise, typos, and formatting issues.
 
 IMPORTANT: One medicine can have multiple packing sizes with different prices.
 Create separate records for EACH packing variant.
@@ -45,13 +46,15 @@ EXPECTED OUTPUT:
 ]
 
 RULES:
-1. Medicine name is in ALL CAPITALS
+1. Medicine names may be ALL CAPS, Title Case, or mixed — normalize to UPPER CASE in output
 2. Extract ALL packing + price combinations for each medicine
 3. Return separate record for EACH variant, NOT combined
 4. packing format: "200ML", "60TAB", "100GM", "1KG", etc
-5. Prices are EXACT numbers from list (mrp and tradePrice)
+5. Prices are EXACT numbers from list (mrp and tradePrice). If only one price column exists, use it for both mrp and tradePrice.
 6. Return ONLY valid JSON array, no markdown or extra text
-7. Each item MUST have: name (string), packing (string), mrp (number), tradePrice (number)`
+7. Each item MUST have: name (string), packing (string), mrp (number), tradePrice (number)
+8. Ignore headers, footers, page numbers, totals, and non-medicine text
+9. If text is noisy or unclear, extract whatever medicines you can confidently identify`
 
 function extractJsonArray(text: string): string {
   let cleaned = text.trim()
@@ -138,30 +141,16 @@ function cleanOcrText(rawOcrText: string): string {
 
   for (const line of lines) {
     const trimmed = line.trim()
-    if (!trimmed || trimmed.length < 3) continue
+    if (!trimmed || trimmed.length < 2) continue
 
-    // Skip obvious non-medicine lines
-    if (/[\u0900-\u097F]/.test(trimmed)) continue // Hindi text only
-    if (trimmed.toLowerCase().includes('total') || trimmed.toLowerCase().includes('page')) continue
+    // Skip only very obvious non-medicine lines
+    if (/^[\u0900-\u097F\s]+$/.test(trimmed)) continue // Lines that are ONLY Hindi text
     if (trimmed.includes('===') || trimmed.includes('---')) continue
-    
-    // Keep if contains price-like patterns (numbers with decimals)
-    if (/\d+\.\d{2}/.test(trimmed)) {
-      cleanedLines.push(trimmed)
-      continue
-    }
-    
-    // Keep if all caps and at least 2 chars (likely medicine name)
-    if (trimmed === trimmed.toUpperCase() && trimmed.length > 2) {
-      cleanedLines.push(trimmed)
-      continue
-    }
-    
-    // Keep if contains measurement units
-    if (/\b(tab|cap|ml|gm|mg|kg|piece|strip|bottle|vial|jar)\b/i.test(trimmed)) {
-      cleanedLines.push(trimmed)
-      continue
-    }
+    if (/^(page|total|grand total|sub total|subtotal)\s*[:\d]*$/i.test(trimmed)) continue
+    if (/^\d+$/.test(trimmed) && trimmed.length <= 3) continue // Pure page numbers
+
+    // Keep everything else — let the AI figure out what's a medicine
+    cleanedLines.push(trimmed)
   }
 
   return cleanedLines.join('\n')
@@ -230,6 +219,8 @@ async function parseChunkWithAI(chunk: string, apiKey: string): Promise<ParsedMe
 
       if (!content || typeof content !== 'string') {
         console.warn('⚠️ No content from AI');
+        console.warn('📋 AI response status:', resp.status);
+        console.warn('📋 AI response data:', JSON.stringify(data).substring(0, 500));
         return [];
       }
 
