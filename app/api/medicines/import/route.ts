@@ -45,7 +45,14 @@ export async function POST(req: NextRequest) {
     console.log('📄 Processing file:', file.name, 'Size:', file.size);
     
     const buffer = Buffer.from(await file.arrayBuffer());
+    console.log('🔍 Calling parsePDFWithAI...');
     const medicines = await parsePDFWithAI(buffer);
+
+    console.log('📊 Parse result:', {
+      medicineCount: medicines?.length,
+      isArray: Array.isArray(medicines),
+      firstMedicine: medicines?.[0],
+    });
 
     if (!medicines || medicines.length === 0) {
       console.warn('⚠️ No medicines found in PDF');
