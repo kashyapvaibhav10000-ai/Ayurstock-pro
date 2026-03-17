@@ -4,11 +4,11 @@ import { NextRequest } from 'next/server';
 import { JWTPayload, AuthUser } from '@/types';
 import { prisma } from '@/lib/db';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || '';
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '7d';
 
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required. Set it in your .env file.');
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'development') {
+  console.warn('⚠️ JWT_SECRET is not set. Authentication will not work.');
 }
 
 export function hashPassword(password: string): string {
