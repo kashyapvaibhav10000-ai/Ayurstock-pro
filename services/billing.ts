@@ -321,11 +321,11 @@ export async function createSale(params: {
 }
 
 /**
- * Get sale with all details
+ * Get sale with all details (tenant-scoped)
  */
-export async function getSaleDetails(saleId: string) {
-  return prisma.sale.findUnique({
-    where: { id: saleId },
+export async function getSaleDetails(saleId: string, shopId: string) {
+  return prisma.sale.findFirst({
+    where: { id: saleId, shopId },
     include: {
       saleItems: {
         include: {

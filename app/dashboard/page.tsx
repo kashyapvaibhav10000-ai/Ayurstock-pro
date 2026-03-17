@@ -32,25 +32,48 @@ export default function DashboardPage() {
   const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
 
   useEffect(() => {
-    // In a real application, this would fetch from a Next.js /api route.
-    // For now, we simulate an empty database state to ensure the empty UI renders properly.
     const fetchMetrics = async () => {
       try {
-        // const response = await fetch('/api/dashboard/metrics');
-        // const data = await response.json();
-        
-        // Simulating an empty app state after arbitrary delay
-        setTimeout(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const token = localStorage.getItem('token');
+        const response = await fetch(
+          `/api/sales?startDate=${today.toISOString()}&endDate=${endOfDay.toISOString()}&limit=100`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+          const sales = result.data?.sales || [];
+          const totalSalesToday = sales.reduce(
+            (sum: number, s: any) => sum + parseFloat(s.grandTotal || '0'),
+            0
+          );
+          setMetrics({
+            totalSalesToday: Math.round(totalSalesToday * 100) / 100,
+            newCustomers: sales.filter((s: any) => s.customer).length,
+            lowStockCount: alertsData?.lowStockMedicines?.length ?? 0,
+            salesByDate: [],
+          });
+        } else {
           setMetrics({
             totalSalesToday: 0,
             newCustomers: 0,
             lowStockCount: alertsData?.lowStockMedicines?.length ?? 0,
             salesByDate: [],
           });
-          setIsLoading(false);
-        }, 800);
-      } catch (error) {
-        console.error("Failed to fetch dashboard metrics", error);
+        }
+      } catch {
+        setMetrics({
+          totalSalesToday: 0,
+          newCustomers: 0,
+          lowStockCount: alertsData?.lowStockMedicines?.length ?? 0,
+          salesByDate: [],
+        });
+      } finally {
         setIsLoading(false);
       }
     };
