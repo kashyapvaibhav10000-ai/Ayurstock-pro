@@ -4,8 +4,12 @@ import { NextRequest } from 'next/server';
 import { JWTPayload, AuthUser } from '@/types';
 import { prisma } from '@/lib/db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
-const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '15m';
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '7d';
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required. Set it in your .env file.');
+}
 
 export function hashPassword(password: string): string {
   return bcrypt.hashSync(password, 10);
@@ -23,13 +27,8 @@ export function generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string 
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    console.log('✓ Token verified successfully');
-    return payload;
-  } catch (error) {
-    const err = error instanceof Error ? error.message : String(error);
-    console.warn('⚠️ Token verification failed:', err);
-    console.warn('⚠️ JWT_SECRET in use:', JWT_SECRET ? 'SET' : 'NOT SET or empty');
+    return jwt.verify(token, JWT_SECRET as string) as JWTPayload;
+  } catch {
     return null;
   }
 }
@@ -91,26 +90,17 @@ export async function verifyAuth(req: NextRequest): Promise<{
 }> {
   try {
     const token = extractRequestToken(req);
-
     if (!token) {
-      console.warn('⚠️ No token found in request');
       return { authenticated: false };
     }
-
-    console.log('✓ Token extracted:', token.substring(0, 20) + '...');
 
     const user = await getAuthUserFromToken(token);
     if (!user) {
-      console.warn('⚠️ Invalid or expired token');
       return { authenticated: false };
     }
 
-    console.log('✓ Auth successful for user:', user.email);
-    return {
-      authenticated: true,
-      user,
-    };
-  } catch (error) {
+    return { authenticated: true, user };
+  } catch {
     return { authenticated: false };
   }
 }

@@ -14,20 +14,14 @@ export async function GET(
       return createErrorResponse('Unauthorized', 401);
     }
 
-    const saleDetails = await getSaleDetails(params.id);
+    const saleDetails = await getSaleDetails(params.id, auth.user.shopId);
 
     if (!saleDetails) {
       return createErrorResponse('Sale not found', 404);
     }
 
-    // Verify the sale belongs to the user's shop
-    if (saleDetails.shopId !== auth.user.shopId) {
-      return createErrorResponse('Forbidden', 403);
-    }
-
     return createApiResponse(true, saleDetails);
-  } catch (error) {
-    console.error('Get sale details error:', error);
+  } catch {
     return createErrorResponse('Internal server error', 500);
   }
 }
