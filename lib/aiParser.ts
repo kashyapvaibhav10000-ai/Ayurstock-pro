@@ -199,8 +199,41 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
 
 // Quick probe to find a model that isn't rate-limited
 async function findWorkingModel(apiKey: string): Promise<string> {
-  console.log('🔍 Probing for a working AI model...');
-  for (const model of MODELS) {
+  console.log('🔍 Fetching live list of free AI models from OpenRouter...');
+  
+  let availableModels: string[] = ['openrouter/free']; // Always try the auto-router first
+  
+  try {
+    const modelsResp = await fetch('https://openrouter.ai/api/v1/models');
+    const modelsData = await modelsResp.json();
+    if (modelsData?.data) {
+      const freeModels = modelsData.data
+        .filter((m: any) => m.pricing && m.pricing.prompt === "0" && m.pricing.completion === "0")
+        .map((m: any) => m.id);
+        
+      if (freeModels.length > 0) {
+        // Prioritize known good ones if they exist in the free list, otherwise append all
+        const preferred = ['google/gemini-2.0-flash-lite', 'meta-llama/llama-3.1-8b-instruct'];
+        const sortedFree = freeModels.sort((a: string, b: string) => {
+          const aPref = preferred.some(p => a.includes(p)) ? 1 : 0;
+          const bPref = preferred.some(p => b.includes(p)) ? 1 : 0;
+          return bPref - aPref;
+        });
+        
+        availableModels = [...new Set([...availableModels, ...sortedFree])];
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to fetch models list, falling back to basic list', error);
+    availableModels.push('google/gemini-2.0-flash-lite-preview-02-05:free', 'meta-llama/llama-3.3-70b-instruct:free');
+  }
+
+  console.log(`Found ${availableModels.length} potential free models. Probing for a working one...`);
+
+  // Only probe up to 10 models so we don't take forever
+  const modelsToTest = availableModels.slice(0, 10);
+
+  for (const model of modelsToTest) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s probe timeout
@@ -214,10 +247,10 @@ async function findWorkingModel(apiKey: string): Promise<string> {
         body: JSON.stringify({
           model,
           messages: [
-            { role: 'user', content: 'Reply with just: ["test"]' },
+            { role: 'user', content: 'Reply with the exact word "Working".' },
           ],
           temperature: 0,
-          max_tokens: 20,
+          max_tokens: 10,
         }),
         signal: controller.signal,
       });
