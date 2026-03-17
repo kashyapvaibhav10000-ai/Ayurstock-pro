@@ -35,8 +35,8 @@ const MODELS = [
   'google/gemma-3-27b-it:free',                      // Another solid fallback
 ]
 
-const MAX_CONCURRENT_REQUESTS = 1 // Sequential processing for free rate limits
-const REQUEST_INTERVAL_MS = 1000 // Delay between requests
+const MAX_CONCURRENT_REQUESTS = 4 // Process chunks in parallel to dramatically cut total execution time
+const REQUEST_INTERVAL_MS = 200 // Minimal delay between parallel requests
 const MAX_PDF_PAGES = 100 // Max pages to process
 const MAX_PDF_TEXT_LENGTH = 500000 // Stop processing if text exceeds this
 const REQUEST_TIMEOUT_MS = 45000 // Increased from 25s to 45s for slow free models
@@ -395,29 +395,35 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
     const workingModel = await findWorkingModel(apiKey);
     console.log(`✅ Using model: ${workingModel}`);
 
-    console.log(`\n🤖 Parsing ${chunks.length} chunks with ${workingModel}...`);
-    // Process chunks SEQUENTIALLY to avoid rate limits
+    console.log(`\n🤖 Parsing ${chunks.length} chunks with ${workingModel} (Concurrency: ${MAX_CONCURRENT_REQUESTS})...`);
     const GLOBAL_DEADLINE = Date.now() + 240000; // 240s hard limit (Vercel = 300s)
     const allMedicines: ParsedMedicine[] = [];
     let successCount = 0;
     let failureCount = 0;
     
-    for (let i = 0; i < chunks.length; i++) {
-      // Check global deadline
+    const limiter = new RateLimiter(MAX_CONCURRENT_REQUESTS, REQUEST_INTERVAL_MS);
+    
+    const tasks = chunks.map((chunk, i) => async () => {
       if (Date.now() > GLOBAL_DEADLINE) {
-        console.warn(`\n⏱️ Global timeout reached after ${i} chunks. Returning partial results.`);
-        break;
+        console.warn(`\n⏱️ Global timeout reached for chunk ${i+1}.`);
+        throw new Error('Global request timeout reached');
       }
-      try {
-        const medicines = await parseChunkWithAI(chunks[i], apiKey, workingModel);
-        allMedicines.push(...medicines);
-        console.log(`  Chunk ${i + 1}/${chunks.length}: ✅ ${medicines.length} medicines`);
+      const chunkMedicines = await parseChunkWithAI(chunk, apiKey, workingModel);
+      console.log(`  Chunk ${i + 1}/${chunks.length}: ✅ ${chunkMedicines.length} medicines`);
+      return chunkMedicines;
+    });
+
+    const results = await limiter.executeAll(tasks);
+    
+    results.forEach((result, i) => {
+      if (result.status === 'fulfilled') {
+        allMedicines.push(...result.value);
         successCount++;
-      } catch (error) {
-        console.warn(`  Chunk ${i + 1}/${chunks.length}: ❌ ${error instanceof Error ? error.message : String(error)}`);
+      } else {
+        console.warn(`  Chunk ${i + 1}/${chunks.length}: ❌ ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
         failureCount++;
       }
-    }
+    });
 
     console.log(`\n📊 Results: ${successCount} successful, ${failureCount} failed`);
     console.log(`💊 Total before dedup: ${allMedicines.length} medicines`);
