@@ -1,82 +1,140 @@
 'use client';
 
-import { ArrowUpRight, Bell, DollarSign, X } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { ArrowUpRight, Bell, DollarSign, PackageOpen, Plus, TrendingUp } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { AlertsPanel } from "@/components/dashboard/alerts-panel";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
+import { useEffect, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const mockSalesData = [
-  { month: "Jan", revenue: 12000 },
-  { month: "Feb", revenue: 15000 },
-  { month: "Mar", revenue: 14000 },
-  { month: "Apr", revenue: 18000 },
-  { month: "May", revenue: 20000 },
-  { month: "Jun", revenue: 22000 },
-  { month: "Jul", revenue: 21000 },
-  { month: "Aug", revenue: 23000 },
-  { month: "Sep", revenue: 24000 },
-  { month: "Oct", revenue: 26000 },
-  { month: "Nov", revenue: 28000 },
-  { month: "Dec", revenue: 30000 },
-];
+// Real Schema Data Types defined in our contract
+type SaleDate = {
+  date: string;
+  totalAmount: number;
+};
+
+type DashboardMetrics = {
+  totalSalesToday: number;
+  newCustomers: number;
+  lowStockCount: number;
+  salesByDate: SaleDate[];
+};
 
 export default function DashboardPage() {
-  const { data: alertsData } = useInventoryAlerts();
-  const lowStockCount = alertsData?.lowStockMedicines?.length ?? 0;
+  const { data: alertsData, isLoading: isAlertsLoading } = useInventoryAlerts();
+  
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // In a real application, this would fetch from a Next.js /api route.
+    // For now, we simulate an empty database state to ensure the empty UI renders properly.
+    const fetchMetrics = async () => {
+      try {
+        // const response = await fetch('/api/dashboard/metrics');
+        // const data = await response.json();
+        
+        // Simulating an empty app state after arbitrary delay
+        setTimeout(() => {
+          setMetrics({
+            totalSalesToday: 0,
+            newCustomers: 0,
+            lowStockCount: alertsData?.lowStockMedicines?.length ?? 0,
+            salesByDate: [],
+          });
+          setIsLoading(false);
+        }, 800);
+      } catch (error) {
+        console.error("Failed to fetch dashboard metrics", error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchMetrics();
+  }, [alertsData]);
 
   return (
-    <div className="space-y-8 p-8">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <button className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600">
+    <div className="space-y-6 md:space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-primary">Dashboard</h1>
+          <p className="text-text-secondary text-sm mt-1">Overview of your shop's daily performance.</p>
+        </div>
+        <Button className="w-full sm:w-auto gap-2">
+          <Plus className="h-4 w-4" />
           Add Inventory
-        </button>
+        </Button>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
-          icon={<DollarSign className="h-6 w-6 text-green-500" />}
-          title="Total Sales This Month"
-          value="$25,000"
-          change={+5.4}
+          icon={<DollarSign className="h-5 w-5 text-success-text" />}
+          iconBg="bg-success-bg"
+          title="Sales Today"
+          value={isLoading ? null : `₹${metrics?.totalSalesToday.toLocaleString()}`}
+          isLoading={isLoading}
         />
         <StatCard
-          icon={<Bell className="h-6 w-6 text-yellow-500" />}
+          icon={<Bell className="h-5 w-5 text-warning-text" />}
+          iconBg="bg-warning-bg"
           title="Low Stock Alerts"
-          value={`${lowStockCount}`}
-          change={-2.3}
+          value={isAlertsLoading || isLoading ? null : metrics?.lowStockCount.toString()}
+          isLoading={isAlertsLoading || isLoading}
         />
         <StatCard
-          icon={<ArrowUpRight className="h-6 w-6 text-blue-500" />}
+          icon={<ArrowUpRight className="h-5 w-5 text-primary" />}
+          iconBg="bg-primary-light"
           title="New Customers"
-          value="54"
-          change={+3.1}
+          value={isLoading ? null : metrics?.newCustomers.toString()}
+          isLoading={isLoading}
         />
       </div>
 
+      {/* Main Content Area */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 h-80 rounded-lg bg-white p-4 shadow">
-          <h2 className="mb-4 text-lg font-medium">Monthly Revenue</h2>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={mockSalesData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="revenue" stroke="#8884d8" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {/* Chart / Revenue Area */}
+        <Card className="lg:col-span-2 flex flex-col min-h-[400px]">
+          <CardHeader>
+            <CardTitle className="text-lg">Revenue Overview</CardTitle>
+            <CardDescription>Daily sales performance for the current month.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col justify-center">
+            {isLoading ? (
+              <div className="space-y-4 lg:px-4">
+                <Skeleton className="h-[250px] w-full" />
+              </div>
+            ) : metrics?.salesByDate && metrics.salesByDate.length > 0 ? (
+              <div className="h-[300px] w-full bg-surface-muted rounded-xl border border-dashed border-surface-border flex items-center justify-center">
+                <p className="text-text-muted text-sm flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Chart will render when data exists
+                </p>
+              </div>
+            ) : (
+              // Proper Empty State
+              <div className="flex flex-col items-center justify-center text-center space-y-4 py-12">
+                <div className="h-16 w-16 bg-surface-muted rounded-2xl flex items-center justify-center border border-surface-border">
+                  <PackageOpen className="h-8 w-8 text-text-muted" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-text-primary">No sales recorded yet</h3>
+                  <p className="text-sm text-text-secondary mt-1 max-w-sm mx-auto">
+                    Start by adding your first product to the inventory so you can begin processing bills.
+                  </p>
+                </div>
+                <Button variant="outline" className="mt-2 gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add First Product
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
         
-        <div>
+        {/* Alerts Sidebar */}
+        <div className="h-full">
           <AlertsPanel />
         </div>
       </section>
@@ -84,41 +142,38 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ icon, title, value, change }: {icon: React.ReactNode; title: string; value: string; change: number;}) {
+function StatCard({ 
+  icon, 
+  iconBg,
+  title, 
+  value, 
+  isLoading
+}: {
+  icon: React.ReactNode; 
+  iconBg: string;
+  title: string; 
+  value: string | null | undefined; 
+  isLoading?: boolean;
+}) {
   return (
-    <div className="flex items-center justify-between rounded-lg bg-white p-4 shadow">
-      <div className="flex items-center space-x-4">
-        {icon}
-        <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="text-xl font-semibold">{value}</p>
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between space-x-4">
+          <div className="flex items-center space-x-4">
+            <div className={`p-3 rounded-xl flex items-center justify-center ${iconBg}`}>
+              {icon}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-text-secondary">{title}</p>
+              {isLoading ? (
+                <Skeleton className="h-7 w-20 mt-1" />
+              ) : (
+                <p className="text-2xl font-bold text-text-primary mt-0.5">{value || "0"}</p>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-      <ChangeBadge change={change} />
-    </div>
-  );
-}
-
-function ChangeBadge({ change }: { change: number }) {
-  const isPositive = change >= 0;
-  return (
-    <div
-      className={`flex items-center rounded-full px-2 py-1 text-xs font-medium 
-        ${isPositive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-    >
-      {isPositive ? "+" : ""}
-      {change}%
-    </div>
-  );
-}
-
-function CloseButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      className="absolute right-2 top-2 p-1 text-gray-400 hover:text-gray-600"
-      onClick={onClick}
-    >
-      <X className="h-4 w-4" />
-    </button>
+      </CardContent>
+    </Card>
   );
 }
