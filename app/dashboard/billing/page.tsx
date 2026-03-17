@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import { Search, ScanLine, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { CartItem } from '@/types';
 
 interface BillingSuggestion {
@@ -76,7 +77,7 @@ export default function BillingPage() {
     );
 
     if (daysToExpiry < 0) {
-      alert('This batch is expired and cannot be billed.');
+      toast.error('This batch is expired and cannot be billed.');
       return;
     }
 
@@ -236,11 +237,11 @@ export default function BillingPage() {
       if (saleId) {
         router.push(`/dashboard/billing/invoice/${saleId}`);
       } else {
-        alert('Sale created but invoice preview failed to load.');
+        toast.warning('Sale created but invoice preview failed to load.');
       }
     } catch (error) {
       console.error('Checkout error:', error);
-      alert('Failed to create sale');
+      toast.error('Failed to create sale');
     } finally {
       setLoading(false);
     }
@@ -298,7 +299,7 @@ export default function BillingPage() {
 
   return (
     <div className="grid min-h-[calc(100vh-96px)] grid-cols-1 gap-0 xl:grid-cols-[1.15fr_1fr_360px]">
-      <section className="border-r border-slate-200 bg-white/80 p-6">
+      <section className="border-r border-slate-200 bg-slate-50 p-6">
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -355,7 +356,7 @@ export default function BillingPage() {
         </div>
       </section>
 
-      <section className="border-r border-slate-200 bg-white/50 p-6">
+      <section className="border-r border-slate-200 bg-slate-50 p-6">
         <div className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <div>
@@ -430,7 +431,7 @@ export default function BillingPage() {
         </div>
       </section>
 
-      <aside className="bg-slate-50/70 p-6">
+      <aside className="bg-slate-50 p-6">
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Summary</h2>
           <div className="mt-4 space-y-3 text-sm">

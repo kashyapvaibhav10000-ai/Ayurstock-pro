@@ -44,7 +44,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
   const visibleItems = menuItems.filter((item) => item.roles.includes(user.role));
 
   const sidebarClasses = `
-    fixed inset-y-0 left-0 z-50 flex flex-col border-r border-slate-200/60 bg-white/95 backdrop-blur shadow-xl transition-transform duration-300 ease-in-out
+    fixed inset-y-0 left-0 z-50 flex flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-300 ease-in-out
     xl:static xl:translate-x-0 xl:shadow-none
     ${isDesktopOpen ? 'xl:w-72' : 'xl:w-24'}
     ${isMobileOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72 xl:w-min'}
@@ -55,7 +55,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
       {/* Mobile Backdrop */}
       {isMobileOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm xl:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/40 xl:hidden"
           onClick={onMobileClose}
         />
       )}

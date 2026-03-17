@@ -14,7 +14,8 @@ import UserSettings from '@/components/settings/user-settings';
 import SystemSettings from '@/components/settings/system-settings';
 import CompanySettings from '@/components/settings/company-settings';
 import ProfileSettings from '@/components/settings/profile-settings';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 const SETTINGS_CATEGORIES = [
   { id: 'shop', label: 'Shop Details', icon: Store, group: 'General' },
@@ -29,6 +30,16 @@ const SETTINGS_CATEGORIES = [
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { isAdmin } = useAuth();
+
+  useEffect(() => {
+    if (!isAdmin) {
+      router.replace('/dashboard');
+    }
+  }, [isAdmin, router]);
+
+  if (!isAdmin) return null;
+
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') || 'shop';
   
@@ -70,13 +81,13 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-8">
         {/* Sidebar Navigation */}
-        <aside className="w-full md:w-64 shrink-0 flex flex-col gap-8">
-          <nav className="flex flex-col space-y-1">
+        <aside className="w-full lg:w-64 shrink-0">
+          <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible pb-4 lg:pb-0 gap-2 lg:gap-1 scrollbar-hide no-scrollbar">
             {['General', 'Account', 'Billing', 'Advanced'].map(group => (
-              <div key={group} className="mb-6 last:mb-0">
-                <h4 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+              <div key={group} className="flex lg:flex-col shrink-0 lg:mb-6 last:mb-0 items-center lg:items-stretch gap-2 lg:gap-0">
+                <h4 className="hidden lg:block mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
                   {group}
                 </h4>
                 {SETTINGS_CATEGORIES.filter(c => c.group === group).map(category => {
@@ -86,43 +97,58 @@ export default function SettingsPage() {
                       key={category.id}
                       onClick={() => setActiveTab(category.id)}
                       className={cn(
-                        "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        "flex items-center gap-2 lg:gap-3 rounded-xl lg:rounded-lg px-4 py-2 lg:px-3 lg:py-2 text-sm font-medium transition-all whitespace-nowrap",
                         activeTab === category.id 
-                          ? "bg-primary-light text-primary-hover"
-                          : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
+                          ? "bg-primary-light text-primary-hover shadow-sm lg:shadow-none"
+                          : "text-text-secondary hover:bg-surface-muted hover:text-text-primary border border-transparent lg:border-none"
                       )}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-4 w-4 shrink-0" />
                       {category.label}
                     </button>
                   );
                 })}
+                {/* Visual separator for mobile */}
+                <div className="lg:hidden w-px h-4 bg-surface-border mx-2 last:hidden" />
               </div>
             ))}
           </nav>
 
-          <Card className="border-danger/20 bg-danger-bg shadow-none rounded-xl">
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-semibold text-danger-text">Session</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <Button 
-                variant="destructive" 
-                className="w-full justify-start gap-2 h-9 px-3" 
-                onClick={handleLogout}
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="hidden lg:block mt-8">
+            <Card className="border-danger/20 bg-danger-bg shadow-none rounded-xl">
+              <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm font-semibold text-danger-text">Session</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <Button 
+                  variant="destructive" 
+                  className="w-full justify-start gap-2 h-9 px-3" 
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </aside>
 
         {/* Dynamic Content Area */}
         <main className="flex-1 min-w-0">
           <Card className="rounded-2xl border-surface-border bg-surface">
-            <CardContent className="p-6 md:p-8">
+            <CardContent className="p-4 md:p-8">
               {renderContent()}
+              
+              <div className="lg:hidden mt-8 pt-8 border-t border-surface-border">
+                <Button 
+                  variant="destructive" 
+                  className="w-full justify-center gap-2 h-11" 
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </main>

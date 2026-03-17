@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,8 +16,6 @@ export default function ShopSettings() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchShopSettings = async () => {
@@ -51,9 +50,6 @@ export default function ShopSettings() {
   };
 
   const handleSave = async () => {
-    setMessage('');
-    setError('');
-
     setSaving(true);
     try {
       const response = await axios.put('/api/settings/shop', formData);
@@ -67,21 +63,21 @@ export default function ShopSettings() {
           email: settings.email || '',
           gstin: settings.gstin || '',
         });
-        setMessage('Shop settings saved successfully.');
+        toast.success('Shop settings saved successfully.');
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('shop-settings-updated', { detail: response.data.data })
           );
         }
       } else {
-        setError(response.data.message || 'Failed to save shop settings.');
+        toast.error(response.data.message || 'Failed to save shop settings.');
       }
     } catch (error) {
       console.error('Failed to save shop settings', error);
       const serverMessage = axios.isAxiosError(error)
         ? error.response?.data?.message
         : 'Failed to save shop settings.';
-      setError(serverMessage || 'Failed to save shop settings.');
+      toast.error(serverMessage || 'Failed to save shop settings.');
     } finally {
       setSaving(false);
     }
@@ -95,16 +91,7 @@ export default function ShopSettings() {
           <p className="text-sm text-slate-500">Manage shop name and contact details.</p>
         </div>
 
-        {message ? (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {message}
-          </div>
-        ) : null}
-        {error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
+
 
         <Input
           placeholder="Shop Name"

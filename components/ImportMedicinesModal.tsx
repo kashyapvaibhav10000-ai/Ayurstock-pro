@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import axios from 'axios';
+import { toast } from 'sonner';
+import { FileText, CheckCircle2, Loader2, Play, UploadCloud, FileCog, FileCheck2 } from 'lucide-react';
 
 const CATEGORY_OPTIONS = [
   'Tablet',
@@ -127,11 +129,11 @@ function OcrProgressBar({ phase, page, totalPages, percent, message }: {
 }) {
   const getPhaseLabel = () => {
     switch (phase) {
-      case 'loading': return '📖 Loading PDF...';
-      case 'rendering': return `🖼️ Rendering page ${page}/${totalPages}`;
-      case 'ocr': return `🔍 OCR processing page ${page}/${totalPages}`;
-      case 'done': return '✅ OCR complete!';
-      case 'error': return '❌ OCR failed';
+      case 'loading': return 'Loading Document...';
+      case 'rendering': return `Rendering Pages (${page}/${totalPages})`;
+      case 'ocr': return `Extracting Text (${page}/${totalPages})`;
+      case 'done': return 'Extraction Complete';
+      case 'error': return 'Extraction Failed';
       default: return message;
     }
   };
@@ -185,6 +187,7 @@ export default function ImportMedicinesModal({
     message: '',
   });
 
+  const abortControllerRef = useRef<AbortController | null>(null);
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
   useEffect(() => {
@@ -229,12 +232,17 @@ export default function ImportMedicinesModal({
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file) {
+      toast.error('Please select a file first');
+      return;
+    }
 
     setLoading(true);
     setParseError('');
     setErrorCode('');
     setStep('processing');
+    
+    abortControllerRef.current = new AbortController();
 
     try {
       const formData = new FormData();
@@ -249,9 +257,11 @@ export default function ImportMedicinesModal({
 
       const response = await axios.post('/api/medicines/import', formData, {
         headers,
+        signal: abortControllerRef.current.signal,
       });
 
       if (response.data.success && response.data.medicines) {
+        toast.success(`Successfully extracted ${response.data.medicines.length} medicines`);
         setPdfType(response.data.pdfType || 'searchable');
         setPreview(
           response.data.medicines.map((med: ParsedMedicine) => ({
@@ -287,10 +297,25 @@ export default function ImportMedicinesModal({
         setErrorCode(data?.errorCode || '');
         setParseError(errorMsg);
         setStep('upload');
+        if (axios.isCancel(error)) {
+          toast.warning('Import process was cancelled');
+        } else {
+          toast.error(errorMsg);
+        }
       }
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
+  };
+
+  const handleCancelProcess = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setStep('upload');
+    setLoading(false);
+    toast.info('Processing cancelled');
   };
 
   // ── Client-side OCR handler ─────────────────────────────────────────
@@ -594,14 +619,16 @@ export default function ImportMedicinesModal({
     setLoading(true);
     try {
       await onSuccess(selectedMedicines);
+      toast.success(`${selectedMedicines.length} medicines confirmed and queued for save`);
       resetModal();
     } catch (error) {
       const message = axios.isAxiosError(error)
         ? error.response?.data?.message
         : error instanceof Error
           ? error.message
-          : 'Failed to import medicines';
-      setParseError(message || 'Failed to import medicines');
+          : 'Failed to save medicines';
+      setParseError(message || 'Failed to save medicines');
+      toast.error(message || 'Failed to save medicines');
     } finally {
       setLoading(false);
     }
@@ -625,14 +652,33 @@ export default function ImportMedicinesModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetModal()}>
-      <DialogContent className="max-w-7xl">
-        <DialogHeader>
-          <DialogTitle>Import Medicines</DialogTitle>
+      <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-surface border-surface-border">
+        <DialogHeader className="px-6 py-4 border-b border-surface-border bg-slate-50 shrink-0">
+          <DialogTitle className="text-xl">Import Medicines</DialogTitle>
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex space-x-6">
+              <div className={`flex items-center gap-2 ${step === 'upload' ? 'text-primary font-bold' : 'text-text-secondary'}`}>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === 'upload' ? 'bg-primary text-white' : 'bg-slate-200'}`}>1</div>
+                <span>Upload File</span>
+              </div>
+              <div className="w-12 border-t-2 border-slate-200 my-auto" />
+              <div className={`flex items-center gap-2 ${step === 'processing' || step === 'ocr' ? 'text-primary font-bold' : 'text-text-secondary'}`}>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === 'processing' || step === 'ocr' ? 'bg-primary text-white' : 'bg-slate-200'}`}>2</div>
+                <span>Processing</span>
+              </div>
+              <div className="w-12 border-t-2 border-slate-200 my-auto" />
+              <div className={`flex items-center gap-2 ${step === 'preview' ? 'text-primary font-bold' : 'text-text-secondary'}`}>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === 'preview' ? 'bg-primary text-white' : 'bg-slate-200'}`}>3</div>
+                <span>Review & Edit</span>
+              </div>
+            </div>
+          </div>
         </DialogHeader>
-
+        
+        <div className="flex-1 overflow-y-auto p-6 bg-surface">
         {/* ── Upload Step ────────────────────────────────────────────── */}
         {step === 'upload' ? (
-          <div className="space-y-4">
+          <div className="space-y-6 max-w-2xl mx-auto py-8">
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDragDrop}
@@ -646,13 +692,13 @@ export default function ImportMedicinesModal({
                 id="file-input"
               />
               <label htmlFor="file-input" className="cursor-pointer">
-                <div className="text-4xl mb-2">📁</div>
-                <p className="text-sm font-medium text-gray-700">
-                  Drag & Drop File
+                <UploadCloud className="h-12 w-12 mx-auto text-primary mb-4" />
+                <p className="text-lg font-medium text-text-primary">
+                  Drag & Drop Invoice File
                 </p>
-                <p className="text-xs text-gray-500 mt-1">or</p>
-                <Button variant="outline" className="mt-3" type="button">
-                  Browse File
+                <p className="text-sm text-text-secondary mt-1">Accepts PDF, PNG, JPG</p>
+                <Button variant="outline" className="mt-6 gap-2" type="button">
+                  Browse Files
                 </Button>
               </label>
             </div>
@@ -693,13 +739,22 @@ export default function ImportMedicinesModal({
 
         /* ── Processing Step ──────────────────────────────────────────── */
         ) : step === 'processing' ? (
-          <div className="space-y-4">
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-lg font-medium text-gray-700">Processing PDF...</p>
-              <p className="text-sm text-gray-500 mt-2">
-                Extracting text and parsing medicine data. This may take a few moments.
+          <div className="space-y-6 max-w-lg mx-auto py-16 text-center">
+            <div className="relative h-24 w-24 mx-auto">
+              <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
+              <FileCog className="absolute inset-0 m-auto h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-text-primary">AI is processing your file...</p>
+              <p className="text-sm text-text-secondary mt-2">
+                Extracting structured medicine data. This may take 15-30 seconds.
               </p>
+              {file && (
+                 <p className="text-sm font-medium bg-slate-100 px-3 py-1 rounded-full inline-block mt-4 text-slate-700">
+                   {file.name}
+                 </p>
+              )}
             </div>
           </div>
 
@@ -721,15 +776,20 @@ export default function ImportMedicinesModal({
         /* ── Preview Step ─────────────────────────────────────────────── */
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">
-                  Review and select medicines to import ({selectedRows.size} selected)
-                </p>
-                <p className="text-xs text-gray-500">
-                  Blank fields can be edited here before import.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-primary-light/50 p-4 rounded-xl border border-primary/20">
+              <div className="flex items-start gap-3">
+                <FileCheck2 className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-base font-bold text-primary-hover">Review & Edit Extracted Data</h3>
+                  <p className="text-sm text-primary-hover/80 mt-0.5">
+                    Carefully review the fields below. You can edit any mistakes before saving to the database.
+                  </p>
+                </div>
               </div>
+              <div className="mt-3 sm:mt-0 whitespace-nowrap text-sm font-semibold text-primary">
+                {selectedRows.size} Selected
+              </div>
+            </div>
               {pdfType && (
                 <span className={`text-xs px-2 py-1 rounded-full ${
                   pdfType === 'searchable'
@@ -739,7 +799,6 @@ export default function ImportMedicinesModal({
                   {pdfType === 'searchable' ? '✅ Searchable PDF' : '🔍 Scanned PDF (OCR)'}
                 </span>
               )}
-            </div>
             <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1.5fr_1fr]">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Company for all medicines</label>
@@ -924,50 +983,45 @@ export default function ImportMedicinesModal({
             )}
           </div>
         )}
+        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={resetModal} disabled={loading || sequentialImport || step === 'ocr'}>
-            Cancel
-          </Button>
-          {step === 'upload' ? (
-            <Button
-              onClick={handleUpload}
-              disabled={!file || loading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {loading ? 'Starting Import...' : 'Parse File'}
-            </Button>
-          ) : step === 'ocr' ? (
-            <Button disabled className="bg-blue-600">
-              OCR Running...
-            </Button>
-          ) : step === 'preview' ? (
-            <div className="flex gap-2">
-              {sequentialImport && (
-                <div className="flex items-center gap-2 text-sm text-gray-600 mr-4">
-                  <span>Importing {importProgress.completed + 1} of {importProgress.total}</span>
-                  {importProgress.failed > 0 && (
-                    <span className="text-red-500">({importProgress.failed} failed)</span>
-                  )}
-                </div>
-              )}
-              <Button
-                onClick={handleSequentialImport}
-                disabled={selectedRows.size === 0 || loading || sequentialImport}
-                variant="outline"
-                className="border-blue-500 text-blue-600 hover:bg-blue-50"
-              >
-                {sequentialImport ? 'Importing...' : `Import One by One (${selectedCount})`}
+        <DialogFooter className="border-t border-surface-border bg-slate-50 p-6 shrink-0 flex items-center justify-between w-full">
+          <div>
+            {step === 'processing' && (
+              <Button variant="destructive" onClick={handleCancelProcess} className="gap-2">
+                Abort Process
               </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={resetModal} disabled={loading || sequentialImport || step === 'ocr'}>
+              Cancel
+            </Button>
+            {step === 'upload' ? (
+              <Button
+                onClick={handleUpload}
+                disabled={!file || loading}
+                className="bg-primary hover:bg-primary-hover text-white gap-2 min-w-[140px]"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                {loading ? 'Starting...' : 'Start Import'}
+              </Button>
+            ) : step === 'ocr' ? (
+              <Button disabled className="bg-primary hover:bg-primary-hover gap-2 min-w-[140px]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                OCR Running...
+              </Button>
+            ) : step === 'preview' ? (
               <Button
                 onClick={handleImport}
                 disabled={selectedRows.size === 0 || loading || sequentialImport}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-success-bg text-success-text hover:bg-emerald-200 border border-emerald-300 font-bold gap-2"
               >
-                {loading ? 'Importing...' : `Import Selected (${selectedCount})`}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                {loading ? 'Saving...' : 'Confirm & Save'}
               </Button>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

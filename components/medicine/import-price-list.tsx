@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { AlertCircle, CheckCircle, Upload } from "lucide-react"
+import { AlertCircle, CheckCircle, Upload, FileText, Loader2, Play, CheckCircle2 } from "lucide-react"
+import { toast } from "sonner"
 
 const CATEGORY_OPTIONS = [
   "Tablet",
@@ -128,6 +129,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
   const [existingKeys, setExistingKeys] = useState<Set<string>>(new Set())
   const [creatingCompany, setCreatingCompany] = useState(false)
   const [ocrProgress, setOcrProgressState] = useState({ phase: "loading", page: 0, totalPages: 0, percent: 0, message: "" })
+  const abortControllerRef = useRef<AbortController | null>(null)
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
   const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
 
@@ -202,7 +204,10 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
   }
 
   const handleUpload = async () => {
-    if (!file) return
+    if (!file) {
+      toast.error("Please select a file first")
+      return
+    }
 
     setLoading(true)
     setError("")
@@ -221,6 +226,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       const result = await response.json()
 
       if (result.success) {
+        toast.success(`Parsed ${result.medicines?.length || 0} medicines from price list`)
         setPdfType(result.pdfType || "searchable")
         const normalized = (result.medicines || []).map((row: ParsedMedicine) => {
           const category = row.category || detectCategory(row.packing || row.name)
@@ -236,12 +242,15 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
         setPdfType("scanned")
         setErrorCode("NO_TEXT")
         setError(result.message || "This PDF appears to be scanned.")
+        toast.warning("Scanned PDF detected. OCR required.")
       } else {
         setErrorCode(result.errorCode || "")
         setError(result.message || "Failed to parse file")
+        toast.error(result.message || "Failed to parse file")
       }
     } catch (err) {
       setError("Failed to upload file. Please try again.")
+      toast.error("Network error while uploading file")
     } finally {
       setLoading(false)
     }
@@ -262,6 +271,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       })
 
       if (!extractedText.trim()) {
+        toast.error("OCR completed but no text could be extracted.")
         setError("OCR completed but no text could be extracted.")
         setErrorCode("")
         setStep("upload")
@@ -282,6 +292,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       const result = await response.json()
 
       if (result.success) {
+        toast.success(`OCR successful: extracted ${result.medicines?.length || 0} medicines`)
         setPdfType("scanned")
         const normalized = (result.medicines || []).map((row: ParsedMedicine) => {
           const category = row.category || detectCategory(row.packing || row.name)
@@ -296,10 +307,13 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       } else {
         setErrorCode(result.errorCode || "")
         setError(result.message || "AI parsing found no medicines.")
+        toast.error(result.message || "AI parsing failed")
         setStep("upload")
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "OCR processing failed")
+      const msg = err instanceof Error ? err.message : "OCR processing failed"
+      setError(msg)
+      toast.error(msg)
       setErrorCode("")
       setStep("upload")
     }
@@ -320,6 +334,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       const result = await response.json()
 
       if (result.success) {
+        toast.success(`Successfully imported ${result.count} medicines to master list`)
         onSuccess(result.count)
         onClose()
         setStep("upload")
@@ -327,10 +342,12 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
         setParsedMedicines([])
       } else {
         setError(result.message || "Failed to import medicines")
+        toast.error(result.message || "Import failed")
         setStep("preview")
       }
     } catch (err) {
       setError("Failed to import medicines. Please try again.")
+      toast.error("Network error during import")
       setStep("preview")
     } finally {
       setLoading(false)
@@ -445,15 +462,18 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       })
       const payload = await res.json()
       if (payload.success) {
+        toast.success(`Company "${name}" created successfully`)
         setCompanies((prev) => Array.from(new Set([...prev, name])))
         setSelectedCompany(name)
         applyCompanyToRows(name)
         setNewCompany("")
       } else {
         setError(payload.message || "Failed to create company")
+        toast.error(payload.message || "Failed to create company")
       }
     } catch {
       setError("Failed to create company")
+      toast.error("Network error while creating company")
     } finally {
       setCreatingCompany(false)
     }
@@ -461,15 +481,34 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
 
   return (
     <Dialog open={isOpen} onOpenChange={resetModal}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-surface border-surface-border">
+        <DialogHeader className="px-6 py-4 border-b border-surface-border bg-slate-50 shrink-0">
+          <DialogTitle className="text-xl flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            Import Distributor Price List
+            Import Price List
           </DialogTitle>
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex space-x-6">
+              <div className={`flex items-center gap-2 ${step === "upload" ? "text-primary font-bold" : "text-text-secondary"}`}>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "upload" ? "bg-primary text-white" : "bg-slate-200"}`}>1</div>
+                <span>Upload</span>
+              </div>
+              <div className="w-12 border-t-2 border-slate-200 my-auto" />
+              <div className={`flex items-center gap-2 ${step === "ocr" || (step === "upload" && loading) ? "text-primary font-bold" : "text-text-secondary"}`}>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "ocr" || (step === "upload" && loading) ? "bg-primary text-white" : "bg-slate-200"}`}>2</div>
+                <span>Processing</span>
+              </div>
+              <div className="w-12 border-t-2 border-slate-200 my-auto" />
+              <div className={`flex items-center gap-2 ${step === "preview" ? "text-primary font-bold" : "text-text-secondary"}`}>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "preview" ? "bg-primary text-white" : "bg-slate-200"}`}>3</div>
+                <span>Review</span>
+              </div>
+            </div>
+          </div>
         </DialogHeader>
 
-        {error && <SmartErrorBanner errorCode={errorCode} message={error} />}
+        <div className="flex-1 overflow-y-auto p-6 bg-surface">
+        {error && <div className="mb-4"><SmartErrorBanner errorCode={errorCode} message={error} /></div>}
 
         {/* ── Upload Step ──────────────────────────────────────────── */}
         {step === "upload" && (
@@ -712,8 +751,9 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
             <p className="text-gray-600">Importing medicines...</p>
           </div>
         )}
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="border-t border-surface-border bg-slate-50 p-6 shrink-0 flex items-center justify-between w-full">
           {step === "upload" && (
             <>
               <Button variant="outline" onClick={resetModal}>

@@ -5,7 +5,7 @@
 :root {
   --background: #f8fafc;
   --surface: #ffffff;
-  --surface-muted: rgba(255, 255, 255, 0.72);
+  --surface-muted: #f1f5f9;
   --border: #e2e8f0;
   --foreground: #0f172a;
   --muted-foreground: #64748b;

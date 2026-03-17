@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { toast } from 'sonner';
 import axios from 'axios';
 import { AlertTriangle, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -37,8 +40,17 @@ interface MedicineOption {
   barcode?: string;
   hsn: string;
 }
-
 export default function InventoryPage() {
+  const router = useRouter();
+  const { hasRole } = useAuth();
+  const isAuthorized = hasRole(['ADMIN', 'MANAGER']);
+
+  useEffect(() => {
+    if (!isAuthorized) {
+      router.replace('/dashboard');
+    }
+  }, [isAuthorized, router]);
+
   const [batches, setBatches] = useState<InventoryBatch[]>([]);
   const [medicines, setMedicines] = useState<MedicineOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,21 +61,15 @@ export default function InventoryPage() {
   );
   const [editingBatch, setEditingBatch] = useState<EditableInventoryBatch | null>(null);
   const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    void loadInventory();
-    void loadMedicines();
-  }, []);
-
-  useEffect(() => {
-    if (!successMessage) {
-      return;
+    if (isAuthorized) {
+      void loadInventory();
+      void loadMedicines();
     }
+  }, [isAuthorized]);
 
-    const timer = setTimeout(() => setSuccessMessage(''), 3000);
-    return () => clearTimeout(timer);
-  }, [successMessage]);
+  if (!isAuthorized) return null;
 
   const loadInventory = async () => {
     try {
@@ -156,11 +162,11 @@ export default function InventoryPage() {
         throw new Error(response.data.message || 'Failed to delete inventory batch');
       }
 
-      setSuccessMessage(response.data.message || 'Inventory batch deleted successfully');
+      toast.success(response.data.message || 'Inventory batch deleted successfully');
       await loadInventory();
     } catch (error) {
       console.error('Delete inventory batch error:', error);
-      alert('Failed to delete inventory batch');
+      toast.error('Failed to delete inventory batch');
     }
   };
 
@@ -229,11 +235,7 @@ export default function InventoryPage() {
         </Button>
       </div>
 
-      {successMessage ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {successMessage}
-        </div>
-      ) : null}
+
 
       <div className="grid gap-4 md:grid-cols-5">
         <Card className="rounded-2xl">
@@ -375,7 +377,7 @@ export default function InventoryPage() {
         batch={editingBatch}
         onClose={() => setEditingBatch(null)}
         onSaved={async () => {
-          setSuccessMessage('Inventory batch updated successfully');
+          toast.success('Inventory batch updated successfully');
           await loadInventory();
           await loadMedicines();
         }}
@@ -386,7 +388,7 @@ export default function InventoryPage() {
         medicines={medicines}
         onClose={() => setShowAddInventoryModal(false)}
         onSaved={async () => {
-          setSuccessMessage('Inventory added successfully');
+          toast.success('Inventory added successfully');
           await loadInventory();
           await loadMedicines();
         }}
