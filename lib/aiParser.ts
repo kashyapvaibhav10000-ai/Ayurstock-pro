@@ -28,11 +28,11 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 // Verified via GET https://openrouter.ai/api/v1/models (queried 2026-03-17)
 // Ordered by speed — faster models first
 const MODELS = [
-  'google/gemma-3-27b-it:free',                      // 131K ctx, fast
-  'mistralai/mistral-small-3.1-24b-instruct:free',   // 128K ctx, fast
-  'meta-llama/llama-3.3-70b-instruct:free',           // 128K ctx, best quality
-  'nousresearch/hermes-3-llama-3.1-405b:free',        // 131K ctx, largest
-  'nvidia/nemotron-3-super-120b-a12b:free',           // 262K ctx, large
+  'google/gemini-2.5-flash:free',                    // Extremely fast and reliable
+  'google/gemini-2.0-flash-lite-preview-02-05:free', // Fast lightweight fallback
+  'meta-llama/llama-3.3-70b-instruct:free',          // Good quality fallback
+  'mistralai/mistral-small-3.1-24b-instruct:free',   // Safe alternative fallback 
+  'google/gemma-3-27b-it:free',                      // Another solid fallback
 ]
 
 const MAX_CONCURRENT_REQUESTS = 1 // Reduced to avoid rate limits on free models

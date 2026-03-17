@@ -41,11 +41,11 @@ export async function ocrPdfInBrowser(
     // ── 1. Load PDF.js ──────────────────────────────────────────────────
     report({ phase: 'loading', message: 'Loading PDF...' });
 
-    const pdfjsLib = await import('pdfjs-dist');
-
-    // Set up the worker — use the bundled worker from pdfjs-dist
+    // Use specific loading for Next.js to avoid ESM Object.defineProperty crash
+    const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
+    
     if (typeof window !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -171,10 +171,10 @@ export async function ocrPdfInBrowser(
  */
 export async function extractTextFromPdf(file: File): Promise<string> {
   try {
-    const pdfjsLib = await import('pdfjs-dist');
+    const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
 
     if (typeof window !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
     }
 
     const arrayBuffer = await file.arrayBuffer();
