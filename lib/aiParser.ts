@@ -35,11 +35,12 @@ const MODELS = [
   'google/gemma-3-27b-it:free',                      // Another solid fallback
 ]
 
-const MAX_CONCURRENT_REQUESTS = 1 // Reduced to avoid rate limits on free models
-const REQUEST_INTERVAL_MS = 1000 // Increased delay between requests
-const MAX_PDF_PAGES = 100 // Max pages to process (prevent timeouts)
-const MAX_PDF_TEXT_LENGTH = 500000 // Stop processing if text exceeds this (chars)
-const REQUEST_TIMEOUT_MS = 25000 // 25s per request (shorter to fit in Vercel limit)
+const MAX_CONCURRENT_REQUESTS = 1 // Sequential processing for free rate limits
+const REQUEST_INTERVAL_MS = 1000 // Delay between requests
+const MAX_PDF_PAGES = 100 // Max pages to process
+const MAX_PDF_TEXT_LENGTH = 500000 // Stop processing if text exceeds this
+const REQUEST_TIMEOUT_MS = 45000 // Increased from 25s to 45s for slow free models
+const CHUNK_SIZE_CHARS = 5000 // Reduced from 10k to 5k chars to keep AI responses tight
 
 const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic/herbal distributor price lists.
 The text may come from OCR (scanned documents) so expect noise, typos, and formatting issues.
@@ -62,7 +63,7 @@ RULES:
 3. Return separate record for EACH variant, NOT combined
 4. packing format: "200ML", "60TAB", "100GM", "1KG", etc
 5. Prices are EXACT numbers from list (mrp and tradePrice). If only one price column exists, use it for both mrp and tradePrice.
-6. Return ONLY valid JSON array, no markdown or extra text
+6. Return ONLY valid JSON array. DO NOT output any markdown blocks, preambles, comments, or extra text. Start directly with '[' and end with ']'.
 7. Each item MUST have: name (string), packing (string), mrp (number), tradePrice (number)
 8. Ignore headers, footers, page numbers, totals, and non-medicine text
 9. If text is noisy or unclear, extract whatever medicines you can confidently identify`
@@ -276,7 +277,7 @@ async function findWorkingModel(apiKey: string): Promise<string> {
   throw new Error('No AI models are currently available. Please try again in a few minutes.');
 }
 
-async function parseChunkWithAI(chunk: string, apiKey: string, model: string): Promise<ParsedMedicine[]> {
+async function parseChunkWithAILogic(chunk: string, apiKey: string, model: string): Promise<ParsedMedicine[]> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   
@@ -295,7 +296,7 @@ async function parseChunkWithAI(chunk: string, apiKey: string, model: string): P
           { role: 'user', content: chunk },
         ],
         temperature: 0,
-        max_tokens: 9000,
+        max_tokens: 3500, // Reduced from 9000 to keep free models fast and prevent cutoff timeouts
       }),
       signal: controller.signal,
     });
@@ -340,6 +341,18 @@ async function parseChunkWithAI(chunk: string, apiKey: string, model: string): P
   }
 }
 
+// Wrapper to add 1 retry
+async function parseChunkWithAI(chunk: string, apiKey: string, model: string): Promise<ParsedMedicine[]> {
+  try {
+    return await parseChunkWithAILogic(chunk, apiKey, model);
+  } catch (error) {
+    console.warn(`  ⚠️ First attempt failed: ${error instanceof Error ? error.message : String(error)}. Retrying...`);
+    // Wait 2 seconds before retry to clear rate limits
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return await parseChunkWithAILogic(chunk, apiKey, model);
+  }
+}
+
 
 
 export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseResult> {
@@ -366,7 +379,7 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
     console.log(`📝 Cleaned text sample:\n${cleanedText.substring(0, 200)}`);
     
     console.log(`\n📦 Splitting into chunks...`);
-    const chunks = splitTextIntoChunks(cleanedText, 10000);
+    const chunks = splitTextIntoChunks(cleanedText, CHUNK_SIZE_CHARS);
     console.log(`✅ Created ${chunks.length} chunks`);
     
     if (chunks.length === 0) {
