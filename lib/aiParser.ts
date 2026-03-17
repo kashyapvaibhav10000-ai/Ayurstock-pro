@@ -35,8 +35,8 @@ const MODELS = [
   'google/gemma-3-27b-it:free',                      // Another solid fallback
 ]
 
-const MAX_CONCURRENT_REQUESTS = 4 // Process chunks in parallel to dramatically cut total execution time
-const REQUEST_INTERVAL_MS = 200 // Minimal delay between parallel requests
+const MAX_CONCURRENT_REQUESTS = 3 // Process chunks in parallel to dramatically cut total execution time
+const REQUEST_INTERVAL_MS = 500 // Minimal delay between parallel requests
 const MAX_PDF_PAGES = 100 // Max pages to process
 const MAX_PDF_TEXT_LENGTH = 500000 // Stop processing if text exceeds this
 const REQUEST_TIMEOUT_MS = 45000 // Increased from 25s to 45s for slow free models
@@ -301,8 +301,13 @@ async function parseChunkWithAILogic(chunk: string, apiKey: string, model: strin
       signal: controller.signal,
     });
 
+    const status = resp.status;
     const responseText = await resp.text().catch(() => '');
     
+    if (status === 429) {
+      throw new Error('RATE_LIMIT');
+    }
+
     let data: any = null;
     try {
       data = JSON.parse(responseText);
@@ -341,15 +346,30 @@ async function parseChunkWithAILogic(chunk: string, apiKey: string, model: strin
   }
 }
 
-// Wrapper to add 1 retry
-async function parseChunkWithAI(chunk: string, apiKey: string, model: string): Promise<ParsedMedicine[]> {
+// Wrapper to add intelligent retries with backoff for rate limits
+async function parseChunkWithAI(
+  chunk: string, 
+  apiKey: string, 
+  model: string, 
+  attempt: number = 1
+): Promise<ParsedMedicine[]> {
   try {
     return await parseChunkWithAILogic(chunk, apiKey, model);
   } catch (error) {
-    console.warn(`  ⚠️ First attempt failed: ${error instanceof Error ? error.message : String(error)}. Retrying...`);
-    // Wait 2 seconds before retry to clear rate limits
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    return await parseChunkWithAILogic(chunk, apiKey, model);
+    const isRateLimit = error instanceof Error && error.message === 'RATE_LIMIT';
+    const isProviderError = error instanceof Error && error.message.includes('Provider');
+    
+    if (attempt >= 5) { // Max 5 retries for a single chunk
+      throw new Error(`Failed after 5 attempts. Last error: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    // Exponential backoff or large wait for rate limits
+    const waitTime = isRateLimit ? 5000 * attempt : 2000;
+    
+    console.warn(`  ⚠️ Attempt ${attempt} failed: ${isRateLimit ? 'Rate Limited (429)' : (error instanceof Error ? error.message : String(error))}. Waiting ${waitTime/1000}s and retrying...`);
+    
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    return await parseChunkWithAI(chunk, apiKey, model, attempt + 1);
   }
 }
 
@@ -428,11 +448,14 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
     console.log(`\n📊 Results: ${successCount} successful, ${failureCount} failed`);
     console.log(`💊 Total before dedup: ${allMedicines.length} medicines`);
 
-    if (allMedicines.length === 0) {
+    // If we got AT LEAST ONE chunk through successfully, ignore the failed ones and return what we got
+    if (successCount === 0 && allMedicines.length === 0) {
       const errorMsg = failureCount > 0
-        ? `AI parsing failed for all ${failureCount} text chunks. The AI model may be temporarily unavailable — please try again in a moment.`
+        ? `AI parsing failed for all ${failureCount} text chunks due to strict API rate limits. Please try again in 1 minute.`
         : 'No medicines could be extracted. The text may not contain recognizable medicine data.';
       return { medicines: [], pdfType: 'unknown', errorCode: 'AI_FAILED', errorMessage: errorMsg };
+    } else if (failureCount > 0) {
+      console.warn(`⚠️ Warning: ${failureCount} chunks failed, but returning the ${allMedicines.length} successfully parsed medicines.`);
     }
 
     // Deduplicate using name + packing as key
