@@ -38,61 +38,80 @@ export async function ocrPdfInBrowser(
     });
 
   try {
-    // ── 1. Load PDF.js ──────────────────────────────────────────────────
-    report({ phase: 'loading', message: 'Loading PDF...' });
+    // ── 1. Load PDF or Image ──────────────────────────────────────────────────
+    let pageImages: string[] = [];
+    let maxPages = 1;
 
-    // Use specific loading for Next.js to avoid ESM Object.defineProperty crash
-    const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
-    
-    if (typeof window !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-    }
+    if (file.type === 'application/pdf') {
+      report({ phase: 'loading', message: 'Loading PDF...' });
 
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const totalPages = pdf.numPages;
-    const maxPages = Math.min(totalPages, 50); // Cap at 50 pages
+      // Use specific loading for Next.js to avoid ESM Object.defineProperty crash
+      const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
+      
+      if (typeof window !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+      }
 
-    report({
-      phase: 'loading',
-      totalPages: maxPages,
-      percent: 5,
-      message: `PDF loaded — ${totalPages} page${totalPages > 1 ? 's' : ''}${totalPages > 50 ? ' (processing first 50)' : ''}`,
-    });
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const totalPages = pdf.numPages;
+      maxPages = Math.min(totalPages, 50); // Cap at 50 pages
 
-    // ── 2. Render pages to canvas and collect image data ────────────────
-    const pageImages: string[] = [];
-
-    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
       report({
-        phase: 'rendering',
-        page: pageNum,
+        phase: 'loading',
         totalPages: maxPages,
-        percent: 5 + Math.round((pageNum / maxPages) * 20),
-        message: `Rendering page ${pageNum} of ${maxPages}...`,
+        percent: 5,
+        message: `PDF loaded — ${totalPages} page${totalPages > 1 ? 's' : ''}${totalPages > 50 ? ' (processing first 50)' : ''}`,
       });
 
-      const page = await pdf.getPage(pageNum);
-      const scale = 2.0; // Higher scale = better OCR accuracy
-      const viewport = page.getViewport({ scale });
+      // ── 2. Render pages to canvas and collect image data ────────────────
+      for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+        report({
+          phase: 'rendering',
+          page: pageNum,
+          totalPages: maxPages,
+          percent: 5 + Math.round((pageNum / maxPages) * 20),
+          message: `Rendering page ${pageNum} of ${maxPages}...`,
+        });
 
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+        const page = await pdf.getPage(pageNum);
+        const scale = 2.0; // Higher scale = better OCR accuracy
+        const viewport = page.getViewport({ scale });
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Failed to create canvas context');
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Failed to create canvas context');
 
-      // Convert canvas to data URL for Tesseract
-      const dataUrl = canvas.toDataURL('image/png');
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        const dataUrl = canvas.toDataURL('image/png');
+        pageImages.push(dataUrl);
+
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+    } else if (file.type.startsWith('image/')) {
+      report({ phase: 'loading', message: 'Loading image...' });
+      
+      const arrayBuffer = await file.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: file.type });
+      
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      
       pageImages.push(dataUrl);
-
-      // Clean up
-      canvas.width = 0;
-      canvas.height = 0;
+    } else {
+      throw new Error('Unsupported file type for OCR. Please use PDF or an image file.');
     }
+
+
 
     // ── 3. OCR each page image with Tesseract.js ───────────────────────
     report({
