@@ -245,55 +245,70 @@ export default function ImportMedicinesModal({
     abortControllerRef.current = new AbortController();
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const headers: Record<string, string> = {};
-      const authToken = token || localStorage.getItem('token');
+      let extractedText = '';
       
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
+      // If it's a PDF, try to extract native text first
+      if (file.type === 'application/pdf') {
+        try {
+          const { extractTextFromPdf } = await import('@/lib/pdfOcrClient');
+          extractedText = await extractTextFromPdf(file);
+        } catch (err) {
+          console.error("Native PDF text extraction failed:", err);
+        }
       }
 
-      const response = await axios.post('/api/medicines/import', formData, {
-        headers,
-        signal: abortControllerRef.current.signal,
-      });
+      // If we got enough text, we send it to AI natively.
+      // If not, it's either a scanned PDF or an image, so we prompt for OCR.
+      if (extractedText && extractedText.trim().length > 50) {
+        const formData = new FormData();
+        formData.append('extractedText', extractedText);
 
-      if (response.data.success && response.data.medicines) {
-        toast.success(`Successfully extracted ${response.data.medicines.length} medicines`);
-        setPdfType(response.data.pdfType || 'searchable');
-        setPreview(
-          response.data.medicines.map((med: ParsedMedicine) => ({
-            ...med,
-            status: 'pending' as ImportStatus,
-          }))
-        );
-        setSelectedRows(new Set(Array.from({ length: response.data.medicines.length }, (_, i) => i)));
-        setStep('preview');
-      } else if (response.data.errorCode === 'NO_TEXT') {
+        const headers: Record<string, string> = {};
+        const authToken = token || localStorage.getItem('token');
+        
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
+        const response = await axios.post('/api/medicines/import', formData, {
+          headers,
+          signal: abortControllerRef.current.signal,
+        });
+
+        if (response.data.success && response.data.medicines) {
+          toast.success(`Successfully extracted ${response.data.medicines.length} medicines`);
+          setPdfType(response.data.pdfType || 'searchable');
+          setPreview(
+            response.data.medicines.map((med: ParsedMedicine) => ({
+              ...med,
+              status: 'pending' as ImportStatus,
+            }))
+          );
+          setSelectedRows(new Set(Array.from({ length: response.data.medicines.length }, (_, i) => i)));
+          setStep('preview');
+        } else {
+          setErrorCode(response.data.errorCode || '');
+          setParseError(response.data.message || 'Failed to parse file');
+          setStep('upload');
+        }
+      } else {
         // Scanned PDF detected — offer OCR option
         setPdfType('scanned');
         setErrorCode('NO_TEXT');
-        setParseError(response.data.message || 'This PDF appears to be scanned.');
-        setStep('upload');
-      } else {
-        setErrorCode(response.data.errorCode || '');
-        setParseError(response.data.message || 'Failed to parse file');
+        setParseError('This file appears to be a scanned document or image. Please run OCR to extract text.');
         setStep('upload');
       }
     } catch (error: any) {
       const data = axios.isAxiosError(error) ? error.response?.data : null;
       
-      // Handle scanned PDF even if returned as 400
       if (data?.errorCode === 'NO_TEXT') {
         setPdfType('scanned');
         setErrorCode('NO_TEXT');
-        setParseError(data?.message || 'This PDF appears to be scanned.');
+        setParseError(data?.message || 'This file appears to be a scanned document.');
         setStep('upload');
       } else {
         const serverMessage = data?.message || data?.errorMessage || '';
-        const errorMsg = serverMessage || (error?.message || 'Failed to upload file');
+        const errorMsg = serverMessage || (error?.message || 'Failed to process file');
         setErrorCode(data?.errorCode || '');
         setParseError(errorMsg);
         setStep('upload');
