@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
 
+const inter = Inter({ subsets: ['latin'], display: 'swap' });
+
 export const metadata: Metadata = {
-  title: 'AyurStock Pro',
+  title: 'AyurStock Pro - Management System',
   description: 'Ayurvedic Pharmacy Management System',
 };
 
@@ -13,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="bg-gray-50">
+    <html lang="en" className={inter.className}>
+      <body className="min-h-screen bg-surface-muted text-text-primary antialiased selection:bg-primary-light selection:text-primary-hover">
         <Providers>
           {children}
         </Providers>

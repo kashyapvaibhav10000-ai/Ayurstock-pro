@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
-import { Bell, Search, Settings, Store, LogOut, X } from 'lucide-react';
+import { Bell, Search, Settings, Store, LogOut, X, Menu } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthUser } from '@/types';
@@ -37,7 +37,12 @@ interface ShopInfo {
   gstin: string;
 }
 
-export default function DashboardHeader({ user }: { user: AuthUser }) {
+interface DashboardHeaderProps {
+  user: AuthUser;
+  onMenuToggle: () => void;
+}
+
+export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
@@ -87,84 +92,105 @@ export default function DashboardHeader({ user }: { user: AuthUser }) {
 
   return (
     <>
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Image src="/logo.png" width={80} height={80} alt="AyurStock Pro Logo" />
-          <span className="text-xl font-semibold text-slate-900">{pageTitle}</span>
+      <header className="flex items-center justify-between border-b border-surface-border bg-surface px-4 sm:px-6 py-4 shadow-sm h-[81px]">
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="xl:hidden h-9 w-9"
+            onClick={onMenuToggle}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <div className="xl:hidden flex items-center gap-2 mr-2">
+            <Image src="/logo.png" width={32} height={32} alt="AyurStock Pro" className="w-8 h-8" />
+          </div>
+          <span className="text-lg sm:text-xl font-bold text-text-primary truncate">{pageTitle}</span>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative min-w-[260px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input placeholder="Search modules, medicines, batches..." className="rounded-xl border-slate-200 bg-white pl-9" />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="relative hidden md:block w-[260px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            <Input placeholder="Search everything..." className="rounded-xl border-surface-border bg-surface-muted pl-9 h-10" />
           </div>
-          <Button variant="outline" size="icon" className="rounded-xl border-slate-200 bg-white">
-            <Bell className="h-4 w-4" />
+          
+          <Button variant="outline" size="icon" className="hidden sm:flex rounded-xl border-surface-border h-10 w-10">
+            <Bell className="h-4 w-4 text-text-secondary" />
           </Button>
+          
           <button
-            className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm transition hover:bg-slate-50"
+            className="flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border border-surface-border bg-surface p-1 sm:px-3 sm:py-1.5 shadow-sm transition hover:bg-surface-muted"
             onClick={() => setModalOpen(true)}
           >
-            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl bg-emerald-100 text-sm font-semibold text-emerald-700">
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center overflow-hidden rounded-[10px] bg-primary-light text-sm font-semibold text-primary">
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
               ) : (
                 user.name.slice(0, 2).toUpperCase()
               )}
             </div>
-            <div className="hidden text-left sm:block">
-              <div className="text-sm font-medium text-slate-900">{user.name}</div>
-              <div className="text-xs text-slate-500">{user.role}</div>
+            <div className="hidden text-left sm:block pr-1">
+              <div className="text-sm font-bold text-text-primary leading-tight">{user.name}</div>
+              <div className="text-[11px] font-medium text-text-secondary">{user.role}</div>
             </div>
           </button>
         </div>
       </header>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-[500px] rounded-2xl border border-slate-200 bg-white shadow-xl">
+        <DialogContent className="max-w-[400px] rounded-2xl border border-surface-border bg-surface shadow-xl">
           <DialogHeader>
             <DialogTitle>Shop Information</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 text-sm text-slate-700">
+          <div className="space-y-2 text-sm text-text-primary bg-surface-muted p-4 rounded-xl border border-surface-border/50">
             {shopInfo ? (
               <>
-                <div className="text-base font-semibold text-slate-900">{shopInfo.shopName}</div>
-                <div>{shopInfo.addressLine1}</div>
-                {shopInfo.addressLine2 ? <div>{shopInfo.addressLine2}</div> : null}
-                <div>Phone: {shopInfo.phone}</div>
-                <div>Email: {shopInfo.email}</div>
-                <div className="font-semibold text-slate-900">GSTIN: {shopInfo.gstin}</div>
+                <div className="text-base font-bold text-primary">{shopInfo.shopName}</div>
+                <div className="text-text-secondary">{shopInfo.addressLine1}</div>
+                {shopInfo.addressLine2 ? <div className="text-text-secondary">{shopInfo.addressLine2}</div> : null}
+                <div className="mt-2 pt-2 border-t border-surface-border/50">
+                  <span className="text-text-secondary">Phone:</span> {shopInfo.phone}
+                </div>
+                <div>
+                  <span className="text-text-secondary">Email:</span> {shopInfo.email}
+                </div>
+                <div className="mt-2 pt-2 border-t border-surface-border/50 font-semibold text-text-primary bg-primary-light/50 p-2 rounded-lg inline-block">
+                  GSTIN: {shopInfo.gstin}
+                </div>
               </>
             ) : (
-              <div className="text-sm text-slate-500">Loading shop details...</div>
+              <div className="text-sm text-text-muted flex items-center gap-2 pb-2">
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></span>
+                Loading shop details...
+              </div>
             )}
           </div>
-          <DialogFooter className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <DialogFooter className="mt-2 flex flex-col gap-2 sm:flex-row sm:justify-end">
             <Button
               variant="outline"
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
               onClick={() => {
                 setModalOpen(false);
                 router.push('/dashboard/settings?tab=shop');
               }}
             >
               <Store className="h-4 w-4" />
-              Edit Shop Info
+              Edit Shop
             </Button>
             <Button
               variant="outline"
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
               onClick={() => {
                 setModalOpen(false);
                 router.push('/dashboard/settings');
               }}
             >
               <Settings className="h-4 w-4" />
-              Go to Settings
+              Settings
             </Button>
             <Button
               variant="destructive"
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4" />
