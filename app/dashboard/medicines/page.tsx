@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/providers/AuthProvider';
 import axios from 'axios';
+import { toast } from 'sonner';
 import { Pencil, Plus, Search, Trash2, Upload, Boxes } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -101,35 +104,28 @@ export default function MedicinesPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAll, setSelectedAll] = useState(false);
   const [selectedMedicines, setSelectedMedicines] = useState<Set<string>>(new Set());
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState(emptyForm);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditableMedicine & { packing?: string | null } | null>(null);
   const [activeFilter, setActiveFilter] = useState('All');
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const router = useRouter();
+  const { hasRole } = useAuth();
+  const isAuthorized = hasRole(['ADMIN', 'MANAGER']);
 
   useEffect(() => {
-    void Promise.all([loadMedicines(), loadCompanies()]);
-  }, []);
-
-  useEffect(() => {
-    if (!successMessage) {
-      return;
+    if (!isAuthorized) {
+      router.replace('/dashboard');
     }
-
-    const timer = setTimeout(() => setSuccessMessage(''), 3000);
-    return () => clearTimeout(timer);
-  }, [successMessage]);
+  }, [isAuthorized, router]);
 
   useEffect(() => {
-    if (!errorMessage) {
-      return;
+    if (isAuthorized) {
+      void Promise.all([loadMedicines(), loadCompanies()]);
     }
+  }, [isAuthorized]);
 
-    const timer = setTimeout(() => setErrorMessage(''), 3500);
-    return () => clearTimeout(timer);
-  }, [errorMessage]);
+  if (!isAuthorized) return null;
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -216,6 +212,28 @@ export default function MedicinesPage() {
   const handleAddMedicine = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Strict validation
+    if (formData.name.trim().length < 3) {
+      toast.error('Medicine name must be at least 3 characters long');
+      return;
+    }
+    if (!formData.company) {
+      toast.error('Please select a company');
+      return;
+    }
+    if (!formData.category) {
+      toast.error('Category is required');
+      return;
+    }
+    if (formData.hsn && !/^\d{4,8}$/.test(formData.hsn)) {
+      toast.error('HSN must be between 4 and 8 numeric digits');
+      return;
+    }
+    if (formData.barcode && !/^\d+$/.test(formData.barcode)) {
+      toast.error('Barcode must contain only numbers');
+      return;
+    }
+
     try {
       const response = await axios.post('/api/medicines/search', formData);
       if (!response.data.success) {
@@ -224,12 +242,12 @@ export default function MedicinesPage() {
 
       setFormData(emptyForm);
       setShowForm(false);
-      setSuccessMessage('Medicine added successfully');
+      toast.success('Medicine added successfully. Ready for inventory.');
       await loadCompanies();
       await loadMedicines();
     } catch (error) {
       console.error('Failed to add medicine:', error);
-      alert('Failed to add medicine');
+      toast.error('Failed to add medicine');
     }
   };
 
@@ -242,7 +260,7 @@ export default function MedicinesPage() {
       throw new Error(response.data.message || 'Failed to import medicines');
     }
 
-    setSuccessMessage(response.data.message || 'Medicines imported successfully');
+    toast.success(response.data.message || 'Medicines imported successfully');
     setShowImportModal(false);
     await loadCompanies();
     await loadMedicines();
@@ -263,7 +281,7 @@ export default function MedicinesPage() {
         throw new Error(response.data.message || 'Failed to delete medicine');
       }
 
-      setSuccessMessage(response.data.message || 'Medicine deleted successfully');
+      toast.success(response.data.message || 'Medicine deleted successfully');
       setSelectedMedicines((current) => {
         const next = new Set(current);
         next.delete(medicine.id);
@@ -272,7 +290,7 @@ export default function MedicinesPage() {
       await loadMedicines();
     } catch (error) {
       console.error('Delete medicine error:', error);
-      alert('Failed to delete medicine');
+      toast.error('Failed to delete medicine');
     }
   };
 
@@ -288,7 +306,7 @@ export default function MedicinesPage() {
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to delete medicines');
       }
-      setSuccessMessage('Medicines deleted successfully');
+      toast.success('Medicines deleted successfully');
       setSelectedMedicines(new Set());
       setSelectedAll(false);
       setShowDeleteModal(false);
@@ -299,7 +317,7 @@ export default function MedicinesPage() {
         : error instanceof Error
           ? error.message
           : 'Failed to delete medicines';
-      setErrorMessage(message || 'Failed to delete medicines');
+      toast.error(message || 'Failed to delete medicines');
       setShowDeleteModal(false);
     }
   };
@@ -328,7 +346,7 @@ export default function MedicinesPage() {
 
     try {
       await axios.put('/api/medicine/update', editDraft);
-      setSuccessMessage('Medicine updated successfully');
+      toast.success('Medicine updated successfully');
       setEditingRowId(null);
       setEditDraft(null);
       await loadMedicines();
@@ -336,7 +354,7 @@ export default function MedicinesPage() {
       const message = axios.isAxiosError(error)
         ? error.response?.data?.message
         : 'Failed to update medicine';
-      setErrorMessage(message || 'Failed to update medicine');
+      toast.error(message || 'Failed to update medicine');
     }
   };
 
@@ -407,17 +425,6 @@ export default function MedicinesPage() {
           </Button>
         </div>
       </div>
-
-      {successMessage ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {successMessage}
-        </div>
-      ) : null}
-      {errorMessage ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      ) : null}
 
       {showForm ? (
         <Card className="rounded-2xl">
@@ -684,7 +691,7 @@ export default function MedicinesPage() {
         isOpen={showPriceListModal}
         onClose={() => setShowPriceListModal(false)}
         onSuccess={async (count) => {
-          setSuccessMessage(`${count} medicines imported successfully from price list`);
+          toast.success(`${count} medicines imported successfully from price list`);
           await loadCompanies();
           await loadMedicines();
         }}

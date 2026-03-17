@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
+import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
@@ -20,6 +21,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-surface-muted text-text-primary antialiased selection:bg-primary-light selection:text-primary-hover">
         <Providers>
           {children}
+          <Toaster richColors position="top-right" />
         </Providers>
       </body>
     </html>

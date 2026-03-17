@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -61,11 +62,11 @@ export default function InvoiceSettings() {
           watermarkEnabled: settings.watermarkEnabled ?? true,
         });
         setNextInvoiceNumber(settings.nextInvoiceNumber || nextInvoiceNumber);
-        alert('Invoice settings saved successfully.');
+        toast.success('Invoice settings saved successfully.');
       }
     } catch (error) {
       console.error('Failed to save invoice settings', error);
-      alert('Failed to save invoice settings.');
+      toast.error('Failed to save invoice settings.');
     } finally {
       setSaving(false);
     }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -109,11 +110,11 @@ export default function ProfileSettings() {
           );
         }
         router.refresh();
-        alert('Profile updated successfully.');
+        toast.success('Profile updated successfully.');
       }
     } catch (error) {
       console.error('Failed to save profile settings', error);
-      alert('Failed to save profile settings.');
+      toast.error('Failed to save profile settings.');
     } finally {
       setSaving(false);
     }

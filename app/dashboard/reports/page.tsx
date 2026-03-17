@@ -4,10 +4,24 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Download, FileBarChart, Filter } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 export default function ReportsPage() {
-  const [hasData, setHasData] = useState(false); // Simulate that no real data exists yet
+  const router = useRouter();
+  const { hasRole } = useAuth();
+  const isAuthorized = hasRole(['ADMIN', 'MANAGER']);
+
+  useEffect(() => {
+    if (!isAuthorized) {
+      router.replace('/dashboard');
+    }
+  }, [isAuthorized, router]);
+
+  const [hasData, setHasData] = useState(false); 
+
+  if (!isAuthorized) return null;
 
   return (
     <div className="space-y-6 md:space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
@@ -45,7 +59,7 @@ export default function ReportsPage() {
       </Card>
 
       {!hasData ? (
-        <Card className="rounded-2xl border-surface-border min-h-[400px] flex items-center justify-center bg-surface-muted/50">
+        <Card className="rounded-2xl border-surface-border min-h-[400px] flex items-center justify-center bg-surface-muted">
           <CardContent className="flex flex-col items-center text-center p-12">
             <div className="h-16 w-16 bg-surface rounded-2xl flex items-center justify-center border border-surface-border shadow-sm mb-6">
               <FileBarChart className="h-8 w-8 text-text-muted" />

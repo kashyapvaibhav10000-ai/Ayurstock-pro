@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { toast } from 'sonner';
 import axios from 'axios';
 import { FileScan, Plus, Printer, RefreshCw, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -133,6 +136,16 @@ const createEmptyPurchaseItem = (): PurchaseItemForm => ({
 
 export default function PurchasesPage() {
   const scanInputRef = useRef<HTMLInputElement | null>(null);
+  const router = useRouter();
+  const { hasRole } = useAuth();
+  const isAuthorized = hasRole(['ADMIN', 'MANAGER']);
+
+  useEffect(() => {
+    if (!isAuthorized) {
+      router.replace('/dashboard');
+    }
+  }, [isAuthorized, router]);
+
   const [stats, setStats] = useState<PurchaseStats | null>(null);
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
   const [medicines, setMedicines] = useState<MedicineOption[]>([]);
@@ -142,8 +155,7 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  // setMessage and setError removed in favor of toast
   const [scanPreview, setScanPreview] = useState<ScanPreviewItem[]>([]);
   const [scanSummary, setScanSummary] = useState({
     matched: 0,
@@ -177,21 +189,10 @@ export default function PurchasesPage() {
   });
 
   useEffect(() => {
-    void loadAll();
-  }, []);
-
-  useEffect(() => {
-    if (!message && !error) {
-      return;
+    if (isAuthorized) {
+      void loadAll();
     }
-
-    const timer = setTimeout(() => {
-      setMessage('');
-      setError('');
-    }, 4000);
-
-    return () => clearTimeout(timer);
-  }, [message, error]);
+  }, [isAuthorized]);
 
   const loadAll = async () => {
     try {
@@ -222,7 +223,7 @@ export default function PurchasesPage() {
       }
     } catch (loadError) {
       console.error('Failed to load purchases page:', loadError);
-      setError('Failed to load purchases data');
+      toast.error('Failed to load purchases data');
     } finally {
       setLoading(false);
     }
@@ -287,11 +288,11 @@ export default function PurchasesPage() {
 
   const handleSavePurchase = async () => {
     setSaving(true);
-    setError('');
 
     try {
       if (!purchaseForm.supplierId || !purchaseForm.invoiceNumber.trim()) {
-        setError('Supplier and invoice number are required.');
+        toast.error('Supplier and invoice number are required.');
+        setSaving(false);
         return;
       }
       const invalidRow = purchaseForm.items.find(
@@ -304,7 +305,8 @@ export default function PurchasesPage() {
           item.mrp <= 0
       );
       if (invalidRow) {
-        setError('Please fill medicine, batch, expiry, quantity, rate, and MRP for all rows.');
+        toast.error('Please fill medicine, batch, expiry, quantity, rate, and MRP for all rows.');
+        setSaving(false);
         return;
       }
 
@@ -317,7 +319,7 @@ export default function PurchasesPage() {
         throw new Error(response.data.message || 'Failed to save purchase');
       }
 
-      setMessage(response.data.message || 'Purchase saved successfully');
+      toast.success(response.data.message || 'Purchase saved successfully');
       setPurchaseForm({
         supplierId: '',
         invoiceNumber: '',
@@ -333,7 +335,7 @@ export default function PurchasesPage() {
       const messageText = axios.isAxiosError(saveError)
         ? saveError.response?.data?.message
         : 'Failed to save purchase';
-      setError(messageText || 'Failed to save purchase');
+      toast.error(messageText || 'Failed to save purchase');
     } finally {
       setSaving(false);
     }
@@ -354,7 +356,7 @@ export default function PurchasesPage() {
       }
     } catch (detailError) {
       console.error('Failed to load purchase detail:', detailError);
-      setError('Failed to load purchase detail');
+      toast.error('Failed to load purchase detail');
     }
   };
 
@@ -365,7 +367,7 @@ export default function PurchasesPage() {
         throw new Error(response.data.message || 'Failed to create purchase return');
       }
 
-      setMessage(response.data.message || 'Purchase return recorded successfully');
+      toast.success(response.data.message || 'Purchase return recorded successfully');
       setReturnForm({
         purchaseId: '',
         batchId: '',
@@ -379,7 +381,7 @@ export default function PurchasesPage() {
       const messageText = axios.isAxiosError(returnError)
         ? returnError.response?.data?.message
         : 'Failed to create purchase return';
-      setError(messageText || 'Failed to create purchase return');
+      toast.error(messageText || 'Failed to create purchase return');
     }
   };
 
@@ -389,7 +391,6 @@ export default function PurchasesPage() {
     }
 
     setScanning(true);
-    setError('');
 
     try {
       const formData = new FormData();
@@ -409,12 +410,12 @@ export default function PurchasesPage() {
 
       setScanPreview(scanItems);
       setScanSummary({ matched, possible, newItems });
-      setMessage('Invoice scanned. Please review and apply the results.');
+      toast.info('Invoice scanned. Please review and apply the results.');
     } catch (scanError) {
       const messageText = axios.isAxiosError(scanError)
         ? scanError.response?.data?.message
         : 'Failed to scan invoice';
-      setError(messageText || 'Failed to scan invoice');
+      toast.error(messageText || 'Failed to scan invoice');
     } finally {
       setScanning(false);
     }
@@ -451,14 +452,14 @@ export default function PurchasesPage() {
     setScanPreview([]);
     setScanSummary({ matched: 0, possible: 0, newItems: 0 });
     setAppliedScanMeta(meta);
-    setMessage('OCR results applied to purchase form. Please verify and save.');
+    toast.success('OCR results applied to purchase form. Please verify and save.');
   };
 
   const discardScanResults = () => {
     setScanPreview([]);
     setScanSummary({ matched: 0, possible: 0, newItems: 0 });
     setAppliedScanMeta({});
-    setMessage('OCR results discarded.');
+    toast.info('OCR results discarded.');
   };
 
   if (loading) {
@@ -507,16 +508,7 @@ export default function PurchasesPage() {
         }}
       />
 
-      {message ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {message}
-        </div>
-      ) : null}
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
+
 
       {stats ? (
         <div className="grid gap-4 md:grid-cols-4">
