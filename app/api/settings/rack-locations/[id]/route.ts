@@ -20,6 +20,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     // Ensure we aren't colliding with an existing rack when renaming
+    // @ts-ignore
     const existing = await prisma.rackLocation.findFirst({
       where: {
         shopId: auth.user.shopId,
@@ -32,6 +33,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       return createErrorResponse('Another rack location already has this exact name.', 400);
     }
 
+    // @ts-ignore
     const updated = await prisma.rackLocation.update({
       where: { id: params.id, shopId: auth.user.shopId },
       data: { name, description }
@@ -55,6 +57,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       return createErrorResponse('Insufficient permissions', 403);
     }
 
+    // @ts-ignore
     const rack = await prisma.rackLocation.findUnique({
       where: { id: params.id, shopId: auth.user.shopId }
     });
@@ -77,6 +80,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       return createErrorResponse(`Cannot delete - ${activeMappingCount} medicines are stored in this location. Please reassign them first.`, 403);
     }
 
+    // @ts-ignore
     await prisma.rackLocation.delete({
       where: { id: params.id }
     });

@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Export ALL Returns mapping relational logic top-down
+    // @ts-ignore
     const returns = await prisma.medicineReturn.findMany({
       where: { shopId: auth.user.shopId },
       include: {
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' }
     });
 
-    const flatRecords = returns.map(ret => ({
+    const flatRecords = returns.map((ret: any) => ({
       'Date': ret.createdAt.toISOString().split('T')[0],
       'Type': ret.type,
       'Medicine Name': ret.medicine ? ret.medicine.name : 'Unknown',

@@ -48,6 +48,7 @@ export default function ReturnsPage() {
           <p className="text-sm text-gray-500 mt-1">
             Track and process customer and supplier medicine returns
           </p>
+        </div>
         <div className="flex gap-2">
           <Button 
             onClick={() => { window.location.href = '/api/returns/export'; }}
