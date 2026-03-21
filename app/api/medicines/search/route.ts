@@ -5,131 +5,60 @@ import { CreateMedicineSchema, MedicineSearchSchema } from '@/lib/schemas';
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate
     const auth = await authenticateRequest(request);
     if (!auth) {
       return createErrorResponse('Unauthorized', 401);
     }
 
-    // Get query params
     const searchParams = request.nextUrl.searchParams;
-    const query = searchParams.get('query') || '';
+    const query = searchParams.get('query') ?? searchParams.get('q') ?? '';
     const trimmedQuery = query.trim();
+    const companyId = searchParams.get('company');
+
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 500);
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Validate input
-    const validation = MedicineSearchSchema.safeParse({ query: trimmedQuery, limit, offset });
-    if (!validation.success) {
-      return createErrorResponse('Invalid search parameters', 400);
-    }
-
-    if (!trimmedQuery) {
-      const medicines = await prisma.medicine.findMany({
-        where: {
-          shopId: auth.user.shopId,
-          isActive: true,
-        },
-        select: {
-          id: true,
-          name: true,
-          company: true,
-          category: true,
-          barcode: true,
-          hsn: true,
-          packing: true,
-          unit: true,
-          createdAt: true,
-        },
-        orderBy: { name: 'asc' },
-        take: limit,
-        skip: offset,
-      });
-
-      const medicineIds = medicines.map((medicine) => medicine.id);
-      const [stockRows, expiryRows] = await Promise.all([
-        medicineIds.length === 0
-          ? Promise.resolve([])
-          : prisma.inventoryBatch.groupBy({
-              by: ['medicineId'],
-              where: {
-                shopId: auth.user.shopId,
-                medicineId: { in: medicineIds },
-              },
-              _sum: {
-                stockQty: true,
-              },
-            }),
-        medicineIds.length === 0
-          ? Promise.resolve([])
-          : prisma.inventoryBatch.findMany({
-              where: {
-                shopId: auth.user.shopId,
-                medicineId: { in: medicineIds },
-                stockQty: { gt: 0 },
-                expiryDate: { gt: new Date() },
-              },
-              select: {
-                medicineId: true,
-                expiryDate: true,
-              },
-              orderBy: [{ medicineId: 'asc' }, { expiryDate: 'asc' }],
-            }),
-      ]);
-
-      const stockByMedicine = new Map(
-        stockRows.map((row) => [row.medicineId, row._sum.stockQty || 0])
-      );
-      const nextExpiryByMedicine = new Map<string, Date>();
-
-      for (const row of expiryRows) {
-        if (!nextExpiryByMedicine.has(row.medicineId)) {
-          nextExpiryByMedicine.set(row.medicineId, row.expiryDate);
-        }
-      }
-
-      const enrichedMedicines = medicines.map((medicine) => ({
-        ...medicine,
-        availableStock: stockByMedicine.get(medicine.id) || 0,
-        nextExpiryDate: nextExpiryByMedicine.get(medicine.id) || null,
-      }));
-
-      return createPaginatedResponse(
-        enrichedMedicines,
-        enrichedMedicines.length,
-        Math.floor(offset / limit) + 1,
-        limit
-      );
-    }
-
+    // Strict throttle exactly as requested
     if (trimmedQuery.length < 2) {
       return createPaginatedResponse([], 0, 1, limit);
     }
 
-    const textFilter =
-      trimmedQuery.length >= 3
+    let companyNameFilter;
+    if (companyId) {
+      const companyRec = await prisma.company.findUnique({
+        where: { id: companyId, shopId: auth.user.shopId }
+      });
+      if (companyRec) {
+        companyNameFilter = companyRec.name;
+      }
+    }
+
+    const textFilter = trimmedQuery.length >= 3
         ? {
             OR: [
-              { name: { contains: trimmedQuery } },
-              { company: { contains: trimmedQuery } },
+              { name: { contains: trimmedQuery, mode: 'insensitive' as const } },
+              { company: { contains: trimmedQuery, mode: 'insensitive' as const } },
               { barcode: trimmedQuery },
             ],
           }
         : {
             OR: [
-              { name: { startsWith: trimmedQuery } },
-              { company: { startsWith: trimmedQuery } },
+              { name: { startsWith: trimmedQuery, mode: 'insensitive' as const } },
+              { company: { startsWith: trimmedQuery, mode: 'insensitive' as const } },
               { barcode: trimmedQuery },
             ],
           };
 
+    const coreWhere = {
+      shopId: auth.user.shopId,
+      isActive: true,
+      ...textFilter,
+      ...(companyNameFilter ? { company: companyNameFilter } : {})
+    };
+
     const [medicines, total] = await Promise.all([
       prisma.medicine.findMany({
-        where: {
-          shopId: auth.user.shopId,
-          isActive: true,
-          ...textFilter,
-        },
+        where: coreWhere,
         select: {
           id: true,
           name: true,
@@ -146,11 +75,7 @@ export async function GET(request: NextRequest) {
         skip: offset,
       }),
       prisma.medicine.count({
-        where: {
-          shopId: auth.user.shopId,
-          isActive: true,
-          ...textFilter,
-        },
+        where: coreWhere,
       }),
     ]);
 

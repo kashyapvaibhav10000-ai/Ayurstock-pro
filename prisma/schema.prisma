@@ -34,6 +34,7 @@ model Shop {
   shopSettings     ShopSettings?
   stockLedgers     StockLedger[]
   medicineReturns  MedicineReturn[]
+  rackLocations    RackLocation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -478,4 +479,18 @@ model MedicineReturn {
   @@index([medicineId])
   @@index([type])
   @@index([createdAt])
+}
+
+// Custom Shelf / Rack Locations for Inventory
+model RackLocation {
+  id          String   @id @default(cuid())
+  shopId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  
+  shop        Shop     @relation(fields: [shopId], references: [id])
+  
+  @@unique([shopId, name])
+  @@index([shopId])
 }
