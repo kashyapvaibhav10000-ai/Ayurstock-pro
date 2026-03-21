@@ -150,8 +150,11 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
           </div>
         )}
 
-        <div className="relative z-10 space-y-6 flex flex-col items-stretch justify-start">
-          <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row print:flex-row md:items-start print:items-start md:justify-between print:justify-between">
+        <div className="relative z-10 space-y-5 md:space-y-6 flex flex-col items-stretch justify-start">
+          <div className="text-center w-full pb-2">
+            <h2 className="text-lg md:text-xl font-bold uppercase tracking-[0.25em] text-slate-800">Tax Invoice</h2>
+          </div>
+          <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 md:pb-6 md:flex-row print:flex-row md:items-start print:items-start md:justify-between print:justify-between">
             <div className="space-y-1">
               <div className="text-xl md:text-2xl font-bold uppercase tracking-wide text-slate-900">
                 {shopSettings.shopName}
@@ -208,7 +211,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
           <section>
             <div className="overflow-x-auto rounded-xl border border-slate-200 force-print-border">
               <table className="w-full border-collapse text-left text-xs md:text-sm">
-                <thead className="bg-slate-100 force-print-bg text-[10px] md:text-[11px] uppercase tracking-widest text-slate-500 border-b border-slate-200">
+                <thead className="bg-slate-100 force-print-bg text-[10px] md:text-[11px] uppercase tracking-widest text-slate-700 border-b-2 border-slate-300">
                   <tr>
                     <th className="px-2 md:px-3 py-2 md:py-3 whitespace-nowrap">S.No</th>
                     <th className="px-2 md:px-3 py-2 md:py-3 whitespace-nowrap">Product</th>
