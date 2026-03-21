@@ -111,7 +111,6 @@ export default function LoginPage() {
               {loading ? 'Signing in...' : 'Login to Dashboard'}
               {!loading ? <ArrowRight className="h-4 w-4" /> : null}
             </button>
-            </button>
           </form>
 
           {/* Footer */}
