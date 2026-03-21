@@ -104,6 +104,10 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
         Forces backgrounds, borders, and rounded corners to perfectly render when printed 
       */}
       <style dangerouslySetInnerHTML={{ __html: `
+        @page {
+          size: A4 portrait;
+          margin: 10mm;
+        }
         @media print {
           body * {
             -webkit-print-color-adjust: exact !important;
@@ -118,7 +122,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 20px !important;
+            padding: 24px !important;
             box-shadow: none !important;
             border: 1px solid #e2e8f0 !important; /* Force border */
             border-radius: 12px !important;       /* Force radius */
