@@ -19,9 +19,9 @@ interface InventoryItem {
   medicineName: string;
   batchNumber: string;
   expiryDate: string;
-  quantity: number;
-  purchaseRate: number;
-  mrp: number;
+  quantity: number | string;
+  purchaseRate: number | string;
+  mrp: number | string;
   rackLocation: string;
 }
 
@@ -80,8 +80,17 @@ export default function MoveToInventoryModal({
   const handleSubmit = async () => {
     // Validate all required fields
     for (const item of items) {
-      if (!item.batchNumber || !item.expiryDate || !item.mrp || !item.quantity) {
+      if (!item.batchNumber || !item.expiryDate || item.mrp === '' || item.quantity === '' || item.purchaseRate === '') {
         setError('Please fill all required fields');
+        return;
+      }
+      
+      const q = Number(item.quantity);
+      const pr = Number(item.purchaseRate);
+      const m = Number(item.mrp);
+
+      if (isNaN(q) || q <= 0 || isNaN(pr) || pr <= 0 || isNaN(m) || m <= 0) {
+        setError('Quantity, Purchase Rate, and MRP must be valid numbers greater than 0');
         return;
       }
     }
@@ -90,9 +99,16 @@ export default function MoveToInventoryModal({
     setError('');
 
     try {
+      const sanitizedItems = items.map(item => ({
+        ...item,
+        quantity: Number(item.quantity),
+        purchaseRate: Number(item.purchaseRate),
+        mrp: Number(item.mrp)
+      }));
+
       const response = await axios.post(
         '/api/inventory/move',
-        { items }
+        { items: sanitizedItems }
       );
 
       if (response.data.success) {
@@ -168,9 +184,10 @@ export default function MoveToInventoryModal({
                   <Input
                     type="number"
                     min="1"
+                    placeholder="Enter quantity"
                     value={item.quantity}
                     onChange={(e) =>
-                      updateItem(index, 'quantity', parseInt(e.target.value) || 1)
+                      updateItem(index, 'quantity', e.target.value)
                     }
                     className="mt-1"
                   />
@@ -182,9 +199,10 @@ export default function MoveToInventoryModal({
                     type="number"
                     step="0.01"
                     min="0"
+                    placeholder="Enter purchase rate"
                     value={item.purchaseRate}
                     onChange={(e) =>
-                      updateItem(index, 'purchaseRate', parseFloat(e.target.value) || 0)
+                      updateItem(index, 'purchaseRate', e.target.value)
                     }
                     className="mt-1"
                   />
@@ -196,9 +214,10 @@ export default function MoveToInventoryModal({
                     type="number"
                     step="0.01"
                     min="0"
+                    placeholder="Enter MRP"
                     value={item.mrp}
                     onChange={(e) =>
-                      updateItem(index, 'mrp', parseFloat(e.target.value) || 0)
+                      updateItem(index, 'mrp', e.target.value)
                     }
                     className="mt-1"
                   />
