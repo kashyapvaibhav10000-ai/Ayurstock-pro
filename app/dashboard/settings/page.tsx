@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Settings as SettingsIcon } from 'lucide-react';
+import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ import UserSettings from '@/components/settings/user-settings';
 import SystemSettings from '@/components/settings/system-settings';
 import CompanySettings from '@/components/settings/company-settings';
 import ProfileSettings from '@/components/settings/profile-settings';
+import RackLocationsSettings from '@/components/settings/rack-locations-settings';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -21,6 +22,7 @@ const SETTINGS_CATEGORIES = [
   { id: 'shop', label: 'Shop Details', icon: Store, group: 'General' },
   { id: 'invoice', label: 'Invoices', icon: FileText, group: 'General' },
   { id: 'inventory', label: 'Inventory', icon: Package, group: 'General' },
+  { id: 'racks', label: 'Rack Locations', icon: Archive, group: 'General' },
   { id: 'profile', label: 'My Profile', icon: User, group: 'Account' },
   { id: 'users', label: 'Team', icon: Users, group: 'Account' },
   { id: 'companies', label: 'Suppliers', icon: Building, group: 'Billing' },
@@ -63,6 +65,7 @@ export default function SettingsPage() {
       case 'shop': return <ShopSettings />;
       case 'invoice': return <InvoiceSettings />;
       case 'inventory': return <InventorySettings />;
+      case 'racks': return <RackLocationsSettings />;
       case 'profile': return <ProfileSettings />;
       case 'users': return <UserSettings />;
       case 'companies': return <CompanySettings />;
