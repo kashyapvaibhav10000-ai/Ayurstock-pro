@@ -115,7 +115,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <div className="mt-8 flex justify-center text-sm font-medium text-white/50">
-            <span>Developed with <span className="text-red-500">❤️</span> by <span className="font-semibold tracking-wide text-white/80">Vaibhav</span></span>
+            <span>Developed by <span className="font-semibold tracking-wide text-white/80">Vaibhav</span></span>
           </div>
         </div>
       </div>
