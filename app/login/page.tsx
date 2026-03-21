@@ -20,6 +20,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // PRE-FLIGHT PURGE: 
+      // Forcefully wipe any existing stale local state to prevent collision
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      // Attempt to clear the stale HTTP-only cookie before taking a new one
+      await axios.post('/api/auth/logout').catch(() => {});
+
       const response = await axios.post('/api/auth/login', { email, password });
 
       if (response.data.success) {
