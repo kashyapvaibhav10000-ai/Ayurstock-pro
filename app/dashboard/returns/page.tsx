@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, RotateCcw } from 'lucide-react';
+import { Plus, Search, RotateCcw, FileDown } from 'lucide-react';
 import axios from 'axios';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -48,13 +48,20 @@ export default function ReturnsPage() {
           <p className="text-sm text-gray-500 mt-1">
             Track and process customer and supplier medicine returns
           </p>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => { window.location.href = '/api/returns/export'; }}
+            className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 shadow-sm flex items-center gap-2"
+          >
+            <FileDown className="h-4 w-4" /> Export Report
+          </Button>
+          <Button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" /> Add Return
+          </Button>
         </div>
-        <Button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" /> Add Return
-        </Button>
       </div>
 
       {/* Control Bar */}

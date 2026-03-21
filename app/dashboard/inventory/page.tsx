@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { toast } from 'sonner';
-import axios from 'axios';
-import { AlertTriangle, Pencil, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Pencil, Plus, Trash2, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -183,7 +182,7 @@ export default function InventoryPage() {
             Track live stock, update batch details, and manage expiry-sensitive inventory.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
           <select
             className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
             value={companyFilter}
@@ -207,6 +206,13 @@ export default function InventoryPage() {
             onClick={() => setExpiryFilter('all')}
           >
             All Expiry
+          </Button>
+          <Button
+            onClick={() => { window.location.href = '/api/inventory/export'; }}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Download Excel
           </Button>
         </div>
       </div>
