@@ -151,7 +151,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
         )}
 
         <div className="relative z-10 space-y-6 flex flex-col items-stretch justify-start">
-          <header className="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row print:flex-row md:items-start print:items-start md:justify-between print:justify-between">
+          <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row print:flex-row md:items-start print:items-start md:justify-between print:justify-between">
             <div className="space-y-1">
               <div className="text-xl md:text-2xl font-bold uppercase tracking-wide text-slate-900">
                 {shopSettings.shopName}
@@ -185,7 +185,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
                 <span className="font-semibold text-slate-800">{sale.paymentMode}</span>
               </div>
             </div>
-          </header>
+          </div>
 
           <section className="grid gap-4 md:grid-cols-2 print:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white force-print-border p-4 text-sm">
@@ -275,7 +275,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
             </div>
           </section>
 
-          <footer className="grid gap-6 border-t border-slate-200 pt-6 text-xs md:text-sm text-slate-600 md:grid-cols-2 print:grid-cols-2 mt-auto">
+          <div className="grid gap-6 border-t border-slate-200 pt-6 text-xs md:text-sm text-slate-600 md:grid-cols-2 print:grid-cols-2 mt-auto">
             <div>
               <div className="text-[10px] md:text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
                 Authorized Signature
@@ -288,7 +288,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
               </div>
               <div className="text-[10px] md:text-xs text-slate-400 italic">Computer generated invoice</div>
             </div>
-          </footer>
+          </div>
         </div>
       </div>
     </>
