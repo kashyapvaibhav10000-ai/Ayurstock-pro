@@ -42,9 +42,9 @@ export default function MoveToInventoryModal({
       medicineName: med.name,
       batchNumber: '',
       expiryDate: '',
-      quantity: 1,
-      purchaseRate: 0,
-      mrp: 0,
+      quantity: '',
+      purchaseRate: '',
+      mrp: '',
       rackLocation: '',
     }))
   );
@@ -62,9 +62,9 @@ export default function MoveToInventoryModal({
         medicineName: med.name,
         batchNumber: '',
         expiryDate: '',
-        quantity: 1,
-        purchaseRate: 0,
-        mrp: 0,
+        quantity: '',
+        purchaseRate: '',
+        mrp: '',
         rackLocation: '',
       }))
     );
@@ -103,9 +103,9 @@ export default function MoveToInventoryModal({
             medicineName: med.name,
             batchNumber: '',
             expiryDate: '',
-            quantity: 1,
-            purchaseRate: 0,
-            mrp: 0,
+            quantity: '',
+            purchaseRate: '',
+            mrp: '',
             rackLocation: '',
           }))
         );
