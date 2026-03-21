@@ -137,11 +137,27 @@ export default function AddInventoryModal({
     setMedicineOptions([]);
   };
 
-  const handleSelectMedicine = (med: MedicineOption) => {
-    setFormData(c => ({ ...c, medicineId: med.id }));
+  const handleSelectMedicine = async (med: MedicineOption) => {
+    setFormData(c => ({ ...c, medicineId: med.id, mrp: '' }));
     setMedicineSearch(med.name);
     setShowMedicineDropdown(false);
     setError(e => ({ ...e, medicineId: '' }));
+
+    // Auto-fill MRP from historical batch
+    try {
+      const res = await axios.get(`/api/medicines/${med.id}/last-mrp`);
+      if (res.data.success && res.data.data.mrp) {
+        setFormData(c => ({ ...c, mrp: res.data.data.mrp }));
+      }
+    } catch(e) { /* silent fail on UX enhancement */ }
+  };
+
+  const isExpiringSoon = () => {
+    if (!formData.expiryDate) return false;
+    const expiry = new Date(formData.expiryDate);
+    const threeMonthsFromNow = new Date();
+    threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+    return expiry < threeMonthsFromNow;
   };
 
   const validateForm = () => {
@@ -285,6 +301,11 @@ export default function AddInventoryModal({
                 }}
               />
               {error.expiryDate && <span className="text-xs text-red-600 font-medium">{error.expiryDate}</span>}
+              {isExpiringSoon() && !error.expiryDate && (
+                <div className="mt-1 flex items-start text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 p-2 rounded w-full">
+                  ⚠️ This batch expires soon - are you sure you want to add it?
+                </div>
+              )}
             </div>
           </div>
 
