@@ -111,7 +111,13 @@ export default function LoginPage() {
               {loading ? 'Signing in...' : 'Login to Dashboard'}
               {!loading ? <ArrowRight className="h-4 w-4" /> : null}
             </button>
+            </button>
           </form>
+
+          {/* Footer */}
+          <div className="mt-8 flex justify-center text-sm font-medium text-white/50">
+            <span>Developed with <span className="text-red-500">❤️</span> by <span className="font-semibold tracking-wide text-white/80">Vaibhav</span></span>
+          </div>
         </div>
       </div>
     </div>
