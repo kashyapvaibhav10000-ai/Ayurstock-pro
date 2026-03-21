@@ -151,7 +151,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
         )}
 
         <div className="relative z-10 space-y-6 flex flex-col items-stretch justify-start">
-          <header className="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-start md:justify-between">
+          <header className="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row print:flex-row md:items-start print:items-start md:justify-between print:justify-between">
             <div className="space-y-1">
               <div className="text-xl md:text-2xl font-bold uppercase tracking-wide text-slate-900">
                 {shopSettings.shopName}
@@ -187,7 +187,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
             </div>
           </header>
 
-          <section className="grid gap-4 md:grid-cols-2">
+          <section className="grid gap-4 md:grid-cols-2 print:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white force-print-border p-4 text-sm">
               <div className="text-[10px] md:text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Bill To</div>
               <div className="mt-2 md:mt-3 space-y-1 text-slate-700 text-xs md:text-sm">
@@ -275,14 +275,14 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
             </div>
           </section>
 
-          <footer className="grid gap-6 border-t border-slate-200 pt-6 text-xs md:text-sm text-slate-600 md:grid-cols-2 mt-auto">
+          <footer className="grid gap-6 border-t border-slate-200 pt-6 text-xs md:text-sm text-slate-600 md:grid-cols-2 print:grid-cols-2 mt-auto">
             <div>
               <div className="text-[10px] md:text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
                 Authorized Signature
               </div>
               <div className="mt-8 h-10 w-48 border-b border-slate-400" />
             </div>
-            <div className="flex flex-col items-start justify-end gap-2 md:items-end">
+            <div className="flex flex-col items-start justify-end gap-2 md:items-end print:items-end">
               <div className="rounded-xl border border-emerald-100 bg-emerald-50 force-print-bg px-4 py-3 text-xs md:text-sm font-semibold text-emerald-700 text-center">
                 Thank you for shopping with us!
               </div>
