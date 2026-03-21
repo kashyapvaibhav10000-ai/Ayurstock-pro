@@ -5,10 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import axios from 'axios';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 interface Props {
   isOpen: boolean;
@@ -17,8 +15,6 @@ interface Props {
 }
 
 export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
-  const { toast } = useToast();
-  
   // Local state for dropdown sources
   const [medicines, setMedicines] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -93,7 +89,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
       });
 
       if (response.data.success) {
-        toast({ title: 'Success', description: 'Medicine returned to inventory successfully!' });
+        toast.success('Medicine returned to inventory successfully!');
         onSuccess(); // Triggers table reload
         onClose();
       } else {
@@ -101,6 +97,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Access Denied / Stock Exception');
+      toast.error('Transaction Failed', { description: err.response?.data?.message || 'Access Denied' });
     } finally {
       setLoading(false);
     }
@@ -122,43 +119,42 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
         <div className="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-1">
           <div className="col-span-2">
             <Label>Return Type *</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select Return Source" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="CUSTOMER">Customer Return (Adds to Stock)</SelectItem>
-                <SelectItem value="SUPPLIER">Supplier Return (Removes from Stock)</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="CUSTOMER">Customer Return (Adds to Stock)</option>
+              <option value="SUPPLIER">Supplier Return (Removes from Stock)</option>
+            </select>
           </div>
 
           <div className="col-span-2 sm:col-span-1">
             <Label>Company Name *</Label>
-            <Select value={companyId} onValueChange={setCompanyId}>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select Company" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={companyId}
+              onChange={(e) => setCompanyId(e.target.value)}
+              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="" disabled>Select Company</option>
+              {companies.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="col-span-2 sm:col-span-1">
             <Label>Medicine Name *</Label>
-            <Select value={medicineId} onValueChange={setMedicineId}>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select Medicine" />
-              </SelectTrigger>
-              <SelectContent>
-                {medicines.filter(m => !companyId || m.companyId === companyId || m.company === (companies.find(c => c.id === companyId)?.name)).map(m => (
-                  <SelectItem key={m.id} value={m.id}>{m.name} ({m.packing || '-'})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select
+              value={medicineId}
+              onChange={(e) => setMedicineId(e.target.value)}
+              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="" disabled>Select Medicine</option>
+              {medicines.filter(m => !companyId || m.companyId === companyId || m.company === (companies.find(c => c.id === companyId)?.name)).map(m => (
+                <option key={m.id} value={m.id}>{m.name} ({m.packing || '-'})</option>
+              ))}
+            </select>
           </div>
 
           <div className="col-span-2 sm:col-span-1">
@@ -208,27 +204,27 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
 
           <div className="col-span-2">
             <Label>Reason *</Label>
-            <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select Reason" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Expired">Expired</SelectItem>
-                <SelectItem value="Damaged">Damaged</SelectItem>
-                <SelectItem value="Wrong Medicine">Wrong Medicine</SelectItem>
-                <SelectItem value="Customer Return">Customer Return</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-              </SelectContent>
-            </Select>
+            <select
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="" disabled>Select Reason</option>
+              <option value="Expired">Expired</option>
+              <option value="Damaged">Damaged</option>
+              <option value="Wrong Medicine">Wrong Medicine</option>
+              <option value="Customer Return">Customer Return</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
 
           <div className="col-span-2">
             <Label>Extra Notes</Label>
-            <Textarea
+            <textarea
               placeholder="Any additional context regarding this return (optional)..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 resize-none"
+              className="mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
               rows={2}
             />
           </div>
