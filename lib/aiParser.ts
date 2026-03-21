@@ -35,12 +35,12 @@ const MODELS = [
   'google/gemma-3-27b-it:free',                      // Another solid fallback
 ]
 
-const MAX_CONCURRENT_REQUESTS = 3 // Process chunks in parallel to dramatically cut total execution time
-const REQUEST_INTERVAL_MS = 500 // Minimal delay between parallel requests
+const MAX_CONCURRENT_REQUESTS = 1 // Sequential processing — avoids rate limits on free models
+const REQUEST_INTERVAL_MS = 2000 // 2s delay between requests to give OpenRouter breathing room
 const MAX_PDF_PAGES = 100 // Max pages to process
 const MAX_PDF_TEXT_LENGTH = 500000 // Stop processing if text exceeds this
-const REQUEST_TIMEOUT_MS = 45000 // Increased from 25s to 45s for slow free models
-const CHUNK_SIZE_CHARS = 5000 // Reduced from 10k to 5k chars to keep AI responses tight
+const REQUEST_TIMEOUT_MS = 90000 // 90s per chunk — no Vercel timeout restrictions on self-hosted server
+const CHUNK_SIZE_CHARS = 12000 // Larger chunks = fewer API calls = fewer rate limits
 
 const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic/herbal distributor price lists.
 The text may come from OCR (scanned documents) so expect noise, typos, and formatting issues.
@@ -346,7 +346,7 @@ async function parseChunkWithAILogic(chunk: string, apiKey: string, model: strin
   }
 }
 
-// Wrapper to add intelligent retries with backoff for rate limits
+// Wrapper to add intelligent retries with backoff and model rotation for rate limits
 async function parseChunkWithAI(
   chunk: string, 
   apiKey: string, 
@@ -359,17 +359,31 @@ async function parseChunkWithAI(
     const isRateLimit = error instanceof Error && error.message === 'RATE_LIMIT';
     const isProviderError = error instanceof Error && error.message.includes('Provider');
     
-    if (attempt >= 5) { // Max 5 retries for a single chunk
-      throw new Error(`Failed after 5 attempts. Last error: ${error instanceof Error ? error.message : String(error)}`);
+    if (attempt >= 7) { // Max 7 retries for a single chunk (more attempts since we rotate models)
+      throw new Error(`Failed after 7 attempts. Last error: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    // Exponential backoff or large wait for rate limits
-    const waitTime = isRateLimit ? 5000 * attempt : 2000;
+    // On rate limit, rotate to a different model instead of retrying the same one
+    let nextModel = model;
+    if (isRateLimit || isProviderError) {
+      const currentIdx = MODELS.indexOf(model);
+      if (currentIdx !== -1 && currentIdx < MODELS.length - 1) {
+        nextModel = MODELS[currentIdx + 1];
+        console.log(`  🔄 Rotating model: ${model} → ${nextModel}`);
+      } else {
+        // Wrap around to first model
+        nextModel = MODELS[0];
+        console.log(`  🔄 Rotating model back to: ${nextModel}`);
+      }
+    }
+
+    // Exponential backoff: longer waits for rate limits
+    const waitTime = isRateLimit ? 8000 * attempt : 3000;
     
-    console.warn(`  ⚠️ Attempt ${attempt} failed: ${isRateLimit ? 'Rate Limited (429)' : (error instanceof Error ? error.message : String(error))}. Waiting ${waitTime/1000}s and retrying...`);
+    console.warn(`  ⚠️ Attempt ${attempt} failed: ${isRateLimit ? 'Rate Limited (429)' : (error instanceof Error ? error.message : String(error))}. Waiting ${waitTime/1000}s and retrying with ${nextModel}...`);
     
     await new Promise(resolve => setTimeout(resolve, waitTime));
-    return await parseChunkWithAI(chunk, apiKey, model, attempt + 1);
+    return await parseChunkWithAI(chunk, apiKey, nextModel, attempt + 1);
   }
 }
 
@@ -416,7 +430,7 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
     console.log(`✅ Using model: ${workingModel}`);
 
     console.log(`\n🤖 Parsing ${chunks.length} chunks with ${workingModel} (Concurrency: ${MAX_CONCURRENT_REQUESTS})...`);
-    const GLOBAL_DEADLINE = Date.now() + 240000; // 240s hard limit (Vercel = 300s)
+    const GLOBAL_DEADLINE = Date.now() + 600000; // 600s (10 min) — no Vercel timeout on self-hosted server
     const allMedicines: ParsedMedicine[] = [];
     let successCount = 0;
     let failureCount = 0;
