@@ -489,8 +489,8 @@ export default function ImportMedicinesModal({
     field: keyof ParsedMedicine,
     value: string
   ) => {
-    setPreview((current) =>
-      current.map((medicine, medicineIndex) => {
+    setPreview((current) => {
+      const updated = current.map((medicine, medicineIndex) => {
         if (medicineIndex !== index) {
           return medicine;
         }
@@ -578,8 +578,8 @@ export default function ImportMedicinesModal({
 
   const handleCategoryChange = (index: number, nextCategory: string) => {
     const options = PACKAGING_OPTIONS[nextCategory] || [];
-    setPreview((current) =>
-      current.map((row, rowIndex) => {
+    setPreview((current) => {
+      const updated = current.map((row, rowIndex) => {
         if (rowIndex !== index) {
           return row;
         }
