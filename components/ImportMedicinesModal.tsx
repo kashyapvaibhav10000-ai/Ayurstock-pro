@@ -380,6 +380,13 @@ export default function ImportMedicinesModal({
   };
 
   const startPolling = (jobId: string) => {
+    let intervalId: NodeJS.Timeout;
+
+    const stopLocalPolling = () => {
+      if (intervalId) clearInterval(intervalId);
+      setPollingInterval(null);
+    };
+
     const poll = async () => {
       try {
         const response = await axios.get(`/api/medicines/import/status/${jobId}`);
@@ -401,7 +408,7 @@ export default function ImportMedicinesModal({
             setPreview(normalized);
             setSelectedRows(new Set(Array.from({ length: normalized.length }, (_, i) => i)));
             toast.success(`Successfully extracted ${normalized.length} medicines`);
-            stopPolling();
+            stopLocalPolling();
             setStep('preview');
           } else if (jobData.status === 'failed') {
             setParseError(jobData.error || 'Import failed');
@@ -410,21 +417,21 @@ export default function ImportMedicinesModal({
                setPdfType('scanned');
                setParseError(jobData.error || 'This file appears to be a scanned document or image. Please run OCR to extract text.');
             }
-            stopPolling();
+            stopLocalPolling();
             setStep('upload');
           }
         }
       } catch (error) {
         console.error('Polling error:', error);
         setParseError('Failed to check import progress');
-        stopPolling();
+        stopLocalPolling();
         setStep('upload');
       }
     };
 
     poll();
-    const interval = setInterval(poll, 3000);
-    setPollingInterval(interval);
+    intervalId = setInterval(poll, 3000);
+    setPollingInterval(intervalId);
   };
 
   const stopPolling = () => {
