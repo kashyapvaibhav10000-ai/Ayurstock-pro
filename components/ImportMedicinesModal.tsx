@@ -178,6 +178,8 @@ export default function ImportMedicinesModal({
   const [importProgress, setImportProgress] = useState({ completed: 0, total: 0, failed: 0 });
   const [jobId, setJobId] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const hasCompleted = useRef(false);
+  const previewRef = useRef<MedicineWithStatus[]>([]);
 
   useEffect(() => {
     return () => {
@@ -388,6 +390,8 @@ export default function ImportMedicinesModal({
   };
 
   const startPolling = (jobId: string) => {
+    hasCompleted.current = false;
+    
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -400,6 +404,13 @@ export default function ImportMedicinesModal({
           const jobData = response.data;
 
           if (jobData.status === 'done') {
+            if (hasCompleted.current) return;
+            hasCompleted.current = true;
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current);
+              intervalRef.current = null;
+            }
+
             const normalized = (jobData.medicines || []).map((row: ParsedMedicine) => {
               const category = row.category || detectCategory(row.packing || row.name);
               const options = PACKAGING_OPTIONS[category] || [];
@@ -412,23 +423,23 @@ export default function ImportMedicinesModal({
               } as MedicineWithStatus;
             });
             setPreview(normalized);
+            previewRef.current = normalized;
             setSelectedRows(new Set(Array.from({ length: normalized.length }, (_, i) => i)));
             toast.success(`Successfully extracted ${normalized.length} medicines`);
+            setStep('preview');
+          } else if (jobData.status === 'failed') {
+            if (hasCompleted.current) return;
+            hasCompleted.current = true;
             if (intervalRef.current) {
               clearInterval(intervalRef.current);
               intervalRef.current = null;
             }
-            setStep('preview');
-          } else if (jobData.status === 'failed') {
+
             setParseError(jobData.error || 'Import failed');
             setErrorCode(jobData.errorCode || '');
             if (jobData.errorCode === 'NO_TEXT') {
                setPdfType('scanned');
                setParseError(jobData.error || 'This file appears to be a scanned document or image. Please run OCR to extract text.');
-            }
-            if (intervalRef.current) {
-              clearInterval(intervalRef.current);
-              intervalRef.current = null;
             }
             setStep('upload');
           }
@@ -504,8 +515,10 @@ export default function ImportMedicinesModal({
           ...medicine,
           [field]: value,
         };
-      })
-    );
+      });
+      previewRef.current = updated;
+      return updated;
+    });
   };
 
   const detectCategory = (packingText?: string) => {
@@ -527,10 +540,11 @@ export default function ImportMedicinesModal({
   const applyCompanyToAll = (company: string) => {
     setPreview((current) => {
       const cloned = JSON.parse(JSON.stringify(current)) as MedicineWithStatus[];
-      return cloned.map((row) => {
+      previewRef.current = cloned.map((row) => {
         row.company = company;
         return row;
       });
+      return previewRef.current;
     });
   };
 
@@ -575,8 +589,10 @@ export default function ImportMedicinesModal({
           category: nextCategory,
           packing: nextPacking,
         };
-      })
-    );
+      });
+      previewRef.current = updated;
+      return updated;
+    });
   };
 
   const selectedCount = useMemo(() => selectedRows.size, [selectedRows]);
@@ -647,7 +663,7 @@ export default function ImportMedicinesModal({
   };
 
   const handleImport = async () => {
-    const selectedMedicines = Array.from(selectedRows).map((index) => preview[index]);
+    const selectedMedicines = Array.from(selectedRows).map((index) => previewRef.current[index]);
     
     setLoading(true);
     try {
@@ -670,6 +686,7 @@ export default function ImportMedicinesModal({
   const resetModal = () => {
     setFile(null);
     setPreview([]);
+    previewRef.current = [];
     setSelectedRows(new Set());
     setStep('upload');
     setParseError('');

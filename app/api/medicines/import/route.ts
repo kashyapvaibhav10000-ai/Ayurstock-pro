@@ -23,6 +23,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'No file or text provided' }, { status: 400 });
     }
 
+    const existingJob = await prisma.importJob.findFirst({
+      where: { status: 'processing' }
+    });
+
+    if (existingJob) {
+      console.log('⚠️ Active job already exists. Returning existing jobId.');
+      return NextResponse.json({ success: true, jobId: existingJob.id }, { status: 202 });
+    }
+
     let buffer: Buffer | null = null;
     if (file) {
       if (!file.type.includes('pdf')) {
