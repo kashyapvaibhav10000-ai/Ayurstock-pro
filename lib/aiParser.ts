@@ -34,7 +34,7 @@ const MISTRAL_CHUNK_SIZE = 4500    // 11 chunks
 const OPENROUTER_CHUNK_SIZE = 3500   // 15 chunks
 
 // ─── Cloudflare & Mistral config ─────────────────────────────────────────────
-const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || 'c51d5cf5c7c78d'
+const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || 'c51d5cf5c7c78d123c5ce4404d9040b1'
 const CF_MODEL = '@cf/meta/llama-3.1-8b-instruct'
 const MISTRAL_MODEL = 'mistral-small-latest'
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
