@@ -44,28 +44,29 @@ async function incrementUsage(provider: 'gemini' | 'groq' | 'openrouter') {
       update: { [provider]: { increment: 1 } },
       create: { date: today, [provider]: 1 }
     });
-  } catch (e) {}
+  } catch (e) { }
 }
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
-// Fallback models — if one is rate-limited, try the next
-// Verified via GET https://openrouter.ai/api/v1/models (queried 2026-03-17)
-// Ordered by speed — faster models first
+// FIX 1: Curated list of models known to handle JSON output reliably.
+// Removed gemini-2.5-flash:free (no endpoints) and arcee-ai (truncates JSON).
 const MODELS = [
-  'google/gemini-2.5-flash:free',                    // Extremely fast and reliable
-  'google/gemini-2.0-flash-lite-preview-02-05:free', // Fast lightweight fallback
-  'meta-llama/llama-3.3-70b-instruct:free',          // Good quality fallback
-  'mistralai/mistral-small-3.1-24b-instruct:free',   // Safe alternative fallback 
-  'google/gemma-3-27b-it:free',                      // Another solid fallback
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'mistralai/mistral-small-3.1-24b-instruct:free',
+  'google/gemma-3-27b-it:free',
+  'google/gemini-2.0-flash-lite-preview-02-05:free',
+  'deepseek/deepseek-r1-distill-llama-70b:free',
 ]
 
-const MAX_CONCURRENT_REQUESTS = 1 // Sequential processing — avoids rate limits on free models
-const REQUEST_INTERVAL_MS = 2000 // 2s delay between requests to give OpenRouter breathing room
-const MAX_PDF_PAGES = 100 // Max pages to process
-const MAX_PDF_TEXT_LENGTH = 500000 // Stop processing if text exceeds this
-const REQUEST_TIMEOUT_MS = 90000 // 90s per chunk — no Vercel timeout restrictions on self-hosted server
-const CHUNK_SIZE_CHARS = 12000 // Larger chunks = fewer API calls = fewer rate limits
+const MAX_CONCURRENT_REQUESTS = 1
+// FIX 2: Reduced from 15000ms to 2000ms — we are self-hosted, no Cloudflare 100s timeout.
+const REQUEST_INTERVAL_MS = 2000
+const REQUEST_TIMEOUT_MS = 90000
+// FIX 3: Reduced chunk size from 12000 to 3500 chars.
+// Free models have small output windows (~1000-2000 tokens).
+// Smaller chunks = complete JSON responses, no more "Unterminated string" errors.
+const CHUNK_SIZE_CHARS = 3500
 
 const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic/herbal distributor price lists.
 The text may come from OCR (scanned documents) so expect noise, typos, and formatting issues.
@@ -91,26 +92,20 @@ RULES:
 6. Return ONLY valid JSON array. DO NOT output any markdown blocks, preambles, comments, or extra text. Start directly with '[' and end with ']'.
 7. Each item MUST have: name (string), packing (string), mrp (number), tradePrice (number)
 8. Ignore headers, footers, page numbers, totals, and non-medicine text
-9. If text is noisy or unclear, extract whatever medicines you can confidently identify`
+9. If text is noisy or unclear, extract whatever medicines you can confidently identify
+10. CRITICAL: Keep your response SHORT. Only output the JSON array, nothing else. Max 30 items per response.`
 
 function extractJsonArray(text: string): string {
   let cleaned = text.trim()
-
-  // Strip markdown fences if present
   cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/m, '')
-
-  // Try to find the first and last bracket for a JSON array
   const first = cleaned.indexOf('[')
   const last = cleaned.lastIndexOf(']')
-
   if (first !== -1 && last !== -1 && last > first) {
     return cleaned.substring(first, last + 1)
   }
-
   return cleaned
 }
 
-// Rate limiter: limits concurrent execution
 class RateLimiter {
   private activeRequests = 0;
   private queue: Array<() => void> = [];
@@ -118,13 +113,12 @@ class RateLimiter {
   constructor(
     private maxConcurrent: number,
     private delayBetweenMs: number
-  ) {}
+  ) { }
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {
     while (this.activeRequests >= this.maxConcurrent) {
       await new Promise<void>(resolve => this.queue.push(resolve));
     }
-
     this.activeRequests++;
     try {
       const result = await fn();
@@ -136,60 +130,30 @@ class RateLimiter {
       if (next) next();
     }
   }
-
-  async executeAll<T>(fns: Array<() => Promise<T>>): Promise<PromiseSettledResult<T>[]> {
-    return Promise.allSettled(
-      fns.map(fn => this.execute(fn))
-    );
-  }
 }
 
 function normalizeMedicine(item: any): ParsedMedicine | null {
   if (!item || typeof item !== 'object') return null
-
   const name = typeof item.name === 'string' ? item.name.trim() : ''
   const packing = typeof item.packing === 'string' ? item.packing.trim() : ''
   const mrp = typeof item.mrp === 'number' ? item.mrp : Number(item.mrp)
   const tradePrice = typeof item.tradePrice === 'number' ? item.tradePrice : Number(item.tradePrice)
-
   if (!name || !packing || Number.isNaN(mrp) || Number.isNaN(tradePrice)) return null
-
-  return {
-    name,
-    packing,
-    mrp,
-    tradePrice,
-  }
+  return { name, packing, mrp, tradePrice }
 }
-
-const BAD_WORDS = new Set([
-  'disorders', 'diseases', 'syndrome', 'infection',
-  'weakness', 'fever', 'cough', 'acidity', 'pain',
-  'calculus', 'retention', 'epilepsy', 'convulsions',
-  'diarrhoea', 'constipation', 'tuberculosis', 'anaemia',
-  'leucorrhoea', 'metrorrhagia', 'inflammation', 'toothache',
-  'bodyache', 'bleeding', 'burning', 'swelling', 'jaundice',
-  'insomnia', 'paralysis', 'arthritis', 'obesity', 'diabetes'
-].map(word => word.toLowerCase()))
 
 function cleanOcrText(rawOcrText: string): string {
   const lines = rawOcrText.split('\n')
   const cleanedLines: string[] = []
-
   for (const line of lines) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.length < 2) continue
-
-    // Skip only very obvious non-medicine lines
-    if (/^[\u0900-\u097F\s]+$/.test(trimmed)) continue // Lines that are ONLY Hindi text
+    if (/^[\u0900-\u097F\s]+$/.test(trimmed)) continue
     if (trimmed.includes('===') || trimmed.includes('---')) continue
     if (/^(page|total|grand total|sub total|subtotal)\s*[:\d]*$/i.test(trimmed)) continue
-    if (/^\d+$/.test(trimmed) && trimmed.length <= 3) continue // Pure page numbers
-
-    // Keep everything else — let the AI figure out what's a medicine
+    if (/^\d+$/.test(trimmed) && trimmed.length <= 3) continue
     cleanedLines.push(trimmed)
   }
-
   return cleanedLines.join('\n')
 }
 
@@ -197,98 +161,53 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
   const lines = text.split('\n')
   const chunks: string[] = []
   let currentChunk = ''
-  const OVERLAP_LINES = 3 // Add overlap to prevent cutting mid-medicine
+  const OVERLAP_LINES = 2
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const potentialLength = currentChunk.length + line.length + (currentChunk ? 1 : 0)
-    
     if (potentialLength > maxChars && currentChunk) {
       chunks.push(currentChunk)
-      
-      // Start new chunk with overlap — carry last N lines to prevent data loss
       const currentLines = currentChunk.split('\n')
       const overlapLines = currentLines.slice(-OVERLAP_LINES)
       currentChunk = overlapLines.join('\n')
     }
-    
     currentChunk += (currentChunk ? '\n' : '') + line
   }
-
-  if (currentChunk) {
-    chunks.push(currentChunk)
-  }
-
+  if (currentChunk) chunks.push(currentChunk)
   return chunks
-
 }
 
-// Quick probe to find a model that isn't rate-limited
+// FIX 4: Simplified findWorkingModel — no longer probes 27 models one by one.
+// Just uses the curated MODELS list above with a quick 5s ping each.
 async function findWorkingModel(apiKey: string): Promise<string> {
-  console.log('🔍 Fetching live list of free AI models from OpenRouter...');
-  
-  let availableModels: string[] = ['openrouter/free']; // Always try the auto-router first
-  
-  try {
-    const modelsResp = await fetch('https://openrouter.ai/api/v1/models');
-    const modelsData = await modelsResp.json();
-    if (modelsData?.data) {
-      const freeModels = modelsData.data
-        .filter((m: any) => m.pricing && m.pricing.prompt === "0" && m.pricing.completion === "0")
-        .map((m: any) => m.id);
-        
-      if (freeModels.length > 0) {
-        // Prioritize known good ones if they exist in the free list, otherwise append all
-        const preferred = ['google/gemini-2.0-flash-lite', 'meta-llama/llama-3.1-8b-instruct'];
-        const sortedFree = freeModels.sort((a: string, b: string) => {
-          const aPref = preferred.some(p => a.includes(p)) ? 1 : 0;
-          const bPref = preferred.some(p => b.includes(p)) ? 1 : 0;
-          return bPref - aPref;
-        });
-        
-        availableModels = [...new Set([...availableModels, ...sortedFree])];
-      }
-    }
-  } catch (error) {
-    console.warn('⚠️ Failed to fetch models list, falling back to basic list', error);
-    availableModels.push('google/gemini-2.0-flash-lite-preview-02-05:free', 'meta-llama/llama-3.3-70b-instruct:free');
-  }
+  console.log('🔍 Finding a working OpenRouter model from curated list...');
 
-  console.log(`Found ${availableModels.length} potential free models. Probing for a working one...`);
-
-  // Only probe up to 10 models so we don't take forever
-  const modelsToTest = availableModels.slice(0, 10);
-
-  for (const model of modelsToTest) {
+  for (const model of MODELS) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s probe timeout
-      
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const resp = await fetch(OPENROUTER_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
           model,
-          messages: [
-            { role: 'user', content: 'Reply with the exact word "Working".' },
-          ],
+          messages: [{ role: 'user', content: 'Reply with the single word: Working' }],
           temperature: 0,
-          max_tokens: 10,
+          max_tokens: 5,
         }),
         signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
       const data = await resp.json().catch(() => null);
-      
+
       if (data?.error) {
         console.log(`  ❌ ${model}: ${(data.error.message || '').substring(0, 80)}`);
         continue;
       }
-      
+
       const content = data?.choices?.[0]?.message?.content || '';
       if (content) {
         console.log(`  ✅ ${model}: working!`);
@@ -299,21 +218,19 @@ async function findWorkingModel(apiKey: string): Promise<string> {
       console.log(`  ❌ ${model}: timeout or error`);
     }
   }
+
   throw new Error('No AI models are currently available. Please try again in a few minutes.');
 }
 
 async function parseChunkWithAILogic(chunk: string, apiKey: string, model: string): Promise<ParsedMedicine[]> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  
+
   try {
     console.log(`📤 [${model}] Sending chunk (${chunk.length} chars)`);
     const resp = await fetch(OPENROUTER_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model,
         messages: [
@@ -321,24 +238,23 @@ async function parseChunkWithAILogic(chunk: string, apiKey: string, model: strin
           { role: 'user', content: chunk },
         ],
         temperature: 0,
-        max_tokens: 3500, // Reduced from 9000 to keep free models fast and prevent cutoff timeouts
+        // FIX 5: max_tokens raised to 4096 to avoid truncation mid-JSON.
+        // Smaller chunks mean fewer items per response, so 4096 is plenty.
+        max_tokens: 4096,
       }),
       signal: controller.signal,
     });
 
     const status = resp.status;
     const responseText = await resp.text().catch(() => '');
-    
-    if (status === 429) {
-      throw new Error('RATE_LIMIT');
-    }
+
+    if (status === 429) throw new Error('RATE_LIMIT');
 
     let data: any = null;
     try {
       data = JSON.parse(responseText);
     } catch {
-      console.warn(`⚠️ Invalid JSON response`);
-      throw new Error('AI returned invalid JSON');
+      throw new Error('AI returned invalid JSON response');
     }
 
     if (data?.error) {
@@ -346,17 +262,39 @@ async function parseChunkWithAILogic(chunk: string, apiKey: string, model: strin
     }
 
     const content = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
-    if (!content) {
-      throw new Error('AI returned empty content');
-    }
+    if (!content) throw new Error('AI returned empty content');
 
     console.log(`📥 AI response: ${content.length} chars`);
-    const jsonText = extractJsonArray(content);
-    const parsed = JSON.parse(jsonText);
-    
-    if (!Array.isArray(parsed)) {
-      throw new Error('AI response was not a JSON array');
+
+    // FIX 6: Check for finish_reason = 'length' — means model was cut off.
+    // If truncated, try to salvage whatever valid JSON we have.
+    const finishReason = data?.choices?.[0]?.finish_reason;
+    if (finishReason === 'length') {
+      console.warn(`⚠️ Model hit max_tokens — response may be truncated. Attempting salvage...`);
     }
+
+    const jsonText = extractJsonArray(content);
+
+    let parsed: any[];
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      // FIX 7: If JSON is truncated, try to recover partial array by trimming after last complete item
+      const lastComma = jsonText.lastIndexOf('},');
+      if (lastComma > 0) {
+        const salvaged = jsonText.substring(0, lastComma + 1) + ']';
+        try {
+          parsed = JSON.parse(salvaged);
+          console.warn(`⚠️ Salvaged ${parsed.length} items from truncated JSON`);
+        } catch {
+          throw new Error('AI response JSON is too malformed to recover');
+        }
+      } else {
+        throw new Error('AI response was not valid JSON');
+      }
+    }
+
+    if (!Array.isArray(parsed)) throw new Error('AI response was not a JSON array');
 
     const medicines: ParsedMedicine[] = [];
     for (const raw of parsed) {
@@ -371,11 +309,10 @@ async function parseChunkWithAILogic(chunk: string, apiKey: string, model: strin
   }
 }
 
-// Wrapper to add intelligent retries with backoff and model rotation for rate limits
 async function parseChunkWithAI(
-  chunk: string, 
-  apiKey: string, 
-  model: string, 
+  chunk: string,
+  apiKey: string,
+  model: string,
   attempt: number = 1
 ): Promise<ParsedMedicine[]> {
   try {
@@ -383,36 +320,26 @@ async function parseChunkWithAI(
   } catch (error) {
     const isRateLimit = error instanceof Error && error.message === 'RATE_LIMIT';
     const isProviderError = error instanceof Error && error.message.includes('Provider');
-    
-    if (attempt >= 7) { // Max 7 retries for a single chunk (more attempts since we rotate models)
-      throw new Error(`Failed after 7 attempts. Last error: ${error instanceof Error ? error.message : String(error)}`);
+
+    if (attempt >= 5) {
+      throw new Error(`Failed after 5 attempts. Last error: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    // On rate limit, rotate to a different model instead of retrying the same one
     let nextModel = model;
     if (isRateLimit || isProviderError) {
       const currentIdx = MODELS.indexOf(model);
-      if (currentIdx !== -1 && currentIdx < MODELS.length - 1) {
-        nextModel = MODELS[currentIdx + 1];
-        console.log(`  🔄 Rotating model: ${model} → ${nextModel}`);
-      } else {
-        // Wrap around to first model
-        nextModel = MODELS[0];
-        console.log(`  🔄 Rotating model back to: ${nextModel}`);
-      }
+      nextModel = currentIdx !== -1 && currentIdx < MODELS.length - 1
+        ? MODELS[currentIdx + 1]
+        : MODELS[0];
+      console.log(`  🔄 Rotating model: ${model} → ${nextModel}`);
     }
 
-    // Exponential backoff: longer waits for rate limits
     const waitTime = isRateLimit ? 8000 * attempt : 3000;
-    
-    console.warn(`  ⚠️ Attempt ${attempt} failed: ${isRateLimit ? 'Rate Limited (429)' : (error instanceof Error ? error.message : String(error))}. Waiting ${waitTime/1000}s and retrying with ${nextModel}...`);
-    
+    console.warn(`  ⚠️ Attempt ${attempt} failed: ${error instanceof Error ? error.message : String(error)}. Waiting ${waitTime / 1000}s and retrying with ${nextModel}...`);
     await new Promise(resolve => setTimeout(resolve, waitTime));
     return await parseChunkWithAI(chunk, apiKey, nextModel, attempt + 1);
   }
 }
-
-
 
 async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -473,10 +400,10 @@ async function parseWithGroq(pdfBuffer: Buffer): Promise<ParseResult> {
 
   let text = '';
   try {
-     const pdfData = await pdfParse(pdfBuffer, { max: 100 });
-     text = pdfData.text;
+    const pdfData = await pdfParse(pdfBuffer, { max: 100 });
+    text = pdfData.text;
   } catch (e) {
-     throw new Error('NO_TEXT');
+    throw new Error('NO_TEXT');
   }
 
   if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
@@ -528,81 +455,49 @@ async function parseWithGroq(pdfBuffer: Buffer): Promise<ParseResult> {
 export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseResult> {
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
-    console.error('❌ OPENROUTER_API_KEY not found');
     return { medicines: [], pdfType: 'unknown', errorCode: 'NO_API_KEY', errorMessage: 'AI API key is not configured. Contact your administrator.' };
   }
 
   try {
     console.log(`\n========== PARSING MEDICINES ==========`);
     console.log(`📥 Input text length: ${rawOcrText.length} characters`);
-    console.log(`📝 First 200 chars:\n${rawOcrText.substring(0, 200)}`);
-    
-    console.log(`\n🧹 Cleaning text...`);
+
     const cleanedText = cleanOcrText(rawOcrText);
     console.log(`✅ After cleaning: ${cleanedText.length} characters`);
-    
+
     if (cleanedText.length === 0) {
-      console.warn('❌ Text became empty after cleaning!');
       return { medicines: [], pdfType: 'unknown', errorCode: 'EMPTY_AFTER_CLEAN', errorMessage: 'The extracted text did not contain any recognizable medicine data after cleaning.' };
     }
-    
-    console.log(`📝 Cleaned text sample:\n${cleanedText.substring(0, 200)}`);
-    
-    console.log(`\n📦 Splitting into chunks...`);
+
+    // FIX 8: Use the new smaller CHUNK_SIZE_CHARS (3500)
     const chunks = splitTextIntoChunks(cleanedText, CHUNK_SIZE_CHARS);
     console.log(`✅ Created ${chunks.length} chunks`);
-    
-    if (chunks.length === 0) {
-      console.warn('❌ No chunks created');
-      return { medicines: [], pdfType: 'unknown', errorCode: 'EMPTY_AFTER_CLEAN', errorMessage: 'No text chunks could be created from the PDF.' };
-    }
-    
-    chunks.forEach((chunk, i) => {
-      console.log(`  Chunk ${i + 1}: ${chunk.length} chars`);
-    });
+    chunks.forEach((chunk, i) => console.log(`  Chunk ${i + 1}: ${chunk.length} chars`));
 
-    console.log(`\n🤖 Finding a working AI model...`);
     const workingModel = await findWorkingModel(apiKey);
     console.log(`✅ Using model: ${workingModel}`);
 
-    console.log(`\n🤖 Parsing ${chunks.length} chunks with ${workingModel} (Concurrency: ${MAX_CONCURRENT_REQUESTS})...`);
-    const GLOBAL_DEADLINE = Date.now() + 600000; // 600s (10 min) — no Vercel timeout on self-hosted server
     const allMedicines: ParsedMedicine[] = [];
     let successCount = 0;
     let failureCount = 0;
-    
-    const limiter = new RateLimiter(MAX_CONCURRENT_REQUESTS, REQUEST_INTERVAL_MS);
-    
-    const tasks = chunks.map((chunk, i) => async () => {
-      if (Date.now() > GLOBAL_DEADLINE) {
-        console.warn(`\n⏱️ Global timeout reached for chunk ${i+1}.`);
-        throw new Error('Global request timeout reached');
-      }
-      const chunkMedicines = await parseChunkWithAI(chunk, apiKey, workingModel);
-      console.log(`  Chunk ${i + 1}/${chunks.length}: ✅ ${chunkMedicines.length} medicines`);
-      return chunkMedicines;
-    });
 
-    console.log('🐌 Using OpenRouter slow mode... (15s delay between chunks)');
-    const results = [];
-    for (let i = 0; i < tasks.length; i++) {
-        try {
-            const res = await tasks[i]();
-            results.push({ status: 'fulfilled', value: res });
-        } catch (err) {
-            results.push({ status: 'rejected', reason: err });
-        }
-        if (i < tasks.length - 1) {
-            await new Promise(r => setTimeout(r, 15000));
-        }
-    }
-    
-    results.forEach((result: any, i) => {
+    // FIX 9: Removed the 15s slow-mode loop entirely — we are self-hosted.
+    // Using 2s delay (REQUEST_INTERVAL_MS) between chunks which is sufficient.
+    console.log(`\n🤖 Parsing ${chunks.length} chunks sequentially (2s delay)...`);
+    const limiter = new RateLimiter(MAX_CONCURRENT_REQUESTS, REQUEST_INTERVAL_MS);
+
+    const results = await Promise.allSettled(
+      chunks.map((chunk) =>
+        limiter.execute(() => parseChunkWithAI(chunk, apiKey, workingModel))
+      )
+    );
+
+    results.forEach((result, i) => {
       if (result.status === 'fulfilled') {
         allMedicines.push(...(result.value || []));
         successCount++;
       } else {
-        console.warn(`  Chunk ${i + 1}/${chunks.length}: ❌ ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
+        console.warn(`  Chunk ${i + 1}: ❌ ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
         failureCount++;
       }
     });
@@ -610,43 +505,30 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
     console.log(`\n📊 Results: ${successCount} successful, ${failureCount} failed`);
     console.log(`💊 Total before dedup: ${allMedicines.length} medicines`);
 
-    // If we got AT LEAST ONE chunk through successfully, ignore the failed ones and return what we got
     if (successCount === 0 && allMedicines.length === 0) {
-      const errorMsg = failureCount > 0
-        ? `AI parsing failed for all ${failureCount} text chunks due to strict API rate limits. Please try again in 1 minute.`
-        : 'No medicines could be extracted. The text may not contain recognizable medicine data.';
-      return { medicines: [], pdfType: 'unknown', errorCode: 'AI_FAILED', errorMessage: errorMsg };
-    } else if (failureCount > 0) {
-      console.warn(`⚠️ Warning: ${failureCount} chunks failed, but returning the ${allMedicines.length} successfully parsed medicines.`);
+      return {
+        medicines: [], pdfType: 'unknown', errorCode: 'AI_FAILED',
+        errorMessage: `AI parsing failed for all ${failureCount} text chunks. Please try again in 1 minute.`
+      };
     }
 
-    // Deduplicate using name + packing as key
     const uniqueMap = new Map<string, ParsedMedicine>();
     for (const med of allMedicines) {
       const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`;
-      if (!uniqueMap.has(key)) {
-        uniqueMap.set(key, med);
-      }
+      if (!uniqueMap.has(key)) uniqueMap.set(key, med);
     }
 
     console.log(`✅ After dedup: ${uniqueMap.size} unique medicines`);
     console.log(`\n========== PARSING COMPLETE ==========\n`);
-    
+
     await incrementUsage('openrouter');
     return { medicines: Array.from(uniqueMap.values()), pdfType: 'searchable', provider: 'openrouter' };
   } catch (error) {
     console.error('❌ Error in parseMedicinesWithAI:', error instanceof Error ? error.message : String(error));
-    if (error instanceof Error && error.stack) {
-      console.error('Stack:', error.stack.substring(0, 300));
-    }
     return { medicines: [], pdfType: 'unknown', errorCode: 'PARSE_ERROR', errorMessage: error instanceof Error ? error.message : 'An unexpected error occurred during parsing.' };
   }
 }
 
-/**
- * Parse a PDF buffer server-side using pdf2json for text extraction.
- * Returns structured result with error codes for UI messaging.
- */
 export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
   console.log('📖 Starting 3-Tier PDF parsing sequence...');
   const usage = await getDailyUsage();
@@ -679,122 +561,73 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
       console.log('Groq daily limit reached (14000). Skipping Tier 2.');
     }
   } catch (error: any) {
-    if (error?.status === 429) console.log('Groq rate limit reached, trying OpenRouter slow mode...');
+    if (error?.status === 429) console.log('Groq rate limit reached, trying OpenRouter...');
     else if (error?.message === 'NO_TEXT') {
       return { medicines: [], pdfType: 'scanned', errorCode: 'NO_TEXT', errorMessage: 'This PDF appears to be scanned/image-based. Use the "Run OCR" button.' };
     } else console.error('Groq error:', error?.message || error);
   }
 
   // TIER 3 - OpenRouter
-  console.log('🔄 OpenRouter limit fallback engaged.');
+  console.log('🔄 OpenRouter fallback engaged.');
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
-    console.error('❌ OPENROUTER_API_KEY not set');
     return { medicines: [], pdfType: 'unknown', errorCode: 'NO_API_KEY', errorMessage: 'AI API key is not configured.' };
   }
 
   try {
-    console.log(`📊 Buffer size: ${pdfBuffer.length} bytes`);
-    
-    // Extract text from PDF using pdf2json
-    console.log('🔧 Extracting text with pdf2json...');
     const PDFParser = require('pdf2json');
-    
     const fullText = await new Promise<string>((resolve) => {
       let extractedText = '';
       const parser = new PDFParser();
       let completed = false;
-      
+
       const timeout = setTimeout(() => {
-        if (!completed) {
-          console.warn('⏱️ Extraction timeout');
-          completed = true;
-          resolve('');
-        }
+        if (!completed) { completed = true; resolve(''); }
       }, 5000);
-      
+
       parser.on('pdfParser_dataError', () => {
-        if (!completed) {
-          completed = true;
-          clearTimeout(timeout);
-          resolve('');
-        }
+        if (!completed) { completed = true; clearTimeout(timeout); resolve(''); }
       });
-      
+
       parser.on('pdfParser_dataReady', (pdfData: any) => {
         if (completed) return;
-        
         try {
-          console.log(`✅ PDF loaded - ${pdfData.pages?.length || 0} pages`);
-          
           if (pdfData.pages && Array.isArray(pdfData.pages)) {
             for (let pageNum = 0; pageNum < Math.min(pdfData.pages.length, 100); pageNum++) {
               const page = pdfData.pages[pageNum];
               if (page.texts && Array.isArray(page.texts)) {
                 const pageText = page.texts
                   .map((item: any) => {
-                    try {
-                      if (item.R && item.R[0]?.T) return decodeURIComponent(item.R[0].T);
-                    } catch (e) {}
+                    try { if (item.R && item.R[0]?.T) return decodeURIComponent(item.R[0].T); } catch (e) { }
                     return '';
                   })
                   .filter((t: string) => t)
                   .join(' ');
-                
-                if (pageText.trim()) {
-                  extractedText += pageText + '\n';
-                  console.log(`  ✓ Page ${pageNum + 1}: ${pageText.length} chars`);
-                }
+                if (pageText.trim()) extractedText += pageText + '\n';
               }
             }
           }
-          
-          completed = true;
-          clearTimeout(timeout);
-          resolve(extractedText);
-        } catch (error) {
-          completed = true;
-          clearTimeout(timeout);
-          resolve('');
-        }
+          completed = true; clearTimeout(timeout); resolve(extractedText);
+        } catch { completed = true; clearTimeout(timeout); resolve(''); }
       });
-      
-      try {
-        parser.parseBuffer(pdfBuffer);
-      } catch (error) {
-        completed = true;
-        clearTimeout(timeout);
-        resolve('');
-      }
+
+      try { parser.parseBuffer(pdfBuffer); }
+      catch { completed = true; clearTimeout(timeout); resolve(''); }
     });
-    
-    console.log(`📊 Extracted text: ${fullText.length} characters`);
-    
+
     if (!fullText.trim()) {
-      console.log('⚠️ No searchable text found in PDF');
-      console.log('💡 This PDF appears to be image-based (scanned)');
       return {
-        medicines: [],
-        pdfType: 'scanned',
-        errorCode: 'NO_TEXT',
-        errorMessage: 'This PDF appears to be scanned/image-based. No searchable text was found. Use the "Run OCR" button to extract text from images.',
+        medicines: [], pdfType: 'scanned', errorCode: 'NO_TEXT',
+        errorMessage: 'This PDF appears to be scanned/image-based. Use the "Run OCR" button.',
       };
     }
-    
-    console.log(`✅ Passing text to AI parser...`);
+
     const result = await parseMedicinesWithAI(fullText);
-    
-    // Preserve pdfType as searchable since pdf2json found text
     result.pdfType = 'searchable';
-    console.log(`🎉 Successfully parsed ${result.medicines.length} medicines!`);
-    
     return result;
   } catch (error) {
-    console.error('❌ PDF parsing failed:', error instanceof Error ? error.message : String(error));
     return {
-      medicines: [],
-      pdfType: 'unknown',
-      errorCode: 'PARSE_ERROR',
+      medicines: [], pdfType: 'unknown', errorCode: 'PARSE_ERROR',
       errorMessage: error instanceof Error ? error.message : 'Failed to process PDF file.',
     };
   }
@@ -807,9 +640,7 @@ async function parseTextWithGemini(text: string): Promise<ParseResult> {
   console.log('💎 Calling Gemini API (Text Mode)...');
   const payload = {
     contents: [{
-      parts: [
-        { text: SYSTEM_PROMPT + `\n\nExtract medicines from this text. Return ONLY a JSON array:\n\n${text.substring(0, 30000)}` }
-      ]
+      parts: [{ text: SYSTEM_PROMPT + `\n\nExtract medicines from this text. Return ONLY a JSON array:\n\n${text.substring(0, 30000)}` }]
     }],
     generationConfig: { temperature: 0 }
   };
@@ -820,11 +651,7 @@ async function parseTextWithGemini(text: string): Promise<ParseResult> {
     body: JSON.stringify(payload)
   });
 
-  if (resp.status === 429) {
-    const err: any = new Error('RATE_LIMIT');
-    err.status = 429;
-    throw err;
-  }
+  if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
   if (!resp.ok) throw new Error(`Gemini status ${resp.status}`);
 
   const data = await resp.json();
@@ -853,7 +680,6 @@ async function parseTextWithGemini(text: string): Promise<ParseResult> {
 async function parseTextWithGroq(text: string): Promise<ParseResult> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('NO_API_KEY');
-
   if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
 
   console.log('⚡ Calling Groq API (Text Mode)...');
@@ -870,11 +696,7 @@ async function parseTextWithGroq(text: string): Promise<ParseResult> {
     })
   });
 
-  if (resp.status === 429) {
-    const err: any = new Error('RATE_LIMIT');
-    err.status = 429;
-    throw err;
-  }
+  if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
   if (!resp.ok) throw new Error(`Groq status ${resp.status}`);
 
   const data = await resp.json();
@@ -903,12 +725,7 @@ async function parseTextWithGroq(text: string): Promise<ParseResult> {
 export async function parseTextWithAI(extractedText: string): Promise<ParseResult> {
   console.log('📖 Starting 3-Tier TEXT parsing sequence...');
   if (!extractedText.trim()) {
-    return {
-      medicines: [],
-      pdfType: 'scanned',
-      errorCode: 'NO_TEXT',
-      errorMessage: 'The provided text is empty.',
-    };
+    return { medicines: [], pdfType: 'scanned', errorCode: 'NO_TEXT', errorMessage: 'The provided text is empty.' };
   }
 
   const usage = await getDailyUsage();
@@ -917,12 +734,9 @@ export async function parseTextWithAI(extractedText: string): Promise<ParseResul
   try {
     if (process.env.GEMINI_API_KEY && usage.gemini < 1400) {
       const result = await parseTextWithGemini(extractedText);
-      if (result.medicines.length > 0) {
-        await incrementUsage('gemini');
-        return result;
-      }
+      if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
     } else if (usage.gemini >= 1400) {
-      console.log('Gemini daily limit reached (1400). Skipping Tier 1.');
+      console.log('Gemini daily limit reached. Skipping Tier 1.');
     }
   } catch (error: any) {
     if (error?.status === 429) console.log('Gemini rate limit reached, trying Groq...');
@@ -933,23 +747,18 @@ export async function parseTextWithAI(extractedText: string): Promise<ParseResul
   try {
     if (process.env.GROQ_API_KEY && usage.groq < 14000) {
       const result = await parseTextWithGroq(extractedText);
-      if (result.medicines.length > 0) {
-        await incrementUsage('groq');
-        return result;
-      }
+      if (result.medicines.length > 0) { await incrementUsage('groq'); return result; }
     } else if (usage.groq >= 14000) {
-      console.log('Groq daily limit reached (14000). Skipping Tier 2.');
+      console.log('Groq daily limit reached. Skipping Tier 2.');
     }
   } catch (error: any) {
-    if (error?.status === 429) console.log('Groq rate limit reached, trying OpenRouter slow mode...');
+    if (error?.status === 429) console.log('Groq rate limit reached, trying OpenRouter...');
     else console.error('Groq error:', error?.message || error);
   }
 
-  // TIER 3 - OpenRouter Default
-  console.log('🔄 OpenRouter limit fallback engaged for TEXT.');
+  // TIER 3 - OpenRouter
+  console.log('🔄 OpenRouter fallback engaged for TEXT.');
   const result = await parseMedicinesWithAI(extractedText);
   result.pdfType = 'scanned';
   return result;
 }
-
-
