@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
             ? med.tradePrice
             : undefined,
       }))
-      .filter((med) => med.name && med.company);
+      .filter((med) => med.name);
 
     const seenBarcodes = new Map<string, string>();
     const sanitizedMedicines = normalizedMedicines.map((med) => {

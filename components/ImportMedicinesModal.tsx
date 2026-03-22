@@ -663,9 +663,9 @@ export default function ImportMedicinesModal({
   };
 
   const handleImport = async () => {
-    console.log('Total items in previewRef:', previewRef.current?.length);
+    console.log('Save clicked, medicines count:', previewRef.current?.length);
     const selectedMedicines = Array.from(selectedRows).map((index) => previewRef.current[index]).filter(Boolean);
-    console.log('Selected medicines passing to handleSave:', selectedMedicines.length);
+    console.log('Sending to API:', JSON.stringify(selectedMedicines));
     
     setLoading(true);
     try {
