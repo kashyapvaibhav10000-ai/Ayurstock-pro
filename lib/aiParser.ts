@@ -632,34 +632,34 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
       console.log('Groq daily limit reached. Skipping Tier 2.');
     }
   } catch (error: any) {
-    if (error?.status === 429) console.log('Groq rate limited, trying Cloudflare...');
+    if (error?.status === 429) console.log('Groq rate limited, trying Mistral...');
     else console.error('Groq error:', error?.message || error);
   }
 
-  // TIER 3 — Cloudflare
-  try {
-    if (process.env.CLOUDFLARE_API_TOKEN && usage.cloudflare < CLOUDFLARE_DAILY_LIMIT) {
-      const result = await parseWithCloudflare(extractedText, 'searchable');
-      if (result.medicines.length > 0) { await incrementUsage('cloudflare'); return result; }
-    } else if (usage.cloudflare >= CLOUDFLARE_DAILY_LIMIT) {
-      console.log('Cloudflare daily limit reached. Skipping Tier 3.');
-    }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Cloudflare rate limited, trying Mistral...');
-    else console.error('Cloudflare error:', error?.message || error);
-  }
-
-  // TIER 4 — Mistral
+  // TIER 3 — Mistral
   try {
     if (process.env.MISTRAL_API_KEY && usage.mistral < MISTRAL_DAILY_LIMIT) {
       const result = await parseWithMistral(extractedText, 'searchable');
       if (result.medicines.length > 0) { await incrementUsage('mistral'); return result; }
     } else if (usage.mistral >= MISTRAL_DAILY_LIMIT) {
-      console.log('Mistral daily limit reached. Skipping Tier 4.');
+      console.log('Mistral daily limit reached. Skipping Tier 3.');
     }
   } catch (error: any) {
-    if (error?.status === 429) console.log('Mistral rate limited, trying OpenRouter...');
+    if (error?.status === 429) console.log('Mistral rate limited, trying Cloudflare...');
     else console.error('Mistral error:', error?.message || error);
+  }
+
+  // TIER 4 — Cloudflare
+  try {
+    if (process.env.CLOUDFLARE_API_TOKEN && usage.cloudflare < CLOUDFLARE_DAILY_LIMIT) {
+      const result = await parseWithCloudflare(extractedText, 'searchable');
+      if (result.medicines.length > 0) { await incrementUsage('cloudflare'); return result; }
+    } else if (usage.cloudflare >= CLOUDFLARE_DAILY_LIMIT) {
+      console.log('Cloudflare daily limit reached. Skipping Tier 4.');
+    }
+  } catch (error: any) {
+    if (error?.status === 429) console.log('Cloudflare rate limited, trying OpenRouter...');
+    else console.error('Cloudflare error:', error?.message || error);
   }
 
   // TIER 5 — OpenRouter
@@ -710,34 +710,34 @@ export async function parseTextWithAI(extractedText: string): Promise<ParseResul
       console.log('Groq daily limit reached. Skipping Tier 2.');
     }
   } catch (error: any) {
-    if (error?.status === 429) console.log('Groq rate limited, trying Cloudflare...');
+    if (error?.status === 429) console.log('Groq rate limited, trying Mistral...');
     else console.error('Groq error:', error?.message || error);
   }
 
-  // TIER 3 — Cloudflare
-  try {
-    if (process.env.CLOUDFLARE_API_TOKEN && usage.cloudflare < CLOUDFLARE_DAILY_LIMIT) {
-      const result = await parseWithCloudflare(cleanedText);
-      if (result.medicines.length > 0) { await incrementUsage('cloudflare'); return result; }
-    } else if (usage.cloudflare >= CLOUDFLARE_DAILY_LIMIT) {
-      console.log('Cloudflare daily limit reached. Skipping Tier 3.');
-    }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Cloudflare rate limited, trying Mistral...');
-    else console.error('Cloudflare error:', error?.message || error);
-  }
-
-  // TIER 4 — Mistral
+  // TIER 3 — Mistral
   try {
     if (process.env.MISTRAL_API_KEY && usage.mistral < MISTRAL_DAILY_LIMIT) {
       const result = await parseWithMistral(cleanedText);
       if (result.medicines.length > 0) { await incrementUsage('mistral'); return result; }
     } else if (usage.mistral >= MISTRAL_DAILY_LIMIT) {
-      console.log('Mistral daily limit reached. Skipping Tier 4.');
+      console.log('Mistral daily limit reached. Skipping Tier 3.');
     }
   } catch (error: any) {
-    if (error?.status === 429) console.log('Mistral rate limited, trying OpenRouter...');
+    if (error?.status === 429) console.log('Mistral rate limited, trying Cloudflare...');
     else console.error('Mistral error:', error?.message || error);
+  }
+
+  // TIER 4 — Cloudflare
+  try {
+    if (process.env.CLOUDFLARE_API_TOKEN && usage.cloudflare < CLOUDFLARE_DAILY_LIMIT) {
+      const result = await parseWithCloudflare(cleanedText);
+      if (result.medicines.length > 0) { await incrementUsage('cloudflare'); return result; }
+    } else if (usage.cloudflare >= CLOUDFLARE_DAILY_LIMIT) {
+      console.log('Cloudflare daily limit reached. Skipping Tier 4.');
+    }
+  } catch (error: any) {
+    if (error?.status === 429) console.log('Cloudflare rate limited, trying OpenRouter...');
+    else console.error('Cloudflare error:', error?.message || error);
   }
 
   // TIER 5 — OpenRouter
