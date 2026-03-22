@@ -276,22 +276,11 @@ export default function ImportMedicinesModal({
           signal: abortControllerRef.current.signal,
         });
 
-        if (response.data.success && response.data.medicines) {
-          toast.success(`Successfully extracted ${response.data.medicines.length} medicines`);
-          setPdfType(response.data.pdfType || 'searchable');
-          setProvider(response.data.provider || '');
-          setPreview(
-            response.data.medicines.map((med: ParsedMedicine) => ({
-              ...med,
-              status: 'pending' as ImportStatus,
-            }))
-          );
-          setSelectedRows(new Set(Array.from({ length: response.data.medicines.length }, (_, i) => i)));
-          setStep('preview');
+        if (response.status === 202 && response.data.jobId) {
+          setJobId(response.data.jobId);
+          startPolling(response.data.jobId);
         } else {
-          setErrorCode(response.data.errorCode || '');
-          setParseError(response.data.message || 'Failed to parse file');
-          setStep('upload');
+          throw new Error('Unexpected response signature from import route.');
         }
       } else {
         // Scanned PDF detected — offer OCR option
@@ -376,21 +365,11 @@ export default function ImportMedicinesModal({
 
       const response = await axios.post('/api/medicines/import', formData, { headers });
 
-      if (response.data.success && response.data.medicines) {
-        setPdfType('scanned');
-        setProvider(response.data.provider || '');
-        setPreview(
-          response.data.medicines.map((med: ParsedMedicine) => ({
-            ...med,
-            status: 'pending' as ImportStatus,
-          }))
-        );
-        setSelectedRows(new Set(Array.from({ length: response.data.medicines.length }, (_, i) => i)));
-        setStep('preview');
+      if (response.status === 202 && response.data.jobId) {
+        setJobId(response.data.jobId);
+        startPolling(response.data.jobId);
       } else {
-        setErrorCode(response.data.errorCode || '');
-        setParseError(response.data.message || 'AI parsing found no medicines in the OCR text.');
-        setStep('upload');
+        throw new Error('Unexpected response signature from import route.');
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'OCR processing failed';
@@ -403,7 +382,7 @@ export default function ImportMedicinesModal({
   const startPolling = (jobId: string) => {
     const poll = async () => {
       try {
-        const response = await axios.get(`/api/medicines/import/progress?jobId=${jobId}`);
+        const response = await axios.get(`/api/medicines/import/status/${jobId}`);
         if (response.data.success) {
           const jobData = response.data;
 
@@ -421,21 +400,30 @@ export default function ImportMedicinesModal({
             });
             setPreview(normalized);
             setSelectedRows(new Set(Array.from({ length: normalized.length }, (_, i) => i)));
+            toast.success(`Successfully extracted ${normalized.length} medicines`);
             stopPolling();
-          } else if (jobData.status === 'error') {
+            setStep('preview');
+          } else if (jobData.status === 'failed') {
             setParseError(jobData.error || 'Import failed');
+            setErrorCode(jobData.errorCode || '');
+            if (jobData.errorCode === 'NO_TEXT') {
+               setPdfType('scanned');
+               setParseError(jobData.error || 'This file appears to be a scanned document or image. Please run OCR to extract text.');
+            }
             stopPolling();
+            setStep('upload');
           }
         }
       } catch (error) {
         console.error('Polling error:', error);
         setParseError('Failed to check import progress');
         stopPolling();
+        setStep('upload');
       }
     };
 
     poll();
-    const interval = setInterval(poll, 2000);
+    const interval = setInterval(poll, 3000);
     setPollingInterval(interval);
   };
 
