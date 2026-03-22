@@ -409,42 +409,66 @@ async function parseWithGroq(pdfBuffer: Buffer): Promise<ParseResult> {
   if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
 
   console.log('⚡ Calling Groq API...');
-  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${text.substring(0, 30000)}` }
-      ],
-      temperature: 0
-    })
-  });
+  const chunks = splitTextIntoChunks(text, 8000);
+  const allMedicines: ParsedMedicine[] = [];
 
-  if (resp.status === 429) {
-    const err: any = new Error('RATE_LIMIT');
-    err.status = 429;
-    throw err;
-  }
-  if (!resp.ok) throw new Error(`Groq status ${resp.status}`);
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    console.log(`  Groq Chunk ${i + 1}/${chunks.length} (${chunk.length} chars)`);
 
-  const data = await resp.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error('Empty response from Groq');
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
+        ],
+        temperature: 0
+      })
+    });
 
-  const jsonText = extractJsonArray(content);
-  const parsed = JSON.parse(jsonText);
-  if (!Array.isArray(parsed)) throw new Error('Invalid JSON array from Groq');
+    if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
+    if (!resp.ok) throw new Error(`Groq status ${resp.status}`);
 
-  const medicines: ParsedMedicine[] = [];
-  for (const raw of parsed) {
-    const normalized = normalizeMedicine(raw);
-    if (normalized) medicines.push(normalized);
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Empty response from Groq');
+
+    const jsonText = extractJsonArray(content);
+    let parsed: any[];
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      const lastComma = jsonText.lastIndexOf('},');
+      if (lastComma > 0) {
+        const salvaged = jsonText.substring(0, lastComma + 1) + ']';
+        try {
+          parsed = JSON.parse(salvaged);
+          console.warn(`⚠️ Salvaged ${parsed.length} items from truncated JSON`);
+        } catch {
+          throw new Error('AI response JSON is too malformed to recover');
+        }
+      } else {
+        throw new Error('AI response was not valid JSON');
+      }
+    }
+
+    if (!Array.isArray(parsed)) throw new Error('Invalid JSON array from Groq');
+
+    for (const raw of parsed) {
+      const normalized = normalizeMedicine(raw);
+      if (normalized) allMedicines.push(normalized);
+    }
+    
+    if (i < chunks.length - 1) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
   }
 
   const uniqueMap = new Map<string, ParsedMedicine>();
-  for (const med of medicines) {
+  for (const med of allMedicines) {
     const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`;
     if (!uniqueMap.has(key)) uniqueMap.set(key, med);
   }
@@ -683,38 +707,66 @@ async function parseTextWithGroq(text: string): Promise<ParseResult> {
   if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
 
   console.log('⚡ Calling Groq API (Text Mode)...');
-  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${text.substring(0, 30000)}` }
-      ],
-      temperature: 0
-    })
-  });
+  const chunks = splitTextIntoChunks(text, 8000);
+  const allMedicines: ParsedMedicine[] = [];
 
-  if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-  if (!resp.ok) throw new Error(`Groq status ${resp.status}`);
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    console.log(`  Groq Chunk ${i + 1}/${chunks.length} (${chunk.length} chars)`);
 
-  const data = await resp.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error('Empty response from Groq');
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
+        ],
+        temperature: 0
+      })
+    });
 
-  const jsonText = extractJsonArray(content);
-  const parsed = JSON.parse(jsonText);
-  if (!Array.isArray(parsed)) throw new Error('Invalid JSON array from Groq');
+    if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
+    if (!resp.ok) throw new Error(`Groq status ${resp.status}`);
 
-  const medicines: ParsedMedicine[] = [];
-  for (const raw of parsed) {
-    const normalized = normalizeMedicine(raw);
-    if (normalized) medicines.push(normalized);
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Empty response from Groq');
+
+    const jsonText = extractJsonArray(content);
+    let parsed: any[];
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      const lastComma = jsonText.lastIndexOf('},');
+      if (lastComma > 0) {
+        const salvaged = jsonText.substring(0, lastComma + 1) + ']';
+        try {
+          parsed = JSON.parse(salvaged);
+          console.warn(`⚠️ Salvaged ${parsed.length} items from truncated JSON`);
+        } catch {
+          throw new Error('AI response JSON is too malformed to recover');
+        }
+      } else {
+        throw new Error('AI response was not valid JSON');
+      }
+    }
+
+    if (!Array.isArray(parsed)) throw new Error('Invalid JSON array from Groq');
+
+    for (const raw of parsed) {
+      const normalized = normalizeMedicine(raw);
+      if (normalized) allMedicines.push(normalized);
+    }
+    
+    if (i < chunks.length - 1) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
   }
 
   const uniqueMap = new Map<string, ParsedMedicine>();
-  for (const med of medicines) {
+  for (const med of allMedicines) {
     const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`;
     if (!uniqueMap.has(key)) uniqueMap.set(key, med);
   }
