@@ -30,7 +30,7 @@ export interface ParseResult {
 const GEMINI_CHUNK_SIZE = 25000   // 2 chunks for ~50k char PDF
 const GROQ_CHUNK_SIZE = 7000    // 7 chunks
 const CLOUDFLARE_CHUNK_SIZE = 6000   // Reduced chunk count
-const MISTRAL_CHUNK_SIZE = 12000   // Reduced chunks
+const MISTRAL_CHUNK_SIZE = 4500    // 11 chunks
 const OPENROUTER_CHUNK_SIZE = 3500   // 15 chunks
 
 // ─── Cloudflare & Mistral config ─────────────────────────────────────────────
@@ -422,7 +422,7 @@ async function parseWithMistral(text: string, pdfType: PdfType = 'scanned'): Pro
             { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
           ],
           temperature: 0,
-          max_tokens: 4096
+          max_tokens: 8192
         }),
         signal: controller.signal
       });
