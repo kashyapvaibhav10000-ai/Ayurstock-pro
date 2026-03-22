@@ -1,3 +1,6 @@
+export const maxDuration = 300;
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { parsePDFWithAI, parseTextWithAI } from '@/lib/aiParser';
