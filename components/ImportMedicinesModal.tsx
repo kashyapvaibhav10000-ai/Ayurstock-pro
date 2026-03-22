@@ -177,7 +177,15 @@ export default function ImportMedicinesModal({
   const [currentImportIndex, setCurrentImportIndex] = useState<number>(-1);
   const [importProgress, setImportProgress] = useState({ completed: 0, total: 0, failed: 0 });
   const [jobId, setJobId] = useState<string | null>(null);
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   // OCR progress state
   const [ocrProgress, setOcrProgress] = useState({
@@ -380,12 +388,10 @@ export default function ImportMedicinesModal({
   };
 
   const startPolling = (jobId: string) => {
-    let intervalId: NodeJS.Timeout;
-
-    const stopLocalPolling = () => {
-      if (intervalId) clearInterval(intervalId);
-      setPollingInterval(null);
-    };
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
 
     const poll = async () => {
       try {
@@ -408,7 +414,10 @@ export default function ImportMedicinesModal({
             setPreview(normalized);
             setSelectedRows(new Set(Array.from({ length: normalized.length }, (_, i) => i)));
             toast.success(`Successfully extracted ${normalized.length} medicines`);
-            stopLocalPolling();
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current);
+              intervalRef.current = null;
+            }
             setStep('preview');
           } else if (jobData.status === 'failed') {
             setParseError(jobData.error || 'Import failed');
@@ -417,27 +426,32 @@ export default function ImportMedicinesModal({
                setPdfType('scanned');
                setParseError(jobData.error || 'This file appears to be a scanned document or image. Please run OCR to extract text.');
             }
-            stopLocalPolling();
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current);
+              intervalRef.current = null;
+            }
             setStep('upload');
           }
         }
       } catch (error) {
         console.error('Polling error:', error);
         setParseError('Failed to check import progress');
-        stopLocalPolling();
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         setStep('upload');
       }
     };
 
     poll();
-    intervalId = setInterval(poll, 3000);
-    setPollingInterval(intervalId);
+    intervalRef.current = setInterval(poll, 3000);
   };
 
   const stopPolling = () => {
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-      setPollingInterval(null);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
   };
 
@@ -672,7 +686,19 @@ export default function ImportMedicinesModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetModal()}>
-      <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-surface border-surface-border">
+      <DialogContent 
+        className="flex flex-col p-0 gap-0 bg-surface border-surface-border"
+        style={{
+          resize: 'both',
+          overflow: 'auto',
+          minWidth: '600px',
+          minHeight: '400px',
+          width: '85vw',
+          height: '85vh',
+          maxWidth: '95vw',
+          maxHeight: '95vh'
+        }}
+      >
         <DialogHeader className="px-6 py-4 border-b border-surface-border bg-slate-50 shrink-0">
           <DialogTitle className="text-xl">Import Medicines</DialogTitle>
           <div className="flex items-center justify-between mt-4">
