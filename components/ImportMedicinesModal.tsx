@@ -504,7 +504,13 @@ export default function ImportMedicinesModal({
   };
 
   const applyCompanyToAll = (company: string) => {
-    setPreview((current) => current.map((row) => ({ ...row, company })));
+    setPreview((current) => {
+      const cloned = JSON.parse(JSON.stringify(current)) as MedicineWithStatus[];
+      return cloned.map((row) => {
+        row.company = company;
+        return row;
+      });
+    });
   };
 
   const handleCompanySelect = (value: string) => {
