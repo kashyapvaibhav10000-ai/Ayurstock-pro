@@ -122,6 +122,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
   const [error, setError] = useState<string>("")
   const [errorCode, setErrorCode] = useState<string>("")
   const [pdfType, setPdfType] = useState<string>("")
+  const [provider, setProvider] = useState<string>("")
   const [step, setStep] = useState<"upload" | "ocr" | "preview" | "importing">("upload")
   const [companies, setCompanies] = useState<string[]>([])
   const [selectedCompany, setSelectedCompany] = useState<string>("")
@@ -228,6 +229,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       if (result.success) {
         toast.success(`Parsed ${result.medicines?.length || 0} medicines from price list`)
         setPdfType(result.pdfType || "searchable")
+        setProvider(result.provider || "")
         const normalized = (result.medicines || []).map((row: ParsedMedicine) => {
           const category = row.category || detectCategory(row.packing || row.name)
           const options = PACKAGING_OPTIONS[category] || []
@@ -294,6 +296,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       if (result.success) {
         toast.success(`OCR successful: extracted ${result.medicines?.length || 0} medicines`)
         setPdfType("scanned")
+        setProvider(result.provider || "")
         const normalized = (result.medicines || []).map((row: ParsedMedicine) => {
           const category = row.category || detectCategory(row.packing || row.name)
           const options = PACKAGING_OPTIONS[category] || []
@@ -439,6 +442,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     setError("")
     setErrorCode("")
     setPdfType("")
+    setProvider("")
     setStep("upload")
     onClose()
   }
@@ -580,13 +584,20 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                     Successfully parsed {parsedMedicines.length} medicines
                   </span>
                 </div>
-                {pdfType && (
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    pdfType === "searchable" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
-                  }`}>
-                    {pdfType === "searchable" ? "✅ Searchable PDF" : "🔍 Scanned (OCR)"}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {pdfType && (
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      pdfType === "searchable" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                    }`}>
+                      {pdfType === "searchable" ? "✅ Searchable PDF" : "🔍 Scanned (OCR)"}
+                    </span>
+                  )}
+                  {provider && (
+                    <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full font-medium whitespace-nowrap">
+                      {provider === 'gemini' ? 'Processed by Google Gemini ✓' : provider === 'groq' ? 'Processed by Groq ✓' : 'Processed by OpenRouter (slow mode) ✓'}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

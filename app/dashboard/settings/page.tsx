@@ -42,12 +42,12 @@ export default function SettingsPage() {
     }
   }, [isAdmin, router]);
 
-  if (!isAdmin) return null;
-
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') || 'shop';
   
   const [activeTab, setActiveTab] = useState(initialTab);
+
+  if (!isAdmin) return null;
 
   const handleLogout = async () => {
     try {

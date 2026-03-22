@@ -87,7 +87,7 @@ export default function DashboardPage() {
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-primary">Dashboard</h1>
-            <p className="text-text-secondary text-sm mt-1">Overview of your shop's daily performance.</p>
+            <p className="text-text-secondary text-sm mt-1">Overview of your shop&apos;s daily performance.</p>
           </div>
           <Button className="w-full sm:w-auto gap-2" onClick={() => setIsChoiceModalOpen(true)}>
             <Plus className="h-4 w-4" />
@@ -149,7 +149,7 @@ export default function DashboardPage() {
                   <div className="max-w-md mx-auto">
                     <h3 className="text-xl font-bold text-text-primary">Welcome to AyurStock Pro!</h3>
                     <p className="text-sm text-text-secondary mt-2 leading-relaxed">
-                      Your pharmacy's digital heartbeat starts here. Let's get your first medicine added to the inventory so you can begin tracking sales and generating invoices today.
+                      Your pharmacy&apos;s digital heartbeat starts here. Let&apos;s get your first medicine added to the inventory so you can begin tracking sales and generating invoices today.
                     </p>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3">
