@@ -35,7 +35,7 @@ const OPENROUTER_CHUNK_SIZE = 3500   // 15 chunks
 
 // ─── Cloudflare & Mistral config ─────────────────────────────────────────────
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || 'c51d5cf5c7c78d123c5ce4404d9040b1'
-const CF_MODEL = '@cf/meta/llama-3.1-8b-instruct'
+const CF_MODEL = '@cf/meta/llama-3.2-11b-vision-instruct'
 const MISTRAL_MODEL = 'mistral-small-latest'
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
@@ -203,14 +203,15 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
 
 async function processChunks(
   chunks: string[],
-  processFn: (chunk: string, index: number, total: number) => Promise<ParsedMedicine[]>
+  processFn: (chunk: string, index: number, total: number) => Promise<ParsedMedicine[]>,
+  delayMs: number = REQUEST_INTERVAL_MS
 ): Promise<ParsedMedicine[]> {
   const allMedicines: ParsedMedicine[] = []
   for (let i = 0; i < chunks.length; i++) {
     const medicines = await processFn(chunks[i], i, chunks.length)
     allMedicines.push(...medicines)
     if (i < chunks.length - 1) {
-      await new Promise(r => setTimeout(r, REQUEST_INTERVAL_MS))
+      await new Promise(r => setTimeout(r, delayMs))
     }
   }
   return allMedicines
@@ -335,7 +336,7 @@ async function parseTextWithGroq(text: string, pdfType: PdfType = 'scanned'): Pr
     const content = data?.choices?.[0]?.message?.content;
     if (!content) throw new Error('Empty response from Groq');
     return parseJsonSafely(content);
-  });
+  }, 3000);
 
   console.log(`⚡ Groq extracted ${allMedicines.length} medicines`);
   return { medicines: dedup(allMedicines), pdfType, provider: 'groq' };
