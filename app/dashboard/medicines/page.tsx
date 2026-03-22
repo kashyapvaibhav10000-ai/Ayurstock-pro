@@ -254,6 +254,8 @@ export default function MedicinesPage() {
       medicines: parsedMedicines,
     });
 
+    console.log('API response:', response.status, JSON.stringify(response.data));
+
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to import medicines');
     }
