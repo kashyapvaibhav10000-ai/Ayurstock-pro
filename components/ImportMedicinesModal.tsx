@@ -663,7 +663,9 @@ export default function ImportMedicinesModal({
   };
 
   const handleImport = async () => {
-    const selectedMedicines = Array.from(selectedRows).map((index) => previewRef.current[index]);
+    console.log('Total items in previewRef:', previewRef.current?.length);
+    const selectedMedicines = Array.from(selectedRows).map((index) => previewRef.current[index]).filter(Boolean);
+    console.log('Selected medicines passing to handleSave:', selectedMedicines.length);
     
     setLoading(true);
     try {
