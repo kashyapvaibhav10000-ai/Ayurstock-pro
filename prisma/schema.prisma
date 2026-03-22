@@ -494,3 +494,13 @@ model RackLocation {
   @@unique([shopId, name])
   @@index([shopId])
 }
+
+// AI Usage Tracking for Fallback Tiers
+model ApiUsageCounter {
+  id         String   @id @default(cuid())
+  date       String   @unique
+  gemini     Int      @default(0)
+  groq       Int      @default(0)
+  openrouter Int      @default(0)
+  updatedAt  DateTime @updatedAt
+}

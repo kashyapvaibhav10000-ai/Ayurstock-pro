@@ -69,8 +69,6 @@ export default function InventoryPage() {
     }
   }, [isAuthorized]);
 
-  if (!isAuthorized) return null;
-
   const loadInventory = async () => {
     try {
       setLoading(true);
@@ -169,6 +167,8 @@ export default function InventoryPage() {
       toast.error('Failed to delete inventory batch');
     }
   };
+
+  if (!isAuthorized) return null;
 
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Loading inventory...</div>;

@@ -11,7 +11,6 @@ export async function GET(req: NextRequest) {
     }
 
     // Export ALL Returns mapping relational logic top-down
-    // @ts-ignore
     const returns = await prisma.medicineReturn.findMany({
       where: { shopId: auth.user.shopId },
       include: {

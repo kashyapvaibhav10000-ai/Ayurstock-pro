@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
         medicines: result.medicines,
         count: result.medicines.length,
         pdfType: result.pdfType,
-      });
+        provider: result.provider,
+      }, { headers: { 'X-AI-Provider': result.provider || 'none' } });
     }
 
     // ── Path B: File upload ──────────────────────────────────────────
@@ -91,7 +92,8 @@ export async function POST(req: NextRequest) {
       medicines: result.medicines,
       count: result.medicines.length,
       pdfType: result.pdfType,
-    });
+      provider: result.provider,
+    }, { headers: { 'X-AI-Provider': result.provider || 'none' } });
   } catch (error) {
     console.error('❌ [import-price-list] Error:', error);
     return NextResponse.json({

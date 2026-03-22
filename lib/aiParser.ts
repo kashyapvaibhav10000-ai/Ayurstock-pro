@@ -1,3 +1,6 @@
+import { prisma } from '@/lib/db';
+const pdfParse = require('pdf-parse') as (buffer: Buffer, options?: any) => Promise<{ text: string; numpages: number }>;
+
 export type ParsedMedicine = {
   name: string
   packing: string
@@ -18,8 +21,30 @@ export type ParseErrorCode =
 export interface ParseResult {
   medicines: ParsedMedicine[];
   pdfType: PdfType;
+  provider?: 'gemini' | 'groq' | 'openrouter';
   errorCode?: ParseErrorCode;
   errorMessage?: string;
+}
+
+async function getDailyUsage() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const record = await prisma.apiUsageCounter.findUnique({ where: { date: today } });
+    return record || { gemini: 0, groq: 0, openrouter: 0 };
+  } catch (e) {
+    return { gemini: 0, groq: 0, openrouter: 0 };
+  }
+}
+
+async function incrementUsage(provider: 'gemini' | 'groq' | 'openrouter') {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    await prisma.apiUsageCounter.upsert({
+      where: { date: today },
+      update: { [provider]: { increment: 1 } },
+      create: { date: today, [provider]: 1 }
+    });
+  } catch (e) {}
 }
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -389,6 +414,117 @@ async function parseChunkWithAI(
 
 
 
+async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('NO_API_KEY');
+
+  const base64Pdf = pdfBuffer.toString('base64');
+  console.log('💎 Calling Gemini API...');
+
+  const payload = {
+    contents: [{
+      parts: [
+        { inlineData: { mimeType: "application/pdf", data: base64Pdf } },
+        { text: SYSTEM_PROMPT + "\n\nExtract medicines from this PDF. Return ONLY valid JSON array." }
+      ]
+    }],
+    generationConfig: { temperature: 0 }
+  };
+
+  const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (resp.status === 429) {
+    const err: any = new Error('RATE_LIMIT');
+    err.status = 429;
+    throw err;
+  }
+  if (!resp.ok) throw new Error(`Gemini status ${resp.status}`);
+
+  const data = await resp.json();
+  const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!content) throw new Error('Empty response from Gemini');
+
+  const jsonText = extractJsonArray(content);
+  const parsed = JSON.parse(jsonText);
+  if (!Array.isArray(parsed)) throw new Error('Invalid JSON array from Gemini');
+
+  const medicines: ParsedMedicine[] = [];
+  for (const raw of parsed) {
+    const normalized = normalizeMedicine(raw);
+    if (normalized) medicines.push(normalized);
+  }
+
+  const uniqueMap = new Map<string, ParsedMedicine>();
+  for (const med of medicines) {
+    const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`;
+    if (!uniqueMap.has(key)) uniqueMap.set(key, med);
+  }
+
+  return { medicines: Array.from(uniqueMap.values()), pdfType: 'searchable', provider: 'gemini' };
+}
+
+async function parseWithGroq(pdfBuffer: Buffer): Promise<ParseResult> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('NO_API_KEY');
+
+  let text = '';
+  try {
+     const pdfData = await pdfParse(pdfBuffer, { max: 100 });
+     text = pdfData.text;
+  } catch (e) {
+     throw new Error('NO_TEXT');
+  }
+
+  if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
+
+  console.log('⚡ Calling Groq API...');
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${text.substring(0, 30000)}` }
+      ],
+      temperature: 0
+    })
+  });
+
+  if (resp.status === 429) {
+    const err: any = new Error('RATE_LIMIT');
+    err.status = 429;
+    throw err;
+  }
+  if (!resp.ok) throw new Error(`Groq status ${resp.status}`);
+
+  const data = await resp.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('Empty response from Groq');
+
+  const jsonText = extractJsonArray(content);
+  const parsed = JSON.parse(jsonText);
+  if (!Array.isArray(parsed)) throw new Error('Invalid JSON array from Groq');
+
+  const medicines: ParsedMedicine[] = [];
+  for (const raw of parsed) {
+    const normalized = normalizeMedicine(raw);
+    if (normalized) medicines.push(normalized);
+  }
+
+  const uniqueMap = new Map<string, ParsedMedicine>();
+  for (const med of medicines) {
+    const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`;
+    if (!uniqueMap.has(key)) uniqueMap.set(key, med);
+  }
+
+  return { medicines: Array.from(uniqueMap.values()), pdfType: 'searchable', provider: 'groq' };
+}
+
 export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseResult> {
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
@@ -447,11 +583,23 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
       return chunkMedicines;
     });
 
-    const results = await limiter.executeAll(tasks);
+    console.log('🐌 Using OpenRouter slow mode... (15s delay between chunks)');
+    const results = [];
+    for (let i = 0; i < tasks.length; i++) {
+        try {
+            const res = await tasks[i]();
+            results.push({ status: 'fulfilled', value: res });
+        } catch (err) {
+            results.push({ status: 'rejected', reason: err });
+        }
+        if (i < tasks.length - 1) {
+            await new Promise(r => setTimeout(r, 15000));
+        }
+    }
     
-    results.forEach((result, i) => {
+    results.forEach((result: any, i) => {
       if (result.status === 'fulfilled') {
-        allMedicines.push(...result.value);
+        allMedicines.push(...(result.value || []));
         successCount++;
       } else {
         console.warn(`  Chunk ${i + 1}/${chunks.length}: ❌ ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
@@ -484,7 +632,8 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
     console.log(`✅ After dedup: ${uniqueMap.size} unique medicines`);
     console.log(`\n========== PARSING COMPLETE ==========\n`);
     
-    return { medicines: Array.from(uniqueMap.values()), pdfType: 'searchable' };
+    await incrementUsage('openrouter');
+    return { medicines: Array.from(uniqueMap.values()), pdfType: 'searchable', provider: 'openrouter' };
   } catch (error) {
     console.error('❌ Error in parseMedicinesWithAI:', error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {
@@ -499,6 +648,45 @@ export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseRes
  * Returns structured result with error codes for UI messaging.
  */
 export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
+  console.log('📖 Starting 3-Tier PDF parsing sequence...');
+  const usage = await getDailyUsage();
+
+  // TIER 1 - Gemini
+  try {
+    if (process.env.GEMINI_API_KEY && usage.gemini < 1400) {
+      const result = await parseWithGemini(pdfBuffer);
+      if (result.medicines.length > 0) {
+        await incrementUsage('gemini');
+        return result;
+      }
+    } else if (usage.gemini >= 1400) {
+      console.log('Gemini daily limit reached (1400). Skipping Tier 1.');
+    }
+  } catch (error: any) {
+    if (error?.status === 429) console.log('Gemini rate limit reached, trying Groq...');
+    else console.error('Gemini error:', error?.message || error);
+  }
+
+  // TIER 2 - Groq
+  try {
+    if (process.env.GROQ_API_KEY && usage.groq < 14000) {
+      const result = await parseWithGroq(pdfBuffer);
+      if (result.medicines.length > 0) {
+        await incrementUsage('groq');
+        return result;
+      }
+    } else if (usage.groq >= 14000) {
+      console.log('Groq daily limit reached (14000). Skipping Tier 2.');
+    }
+  } catch (error: any) {
+    if (error?.status === 429) console.log('Groq rate limit reached, trying OpenRouter slow mode...');
+    else if (error?.message === 'NO_TEXT') {
+      return { medicines: [], pdfType: 'scanned', errorCode: 'NO_TEXT', errorMessage: 'This PDF appears to be scanned/image-based. Use the "Run OCR" button.' };
+    } else console.error('Groq error:', error?.message || error);
+  }
+
+  // TIER 3 - OpenRouter
+  console.log('🔄 OpenRouter limit fallback engaged.');
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
     console.error('❌ OPENROUTER_API_KEY not set');
@@ -506,7 +694,6 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
   }
 
   try {
-    console.log('📖 Starting PDF parsing...');
     console.log(`📊 Buffer size: ${pdfBuffer.length} bytes`);
     
     // Extract text from PDF using pdf2json
@@ -613,11 +800,108 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
   }
 }
 
-/**
- * Parse pre-extracted text (e.g. from client-side OCR) with AI.
- * Skips pdf2json extraction since text is already available.
- */
+async function parseTextWithGemini(text: string): Promise<ParseResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('NO_API_KEY');
+
+  console.log('💎 Calling Gemini API (Text Mode)...');
+  const payload = {
+    contents: [{
+      parts: [
+        { text: SYSTEM_PROMPT + `\n\nExtract medicines from this text. Return ONLY a JSON array:\n\n${text.substring(0, 30000)}` }
+      ]
+    }],
+    generationConfig: { temperature: 0 }
+  };
+
+  const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (resp.status === 429) {
+    const err: any = new Error('RATE_LIMIT');
+    err.status = 429;
+    throw err;
+  }
+  if (!resp.ok) throw new Error(`Gemini status ${resp.status}`);
+
+  const data = await resp.json();
+  const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!content) throw new Error('Empty response from Gemini');
+
+  const jsonText = extractJsonArray(content);
+  const parsed = JSON.parse(jsonText);
+  if (!Array.isArray(parsed)) throw new Error('Invalid JSON array from Gemini');
+
+  const medicines: ParsedMedicine[] = [];
+  for (const raw of parsed) {
+    const normalized = normalizeMedicine(raw);
+    if (normalized) medicines.push(normalized);
+  }
+
+  const uniqueMap = new Map<string, ParsedMedicine>();
+  for (const med of medicines) {
+    const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`;
+    if (!uniqueMap.has(key)) uniqueMap.set(key, med);
+  }
+
+  return { medicines: Array.from(uniqueMap.values()), pdfType: 'scanned', provider: 'gemini' };
+}
+
+async function parseTextWithGroq(text: string): Promise<ParseResult> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('NO_API_KEY');
+
+  if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
+
+  console.log('⚡ Calling Groq API (Text Mode)...');
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${text.substring(0, 30000)}` }
+      ],
+      temperature: 0
+    })
+  });
+
+  if (resp.status === 429) {
+    const err: any = new Error('RATE_LIMIT');
+    err.status = 429;
+    throw err;
+  }
+  if (!resp.ok) throw new Error(`Groq status ${resp.status}`);
+
+  const data = await resp.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('Empty response from Groq');
+
+  const jsonText = extractJsonArray(content);
+  const parsed = JSON.parse(jsonText);
+  if (!Array.isArray(parsed)) throw new Error('Invalid JSON array from Groq');
+
+  const medicines: ParsedMedicine[] = [];
+  for (const raw of parsed) {
+    const normalized = normalizeMedicine(raw);
+    if (normalized) medicines.push(normalized);
+  }
+
+  const uniqueMap = new Map<string, ParsedMedicine>();
+  for (const med of medicines) {
+    const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`;
+    if (!uniqueMap.has(key)) uniqueMap.set(key, med);
+  }
+
+  return { medicines: Array.from(uniqueMap.values()), pdfType: 'scanned', provider: 'groq' };
+}
+
 export async function parseTextWithAI(extractedText: string): Promise<ParseResult> {
+  console.log('📖 Starting 3-Tier TEXT parsing sequence...');
   if (!extractedText.trim()) {
     return {
       medicines: [],
@@ -627,8 +911,44 @@ export async function parseTextWithAI(extractedText: string): Promise<ParseResul
     };
   }
 
+  const usage = await getDailyUsage();
+
+  // TIER 1 - Gemini
+  try {
+    if (process.env.GEMINI_API_KEY && usage.gemini < 1400) {
+      const result = await parseTextWithGemini(extractedText);
+      if (result.medicines.length > 0) {
+        await incrementUsage('gemini');
+        return result;
+      }
+    } else if (usage.gemini >= 1400) {
+      console.log('Gemini daily limit reached (1400). Skipping Tier 1.');
+    }
+  } catch (error: any) {
+    if (error?.status === 429) console.log('Gemini rate limit reached, trying Groq...');
+    else console.error('Gemini error:', error?.message || error);
+  }
+
+  // TIER 2 - Groq
+  try {
+    if (process.env.GROQ_API_KEY && usage.groq < 14000) {
+      const result = await parseTextWithGroq(extractedText);
+      if (result.medicines.length > 0) {
+        await incrementUsage('groq');
+        return result;
+      }
+    } else if (usage.groq >= 14000) {
+      console.log('Groq daily limit reached (14000). Skipping Tier 2.');
+    }
+  } catch (error: any) {
+    if (error?.status === 429) console.log('Groq rate limit reached, trying OpenRouter slow mode...');
+    else console.error('Groq error:', error?.message || error);
+  }
+
+  // TIER 3 - OpenRouter Default
+  console.log('🔄 OpenRouter limit fallback engaged for TEXT.');
   const result = await parseMedicinesWithAI(extractedText);
-  result.pdfType = 'scanned'; // Text came from client-side OCR
+  result.pdfType = 'scanned';
   return result;
 }
 

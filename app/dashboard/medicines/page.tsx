@@ -125,8 +125,6 @@ export default function MedicinesPage() {
     }
   }, [isAuthorized]);
 
-  if (!isAuthorized) return null;
-
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key !== 'Delete') {
@@ -387,6 +385,8 @@ export default function MedicinesPage() {
         visibleMedicines.every((medicine) => selectedMedicines.has(medicine.id))
     );
   }, [visibleMedicines, selectedMedicines]);
+
+  if (!isAuthorized) return null;
 
   if (loading) {
     return <div className="p-8 text-center text-gray-500">Loading medicines...</div>;

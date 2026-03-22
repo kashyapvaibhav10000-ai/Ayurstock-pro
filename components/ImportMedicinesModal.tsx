@@ -168,6 +168,7 @@ export default function ImportMedicinesModal({
   const [parseError, setParseError] = useState<string>('');
   const [errorCode, setErrorCode] = useState<string>('');
   const [pdfType, setPdfType] = useState<string>('');
+  const [provider, setProvider] = useState<string>('');
   const [companies, setCompanies] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [newCompany, setNewCompany] = useState<string>('');
@@ -278,6 +279,7 @@ export default function ImportMedicinesModal({
         if (response.data.success && response.data.medicines) {
           toast.success(`Successfully extracted ${response.data.medicines.length} medicines`);
           setPdfType(response.data.pdfType || 'searchable');
+          setProvider(response.data.provider || '');
           setPreview(
             response.data.medicines.map((med: ParsedMedicine) => ({
               ...med,
@@ -376,6 +378,7 @@ export default function ImportMedicinesModal({
 
       if (response.data.success && response.data.medicines) {
         setPdfType('scanned');
+        setProvider(response.data.provider || '');
         setPreview(
           response.data.medicines.map((med: ParsedMedicine) => ({
             ...med,
@@ -657,6 +660,7 @@ export default function ImportMedicinesModal({
     setParseError('');
     setErrorCode('');
     setPdfType('');
+    setProvider('');
     setSequentialImport(false);
     setCurrentImportIndex(-1);
     setImportProgress({ completed: 0, total: 0, failed: 0 });
@@ -801,6 +805,11 @@ export default function ImportMedicinesModal({
                   </p>
                 </div>
               </div>
+              {provider && (
+                 <span className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium ml-auto whitespace-nowrap">
+                   {provider === 'gemini' ? 'Processed by Google Gemini ✓' : provider === 'groq' ? 'Processed by Groq ✓' : 'Processed by OpenRouter (slow mode) ✓'}
+                 </span>
+              )}
               <div className="mt-3 sm:mt-0 whitespace-nowrap text-sm font-semibold text-primary">
                 {selectedRows.size} Selected
               </div>
