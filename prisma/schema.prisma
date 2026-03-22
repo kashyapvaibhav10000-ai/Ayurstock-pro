@@ -501,6 +501,8 @@ model ApiUsageCounter {
   date       String   @unique
   gemini     Int      @default(0)
   groq       Int      @default(0)
+  cloudflare Int      @default(0)
+  mistral    Int      @default(0)
   openrouter Int      @default(0)
   updatedAt  DateTime @updatedAt
 }
