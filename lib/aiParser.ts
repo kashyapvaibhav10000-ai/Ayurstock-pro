@@ -83,7 +83,11 @@ RULES:
 7. Each item MUST have: name (string), packing (string), mrp (number), tradePrice (number)
 8. Ignore headers, footers, page numbers, totals, and non-medicine text
 9. If text is noisy or unclear, extract whatever medicines you can confidently identify
-10. CRITICAL: Keep your response SHORT. Only output the JSON array, nothing else. Max 30 items per response.`
+10. CRITICAL: Keep your response SHORT. Only output the JSON array, nothing else. Max 30 items per response.
+11. NEVER extract disease names, body parts, or medical conditions as medicine names. Examples of what NOT to extract: 'LEPROSY', 'ARTHRITIS', 'WEAKNESS', 'DISORDERS', 'BLEEDING', 'FEVER', 'PAIN' — these are indications/uses, NOT medicine names.
+12. Medicine names are product brand names like: 'ADULSA SYRUP', 'AROGYAVARDHINI VATI', 'TRIPHALA CHURNA'. They are NEVER just a disease or symptom name alone.
+13. If a line contains ONLY a disease/symptom with no product name, SKIP that line entirely.
+14. Price sanity check: MRP must be between 1 and 10000. TradePrice must be between 1 and MRP. If prices seem wrong or impossible, skip that medicine. Never extract prices above 10000 or below 1.`
 
 // ─── Prisma usage tracking ────────────────────────────────────────────────────
 async function getDailyUsage() {
