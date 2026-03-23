@@ -210,7 +210,7 @@ export default function AddInventoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl overflow-visible">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl overflow-visible">
         <DialogHeader>
           <DialogTitle>Add Inventory</DialogTitle>
         </DialogHeader>
