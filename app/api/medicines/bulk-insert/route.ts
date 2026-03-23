@@ -172,7 +172,8 @@ export async function POST(req: NextRequest) {
             (!medicine.category && normalized.category) ||
             (!medicine.hsn && normalized.hsn) ||
             (!medicine.barcode && normalized.barcode) ||
-            (!medicine.packing && normalized.packing);
+            (!medicine.packing && normalized.packing) ||
+            (!medicine.company && normalized.company);
 
           if (shouldUpdate) {
             medicine = await prisma.medicine.update({
@@ -182,6 +183,7 @@ export async function POST(req: NextRequest) {
                 hsn: medicine.hsn || normalized.hsn,
                 barcode: medicine.barcode || normalized.barcode || null,
                 packing: medicine.packing || normalized.packing || null,
+                company: medicine.company || normalized.company,
               },
             });
             updatedMedicineCount += 1;

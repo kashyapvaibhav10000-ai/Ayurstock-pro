@@ -180,6 +180,7 @@ export default function ImportMedicinesModal({
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const hasCompleted = useRef(false);
   const previewRef = useRef<MedicineWithStatus[]>([]);
+  const pollFailCount = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -391,7 +392,8 @@ export default function ImportMedicinesModal({
 
   const startPolling = (jobId: string) => {
     hasCompleted.current = false;
-    
+    pollFailCount.current = 0;
+
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -400,6 +402,7 @@ export default function ImportMedicinesModal({
     const poll = async () => {
       try {
         const response = await axios.get(`/api/medicines/import/status/${jobId}`);
+        pollFailCount.current = 0;
         if (response.data.success) {
           const jobData = response.data;
 
@@ -445,13 +448,17 @@ export default function ImportMedicinesModal({
           }
         }
       } catch (error) {
-        console.error('Polling error:', error);
-        setParseError('Failed to check import progress');
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
+        pollFailCount.current += 1;
+        console.error(`Polling error (attempt ${pollFailCount.current}):`, error);
+        if (pollFailCount.current >= 5) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          setParseError('Lost connection to server. Your import may still be processing — please refresh the page to check.');
+          setStep('upload');
         }
-        setStep('upload');
+        // else: silently retry on next interval
       }
     };
 
@@ -703,6 +710,7 @@ export default function ImportMedicinesModal({
     setCurrentImportIndex(-1);
     setImportProgress({ completed: 0, total: 0, failed: 0 });
     setJobId(null);
+    pollFailCount.current = 0;
     stopPolling();
     onClose();
   };
