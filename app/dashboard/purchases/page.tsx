@@ -467,11 +467,11 @@ export default function PurchasesPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 md:p-8">
+    <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Purchases</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">Purchases</h1>
+          <p className="mt-1 text-sm font-medium text-text-secondary">
             Capture distributor invoices, increase stock, and manage supplier returns.
           </p>
         </div>
@@ -512,34 +512,34 @@ export default function PurchasesPage() {
 
       {stats ? (
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="rounded-2xl">
+          <Card className="rounded-[24px] shadow-soft border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
             <CardHeader>
-              <CardTitle className="text-sm text-slate-500">Today Purchases</CardTitle>
-              <CardDescription className="text-2xl font-semibold text-slate-900">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-text-muted">Today Purchases</CardTitle>
+              <CardDescription className="text-3xl font-extrabold text-primary">
                 {stats.todayPurchases}
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="rounded-2xl">
+          <Card className="rounded-[24px] shadow-soft border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
             <CardHeader>
-              <CardTitle className="text-sm text-slate-500">Month Purchases</CardTitle>
-              <CardDescription className="text-2xl font-semibold text-slate-900">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-text-muted">Month Purchases</CardTitle>
+              <CardDescription className="text-3xl font-extrabold text-blue-600">
                 {stats.monthPurchases}
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="rounded-2xl">
+          <Card className="rounded-[24px] shadow-soft border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
             <CardHeader>
-              <CardTitle className="text-sm text-slate-500">Pending Invoices</CardTitle>
-              <CardDescription className="text-2xl font-semibold text-slate-900">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-text-muted">Pending Invoices</CardTitle>
+              <CardDescription className="text-3xl font-extrabold text-orange-600">
                 {stats.pendingInvoices}
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="rounded-2xl">
+          <Card className="rounded-[24px] shadow-soft border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
             <CardHeader>
-              <CardTitle className="text-sm text-slate-500">Low Stock</CardTitle>
-              <CardDescription className="text-2xl font-semibold text-slate-900">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-text-muted">Low Stock</CardTitle>
+              <CardDescription className="text-3xl font-extrabold text-danger">
                 {stats.lowStockMedicines}
               </CardDescription>
             </CardHeader>
@@ -548,23 +548,23 @@ export default function PurchasesPage() {
       ) : null}
 
       <Tabs defaultValue="new" className="space-y-6">
-        <TabsList className="grid w-full rounded-2xl bg-slate-100 p-1 md:grid-cols-3">
-          <TabsTrigger value="new" className="rounded-xl">
+        <TabsList className="grid w-full rounded-2xl bg-surface-muted p-1.5 md:grid-cols-3 shadow-inner">
+          <TabsTrigger value="new" className="rounded-xl font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
             New Purchase
           </TabsTrigger>
-          <TabsTrigger value="history" className="rounded-xl">
+          <TabsTrigger value="history" className="rounded-xl font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
             Purchase History
           </TabsTrigger>
-          <TabsTrigger value="returns" className="rounded-xl">
+          <TabsTrigger value="returns" className="rounded-xl font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
             Returns
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="new">
-          <Card className="rounded-2xl">
+          <Card className="rounded-[24px] shadow-soft border-surface-border">
             <CardHeader>
-              <CardTitle className="text-lg">Create Purchase</CardTitle>
-              <CardDescription>Enter distributor invoice details and stock items.</CardDescription>
+              <CardTitle className="text-xl font-extrabold text-text-primary">Create Purchase</CardTitle>
+              <CardDescription className="font-medium text-text-secondary">Enter distributor invoice details and stock items.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {scanPreview.length > 0 ? (
@@ -696,21 +696,21 @@ export default function PurchasesPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="overflow-hidden rounded-2xl border border-surface-border mt-4">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-surface-muted/50 border-b border-surface-border">
                     <TableRow>
-                      <TableHead>Medicine</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Batch</TableHead>
-                      <TableHead>Expiry</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Free</TableHead>
-                      <TableHead className="text-right">Rate</TableHead>
-                      <TableHead className="text-right">MRP</TableHead>
-                      <TableHead className="text-right">Discount</TableHead>
-                      <TableHead className="text-right">GST</TableHead>
-                      <TableHead>Rack</TableHead>
+                      <TableHead className="font-bold text-text-secondary py-3">Medicine</TableHead>
+                      <TableHead className="font-bold text-text-secondary py-3">Status</TableHead>
+                      <TableHead className="font-bold text-text-secondary py-3">Batch</TableHead>
+                      <TableHead className="font-bold text-text-secondary py-3">Expiry</TableHead>
+                      <TableHead className="text-right font-bold text-text-secondary py-3">Qty</TableHead>
+                      <TableHead className="text-right font-bold text-text-secondary py-3">Free</TableHead>
+                      <TableHead className="text-right font-bold text-text-secondary py-3">Rate</TableHead>
+                      <TableHead className="text-right font-bold text-text-secondary py-3">MRP</TableHead>
+                      <TableHead className="text-right font-bold text-text-secondary py-3">Discount</TableHead>
+                      <TableHead className="text-right font-bold text-text-secondary py-3">GST</TableHead>
+                      <TableHead className="font-bold text-text-secondary py-3">Rack</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>

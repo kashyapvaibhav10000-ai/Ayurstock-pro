@@ -93,8 +93,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 md:space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-primary">Settings</h1>
-        <p className="mt-1 text-sm text-text-secondary">
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-text-primary">Settings</h1>
+        <p className="mt-2 text-sm font-medium text-text-secondary">
           Manage your account settings and set preferences.
         </p>
       </div>
@@ -153,7 +153,7 @@ export default function SettingsPage() {
 
         {/* Dynamic Content Area */}
         <main className="flex-1 min-w-0">
-          <Card className="rounded-2xl border-surface-border bg-surface">
+          <Card className="rounded-[24px] shadow-soft hover:shadow-bento transition-all duration-300 border-surface-border bg-surface">
             <CardContent className="p-4 md:p-8">
               {renderContent()}
               

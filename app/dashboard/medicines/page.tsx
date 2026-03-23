@@ -390,29 +390,29 @@ export default function MedicinesPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 md:p-8">
+    <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Medicines</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">Medicines</h1>
+          <p className="mt-1 text-sm text-text-secondary">
             Manage your medicine master and move selected items into inventory when stock arrives.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative min-w-[260px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <div className="relative min-w-[280px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search medicine, company, barcode..."
-              className="pl-9"
+              className="pl-9 rounded-2xl bg-surface shadow-soft border-surface-border transition-all focus-visible:shadow-bento"
             />
           </div>
-          <Button variant="outline" className="gap-2" onClick={() => setShowImportModal(true)}>
+          <Button variant="outline" className="gap-2 rounded-2xl shadow-soft hover:shadow-bento transition-all" onClick={() => setShowImportModal(true)}>
             <Upload className="h-4 w-4" />
             Import Medicines
           </Button>
-          <Button className="gap-2" onClick={() => setShowAddModal(true)}>
+          <Button className="gap-2 rounded-2xl shadow-soft hover:shadow-bento transition-all" onClick={() => setShowAddModal(true)}>
             <Plus className="h-4 w-4" />
             Add Medicine
           </Button>
@@ -428,16 +428,16 @@ export default function MedicinesPage() {
             </CardDescription>
           </div>
           {selectedMedicines.size > 0 ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-full bg-sky-50 px-4 py-2 text-sm text-sky-700">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-primary/10 px-4 py-2 text-sm text-primary font-bold shadow-soft">
               <span>{selectedMedicines.size} selected</span>
-              <Button size="sm" className="gap-2" onClick={() => setShowMoveModal(true)}>
+              <Button size="sm" className="gap-2 rounded-xl" onClick={() => setShowMoveModal(true)}>
                 <Boxes className="h-4 w-4" />
                 Move to Inventory
               </Button>
               <Button
                 size="sm"
                 variant="destructive"
-                className="gap-2"
+                className="gap-2 rounded-xl"
                 onClick={() => setShowDeleteModal(true)}
               >
                 <Trash2 className="h-4 w-4" />
@@ -509,19 +509,19 @@ export default function MedicinesPage() {
             )}
           </div>
 
-          <div className="overflow-x-auto rounded-xl border">
+          <div className="overflow-x-auto rounded-2xl border border-surface-border">
             <Table>
-              <TableHeader className="bg-slate-50">
+              <TableHeader className="bg-surface-muted/50">
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox checked={selectedAll} onCheckedChange={toggleSelectAll} />
                   </TableHead>
-                  <TableHead>Medicine</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Packing</TableHead>
-                  <TableHead>Barcode</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Medicine</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Company</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Category</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Packing</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Barcode</TableHead>
+                  <TableHead className="text-right font-bold text-text-secondary">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -100,9 +100,9 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
         </div>
 
         <div className="px-4 py-4">
-          <div className="rounded-xl bg-slate-900 px-4 py-3 text-white shadow-sm overflow-hidden flex items-center justify-center xl:justify-start">
+          <div className="rounded-2xl bg-surface border border-surface-border px-4 py-3 text-text-primary shadow-soft overflow-hidden flex items-center justify-center xl:justify-start transition-all hover:shadow-bento">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-primary/20 text-sm font-semibold text-primary-light">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 text-sm font-semibold text-primary">
                 {user.avatarUrl ? (
                   <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover rounded-[10px]" />
                 ) : (
@@ -110,8 +110,8 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
                 )}
               </div>
               <div className={`transition-all whitespace-nowrap ${isDesktopOpen || isMobileOpen ? 'opacity-100 block' : 'opacity-0 hidden'}`}>
-                <div className="text-sm font-semibold truncate max-w-[130px]">{user.name}</div>
-                <div className="text-xs text-slate-300">{user.role}</div>
+                <div className="text-sm font-bold text-text-primary truncate max-w-[130px]">{user.name}</div>
+                <div className="text-xs font-medium text-text-secondary uppercase tracking-wider mt-0.5">{user.role}</div>
               </div>
             </div>
           </div>
@@ -131,14 +131,14 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
                     onMobileClose();
                   }
                 }}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-primary-light text-primary-hover shadow-sm'
+                    ? 'bg-primary/10 text-primary shadow-none'
                     : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary'
                 } ${!isDesktopOpen && !isMobileOpen ? 'xl:justify-center' : ''}`}
                 title={item.label}
               >
-                <Icon className={`shrink-0 ${isActive ? 'text-primary' : ''} ${!isDesktopOpen && !isMobileOpen ? 'h-5 w-5' : 'h-[18px] w-[18px]'}`} />
+                <Icon className={`shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-primary' : 'text-text-muted group-hover:text-text-primary'} ${!isDesktopOpen && !isMobileOpen ? 'h-5 w-5' : 'h-[18px] w-[18px]'}`} />
                 <span className={`whitespace-nowrap ${isDesktopOpen || isMobileOpen ? 'block' : 'hidden'}`}>
                   {item.label}
                 </span>

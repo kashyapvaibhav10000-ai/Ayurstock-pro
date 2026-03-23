@@ -85,7 +85,7 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
 
   return (
     <>
-      <header className="flex items-center justify-between border-b border-surface-border bg-surface px-4 sm:px-6 py-4 shadow-sm h-[81px] relative z-20">
+      <header className="flex items-center justify-between border-b border-surface-border bg-surface/80 backdrop-blur-md px-4 sm:px-6 py-4 h-[81px] relative z-20">
         <div className="flex items-center gap-3">
           <Button 
             variant="ghost" 
@@ -98,33 +98,33 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
           <div className="xl:hidden flex items-center gap-2 mr-2">
             <Image src="/logo.png" width={32} height={32} alt="AyurStock Pro" className="w-8 h-8" />
           </div>
-          <span className="text-lg sm:text-xl font-bold text-text-primary truncate">{pageTitle}</span>
+          <span className="text-lg sm:text-xl font-bold text-text-primary tracking-tight truncate">{pageTitle}</span>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="relative hidden md:block w-[260px]">
+          <div className="relative hidden md:block w-[280px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-            <Input placeholder="Search everything..." className="rounded-xl border-surface-border bg-surface-muted pl-9 h-10" />
+            <Input placeholder="Search everything..." className="rounded-2xl border-surface-border bg-surface shadow-soft pl-9 h-10 transition-shadow focus-visible:shadow-bento" />
           </div>
           
-          <Button variant="outline" size="icon" className="hidden sm:flex rounded-xl border-surface-border h-10 w-10">
+          <Button variant="outline" size="icon" className="hidden sm:flex rounded-2xl border-surface-border bg-surface shadow-soft hover:shadow-bento h-10 w-10">
             <Bell className="h-4 w-4 text-text-secondary" />
           </Button>
           
           <button
-            className="flex items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border border-surface-border bg-surface p-1 sm:px-3 sm:py-1.5 shadow-sm transition hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            className="group flex items-center gap-2 sm:gap-3 rounded-2xl border border-surface-border bg-surface p-1 sm:px-1.5 sm:py-1.5 shadow-soft transition-all hover:shadow-bento hover:border-primary/20 focus:outline-none"
             onClick={() => setProfileOpen(true)}
           >
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center overflow-hidden rounded-[10px] bg-primary-light text-sm font-semibold text-primary">
+            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-sm font-semibold text-primary transition-colors group-hover:bg-primary/20">
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
               ) : (
                 user.name.slice(0, 2).toUpperCase()
               )}
             </div>
-            <div className="hidden text-left sm:block pr-1">
+            <div className="hidden text-left sm:block pr-3">
               <div className="text-sm font-bold text-text-primary leading-tight">{user.name}</div>
-              <div className="text-[11px] font-medium text-text-secondary">{user.role}</div>
+              <div className="text-[11px] font-bold tracking-wider uppercase text-text-secondary">{user.role}</div>
             </div>
           </button>
         </div>

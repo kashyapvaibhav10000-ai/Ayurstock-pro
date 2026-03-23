@@ -7,40 +7,43 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        background: '#FAFAFA',
         primary: {
-          DEFAULT: '#0ea5e9', // Clean accessible blue
-          hover: '#0284c7',   // Darker hover state
-          light: '#e0f2fe',
+          DEFAULT: '#0f766e', // Professional Teal
+          hover: '#0f766e',   // Slightly darker Teal
+          light: '#ccfbf1',
+          foreground: '#ffffff',
         },
         surface: {
           DEFAULT: '#ffffff',
-          muted: '#f8fafc',
-          border: '#e2e8f0',
+          muted: '#f4f4f5', // zinc-100
+          border: '#e4e4e7', // zinc-200
         },
         text: {
-          primary: '#0f172a',
-          secondary: '#64748b',
-          muted: '#94a3b8',
+          primary: '#18181b', // zinc-900
+          secondary: '#52525b', // zinc-500
+          muted: '#a1a1aa', // zinc-400
         },
         success: {
           DEFAULT: '#10b981',
-          bg: '#d1fae5',
-          text: '#065f46',
+          bg: '#ecfdf5',
+          text: '#064e3b',
         },
         danger: {
           DEFAULT: '#ef4444',
-          bg: '#fee2e2',
-          text: '#991b1b',
+          bg: '#fef2f2',
+          text: '#7f1d1d',
         },
         warning: {
           DEFAULT: '#f59e0b',
-          bg: '#fef3c7',
-          text: '#92400e',
+          bg: '#fffbeb',
+          text: '#78350f',
         }
       },
       boxShadow: {
-        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
-        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
+        'soft': '0 2px 10px -2px rgba(0, 0, 0, 0.04)',
+        'bento': '0px 2px 4px rgba(0,0,0,0.02), 0px 4px 12px rgba(0,0,0,0.04)',
+        'bento-hover': '0px 4px 8px rgba(0,0,0,0.04), 0px 8px 24px rgba(0,0,0,0.08)',
         'elevated': '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
       },
       spacing: {
@@ -53,6 +56,7 @@ module.exports = {
       borderRadius: {
         'xl': '12px',
         '2xl': '16px',
+        '3xl': '24px',
       }
     },
   },
