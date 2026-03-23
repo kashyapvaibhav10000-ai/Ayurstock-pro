@@ -86,6 +86,8 @@ export async function POST(req: NextRequest) {
       };
     });
 
+    console.log(`📦 [Bulk Insert API] Saving ${sanitizedMedicines.length} medicines to Database for shopId: ${user.shopId}`);
+
     const result = await prisma.$transaction(async (tx) => {
       let createdMedicineCount = 0;
       let updatedMedicineCount = 0;

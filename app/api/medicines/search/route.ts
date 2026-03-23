@@ -18,8 +18,9 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 500);
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Strict throttle exactly as requested
-    if (trimmedQuery.length < 2) {
+    // If query is exactly 1 character, throttle it to prevent heavy DB wildcard requests.
+    // If it's 0 characters (empty string), we bypass the filter to load the complete paginated table list natively.
+    if (trimmedQuery.length === 1) {
       return createPaginatedResponse([], 0, 1, limit);
     }
 
@@ -33,7 +34,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const textFilter = trimmedQuery.length >= 3
+    let textFilter = {};
+    if (trimmedQuery.length >= 2) {
+      textFilter = trimmedQuery.length >= 3
         ? {
             OR: [
               { name: { contains: trimmedQuery, mode: 'insensitive' as const } },
@@ -48,6 +51,7 @@ export async function GET(request: NextRequest) {
               { barcode: trimmedQuery },
             ],
           };
+    }
 
     const coreWhere = {
       shopId: auth.user.shopId,
@@ -78,6 +82,8 @@ export async function GET(request: NextRequest) {
         where: coreWhere,
       }),
     ]);
+
+    console.log(`🔍 [Search API] Query: "${trimmedQuery}", Found: ${medicines.length} / ${total}`);
 
     const medicineIds = medicines.map((medicine) => medicine.id);
     const [stockRows, expiryRows] = await Promise.all([
