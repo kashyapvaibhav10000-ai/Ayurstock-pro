@@ -30,7 +30,7 @@ export interface ParseResult {
 const GEMINI_CHUNK_SIZE = 25000   // 2 chunks for ~50k char PDF
 const GROQ_CHUNK_SIZE = 7000    // 7 chunks
 const CLOUDFLARE_CHUNK_SIZE = 6000   // Reduced chunk count
-const MISTRAL_CHUNK_SIZE = 4500    // 11 chunks
+const MISTRAL_CHUNK_SIZE = 7000    // ~22 chunks for large PDFs
 const OPENROUTER_CHUNK_SIZE = 3500   // 15 chunks
 
 // ─── Cloudflare & Mistral config ─────────────────────────────────────────────
@@ -83,7 +83,7 @@ RULES:
 7. Each item MUST have: name (string), packing (string), mrp (number), tradePrice (number)
 8. Ignore headers, footers, page numbers, totals, and non-medicine text
 9. If text is noisy or unclear, extract whatever medicines you can confidently identify
-10. CRITICAL: Keep your response SHORT. Only output the JSON array, nothing else. Max 30 items per response.
+10. Output the JSON array only. Extract ALL medicines from the text — do not stop early or limit the count.
 11. NEVER extract disease names, body parts, or medical conditions as medicine names. Examples of what NOT to extract: 'LEPROSY', 'ARTHRITIS', 'WEAKNESS', 'DISORDERS', 'BLEEDING', 'FEVER', 'PAIN' — these are indications/uses, NOT medicine names.
 12. Medicine names are product brand names like: 'ADULSA SYRUP', 'AROGYAVARDHINI VATI', 'TRIPHALA CHURNA'. They are NEVER just a disease or symptom name alone.
 13. If a line contains ONLY a disease/symptom with no product name, SKIP that line entirely.
@@ -329,7 +329,7 @@ async function parseTextWithGroq(text: string, pdfType: PdfType = 'scanned'): Pr
           { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
         ],
         temperature: 0,
-        max_tokens: 4096
+        max_tokens: 8192
       })
     });
 
