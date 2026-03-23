@@ -88,17 +88,18 @@ export async function POST(req: NextRequest) {
 
     console.log(`📦 [Bulk Insert API] Saving ${sanitizedMedicines.length} medicines to Database for shopId: ${user.shopId}`);
 
-    const result = await prisma.$transaction(async (tx) => {
-      let createdMedicineCount = 0;
-      let updatedMedicineCount = 0;
-      let skippedBarcodeCount = 0;
+    let createdMedicineCount = 0;
+    let updatedMedicineCount = 0;
+    let skippedBarcodeCount = 0;
+    let errorCount = 0;
 
-      const uniqueCompanies = Array.from(
-        new Set(sanitizedMedicines.map((medicine) => medicine.company).filter(Boolean))
-      );
+    const uniqueCompanies = Array.from(
+      new Set(sanitizedMedicines.map((medicine) => medicine.company).filter(Boolean))
+    );
 
-      for (const companyName of uniqueCompanies) {
-        await tx.company.upsert({
+    for (const companyName of uniqueCompanies) {
+      try {
+        await prisma.company.upsert({
           where: {
             shopId_name: {
               shopId: user.shopId,
@@ -111,28 +112,33 @@ export async function POST(req: NextRequest) {
             name: companyName,
           },
         });
+      } catch (e) {
+        console.error(`Failed to upsert company ${companyName}:`, e);
       }
+    }
 
-      for (let index = 0; index < sanitizedMedicines.length; index += 1) {
-        const normalized = sanitizedMedicines[index];
-        const original = normalizedMedicines[index];
+    for (let index = 0; index < sanitizedMedicines.length; index += 1) {
+      const normalized = sanitizedMedicines[index];
+      const original = normalizedMedicines[index];
 
+      try {
         if (original.barcode && !normalized.barcode) {
           skippedBarcodeCount += 1;
         }
 
-        let medicine =
-          normalized.barcode
-            ? await tx.medicine.findFirst({
-                where: {
-                  shopId: user.shopId,
-                  barcode: normalized.barcode,
-                },
-              })
-            : null;
+        // 1. Try to find by barcode if available
+        let medicine = normalized.barcode
+          ? await prisma.medicine.findFirst({
+              where: {
+                shopId: user.shopId,
+                barcode: normalized.barcode,
+              },
+            })
+          : null;
 
+        // 2. Fallback to name/company/packing/shopId if not found or no barcode
         if (!medicine) {
-          medicine = await tx.medicine.findFirst({
+          medicine = await prisma.medicine.findFirst({
             where: {
               shopId: user.shopId,
               name: normalized.name,
@@ -143,7 +149,8 @@ export async function POST(req: NextRequest) {
         }
 
         if (!medicine) {
-          medicine = await tx.medicine.create({
+          // CREATE
+          medicine = await prisma.medicine.create({
             data: {
               shopId: user.shopId,
               name: normalized.name,
@@ -157,7 +164,9 @@ export async function POST(req: NextRequest) {
             },
           });
           createdMedicineCount += 1;
+          console.log(`Saved (NEW): ${medicine.name} | Packing: ${medicine.packing}`);
         } else {
+          // UPDATE if needed
           const shouldUpdate =
             (!medicine.category && normalized.category) ||
             (!medicine.hsn && normalized.hsn) ||
@@ -165,7 +174,7 @@ export async function POST(req: NextRequest) {
             (!medicine.packing && normalized.packing);
 
           if (shouldUpdate) {
-            medicine = await tx.medicine.update({
+            medicine = await prisma.medicine.update({
               where: { id: medicine.id },
               data: {
                 category: medicine.category || normalized.category,
@@ -175,17 +184,23 @@ export async function POST(req: NextRequest) {
               },
             });
             updatedMedicineCount += 1;
+            console.log(`Saved (UPDATED): ${medicine.name}`);
+          } else {
+            console.log(`Skipped (EXISTS): ${medicine.name}`);
           }
         }
-
+      } catch (error: any) {
+        errorCount += 1;
+        console.log(`FAILED: ${normalized.name} | Error: ${error.message}`);
       }
+    }
 
-      return {
-        createdMedicineCount,
-        updatedMedicineCount,
-        skippedBarcodeCount,
-      };
-    });
+    const result = {
+      createdMedicineCount,
+      updatedMedicineCount,
+      skippedBarcodeCount,
+      errorCount
+    };
 
     return NextResponse.json({
       success: true,
