@@ -133,13 +133,10 @@ function normalizeMedicine(item: any): ParsedMedicine | null {
   return { name, packing, mrp, tradePrice }
 }
 
+// Dedup removed — bulk-insert handles DB-level deduplication via upsert.
+// Removing this ensures the frontend review screen shows all extracted medicines.
 function dedup(medicines: ParsedMedicine[]): ParsedMedicine[] {
-  const uniqueMap = new Map<string, ParsedMedicine>();
-  for (const med of medicines) {
-    const key = `${med.name.toLowerCase()}|${med.packing.toLowerCase()}`;
-    if (!uniqueMap.has(key)) uniqueMap.set(key, med);
-  }
-  return Array.from(uniqueMap.values());
+  return medicines;
 }
 
 function parseJsonSafely(text: string): ParsedMedicine[] {
