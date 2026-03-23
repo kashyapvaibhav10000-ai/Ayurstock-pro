@@ -194,6 +194,8 @@ model Medicine {
   hsn         String
   packing     String?
   unit        String @default("strip")
+  mrp         Decimal? @default(0)
+  tradePrice  Decimal? @default(0)
   lowStockThreshold Int    @default(0)
   isActive    Boolean @default(true)
 
@@ -422,6 +424,7 @@ model ActivityLog {
 // Import Job - Background PDF processing status
 model ImportJob {
   id          String   @id @default(cuid())
+  shopId      String   @default("")
   status      String   @default("processing")
   currentPage Int      @default(0)
   totalPages  Int      @default(0)

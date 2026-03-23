@@ -16,8 +16,11 @@ export async function GET(req: NextRequest, { params }: { params: { jobId: strin
       return NextResponse.json({ success: false, message: 'Missing jobId' }, { status: 400 });
     }
 
-    const job = await prisma.importJob.findUnique({
-      where: { id: jobId }
+    const job = await prisma.importJob.findFirst({
+      where: { 
+        id: jobId,
+        shopId: auth.user.shopId
+      }
     });
 
     if (!job) {
