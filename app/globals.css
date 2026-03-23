@@ -3,16 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
+  --background: #fafafa;
   --surface: #ffffff;
-  --surface-muted: #f1f5f9;
-  --border: #e2e8f0;
-  --foreground: #0f172a;
-  --muted-foreground: #64748b;
-  --primary: #059669;
-  --primary-hover: #047857;
-  --secondary: #e2e8f0;
-  --accent: #10b981;
+  --surface-muted: #f4f4f5;
+  --border: #e4e4e7;
+  --foreground: #18181b;
+  --muted-foreground: #a1a1aa;
+  --primary: #0f766e;
+  --primary-hover: #115e59;
+  --secondary: #e4e4e7;
+  --accent: #14b8a6;
 }
 
 * {
@@ -23,7 +23,7 @@
 
 body {
   min-height: 100vh;
-  background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: Inter, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;

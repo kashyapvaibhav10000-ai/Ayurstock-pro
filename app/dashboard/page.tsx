@@ -95,25 +95,25 @@ export default function DashboardPage() {
           </Button>
         </header>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - Bento Style */}
         <div className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
-            icon={<DollarSign className="h-5 w-5 text-success-text" />}
-            iconBg="bg-success-bg"
+            icon={<DollarSign className="h-6 w-6 text-success-text" />}
+            iconBg="bg-white border shadow-sm border-success-bg/50 text-success-text"
             title="Sales Today"
             value={isLoading ? null : `₹${metrics?.totalSalesToday.toLocaleString()}`}
             isLoading={isLoading}
           />
           <StatCard
-            icon={<Bell className="h-5 w-5 text-warning-text" />}
-            iconBg="bg-warning-bg"
+            icon={<Bell className="h-6 w-6 text-warning-text" />}
+            iconBg="bg-white border shadow-sm border-warning-bg/50 text-warning-text"
             title="Low Stock Alerts"
             value={isAlertsLoading || isLoading ? null : metrics?.lowStockCount.toString()}
             isLoading={isAlertsLoading || isLoading}
           />
           <StatCard
-            icon={<ArrowUpRight className="h-5 w-5 text-primary" />}
-            iconBg="bg-primary-light"
+            icon={<ArrowUpRight className="h-6 w-6 text-primary" />}
+            iconBg="bg-white border shadow-sm border-primary/20 text-primary"
             title="New Customers"
             value={isLoading ? null : metrics?.newCustomers.toString()}
             isLoading={isLoading}
@@ -199,22 +199,20 @@ function StatCard({
   isLoading?: boolean;
 }) {
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between space-x-4">
-          <div className="flex items-center space-x-4">
-            <div className={`p-3 rounded-xl flex items-center justify-center ${iconBg}`}>
-              {icon}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-text-secondary">{title}</p>
-              {isLoading ? (
-                <Skeleton className="h-7 w-20 mt-1" />
-              ) : (
-                <p className="text-2xl font-bold text-text-primary mt-0.5">{value || "0"}</p>
-              )}
-            </div>
+    <Card className="hover:border-primary/20 hover:-translate-y-1 transition-all duration-300">
+      <CardContent className="p-6 h-full flex flex-col justify-between min-h-[160px]">
+        <div className="flex justify-between items-start">
+          <div className={`p-3.5 rounded-2xl flex items-center justify-center ${iconBg}`}>
+            {icon}
           </div>
+        </div>
+        <div className="mt-4">
+          <p className="text-sm font-bold tracking-wider text-text-muted uppercase">{title}</p>
+          {isLoading ? (
+            <Skeleton className="h-8 w-24 mt-2 rounded-lg" />
+          ) : (
+            <p className="text-3xl md:text-3xl font-extrabold tracking-tight text-text-primary mt-1">{value || "0"}</p>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -298,104 +298,115 @@ export default function BillingPage() {
   }, [handleCheckout, loading, resetBill]);
 
   return (
-    <div className="grid min-h-[calc(100vh-96px)] grid-cols-1 gap-0 xl:grid-cols-[1.15fr_1fr_360px]">
-      <section className="border-r border-slate-200 bg-slate-50 p-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-600">
-                Search Medicine
-              </div>
-              <p className="mt-1 text-sm text-slate-500">Search inventory by medicine name or barcode.</p>
+    <div className="grid min-h-[calc(100vh-96px)] grid-cols-1 gap-6 p-6 xl:grid-cols-[1.15fr_1fr_360px] bg-background">
+      {/* Search Section */}
+      <section className="flex flex-col h-full rounded-[24px] border border-surface-border bg-surface p-6 shadow-soft transition-shadow hover:shadow-bento">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-[0.22em] text-primary">
+              Search Inventory
             </div>
-            <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">
-              300ms debounce
+            <p className="mt-1 text-sm text-text-secondary tracking-wide">Scan barcode or search by name to add items.</p>
+          </div>
+          <div className="rounded-xl bg-surface-muted px-3 py-2 text-xs font-bold text-text-secondary">
+            Esc to Clear
+          </div>
+        </div>
+
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted" />
+          <input
+            type="text"
+            placeholder="Search Medicine (Name / Barcode)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            ref={searchInputRef}
+            className="w-full rounded-2xl border border-surface-border bg-surface-muted px-14 py-4 text-sm outline-none transition-all focus:border-primary focus:bg-surface focus:ring-4 focus:ring-primary/10 font-medium text-text-primary"
+            autoFocus
+          />
+          <ScanLine className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted" />
+          
+          {suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 mt-2 overflow-hidden rounded-[20px] border border-surface-border bg-surface shadow-elevated">
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={`${suggestion.batchId}-${index}`}
+                  onClick={() => addSuggestionToCart(suggestion)}
+                  className={`flex w-full flex-col gap-1 border-b border-surface-muted px-5 py-4 text-left transition-colors last:border-b-0 ${
+                    index === activeSuggestionIndex ? 'bg-primary/5' : 'hover:bg-surface-muted'
+                  }`}
+                >
+                  <div className="text-sm font-bold text-text-primary">{suggestion.name}</div>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-text-secondary font-medium">
+                    <span className="bg-surface-muted px-2 py-0.5 rounded-md">Batch {suggestion.batchNumber}</span>
+                    <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-md">Stock: {suggestion.stockQty}</span>
+                    <span className="font-bold text-text-primary">MRP: ₹{suggestion.mrp.toFixed(2)}</span>
+                  </div>
+                  <div className="text-xs text-text-muted mt-1 uppercase tracking-wider">
+                    {suggestion.company} {suggestion.rackLocation ? `• Rack ${suggestion.rackLocation}` : ''}
+                  </div>
+                </button>
+              ))}
             </div>
-          </div>
+          )}
+        </div>
 
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search Medicine (Name / Barcode)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              ref={searchInputRef}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-12 py-4 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100"
-              autoFocus
-            />
-            <ScanLine className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            {suggestions.length > 0 ? (
-              <div className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-                {suggestions.map((suggestion, index) => (
-                  <button
-                    key={`${suggestion.batchId}-${index}`}
-                    onClick={() => addSuggestionToCart(suggestion)}
-                    className={`flex w-full flex-col gap-1 border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 ${
-                      index === activeSuggestionIndex ? 'bg-emerald-50' : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="text-sm font-semibold text-slate-900">{suggestion.name}</div>
-                    <div className="text-xs text-slate-500">
-                      Batch {suggestion.batchNumber} | Stock {suggestion.stockQty} | MRP Rs.{suggestion.mrp.toFixed(2)}
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      {suggestion.company} {suggestion.rackLocation ? `| Rack ${suggestion.rackLocation}` : ''}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
-            Shortcuts: <span className="font-semibold text-slate-700">Arrow keys</span> navigate suggestions,
-            <span className="ml-1 font-semibold text-slate-700">Enter</span> adds selected medicine instantly.
+        <div className="mt-auto pt-6">
+          <div className="rounded-2xl bg-surface-muted px-4 py-3 text-xs text-text-secondary font-medium text-center">
+            Shortcuts: <span className="font-bold text-text-primary">Arrow keys</span> navigate,
+            <span className="ml-1 font-bold text-text-primary">Enter</span> adds item,
+            <span className="ml-1 font-bold text-text-primary">F12</span> checkout.
           </div>
         </div>
       </section>
 
-      <section className="border-r border-slate-200 bg-slate-50 p-6">
-        <div className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-            <div>
-              <div className="text-lg font-semibold text-slate-900">Bill Cart</div>
-              <div className="text-xs text-slate-500">
-                {orderId} | {cart.length} items
-              </div>
-            </div>
-            <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-              {saleType}
+      {/* Cart Section */}
+      <section className="flex flex-col h-full rounded-[24px] border border-surface-border bg-surface shadow-soft transition-shadow hover:shadow-bento overflow-hidden">
+        <div className="flex items-center justify-between border-b border-surface-border px-6 py-5 bg-surface-muted/30">
+          <div>
+            <div className="text-lg font-extrabold tracking-tight text-text-primary">Bill Cart</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-text-secondary mt-1">
+              Order: {orderId} • {cart.length} items
             </div>
           </div>
+          <div className="rounded-xl bg-primary/10 px-4 py-2 text-xs font-bold tracking-widest text-primary uppercase">
+            {saleType}
+          </div>
+        </div>
 
-          <div className="flex-1 space-y-3 overflow-auto p-5">
-            {cart.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-center text-sm text-slate-400">
-                Start typing a medicine name to add the first item.
+        <div className="flex-1 space-y-4 overflow-auto p-6 bg-[#fcfcfc]">
+          {cart.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-center text-sm text-text-muted space-y-4">
+              <div className="h-16 w-16 bg-surface-muted rounded-full flex items-center justify-center">
+                <Search className="h-8 w-8 text-text-secondary opacity-50" />
               </div>
-            ) : (
-              cart.map((item, index) => (
-                <div key={`${item.batchId}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="font-semibold text-slate-900">{item.medicineName}</div>
-                      <div className="mt-1 text-xs text-slate-500">
-                        Batch {item.batchNumber} | Exp {new Date(item.expiryDate).toLocaleDateString()}
-                      </div>
+              <p className="max-w-[200px] leading-relaxed">Your cart is empty. Scan an item or search to begin.</p>
+            </div>
+          ) : (
+            cart.map((item, index) => (
+              <div key={`${item.batchId}-${index}`} className="group relative rounded-2xl border border-surface-border bg-surface p-4 shadow-sm transition-all hover:border-primary/30">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="font-bold text-text-primary text-base">{item.medicineName}</div>
+                    <div className="mt-1 flex gap-2 text-xs font-semibold text-text-secondary">
+                      <span className="bg-surface-muted px-2 py-0.5 rounded-md">B.No: {item.batchNumber}</span>
+                      <span className="bg-danger-bg text-danger-text px-2 py-0.5 rounded-md">Exp: {new Date(item.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>
                     </div>
-                    <button
-                      onClick={() => removeFromCart(index)}
-                      className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
-                  <div className="mt-4 flex items-center gap-3">
+                  <button
+                    onClick={() => removeFromCart(index)}
+                    className="opacity-0 group-hover:opacity-100 rounded-xl border border-surface-border bg-surface p-2 text-text-muted transition-all hover:bg-danger-bg hover:text-danger hover:border-danger/30"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                
+                <div className="mt-5 flex items-center justify-between border-t border-surface-border pt-4">
+                  <div className="flex items-center gap-1 bg-surface-muted rounded-xl p-1">
                     <button
                       onClick={() => updateCartItemQuantity(index, item.quantity - 1)}
-                      className="h-8 w-8 rounded-xl border border-slate-200 bg-white text-sm font-semibold"
+                      className="h-8 w-8 rounded-lg bg-surface text-sm font-bold shadow-sm hover:text-primary transition-colors"
                     >
                       -
                     </button>
@@ -403,69 +414,73 @@ export default function BillingPage() {
                       type="number"
                       value={item.quantity}
                       onChange={(e) => updateCartItemQuantity(index, parseInt(e.target.value, 10) || 1)}
-                      className="w-16 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-sm"
+                      className="w-12 border-none bg-transparent px-1 py-1 text-center text-sm font-bold text-text-primary focus:outline-none"
                     />
                     <button
                       onClick={() => updateCartItemQuantity(index, item.quantity + 1)}
-                      className="h-8 w-8 rounded-xl border border-slate-200 bg-white text-sm font-semibold"
+                      className="h-8 w-8 rounded-lg bg-surface text-sm font-bold shadow-sm hover:text-primary transition-colors"
                     >
                       +
                     </button>
-                    <div className="ml-auto text-right">
-                      <div className="text-xs text-slate-500">Amount</div>
-                      <div className="font-semibold text-slate-900">Rs.{item.amount.toFixed(2)}</div>
-                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Total</div>
+                    <div className="font-extrabold text-lg text-text-primary">₹{item.amount.toFixed(2)}</div>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              </div>
+            ))
+          )}
+        </div>
 
-          <div className="border-t border-slate-200 px-5 py-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Customer</div>
-            <div className="mt-2 text-sm font-medium text-slate-700">{customerName}</div>
-            <div className="text-xs text-slate-500">
-              {customerPhone ? `Phone ${customerPhone}` : 'Walk-in billing'}
-            </div>
+        <div className="border-t border-surface-border px-6 py-5 bg-surface-muted/30">
+          <div className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-text-muted">Customer Link</div>
+          <div className="mt-1.5 text-sm font-bold text-text-primary">{customerName}</div>
+          <div className="text-xs font-medium text-text-secondary mt-0.5">
+            {customerPhone ? `Ph: ${customerPhone}` : 'Standard Walk-in Guest'}
           </div>
         </div>
       </section>
 
-      <aside className="bg-slate-50 p-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Summary</h2>
-          <div className="mt-4 space-y-3 text-sm">
-            <div className="flex justify-between text-slate-600">
+      {/* Summary / Payment Section */}
+      <aside className="flex flex-col h-full rounded-[24px] border border-surface-border bg-surface shadow-soft transition-shadow hover:shadow-bento overflow-hidden">
+        <div className="p-6 pb-2 border-b border-surface-border bg-surface">
+          <h2 className="text-lg font-extrabold tracking-tight text-text-primary">Payment Summary</h2>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-surface">
+          <div className="space-y-4 text-sm font-medium">
+            <div className="flex justify-between text-text-secondary">
               <span>Subtotal</span>
-              <span>Rs.{totals.subtotal.toFixed(2)}</span>
+              <span>₹{totals.subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-slate-600">
+            <div className="flex justify-between text-text-secondary">
               <span>Discount</span>
-              <span>-Rs.{totals.discountTotal.toFixed(2)}</span>
+              <span>-₹{totals.discountTotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-slate-600">
-              <span>GST</span>
-              <span>Rs.{totals.gstTotal.toFixed(2)}</span>
+            <div className="flex justify-between text-text-secondary">
+              <span>GST Amount</span>
+              <span>₹{totals.gstTotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between border-t border-slate-200 pt-3 text-base font-semibold text-slate-900">
-              <span>Total</span>
-              <span className="text-emerald-700">Rs.{totals.grandTotal.toFixed(2)}</span>
+            <div className="flex justify-between rounded-xl bg-surface-muted p-4 mt-2">
+              <span className="font-bold text-text-primary text-base">Grand Total</span>
+              <span className="text-xl font-extrabold text-primary">₹{totals.grandTotal.toFixed(2)}</span>
             </div>
           </div>
 
-          <div className="mt-6">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Payment
+          <div className="space-y-3">
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-text-muted">
+              Payment Method
             </div>
             <div className="grid grid-cols-2 gap-2">
               {(['CASH', 'CARD', 'UPI', 'CREDIT'] as const).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setPaymentMode(mode)}
-                  className={`rounded-2xl px-4 py-3 text-xs font-semibold transition ${
+                  className={`rounded-xl px-4 py-3 text-xs font-bold tracking-wider transition-all duration-200 border ${
                     paymentMode === mode
-                      ? 'bg-emerald-600 text-white'
-                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      ? 'bg-primary border-primary text-white shadow-soft'
+                      : 'border-surface-border bg-surface text-text-secondary hover:bg-surface-muted hover:text-text-primary hover:border-surface-border'
                   }`}
                 >
                   {mode}
@@ -474,70 +489,58 @@ export default function BillingPage() {
             </div>
           </div>
 
-          <div className="mt-6">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+          <div className="space-y-3">
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-text-muted">
               Customer Details
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               <input
                 type="text"
-                placeholder="Customer Name"
+                placeholder="Name (Optional)"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                className="w-full rounded-xl border border-surface-border bg-surface-muted px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-surface transition-colors"
               />
               <input
                 type="text"
-                placeholder="Phone Number"
+                placeholder="Phone (Optional)"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                className="w-full rounded-xl border border-surface-border bg-surface-muted px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-surface transition-colors"
               />
-              <input
-                type="text"
-                placeholder="Address"
-                value={customerAddress}
-                onChange={(e) => setCustomerAddress(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
-              />
-            </div>
-            <div className="mt-2 text-xs text-slate-500">
-              Leave phone or address blank to default to walk-in customer values.
             </div>
           </div>
 
-          <div className="mt-6">
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Received Amount
+          <div className="space-y-3 pt-2 border-t border-surface-border">
+            <label className="block text-[10px] font-bold uppercase tracking-[0.22em] text-text-muted">
+              Cash Received (₹)
             </label>
             <input
               type="number"
-              value={receivedAmount}
+              value={receivedAmount || ''}
               onChange={(e) => setReceivedAmount(parseFloat(e.target.value) || 0)}
               ref={receivedAmountRef}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+              placeholder="0.00"
+              className="w-full rounded-xl border border-surface-border bg-surface-muted px-4 py-4 text-center text-xl font-extrabold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-surface transition-colors"
             />
             <div
-              className={`mt-3 rounded-2xl px-4 py-3 text-center text-sm font-semibold ${
-                balance >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+              className={`rounded-xl px-4 py-3 text-center text-sm font-bold transition-colors ${
+                balance >= 0 ? 'bg-success-bg text-success-text border border-success/20' : 'bg-danger-bg text-danger-text border border-danger/20'
               }`}
             >
-              Balance Rs.{balance.toFixed(2)}
+              Change to Return: ₹{balance.toFixed(2)}
             </div>
           </div>
+        </div>
 
-          <div className="mt-6 space-y-3">
-            <button
-              onClick={handleCheckout}
-              disabled={cart.length === 0 || loading}
-              className="w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? 'Processing Invoice...' : 'Generate Invoice (F12)'}
-            </button>
-            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-500">
-              Inventory-backed FEFO search is active. Only batches with stock are suggested.
-            </div>
-          </div>
+        <div className="p-6 bg-surface-muted/30 border-t border-surface-border mt-auto">
+          <button
+            onClick={handleCheckout}
+            disabled={cart.length === 0 || loading}
+            className="w-full rounded-xl bg-primary px-4 py-4 text-sm font-bold tracking-wide text-white transition-all hover:bg-primary-hover hover:shadow-soft active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+          >
+            {loading ? 'Processing...' : 'Complete Sale (F12)'}
+          </button>
         </div>
       </aside>
     </div>

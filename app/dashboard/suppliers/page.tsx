@@ -119,11 +119,11 @@ export default function SuppliersPage() {
     <div className="space-y-6 p-4 md:p-8 max-w-[1600px] mx-auto">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-text-primary flex items-center gap-3">
             <Building2 className="h-8 w-8 text-primary" />
             Suppliers & Distributors
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm font-medium text-text-secondary">
             Maintain your network of reliable medicine providers.
           </p>
         </div>
@@ -182,10 +182,10 @@ export default function SuppliersPage() {
       </header>
 
       <div className="relative w-full md:w-96">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
         <Input 
           placeholder="Search by name or city..." 
-          className="pl-10 h-11 rounded-xl shadow-sm border-slate-200"
+          className="pl-12 h-12 rounded-[20px] shadow-soft border-surface-border bg-surface font-medium text-text-primary focus:ring-4 focus:ring-primary/10 transition-all focus:shadow-bento outline-none"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -204,23 +204,23 @@ export default function SuppliersPage() {
           </div>
         ) : (
           filteredSuppliers.map((supplier) => (
-            <Card key={supplier.id} className="group hover:shadow-md transition-shadow border-slate-200 overflow-hidden">
-              <CardHeader className="pb-3 border-b border-slate-50 bg-slate-50/50">
+            <Card key={supplier.id} className="group hover:-translate-y-1 rounded-[24px] shadow-soft hover:shadow-bento transition-all duration-300 border-surface-border bg-surface overflow-hidden">
+              <CardHeader className="pb-3 border-b border-surface-border bg-surface-muted/30">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm text-primary">
-                      <Building2 className="h-5 w-5" />
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-[16px] bg-white border border-surface-border flex items-center justify-center shadow-sm text-primary">
+                      <Building2 className="h-6 w-6" />
                     </div>
                     <div>
-                      <CardTitle className="text-base font-bold text-slate-900">{supplier.name}</CardTitle>
-                      <CardDescription className="text-xs truncate max-w-[150px]">{supplier.city || 'Location N/A'}</CardDescription>
+                      <CardTitle className="text-lg font-extrabold text-text-primary tracking-tight">{supplier.name}</CardTitle>
+                      <CardDescription className="text-xs font-semibold uppercase tracking-wider text-text-secondary truncate max-w-[150px]">{supplier.city || 'Location N/A'}</CardDescription>
                     </div>
                   </div>
                   <div className="flex gap-1">
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 text-slate-400 hover:text-primary"
+                      className="h-8 w-8 text-text-muted hover:text-primary transition-colors"
                       onClick={() => {
                         setCurrentSupplier(supplier);
                         setIsEditDialogOpen(true);
@@ -231,7 +231,7 @@ export default function SuppliersPage() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 text-slate-400 hover:text-red-500"
+                      className="h-8 w-8 text-text-muted hover:bg-danger-bg hover:text-danger transition-colors"
                       onClick={() => handleDeleteSupplier(supplier.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -239,36 +239,36 @@ export default function SuppliersPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="pt-4 space-y-3">
-                <div className="grid grid-cols-1 gap-2 text-sm">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Phone className="h-3.5 w-3.5" />
+              <CardContent className="pt-5 space-y-4">
+                <div className="grid grid-cols-1 gap-3 text-sm font-medium">
+                  <div className="flex items-center gap-3 text-text-secondary">
+                    <Phone className="h-4 w-4 text-text-muted" />
                     {supplier.phone}
                   </div>
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Mail className="h-3.5 w-3.5" />
+                  <div className="flex items-center gap-3 text-text-secondary">
+                    <Mail className="h-4 w-4 text-text-muted" />
                     <span className="truncate">{supplier.email}</span>
                   </div>
-                  <div className="flex items-start gap-2 text-slate-600">
-                    <MapPin className="h-3.5 w-3.5 mt-0.5" />
-                    <span className="line-clamp-2">{supplier.address}</span>
+                  <div className="flex items-start gap-3 text-text-secondary">
+                    <MapPin className="h-4 w-4 text-text-muted mt-0.5" />
+                    <span className="line-clamp-2 leading-relaxed">{supplier.address}</span>
                   </div>
                 </div>
                 
-                <div className="pt-4 flex items-center justify-between border-t border-slate-50">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <div className="pt-5 mt-2 flex items-center justify-between border-t border-surface-border">
+                  <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-text-muted bg-surface-muted px-3 py-1 rounded-lg">
                     {supplier._count?.purchases || 0} Purchases
                   </div>
                   <Button 
                     variant="link" 
-                    className="h-auto p-0 text-xs font-bold text-primary gap-1"
+                    className="h-auto p-0 text-xs font-bold text-primary hover:text-primary-hover gap-1.5 uppercase tracking-wide"
                     onClick={() => {
                       setCurrentSupplier(supplier);
                       setIsHistoryOpen(true);
                     }}
                   >
                     View History
-                    <History className="h-3 w-3" />
+                    <History className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </CardContent>

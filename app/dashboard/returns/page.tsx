@@ -40,25 +40,25 @@ export default function ReturnsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Returns Management</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">Returns Management</h1>
+          <p className="mt-1 text-sm font-medium text-text-secondary">
             Track and process customer and supplier medicine returns
           </p>
         </div>
         <div className="flex gap-2">
           <Button 
             onClick={() => { window.location.href = '/api/returns/export'; }}
-            className="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 shadow-sm flex items-center gap-2"
+            className="rounded-xl font-bold bg-success-bg/80 hover:bg-success-bg text-success shadow-sm flex items-center gap-2 transition-all hover:-translate-y-1 hover:shadow-bento"
           >
             <FileDown className="h-4 w-4" /> Export Report
           </Button>
           <Button 
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-2"
+            className="rounded-xl font-bold bg-primary hover:bg-primary-hover text-white shadow-sm flex items-center gap-2 transition-all hover:-translate-y-1 hover:shadow-bento"
           >
             <Plus className="h-4 w-4" /> Add Return
           </Button>
@@ -66,37 +66,37 @@ export default function ReturnsPage() {
       </div>
 
       {/* Control Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1 w-full md:w-96">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
           <Input
             placeholder="Search by medicine, batch, or reason..."
             value={searchQuery}
             onChange={handleSearch}
-            className="pl-9 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+            className="pl-12 h-12 rounded-[20px] shadow-soft border-surface-border bg-surface font-medium text-text-primary focus:ring-4 focus:ring-primary/10 transition-all focus:shadow-bento outline-none"
           />
         </div>
       </div>
 
       {/* Returns Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="rounded-[24px] shadow-soft border border-surface-border bg-surface overflow-hidden">
         <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/50 border-b border-gray-100 text-gray-500 font-medium">
+            <thead className="bg-surface-muted/50 border-b border-surface-border text-text-secondary font-bold">
               <tr>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4">Type</th>
-                <th className="px-6 py-4">Medicine Name</th>
-                <th className="px-6 py-4">Batch Number</th>
-                <th className="px-6 py-4">Expiry Date</th>
-                <th className="px-6 py-4">MRP</th>
-                <th className="px-6 py-4">Qty</th>
-                <th className="px-6 py-4">Reason</th>
-                <th className="px-6 py-4">Processed By</th>
-                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 font-bold text-text-secondary">Date</th>
+                <th className="px-6 py-4 font-bold text-text-secondary">Type</th>
+                <th className="px-6 py-4 font-bold text-text-secondary">Medicine Name</th>
+                <th className="px-6 py-4 font-bold text-text-secondary">Batch Number</th>
+                <th className="px-6 py-4 font-bold text-text-secondary">Expiry Date</th>
+                <th className="px-6 py-4 font-bold text-text-secondary">MRP</th>
+                <th className="px-6 py-4 font-bold text-text-secondary">Qty</th>
+                <th className="px-6 py-4 font-bold text-text-secondary">Reason</th>
+                <th className="px-6 py-4 font-bold text-text-secondary">Processed By</th>
+                <th className="px-6 py-4 font-bold text-text-secondary">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-surface-border">
               {loading ? (
                 <tr>
                   <td colSpan={10} className="px-6 py-12 text-center text-gray-400">
@@ -108,53 +108,52 @@ export default function ReturnsPage() {
                 </tr>
               ) : returns.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-16 text-center text-gray-400">
+                  <td colSpan={10} className="px-6 py-16 text-center text-text-muted">
                     <div className="flex flex-col items-center justify-center">
-                      <div className="bg-gray-50 p-4 rounded-full mb-3">
-                        <RotateCcw className="h-8 w-8 text-gray-300" />
+                      <div className="bg-surface-muted p-4 rounded-full mb-3">
+                        <RotateCcw className="h-8 w-8 text-text-muted/60" />
                       </div>
-                      <p className="text-gray-500 font-medium">No returns found</p>
-                      <p className="text-xs text-gray-400 mt-1">No medicine returns match your current search.</p>
+                      <p className="text-text-secondary font-semibold">No returns found</p>
+                      <p className="text-xs text-text-muted mt-1">No medicine returns match your current search.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 returns.map((ret: any) => (
-                  <tr key={ret.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-700">
+                  <tr key={ret.id} className="hover:bg-surface-muted transition-colors border-b border-surface-border">
+                    <td className="px-6 py-4 font-medium text-text-secondary">
                       {format(new Date(ret.createdAt), 'dd MMM yyyy')}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-[10px] font-bold tracking-wide uppercase rounded-md ${
-                        ret.type === 'CUSTOMER' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-orange-50 text-orange-600 border border-orange-100'
+                      <span className={`inline-flex px-3 py-1 text-[10px] font-bold tracking-widest uppercase rounded-xl shadow-sm ${
+                        ret.type === 'CUSTOMER' ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-surface text-text-secondary border border-surface-border'
                       }`}>
                         {ret.type}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-semibold text-emerald-700">
+                    <td className="px-6 py-4 font-bold text-text-primary">
                       {ret.medicine?.name || 'Unknown'}
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
+                    <td className="px-6 py-4 font-medium text-text-secondary">
                       {ret.batchNumber || '-'}
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
+                    <td className="px-6 py-4 font-medium text-text-secondary">
                       {format(new Date(ret.expiryDate), 'MM/yyyy')}
                     </td>
-                    <td className="px-6 py-4 text-gray-900 font-medium">
+                    <td className="px-6 py-4 font-bold text-primary">
                       ₹{ret.mrp.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 text-gray-900 font-bold">
+                    <td className="px-6 py-4 font-extrabold text-text-primary">
                       {ret.quantity}
                     </td>
-                    <td className="px-6 py-4 text-gray-500 max-w-[150px] truncate" title={ret.reason}>
+                    <td className="px-6 py-4 text-text-secondary font-medium max-w-[150px] truncate" title={ret.reason}>
                       {ret.reason}
                     </td>
-                    <td className="px-6 py-4 text-gray-500">
+                    <td className="px-6 py-4 font-medium text-text-secondary">
                       {ret.createdBy?.name || 'Unknown'}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold tracking-widest uppercase rounded-xl border shadow-sm ${ret.status === 'COMPLETED' ? 'bg-success-bg/50 text-success-text border-success/20' : 'bg-surface-muted text-text-secondary border-surface-border'}`}>
                         {ret.status}
                       </span>
                     </td>

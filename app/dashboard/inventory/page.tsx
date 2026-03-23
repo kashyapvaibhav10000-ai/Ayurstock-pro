@@ -177,11 +177,11 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 md:p-8">
+    <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Inventory</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">Inventory</h1>
+          <p className="mt-1 text-sm text-text-secondary">
             Track live stock, update batch details, and manage expiry-sensitive inventory.
           </p>
         </div>
@@ -212,6 +212,7 @@ export default function InventoryPage() {
           </Button>
           <Button
             variant="outline"
+            className="rounded-xl shadow-soft transition-all hover:shadow-bento hover:border-primary hover:text-primary"
             onClick={() => setShowPriceListModal(true)}
           >
             <FileText className="mr-2 h-4 w-4" />
@@ -219,7 +220,7 @@ export default function InventoryPage() {
           </Button>
           <Button
             onClick={() => { window.location.href = '/api/inventory/export'; }}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+            className="rounded-xl shadow-soft transition-all hover:shadow-bento bg-primary hover:bg-primary-hover text-white font-bold"
           >
             <FileDown className="mr-2 h-4 w-4" />
             Download Excel
@@ -232,6 +233,7 @@ export default function InventoryPage() {
           variant={expiryFilter === 'expiring30' ? 'default' : 'outline'}
           onClick={() => setExpiryFilter('expiring30')}
           size="sm"
+          className="rounded-lg shadow-sm"
         >
           Expiring in 30 days
         </Button>
@@ -239,6 +241,7 @@ export default function InventoryPage() {
           variant={expiryFilter === 'expiring60' ? 'default' : 'outline'}
           onClick={() => setExpiryFilter('expiring60')}
           size="sm"
+          className="rounded-lg shadow-sm"
         >
           Expiring in 60 days
         </Button>
@@ -246,6 +249,7 @@ export default function InventoryPage() {
           variant={expiryFilter === 'expired' ? 'default' : 'outline'}
           onClick={() => setExpiryFilter('expired')}
           size="sm"
+          className="rounded-lg shadow-sm"
         >
           Expired
         </Button>
@@ -254,34 +258,34 @@ export default function InventoryPage() {
 
 
       <div className="grid gap-4 md:grid-cols-5">
-        <Card className="rounded-2xl">
+        <Card className="hover:-translate-y-1 transition-all duration-300">
           <CardHeader>
-            <CardDescription>Total Batches</CardDescription>
-            <CardTitle>{batches.length}</CardTitle>
+            <CardDescription className="font-bold tracking-wider text-xs uppercase">Total Batches</CardDescription>
+            <CardTitle className="text-3xl font-extrabold">{batches.length}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="rounded-2xl">
+        <Card className="hover:-translate-y-1 transition-all duration-300">
           <CardHeader>
-            <CardDescription>Low Stock Batches</CardDescription>
-            <CardTitle>{batches.filter((batch) => batch.stockQty <= 10).length}</CardTitle>
+            <CardDescription className="font-bold tracking-wider text-xs uppercase">Low Stock</CardDescription>
+            <CardTitle className="text-3xl font-extrabold text-warning-text">{batches.filter((batch) => batch.stockQty <= 10).length}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="rounded-2xl">
+        <Card className="hover:-translate-y-1 transition-all duration-300">
           <CardHeader>
-            <CardDescription>Near Expiry (30 days)</CardDescription>
-            <CardTitle>{expiryStats.expiring30}</CardTitle>
+            <CardDescription className="font-bold tracking-wider text-xs uppercase">Near Expiry (30)</CardDescription>
+            <CardTitle className="text-3xl font-extrabold text-warning-text">{expiryStats.expiring30}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="rounded-2xl">
+        <Card className="hover:-translate-y-1 transition-all duration-300">
           <CardHeader>
-            <CardDescription>Expiring in 60 days</CardDescription>
-            <CardTitle>{expiryStats.expiring60}</CardTitle>
+            <CardDescription className="font-bold tracking-wider text-xs uppercase">Expiring (60)</CardDescription>
+            <CardTitle className="text-3xl font-extrabold">{expiryStats.expiring60}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="rounded-2xl">
+        <Card className="border-danger/30 bg-danger-bg hover:-translate-y-1 transition-all duration-300">
           <CardHeader>
-            <CardDescription>Expired</CardDescription>
-            <CardTitle>{expiryStats.expired}</CardTitle>
+            <CardDescription className="font-bold tracking-wider text-xs uppercase text-danger-text">Expired</CardDescription>
+            <CardTitle className="text-3xl font-extrabold text-danger">{expiryStats.expired}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -294,17 +298,17 @@ export default function InventoryPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded-xl border">
+          <div className="overflow-x-auto rounded-2xl border border-surface-border">
             <Table>
-              <TableHeader className="bg-slate-50">
+              <TableHeader className="bg-surface-muted/50">
                 <TableRow>
-                  <TableHead>Medicine</TableHead>
-                  <TableHead>Batch</TableHead>
-                  <TableHead>Expiry</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>MRP</TableHead>
-                  <TableHead>Rack</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Medicine</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Batch</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Expiry</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Stock</TableHead>
+                  <TableHead className="font-bold text-text-secondary">MRP</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Rack</TableHead>
+                  <TableHead className="text-right font-bold text-text-secondary">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
