@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Pencil, Plus, Search, Trash2, Upload, Boxes } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2, Upload, Boxes, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -93,10 +93,14 @@ const PACKAGING_OPTIONS: Record<string, string[]> = {
   Other: [],
 };
 
+const PAGE_SIZE = 50;
+
 export default function MedicinesPage() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showPriceListModal, setShowPriceListModal] = useState(false);
@@ -121,7 +125,7 @@ export default function MedicinesPage() {
 
   useEffect(() => {
     if (isAuthorized) {
-      void Promise.all([loadMedicines(), loadCompanies()]);
+      loadCompanies();
     }
   }, [isAuthorized]);
 
@@ -142,52 +146,25 @@ export default function MedicinesPage() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [selectedMedicines]);
 
-  const visibleMedicines = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const filtered = medicines.filter((medicine) => {
-      if (activeFilter === 'All') {
-        return true;
-      }
-      if (activeFilter === 'Imported Today') {
-        if (!medicine.createdAt) {
-          return false;
-        }
-        return new Date(medicine.createdAt).getTime() >= todayStart.getTime();
-      }
-      return (medicine.category || '').toLowerCase() === activeFilter.toLowerCase();
-    });
-
-    if (!query) {
-      return filtered;
-    }
-
-    return filtered.filter((medicine) =>
-      [
-        medicine.name,
-        medicine.company,
-        medicine.category,
-        medicine.barcode || '',
-        medicine.packing || '',
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(query)
-    );
-  }, [medicines, searchQuery, activeFilter]);
+  const visibleMedicines = medicines;
 
   const selectedMedicinesData = medicines.filter((medicine) => selectedMedicines.has(medicine.id));
 
-  const loadMedicines = async () => {
+  const loadMedicines = async (page = currentPage, query = searchQuery, filter = activeFilter) => {
     try {
       setLoading(true);
       const response = await axios.get('/api/medicines/search', {
-        params: { query: '', limit: 200 },
+        params: { 
+          query, 
+          category: filter,
+          limit: PAGE_SIZE, 
+          offset: (page - 1) * PAGE_SIZE 
+        },
       });
 
       if (response.data.success) {
         setMedicines(response.data.data);
+        setTotalCount(response.data.total);
       }
     } catch (error) {
       console.error('Failed to load medicines:', error);
@@ -195,6 +172,20 @@ export default function MedicinesPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isAuthorized) {
+      const timer = setTimeout(() => {
+        loadMedicines(currentPage, searchQuery, activeFilter);
+      }, searchQuery ? 500 : 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthorized, currentPage, activeFilter, searchQuery]);
+
+  // Reset to first page when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeFilter]);
 
   const loadCompanies = async () => {
     try {
@@ -674,6 +665,37 @@ export default function MedicinesPage() {
               </TableBody>
             </Table>
           </div>
+          
+          {totalCount > 0 && (
+            <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-6">
+              <p className="text-sm text-slate-500">
+                Showing {Math.min(totalCount, (currentPage - 1) * PAGE_SIZE + 1)} to{' '}
+                {Math.min(totalCount, currentPage * PAGE_SIZE)} of {totalCount} medicines
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || loading}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  disabled={currentPage * PAGE_SIZE >= totalCount || loading}
+                  className="gap-1"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

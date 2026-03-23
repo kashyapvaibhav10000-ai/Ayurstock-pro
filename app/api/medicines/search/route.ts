@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('query') ?? searchParams.get('q') ?? '';
     const trimmedQuery = query.trim();
     const companyId = searchParams.get('company');
+    const categoryFilter = searchParams.get('category');
 
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 500);
     const offset = parseInt(searchParams.get('offset') || '0');
@@ -53,11 +54,19 @@ export async function GET(request: NextRequest) {
           };
     }
 
+    const dateFilter = categoryFilter === 'Imported Today'
+      ? { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }
+      : {};
+
     const coreWhere = {
       shopId: auth.user.shopId,
       isActive: true,
       ...textFilter,
-      ...(companyNameFilter ? { company: companyNameFilter } : {})
+      ...dateFilter,
+      ...(companyNameFilter ? { company: companyNameFilter } : {}),
+      ...(categoryFilter && categoryFilter !== 'All' && categoryFilter !== 'Imported Today'
+          ? { category: { equals: categoryFilter, mode: 'insensitive' as const } }
+          : {})
     };
 
     const [medicines, total] = await Promise.all([

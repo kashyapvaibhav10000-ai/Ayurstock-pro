@@ -17,22 +17,21 @@ export async function DELETE(req: NextRequest) {
     const shopId = auth.user.shopId;
 
     // Delete in correct order to avoid foreign key errors across ALL relations
-    // Inventory and logs that map to medicine
+    // 1. Transaction items and ledgers (reference Medicine and InventoryBatch)
     await prisma.stockLedger.deleteMany({ where: { shopId } });
-    await prisma.inventoryBatch.deleteMany({ where: { shopId } });
-    
-    // Child items linked to Medicine
     await prisma.saleItem.deleteMany({ where: { medicine: { shopId } } });
     await prisma.purchaseItem.deleteMany({ where: { medicine: { shopId } } });
     await prisma.return.deleteMany({ where: { shopId } });
     await prisma.medicineReturn.deleteMany({ where: { shopId } });
 
-    // Directly delete medicines
+    // 2. Inventory batches (reference Medicine)
+    await prisma.inventoryBatch.deleteMany({ where: { shopId } });
+
+    // 3. Medicines
     await prisma.medicine.deleteMany({ where: { shopId } });
     
-    // Clear generic AI jobs (ImportJob is globally scoped without shopId per schema)
+    // Clear generic AI jobs and batch jobs
     await prisma.importJob.deleteMany({});
-    // Clear PDF batch jobs mapped by shopId
     await prisma.pdfImportJob.deleteMany({ where: { shopId } });
 
     return NextResponse.json({ 
