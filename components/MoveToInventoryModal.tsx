@@ -82,10 +82,8 @@ export default function MoveToInventoryModal({
     current.batchNumber.trim() !== '' &&
     current.expiryDate !== '' &&
     current.quantity !== '' &&
-    current.purchaseRate !== '' &&
     current.mrp !== '' &&
     Number(current.quantity) > 0 &&
-    Number(current.purchaseRate) > 0 &&
     Number(current.mrp) > 0;
 
   const advance = () => {
