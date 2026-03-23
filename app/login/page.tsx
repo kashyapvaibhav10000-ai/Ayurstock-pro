@@ -11,22 +11,22 @@ const features = [
   {
     icon: Zap,
     title: 'Fast GST Billing',
-    desc: 'Bill a customer in under 10 seconds with barcode scanning and keyboard shortcuts.',
+    desc: 'Bill a customer in under 10 seconds with barcode scanning.',
   },
   {
     icon: Leaf,
-    title: 'Ayurvedic Inventory',
-    desc: 'Batch-wise expiry tracking with FEFO dispensing built in.',
+    title: 'Expiry Tracking',
+    desc: 'Batch-wise FEFO dispensing with expiry alerts built in.',
   },
   {
     icon: BarChart3,
-    title: 'AI-powered Imports',
-    desc: 'Import full price lists from PDF invoices in seconds — no manual entry.',
+    title: 'AI Invoice Import',
+    desc: 'Import full price lists from PDF invoices automatically.',
   },
   {
     icon: ShieldCheck,
     title: 'Multi-user & Secure',
-    desc: 'Role-based access for Admin, Manager, and Cashier with full audit logs.',
+    desc: 'Role-based access with full audit logs.',
   },
 ];
 
@@ -41,14 +41,11 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       await axios.post('/api/auth/logout').catch(() => {});
-
       const response = await axios.post('/api/auth/login', { email, password });
-
       if (response.data.success) {
         localStorage.setItem('token', response.data.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.data.user));
@@ -71,55 +68,66 @@ export default function LoginPage() {
         <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-green-500/20 blur-3xl animate-blob-slow" />
         <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-emerald-400/15 blur-3xl animate-blob-medium" />
         <div className="pointer-events-none absolute top-1/2 left-1/3 h-64 w-64 rounded-full bg-green-300/10 blur-3xl animate-blob-fast" />
-
-        {/* Subtle grid overlay */}
+        {/* Subtle grid */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
         {/* Content */}
-        <div className="relative z-10 flex flex-col h-full p-12 xl:p-16">
+        <div className="relative z-10 flex flex-col items-center h-full px-12 xl:px-16 py-10 xl:py-14">
 
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-white shadow-lg flex items-center justify-center p-1.5">
-              <Image src="/logo.png" width={36} height={36} alt="AyurStock Pro" className="object-contain" />
+          {/* ── LOGO — top center, large on white disc ── */}
+          <div className="flex flex-col items-center gap-4 mb-10">
+            <div className="h-[140px] w-[140px] rounded-full bg-white shadow-[0_8px_40px_rgba(0,0,0,0.35)] flex items-center justify-center p-3 ring-4 ring-white/20">
+              <Image
+                src="/logo.png"
+                width={116}
+                height={116}
+                alt="AyurStock Pro Logo"
+                className="object-contain"
+                priority
+              />
             </div>
-            <div>
-              <p className="text-white font-bold text-base leading-none tracking-tight">AyurStock Pro</p>
-              <p className="text-green-300 text-xs mt-0.5 font-medium">Pharmacy Management</p>
-            </div>
+            <p className="text-green-200/70 text-sm font-medium tracking-wide">
+              Ayurvedic Pharmacy Management
+            </p>
           </div>
 
-          {/* Headline */}
-          <div className="mt-auto mb-10">
-            <div className="inline-flex items-center gap-2 rounded-full bg-green-500/20 border border-green-400/25 px-3 py-1.5 mb-6">
+          {/* ── Headline ── */}
+          <div className="text-center mb-10 max-w-lg">
+            <div className="inline-flex items-center gap-2 rounded-full bg-green-500/20 border border-green-400/25 px-3 py-1.5 mb-5">
               <Leaf className="h-3.5 w-3.5 text-green-300" />
-              <span className="text-green-200 text-xs font-semibold tracking-wide uppercase">Ayurvedic Pharmacy Suite</span>
+              <span className="text-green-200 text-xs font-semibold tracking-wide uppercase">
+                Trusted by Ayurvedic Shops
+              </span>
             </div>
             <h1 className="text-4xl xl:text-5xl font-extrabold text-white leading-[1.15] tracking-tight">
               Your pharmacy,<br />
               <span className="text-green-300">fully in control.</span>
             </h1>
-            <p className="mt-4 text-green-100/70 text-lg leading-relaxed max-w-md">
-              From billing to batch expiry — manage every corner of your Ayurvedic shop from one place.
+            <p className="mt-4 text-green-100/60 text-base leading-relaxed">
+              From billing to batch expiry — manage every corner of your shop from one place.
             </p>
           </div>
 
-          {/* Feature cards */}
-          <div className="grid grid-cols-2 gap-3 mb-12">
+          {/* ── Feature cards ── */}
+          <div className="grid grid-cols-2 gap-3 w-full max-w-lg mt-auto">
             {features.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="rounded-2xl bg-white/6 border border-white/10 p-4 backdrop-blur-sm hover:bg-white/10 transition-colors duration-200">
+              <div
+                key={title}
+                className="rounded-2xl bg-white/6 border border-white/10 p-4 backdrop-blur-sm hover:bg-white/10 transition-colors duration-200"
+              >
                 <div className="h-8 w-8 rounded-xl bg-green-500/25 flex items-center justify-center mb-3">
                   <Icon className="h-4 w-4 text-green-300" />
                 </div>
                 <p className="text-white font-semibold text-sm leading-snug">{title}</p>
-                <p className="text-green-200/60 text-xs mt-1 leading-relaxed">{desc}</p>
+                <p className="text-green-200/55 text-xs mt-1 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
 
           {/* Footer */}
-          <p className="text-green-300/40 text-xs">
-            Built with care by <span className="text-green-300/70 font-semibold">Vaibhav</span>
+          <p className="mt-8 text-green-300/35 text-xs">
+            Built with care by{' '}
+            <span className="text-green-300/65 font-semibold">Vaibhav</span>
           </p>
         </div>
       </div>
@@ -127,22 +135,33 @@ export default function LoginPage() {
       {/* ── RIGHT FORM PANEL ── */}
       <div className="flex-1 flex flex-col items-center justify-center bg-white p-8 lg:p-16">
 
-        {/* Mobile logo (visible only on small screens) */}
-        <div className="lg:hidden flex items-center gap-3 mb-10">
-          <div className="h-11 w-11 rounded-2xl bg-white shadow-md border border-surface-border flex items-center justify-center p-1.5">
-            <Image src="/logo.png" width={28} height={28} alt="AyurStock Pro" className="object-contain" />
+        {/* Mobile logo */}
+        <div className="lg:hidden flex flex-col items-center gap-3 mb-10">
+          <div className="h-24 w-24 rounded-full bg-white shadow-lg border border-surface-border flex items-center justify-center p-2">
+            <Image
+              src="/logo.png"
+              width={76}
+              height={76}
+              alt="AyurStock Pro"
+              className="object-contain"
+              priority
+            />
           </div>
-          <div>
-            <p className="font-bold text-text-primary">AyurStock Pro</p>
-            <p className="text-xs text-text-muted">Pharmacy Management</p>
+          <div className="text-center">
+            <p className="font-extrabold text-text-primary text-lg">AyurStock Pro</p>
+            <p className="text-xs text-text-muted mt-0.5">Ayurvedic Pharmacy Management</p>
           </div>
         </div>
 
         <div className="w-full max-w-[380px]">
           {/* Heading */}
           <div className="mb-8">
-            <h2 className="text-3xl font-extrabold text-text-primary tracking-tight">Welcome back</h2>
-            <p className="text-text-muted text-sm mt-1.5">Sign in to your workspace to continue.</p>
+            <h2 className="text-3xl font-extrabold text-text-primary tracking-tight">
+              Welcome back
+            </h2>
+            <p className="text-text-muted text-sm mt-1.5">
+              Sign in to your workspace to continue.
+            </p>
           </div>
 
           {/* Form */}
@@ -154,7 +173,9 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-text-secondary">Email address</label>
+              <label className="text-sm font-semibold text-text-secondary">
+                Email address
+              </label>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
                 <Input
@@ -170,7 +191,9 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-text-secondary">Password</label>
+              <label className="text-sm font-semibold text-text-secondary">
+                Password
+              </label>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
                 <Input
@@ -204,7 +227,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Divider + trust note */}
+          {/* Trust note */}
           <div className="mt-8 pt-8 border-t border-surface-border">
             <div className="flex items-center gap-2 text-xs text-text-muted">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" />
