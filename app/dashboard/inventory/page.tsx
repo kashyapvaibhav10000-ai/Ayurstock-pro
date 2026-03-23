@@ -216,7 +216,7 @@ export default function InventoryPage() {
             onClick={() => setShowPriceListModal(true)}
           >
             <FileText className="mr-2 h-4 w-4" />
-            Import Price List
+            Import Bill
           </Button>
           <Button
             onClick={() => { window.location.href = '/api/inventory/export'; }}

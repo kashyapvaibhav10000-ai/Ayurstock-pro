@@ -210,6 +210,12 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       return
     }
 
+    // Images must go through OCR — route them automatically
+    if (file.type.startsWith("image/")) {
+      void handleRunOcr()
+      return
+    }
+
     setLoading(true)
     setError("")
     setErrorCode("")
@@ -489,7 +495,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
         <DialogHeader className="px-6 py-4 border-b border-surface-border bg-slate-50 shrink-0">
           <DialogTitle className="text-xl flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            Import Price List
+            Import Bill
           </DialogTitle>
           <div className="flex items-center justify-between mt-4">
             <div className="flex space-x-6">

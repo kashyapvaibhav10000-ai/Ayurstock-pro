@@ -49,9 +49,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!file.type.includes('pdf')) {
+    const isImage = file.type.startsWith('image/');
+    const isPdf = file.type.includes('pdf');
+    if (!isPdf && !isImage) {
       return NextResponse.json(
-        { success: false, message: 'Only PDF files are accepted' },
+        { success: false, message: 'Only PDF and image files are accepted' },
         { status: 400 }
       );
     }
@@ -64,6 +66,16 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('📄 [import-price-list] Processing:', file.name, file.size, 'bytes');
+
+    if (isImage) {
+      // Images must come through client-side OCR — if they reach here raw, reject with NO_TEXT
+      return NextResponse.json({
+        success: false,
+        message: 'Image detected. Please use the OCR button to extract text first.',
+        errorCode: 'NO_TEXT',
+        pdfType: 'scanned',
+      }, { status: 200 });
+    }
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const result = await parsePDFWithAI(buffer);
