@@ -6,7 +6,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -294,12 +294,12 @@ export default function SalesHistoryPage() {
                       <TableCell>{row.customer}</TableCell>
                       <TableCell>{row.itemCount}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{row.paymentMode}</Badge>
+                        <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium">{row.paymentMode}</span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={row.saleType === 'WHOLESALE' ? 'secondary' : 'outline'}>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${row.saleType === 'WHOLESALE' ? 'bg-slate-100 text-slate-700' : 'border text-slate-600'}`}>
                           {row.saleType}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell className="text-right font-semibold text-emerald-700">
                         {fmt(row.total)}
@@ -337,12 +337,12 @@ export default function SalesHistoryPage() {
                       <TableCell>{row.supplier}</TableCell>
                       <TableCell>{row.itemCount}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{row.paymentType}</Badge>
+                        <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium">{row.paymentType}</span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={row.status === 'PAID' ? 'secondary' : 'destructive'}>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${row.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                           {row.status}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell className="text-right font-semibold text-blue-700">
                         {fmt(row.total)}
@@ -376,9 +376,9 @@ export default function SalesHistoryPage() {
                     <TableRow key={row.id} className="hover:bg-slate-50">
                       <TableCell className="text-sm text-slate-500">{fmtDate(row.date)}</TableCell>
                       <TableCell>
-                        <Badge variant={row.type === 'CUSTOMER_RETURN' ? 'outline' : 'secondary'}>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${row.type === 'CUSTOMER_RETURN' ? 'border text-slate-600' : 'bg-slate-100 text-slate-700'}`}>
                           {row.type === 'CUSTOMER_RETURN' ? 'Customer' : 'Supplier'}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell className="font-medium">{row.medicine}</TableCell>
                       <TableCell>{row.quantity}</TableCell>
