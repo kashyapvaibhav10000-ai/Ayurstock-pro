@@ -43,15 +43,13 @@ export default function ReportsPage() {
     }
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const start = new Date(startDate);
       start.setHours(0, 0, 0, 0);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
 
       const response = await axios.get('/api/sales', {
-        params: { startDate: start.toISOString(), endDate: end.toISOString(), limit: 100 },
-        headers: { Authorization: `Bearer ${token}` },
+        params: { startDate: start.toISOString(), endDate: end.toISOString(), limit: 500 },
       });
 
       const sales = response.data?.data?.sales || [];
@@ -95,24 +93,55 @@ export default function ReportsPage() {
 
       {/* Report Filters */}
       <Card className="rounded-2xl border-surface-border">
-        <CardContent className="p-4 md:p-6 flex flex-col md:flex-row gap-4 items-end">
-          <div className="w-full md:w-auto flex-1 space-y-2">
-            <label className="text-sm font-medium text-text-secondary">Start Date</label>
-            <Input type="date" className="w-full" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        <CardContent className="p-4 md:p-6 space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'Today', days: 0 },
+              { label: 'This Week', days: 6 },
+              { label: 'This Month', days: 29 },
+              { label: 'Last 3 Months', days: 89 },
+            ].map(({ label, days }) => (
+              <Button
+                key={label}
+                size="sm"
+                variant="outline"
+                className="rounded-lg"
+                onClick={() => {
+                  const end = new Date();
+                  const start = new Date();
+                  start.setDate(start.getDate() - days);
+                  setStartDate(start.toISOString().split('T')[0]);
+                  setEndDate(end.toISOString().split('T')[0]);
+                }}
+              >
+                {label}
+              </Button>
+            ))}
           </div>
-          <div className="w-full md:w-auto flex-1 space-y-2">
-            <label className="text-sm font-medium text-text-secondary">End Date</label>
-            <Input type="date" className="w-full" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          </div>
-          <div className="flex gap-3 w-full md:w-auto">
-            <Button className="flex-1 md:flex-none gap-2 px-6" onClick={handleGenerate} disabled={isLoading}>
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Filter className="h-4 w-4" />}
-              {isLoading ? 'Generating...' : 'Generate'}
-            </Button>
-            <Button variant="outline" className="flex-1 md:flex-none gap-2 px-6" disabled={!reportData}>
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
+          <div className="flex flex-col md:flex-row gap-4 items-end">
+            <div className="w-full md:w-auto flex-1 space-y-2">
+              <label className="text-sm font-medium text-text-secondary">Start Date</label>
+              <Input type="date" className="w-full" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="w-full md:w-auto flex-1 space-y-2">
+              <label className="text-sm font-medium text-text-secondary">End Date</label>
+              <Input type="date" className="w-full" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+            <div className="flex gap-3 w-full md:w-auto">
+              <Button className="flex-1 md:flex-none gap-2 px-6" onClick={handleGenerate} disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Filter className="h-4 w-4" />}
+                {isLoading ? 'Generating...' : 'Generate'}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 md:flex-none gap-2 px-6"
+                disabled={!reportData}
+                onClick={() => window.print()}
+              >
+                <Download className="h-4 w-4" />
+                Print / PDF
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { AlertTriangle, Pencil, Plus, Trash2, FileDown, FileText } from 'lucide-react';
+import { AlertTriangle, Pencil, Plus, Trash2, FileDown, FileText, ListOrdered } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -217,6 +217,14 @@ export default function InventoryPage() {
           >
             <FileText className="mr-2 h-4 w-4" />
             Import Bill
+          </Button>
+          <Button
+            variant="outline"
+            className="rounded-xl shadow-soft transition-all hover:shadow-bento hover:border-primary hover:text-primary"
+            onClick={() => router.push('/dashboard/inventory/reorder-list')}
+          >
+            <ListOrdered className="mr-2 h-4 w-4" />
+            Reorder List
           </Button>
           <Button
             onClick={() => { window.location.href = '/api/inventory/export'; }}

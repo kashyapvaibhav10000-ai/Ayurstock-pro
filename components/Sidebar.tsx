@@ -17,6 +17,7 @@ import {
   X,
   RotateCcw,
   History,
+  IndianRupee,
 } from 'lucide-react';
 import Image from 'next/image';
 import { AuthUser } from '@/types';
@@ -36,6 +37,7 @@ const menuItems = [
   { href: '/dashboard/returns', label: 'Returns', icon: RotateCcw, roles: ['ADMIN', 'MANAGER'] },
   { href: '/dashboard/purchases', label: 'Purchases', icon: ShoppingCart, roles: ['ADMIN', 'MANAGER'] },
   { href: '/dashboard/sales-history', label: 'Sales History', icon: History, roles: ['ADMIN', 'MANAGER'] },
+  { href: '/dashboard/credits', label: 'Credits', icon: IndianRupee, roles: ['ADMIN', 'MANAGER'] },
   { href: '/dashboard/suppliers', label: 'Suppliers', icon: PackageSearch, roles: ['ADMIN', 'MANAGER'] },
   { href: '/dashboard/reports', label: 'Reports', icon: ClipboardList, roles: ['ADMIN', 'MANAGER'] },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['ADMIN'] },

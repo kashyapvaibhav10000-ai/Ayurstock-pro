@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, name, company, category, barcode, packing } = body ?? {};
+    const { id, name, company, category, barcode, packing, gstPercent } = body ?? {};
 
     if (!id || !name || !company || !category) {
       return NextResponse.json(
@@ -72,6 +72,7 @@ export async function PUT(req: NextRequest) {
         category: category.trim(),
         barcode: normalizedBarcode || null,
         packing: typeof packing === 'string' ? packing.trim() || null : undefined,
+        gstPercent: typeof gstPercent === 'number' ? gstPercent : undefined,
       },
     });
 
