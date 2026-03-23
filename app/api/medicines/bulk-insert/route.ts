@@ -137,6 +137,7 @@ export async function POST(req: NextRequest) {
               shopId: user.shopId,
               name: normalized.name,
               company: normalized.company,
+              packing: normalized.packing || null,
             },
           });
         }

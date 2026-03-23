@@ -523,17 +523,21 @@ export default function ImportMedicinesModal({
 
   const detectCategory = (packingText?: string) => {
     const text = (packingText || '').toLowerCase();
+    
+    // User priority mapping
+    if (text.includes('ml')) return 'Syrup';
     if (text.includes('tab') || text.includes('vati')) return 'Tablet';
     if (text.includes('cap')) return 'Capsule';
+    if (text.includes('gm') || text.includes('kg')) return 'Powder';
+
+    // Fallbacks
     if (text.includes('churna')) return 'Churna';
     if (text.includes('bhasma')) return 'Bhasma';
     if (text.includes('drops')) return 'Drops';
     if (text.includes('gel')) return 'Gel';
     if (text.includes('cream')) return 'Cream';
     if (text.includes('oil') || text.includes('taila')) return 'Oil';
-    if (text.includes('powder') || text.includes('gm') || text.includes('kg')) return 'Powder';
     if (text.includes('asav') || text.includes('arishta')) return 'Asav';
-    if (text.includes('syrup') || text.includes('ml')) return 'Syrup';
     return 'Other';
   };
 
@@ -1010,7 +1014,10 @@ export default function ImportMedicinesModal({
                           className="h-9 min-w-24 rounded-md border border-input bg-background px-2 text-sm"
                           disabled={isDisabled}
                         >
-                          <option value="">Select</option>
+                          {!medicine.packing && <option value="">Select</option>}
+                          {medicine.packing && !packagingOptions.includes(medicine.packing) && (
+                            <option value={medicine.packing}>{medicine.packing}</option>
+                          )}
                           {packagingOptions.map((option) => (
                             <option key={option} value={option}>
                               {option}
