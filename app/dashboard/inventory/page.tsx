@@ -306,6 +306,7 @@ export default function InventoryPage() {
                   <TableHead className="font-bold text-text-secondary">Batch</TableHead>
                   <TableHead className="font-bold text-text-secondary">Expiry</TableHead>
                   <TableHead className="font-bold text-text-secondary">Stock</TableHead>
+                  <TableHead className="font-bold text-text-secondary">Purchase Rate</TableHead>
                   <TableHead className="font-bold text-text-secondary">MRP</TableHead>
                   <TableHead className="font-bold text-text-secondary">Rack</TableHead>
                   <TableHead className="text-right font-bold text-text-secondary">Actions</TableHead>
@@ -314,7 +315,7 @@ export default function InventoryPage() {
               <TableBody>
                 {filteredBatches.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                    <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
                       No inventory batches found.
                     </TableCell>
                   </TableRow>
@@ -349,6 +350,7 @@ export default function InventoryPage() {
                           ) : null}
                         </TableCell>
                         <TableCell>{batch.stockQty}</TableCell>
+                        <TableCell>Rs. {Number(batch.purchaseRate).toFixed(2)}</TableCell>
                         <TableCell>Rs. {Number(batch.mrp).toFixed(2)}</TableCell>
                         <TableCell>{batch.rackLocation || '-'}</TableCell>
                         <TableCell>

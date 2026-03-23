@@ -6,6 +6,12 @@ export type ParsedMedicine = {
   packing: string
   mrp: number
   tradePrice: number
+  // Bill/invoice fields (optional — present when parsing purchase invoices)
+  company?: string
+  hsn?: string
+  batchNo?: string
+  expiryDate?: string   // "MM-YY" or "MMM-YY" as extracted
+  purchaseRate?: number // PTS column on invoices
 }
 
 export type PdfType = 'searchable' | 'scanned' | 'unknown';
@@ -58,36 +64,38 @@ const CLOUDFLARE_DAILY_LIMIT = 10000
 const MISTRAL_DAILY_LIMIT = 1000
 
 // ─── System prompt ────────────────────────────────────────────────────────────
-const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic/herbal distributor price lists.
-The text may come from OCR (scanned documents) so expect noise, typos, and formatting issues.
+const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic/herbal medicine documents.
+The text may come from OCR (scanned documents or images) — expect noise, typos, and formatting issues.
+You handle TWO document types:
 
-IMPORTANT: One medicine can have multiple packing sizes with different prices.
-Create separate records for EACH packing variant.
+TYPE A — PRICE LIST: columns are medicine name, packing, trade price, MRP
+TYPE B — PURCHASE INVOICE/BILL: columns include Description, Packing, HSN, Mfg By (company), Batch No, Expiry, Qty, MRP, PTS (purchase rate), PTR
 
-EXAMPLE INPUT:
-"ADULSA SYRUP   200ML   104.00   130   400ML   192.00   240"
-
-EXPECTED OUTPUT:
+EXAMPLE PRICE LIST OUTPUT:
 [
   {"name": "ADULSA SYRUP", "packing": "200ML", "mrp": 130, "tradePrice": 104},
   {"name": "ADULSA SYRUP", "packing": "400ML", "mrp": 240, "tradePrice": 192}
 ]
 
+EXAMPLE INVOICE OUTPUT:
+[
+  {"name": "TRIPHALA CHURNA", "packing": "100GM", "hsn": "2106", "company": "AYUKALP", "batchNo": "DH558", "expiryDate": "Feb-28", "mrp": 112.50, "tradePrice": 90, "purchaseRate": 90}
+]
+
 RULES:
-1. Medicine names may be ALL CAPS, Title Case, or mixed — normalize to UPPER CASE in output
-2. Extract ALL packing + price combinations for each medicine
-3. Return separate record for EACH variant, NOT combined
-4. packing format: "200ML", "60TAB", "100GM", "1KG", etc
-5. Prices are EXACT numbers from list (mrp and tradePrice). If only one price column exists, use it for both mrp and tradePrice.
-6. Return ONLY valid JSON array. DO NOT output any markdown blocks, preambles, comments, or extra text. Start directly with '[' and end with ']'.
-7. Each item MUST have: name (string), packing (string), mrp (number), tradePrice (number)
-8. Ignore headers, footers, page numbers, totals, and non-medicine text
-9. If text is noisy or unclear, extract whatever medicines you can confidently identify
-10. Output the JSON array only. Extract ALL medicines from the text — do not stop early or limit the count.
-11. NEVER extract disease names, body parts, or medical conditions as medicine names. Examples of what NOT to extract: 'LEPROSY', 'ARTHRITIS', 'WEAKNESS', 'DISORDERS', 'BLEEDING', 'FEVER', 'PAIN' — these are indications/uses, NOT medicine names.
-12. Medicine names are product brand names like: 'ADULSA SYRUP', 'AROGYAVARDHINI VATI', 'TRIPHALA CHURNA'. They are NEVER just a disease or symptom name alone.
-13. If a line contains ONLY a disease/symptom with no product name, SKIP that line entirely.
-14. Price sanity check: MRP must be between 1 and 10000. TradePrice must be between 1 and MRP. If prices seem wrong or impossible, skip that medicine. Never extract prices above 10000 or below 1.`
+1. Medicine names: normalize to UPPER CASE
+2. Extract ALL packing + price combinations — one record per variant
+3. packing format: "200ML", "60TAB", "100GM", "1KG", "40TAB", "50GM", etc
+4. For price lists: mrp and tradePrice are required. If only one price column, use it for both.
+5. For invoices: extract batchNo, expiryDate (as printed e.g. "Feb-28"), hsn, company (Mfg By column), purchaseRate (PTS column), mrp. Set tradePrice = purchaseRate.
+6. Return ONLY valid JSON array starting with '[' and ending with ']'. No markdown, no extra text.
+7. Required fields always: name (string), packing (string), mrp (number), tradePrice (number)
+8. Optional fields when available: company, hsn, batchNo, expiryDate, purchaseRate
+9. Ignore headers, footers, page numbers, totals, tax lines, address lines, and non-medicine text
+10. Extract ALL medicines — do not stop early or limit the count
+11. NEVER extract disease names as medicine names (e.g. LEPROSY, ARTHRITIS, FEVER, PAIN are NOT medicines)
+12. Medicine names are product brand names like 'TRIPHALA CHURNA', 'AROGYAVARDHINI VATI', 'ADULSA SYRUP'
+13. Price sanity: MRP must be 1–10000. TradePrice must be ≤ MRP. Skip impossible prices.`
 
 // ─── Prisma usage tracking ────────────────────────────────────────────────────
 async function getDailyUsage() {
