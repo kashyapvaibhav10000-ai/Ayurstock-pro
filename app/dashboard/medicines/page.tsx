@@ -475,28 +475,6 @@ export default function MedicinesPage() {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs text-slate-500">MRP Range (₹)</Label>
-              <div className="flex items-center gap-1">
-                <Input
-                  type="number"
-                  placeholder="Min"
-                  value={mrpMin}
-                  onChange={(e) => setMrpMin(e.target.value)}
-                  className="h-9 w-20 text-sm"
-                  min={0}
-                />
-                <span className="text-slate-400 text-xs">–</span>
-                <Input
-                  type="number"
-                  placeholder="Max"
-                  value={mrpMax}
-                  onChange={(e) => setMrpMax(e.target.value)}
-                  className="h-9 w-20 text-sm"
-                  min={0}
-                />
-              </div>
-            </div>
             {hasActiveFilters && (
               <Button
                 variant="ghost"
