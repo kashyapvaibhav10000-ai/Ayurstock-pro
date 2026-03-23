@@ -15,6 +15,10 @@ export async function GET(request: NextRequest) {
     const trimmedQuery = query.trim();
     const companyId = searchParams.get('company');
     const categoryFilter = searchParams.get('category');
+    const mrpMinRaw = searchParams.get('mrp_min');
+    const mrpMaxRaw = searchParams.get('mrp_max');
+    const mrpMin = mrpMinRaw ? parseFloat(mrpMinRaw) : undefined;
+    const mrpMax = mrpMaxRaw ? parseFloat(mrpMaxRaw) : undefined;
 
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 500);
     const offset = parseInt(searchParams.get('offset') || '0');
@@ -66,7 +70,10 @@ export async function GET(request: NextRequest) {
       ...(companyNameFilter ? { company: companyNameFilter } : {}),
       ...(categoryFilter && categoryFilter !== 'All' && categoryFilter !== 'Imported Today'
           ? { category: { equals: categoryFilter, mode: 'insensitive' as const } }
-          : {})
+          : {}),
+      ...(mrpMin !== undefined || mrpMax !== undefined
+          ? { mrp: { ...(mrpMin !== undefined ? { gte: mrpMin } : {}), ...(mrpMax !== undefined ? { lte: mrpMax } : {}) } }
+          : {}),
     };
 
     console.log('Fetching medicines for shopId:', auth.user.shopId);

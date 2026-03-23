@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Pencil, Plus, Search, Trash2, Upload, Boxes, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2, Upload, Boxes, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/table';
 import ImportMedicinesModal, { ParsedMedicine } from '@/components/ImportMedicinesModal';
 import MoveToInventoryModal from '@/components/MoveToInventoryModal';
-import ImportPriceList from '@/components/medicine/import-price-list';
 import { EditableMedicine } from '@/components/MedicineEditModal';
 
 interface Medicine extends EditableMedicine {
@@ -30,6 +29,7 @@ interface Medicine extends EditableMedicine {
   isActive: boolean;
   availableStock?: number;
   packing?: string | null;
+  mrp?: number | null;
   createdAt?: string;
 }
 
@@ -93,7 +93,7 @@ const PACKAGING_OPTIONS: Record<string, string[]> = {
   Other: [],
 };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 200;
 
 export default function MedicinesPage() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -101,9 +101,8 @@ export default function MedicinesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [showForm, setShowForm] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showPriceListModal, setShowPriceListModal] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAll, setSelectedAll] = useState(false);
@@ -112,6 +111,9 @@ export default function MedicinesPage() {
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditableMedicine & { packing?: string | null } | null>(null);
   const [activeFilter, setActiveFilter] = useState('All');
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [mrpMin, setMrpMin] = useState('');
+  const [mrpMax, setMrpMax] = useState('');
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const router = useRouter();
   const { hasRole } = useAuth();
@@ -131,37 +133,41 @@ export default function MedicinesPage() {
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Delete') {
-        return;
-      }
+      if (event.key !== 'Delete') return;
       const target = event.target as HTMLElement | null;
-      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) {
-        return;
-      }
-      if (selectedMedicines.size > 0) {
-        setShowDeleteModal(true);
-      }
+      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
+      if (selectedMedicines.size > 0) setShowDeleteModal(true);
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [selectedMedicines]);
 
   const visibleMedicines = medicines;
+  const selectedMedicinesData = medicines.filter((m) => selectedMedicines.has(m.id));
 
-  const selectedMedicinesData = medicines.filter((medicine) => selectedMedicines.has(medicine.id));
+  const hasActiveFilters = activeFilter !== 'All' || companyFilter !== '' || mrpMin !== '' || mrpMax !== '';
 
-  const loadMedicines = async (page = currentPage, query = searchQuery, filter = activeFilter) => {
+  const loadMedicines = async (
+    page = currentPage,
+    query = searchQuery,
+    filter = activeFilter,
+    company = companyFilter,
+    minMrp = mrpMin,
+    maxMrp = mrpMax,
+  ) => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/medicines/search', {
-        params: { 
-          query, 
-          category: filter,
-          limit: PAGE_SIZE, 
-          offset: (page - 1) * PAGE_SIZE 
-        },
-      });
+      const params: Record<string, string | number> = {
+        query,
+        category: filter,
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
+      };
+      if (company) params.company = company;
+      if (minMrp !== '') params.mrp_min = minMrp;
+      if (maxMrp !== '') params.mrp_max = maxMrp;
 
+      const response = await axios.get('/api/medicines/search', { params });
       if (response.data.success) {
         setMedicines(response.data.data);
         setTotalCount(response.data.total);
@@ -176,16 +182,15 @@ export default function MedicinesPage() {
   useEffect(() => {
     if (isAuthorized) {
       const timer = setTimeout(() => {
-        loadMedicines(currentPage, searchQuery, activeFilter);
+        loadMedicines(currentPage, searchQuery, activeFilter, companyFilter, mrpMin, mrpMax);
       }, searchQuery ? 500 : 0);
       return () => clearTimeout(timer);
     }
-  }, [isAuthorized, currentPage, activeFilter, searchQuery]);
+  }, [isAuthorized, currentPage, activeFilter, companyFilter, mrpMin, mrpMax, searchQuery]);
 
-  // Reset to first page when search or filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, activeFilter]);
+  }, [searchQuery, activeFilter, companyFilter, mrpMin, mrpMax]);
 
   const loadCompanies = async () => {
     try {
@@ -198,10 +203,16 @@ export default function MedicinesPage() {
     }
   };
 
+  const clearFilters = () => {
+    setActiveFilter('All');
+    setCompanyFilter('');
+    setMrpMin('');
+    setMrpMax('');
+  };
+
   const handleAddMedicine = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Strict validation
     if (formData.name.trim().length < 3) {
       toast.error('Medicine name must be at least 3 characters long');
       return;
@@ -230,7 +241,7 @@ export default function MedicinesPage() {
       }
 
       setFormData(emptyForm);
-      setShowForm(false);
+      setShowAddModal(false);
       toast.success('Medicine added successfully. Ready for inventory.');
       await loadCompanies();
       await loadMedicines();
@@ -245,8 +256,6 @@ export default function MedicinesPage() {
       medicines: parsedMedicines,
     });
 
-    console.log('API response:', response.status, JSON.stringify(response.data));
-
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to import medicines');
     }
@@ -259,9 +268,7 @@ export default function MedicinesPage() {
 
   const handleDeleteMedicine = async (medicine: Medicine) => {
     const confirmed = window.confirm(`Delete ${medicine.name}?`);
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
       const response = await axios.delete('/api/medicine/update', {
@@ -331,9 +338,7 @@ export default function MedicinesPage() {
   };
 
   const saveInlineEdit = async () => {
-    if (!editDraft) {
-      return;
-    }
+    if (!editDraft) return;
 
     try {
       await axios.put('/api/medicine/update', editDraft);
@@ -367,15 +372,14 @@ export default function MedicinesPage() {
       setSelectedAll(false);
       return;
     }
-
-    setSelectedMedicines(new Set(visibleMedicines.map((medicine) => medicine.id)));
+    setSelectedMedicines(new Set(visibleMedicines.map((m) => m.id)));
     setSelectedAll(true);
   };
 
   useEffect(() => {
     setSelectedAll(
       visibleMedicines.length > 0 &&
-        visibleMedicines.every((medicine) => selectedMedicines.has(medicine.id))
+        visibleMedicines.every((m) => selectedMedicines.has(m.id))
     );
   }, [visibleMedicines, selectedMedicines]);
 
@@ -408,91 +412,19 @@ export default function MedicinesPage() {
             <Upload className="h-4 w-4" />
             Import Medicines
           </Button>
-          <Button variant="outline" className="gap-2" onClick={() => setShowPriceListModal(true)}>
-            <Upload className="h-4 w-4" />
-            Import Price List
-          </Button>
-          <Button className="gap-2" onClick={() => setShowForm((current) => !current)}>
+          <Button className="gap-2" onClick={() => setShowAddModal(true)}>
             <Plus className="h-4 w-4" />
             Add Medicine
           </Button>
         </div>
       </div>
 
-      {showForm ? (
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-xl">Add New Medicine</CardTitle>
-            <CardDescription>Create medicine master records before stocking them in inventory.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAddMedicine} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <div className="grid gap-2">
-                <Label htmlFor="medicine-create-name">Medicine Name</Label>
-                <Input
-                  id="medicine-create-name"
-                  value={formData.name}
-                  onChange={(e) => setFormData((current) => ({ ...current, name: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="medicine-create-company">Company</Label>
-                <select
-                  id="medicine-create-company"
-                  value={formData.company}
-                  onChange={(e) => setFormData((current) => ({ ...current, company: e.target.value }))}
-                  className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  required
-                >
-                  <option value="">Select company</option>
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.name}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="medicine-create-category">Category</Label>
-                <Input
-                  id="medicine-create-category"
-                  value={formData.category}
-                  onChange={(e) => setFormData((current) => ({ ...current, category: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="medicine-create-barcode">Barcode</Label>
-                <Input
-                  id="medicine-create-barcode"
-                  value={formData.barcode}
-                  onChange={(e) => setFormData((current) => ({ ...current, barcode: e.target.value }))}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="medicine-create-hsn">HSN</Label>
-                <Input
-                  id="medicine-create-hsn"
-                  value={formData.hsn}
-                  onChange={(e) => setFormData((current) => ({ ...current, hsn: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="md:col-span-2 xl:col-span-3 flex justify-end">
-                <Button type="submit">Save Medicine</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : null}
-
       <Card className="rounded-2xl">
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-xl">Medicine Master</CardTitle>
             <CardDescription>
-              {visibleMedicines.length} medicines available. Imported medicines stay here until you move them to inventory.
+              {totalCount} medicines available. Imported medicines stay here until you move them to inventory.
             </CardDescription>
           </div>
           {selectedMedicines.size > 0 ? (
@@ -515,22 +447,68 @@ export default function MedicinesPage() {
           ) : null}
         </CardHeader>
         <CardContent className="overflow-hidden">
-          <div className="mb-4 flex flex-wrap gap-2">
-            {CATEGORY_OPTIONS.map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                onClick={() => setActiveFilter(filter)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                  activeFilter === filter
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-200'
-                }`}
+          {/* Filter bar */}
+          <div className="mb-4 flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-slate-500">Category</Label>
+              <select
+                value={activeFilter}
+                onChange={(e) => setActiveFilter(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
               >
-                {filter}
-              </button>
-            ))}
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-slate-500">Company</Label>
+              <select
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm min-w-[160px]"
+              >
+                <option value="">All Companies</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-slate-500">MRP Range (₹)</Label>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={mrpMin}
+                  onChange={(e) => setMrpMin(e.target.value)}
+                  className="h-9 w-20 text-sm"
+                  min={0}
+                />
+                <span className="text-slate-400 text-xs">–</span>
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={mrpMax}
+                  onChange={(e) => setMrpMax(e.target.value)}
+                  className="h-9 w-20 text-sm"
+                  min={0}
+                />
+              </div>
+            </div>
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="gap-1 text-slate-500 hover:text-slate-900 self-end"
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear Filters
+              </Button>
+            )}
           </div>
+
           <div className="overflow-x-auto rounded-xl border">
             <Table>
               <TableHeader className="bg-slate-50">
@@ -665,7 +643,7 @@ export default function MedicinesPage() {
               </TableBody>
             </Table>
           </div>
-          
+
           {totalCount > 0 && (
             <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-6">
               <p className="text-sm text-slate-500">
@@ -699,6 +677,85 @@ export default function MedicinesPage() {
         </CardContent>
       </Card>
 
+      {/* Add Medicine Modal */}
+      <Dialog open={showAddModal} onOpenChange={(open) => { if (!open) { setShowAddModal(false); setFormData(emptyForm); } }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add New Medicine</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddMedicine} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="medicine-create-name">Medicine Name</Label>
+              <Input
+                id="medicine-create-name"
+                value={formData.name}
+                onChange={(e) => setFormData((current) => ({ ...current, name: e.target.value }))}
+                placeholder="e.g. Ashwagandha Churna"
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="medicine-create-company">Company</Label>
+              <select
+                id="medicine-create-company"
+                value={formData.company}
+                onChange={(e) => setFormData((current) => ({ ...current, company: e.target.value }))}
+                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                required
+              >
+                <option value="">Select company</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.name}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="medicine-create-category">Category</Label>
+                <select
+                  id="medicine-create-category"
+                  value={formData.category}
+                  onChange={(e) => setFormData((current) => ({ ...current, category: e.target.value }))}
+                  className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  required
+                >
+                  <option value="">Select category</option>
+                  {CATEGORY_VALUES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="medicine-create-hsn">HSN</Label>
+                <Input
+                  id="medicine-create-hsn"
+                  value={formData.hsn}
+                  onChange={(e) => setFormData((current) => ({ ...current, hsn: e.target.value }))}
+                  placeholder="e.g. 30049099"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="medicine-create-barcode">Barcode (optional)</Label>
+              <Input
+                id="medicine-create-barcode"
+                value={formData.barcode}
+                onChange={(e) => setFormData((current) => ({ ...current, barcode: e.target.value }))}
+                placeholder="Numeric barcode"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setShowAddModal(false); setFormData(emptyForm); }}>
+                Cancel
+              </Button>
+              <Button type="submit">Add Medicine</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <ImportMedicinesModal
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
@@ -711,15 +768,6 @@ export default function MedicinesPage() {
         medicines={selectedMedicinesData}
       />
 
-      <ImportPriceList
-        isOpen={showPriceListModal}
-        onClose={() => setShowPriceListModal(false)}
-        onSuccess={async (count) => {
-          toast.success(`${count} medicines imported successfully from price list`);
-          await loadCompanies();
-          await loadMedicines();
-        }}
-      />
       <Dialog open={showDeleteModal} onOpenChange={(open) => !open && setShowDeleteModal(false)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

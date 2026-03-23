@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import axios from 'axios';
+import { CheckCircle, SkipForward } from 'lucide-react';
 
 interface Medicine {
   id: string;
@@ -25,6 +26,17 @@ interface InventoryItem {
   rackLocation: string;
 }
 
+const emptyItem = (med: Medicine): InventoryItem => ({
+  medicineId: med.id,
+  medicineName: med.name,
+  batchNumber: '',
+  expiryDate: '',
+  quantity: '',
+  purchaseRate: '',
+  mrp: '',
+  rackLocation: '',
+});
+
 interface MoveToInventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -36,221 +48,229 @@ export default function MoveToInventoryModal({
   onClose,
   medicines,
 }: MoveToInventoryModalProps) {
-  const [items, setItems] = useState<InventoryItem[]>(
-    medicines.map((med) => ({
-      medicineId: med.id,
-      medicineName: med.name,
-      batchNumber: '',
-      expiryDate: '',
-      quantity: '',
-      purchaseRate: '',
-      mrp: '',
-      rackLocation: '',
-    }))
-  );
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [addedCount, setAddedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    setItems(
-      medicines.map((med) => ({
-        medicineId: med.id,
-        medicineName: med.name,
-        batchNumber: '',
-        expiryDate: '',
-        quantity: '',
-        purchaseRate: '',
-        mrp: '',
-        rackLocation: '',
-      }))
-    );
+    if (!isOpen) return;
+    setCurrentIndex(0);
+    setAddedCount(0);
+    setSkippedCount(0);
+    setDone(false);
     setError('');
+    setItems(medicines.map(emptyItem));
   }, [isOpen, medicines]);
 
-  const updateItem = (index: number, field: keyof InventoryItem, value: any) => {
-    const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setItems(newItems);
+  const current = items[currentIndex];
+
+  const updateField = (field: keyof InventoryItem, value: string) => {
+    setItems((prev) => {
+      const next = [...prev];
+      next[currentIndex] = { ...next[currentIndex], [field]: value };
+      return next;
+    });
+    setError('');
   };
 
-  const handleSubmit = async () => {
-    // Validate all required fields
-    for (const item of items) {
-      if (!item.batchNumber || !item.expiryDate || item.mrp === '' || item.quantity === '' || item.purchaseRate === '') {
-        setError('Please fill all required fields');
-        return;
-      }
-      
-      const q = Number(item.quantity);
-      const pr = Number(item.purchaseRate);
-      const m = Number(item.mrp);
+  const canAdd =
+    current &&
+    current.batchNumber.trim() !== '' &&
+    current.expiryDate !== '' &&
+    current.quantity !== '' &&
+    current.purchaseRate !== '' &&
+    current.mrp !== '' &&
+    Number(current.quantity) > 0 &&
+    Number(current.purchaseRate) > 0 &&
+    Number(current.mrp) > 0;
 
-      if (isNaN(q) || q <= 0 || isNaN(pr) || pr <= 0 || isNaN(m) || m <= 0) {
-        setError('Quantity, Purchase Rate, and MRP must be valid numbers greater than 0');
-        return;
-      }
+  const advance = () => {
+    const next = currentIndex + 1;
+    if (next >= medicines.length) {
+      setDone(true);
+    } else {
+      setCurrentIndex(next);
+      setError('');
     }
+  };
+
+  const handleSkip = () => {
+    setSkippedCount((c) => c + 1);
+    advance();
+  };
+
+  const handleAdd = async () => {
+    if (!canAdd || !current) return;
 
     setLoading(true);
     setError('');
 
     try {
-      const sanitizedItems = items.map(item => ({
-        ...item,
-        quantity: Number(item.quantity),
-        purchaseRate: Number(item.purchaseRate),
-        mrp: Number(item.mrp)
-      }));
+      const payload = {
+        items: [{
+          ...current,
+          quantity: Number(current.quantity),
+          purchaseRate: Number(current.purchaseRate),
+          mrp: Number(current.mrp),
+        }],
+      };
 
-      const response = await axios.post(
-        '/api/inventory/move',
-        { items: sanitizedItems }
-      );
+      const response = await axios.post('/api/inventory/move', payload);
 
       if (response.data.success) {
-        setError('');
-        setItems(
-          medicines.map((med) => ({
-            medicineId: med.id,
-            medicineName: med.name,
-            batchNumber: '',
-            expiryDate: '',
-            quantity: '',
-            purchaseRate: '',
-            mrp: '',
-            rackLocation: '',
-          }))
-        );
-        onClose();
+        setAddedCount((c) => c + 1);
+        advance();
       } else {
-        setError(response.data.message || 'Failed to move medicines to inventory');
+        setError(response.data.message || 'Failed to add to inventory');
       }
     } catch (err) {
       const message = axios.isAxiosError(err) ? err.response?.data?.message : 'An error occurred';
-      setError(message || 'Failed to move medicines');
+      setError(message || 'Failed to move medicine');
     } finally {
       setLoading(false);
     }
   };
 
+  const total = medicines.length;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Move to Inventory</DialogTitle>
         </DialogHeader>
 
-        {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{error}</p>
+        {done ? (
+          /* Summary screen */
+          <div className="flex flex-col items-center gap-4 py-6 text-center">
+            <CheckCircle className="h-12 w-12 text-green-500" />
+            <div>
+              <p className="text-lg font-semibold text-slate-900">All done!</p>
+              <p className="mt-1 text-sm text-slate-500">
+                {addedCount} added to inventory &middot; {skippedCount} skipped
+              </p>
+            </div>
+            <Button onClick={onClose} className="mt-2">Close</Button>
           </div>
-        )}
+        ) : current ? (
+          <>
+            {/* Progress indicator */}
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+              <span>Medicine {currentIndex + 1} of {total}</span>
+              <span>{addedCount} added &middot; {skippedCount} skipped</span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all"
+                style={{ width: `${((currentIndex) / total) * 100}%` }}
+              />
+            </div>
 
-        <div className="space-y-4 max-h-96 overflow-y-auto">
-          {items.map((item, index) => (
-            <div
-              key={index}
-              className="p-4 border rounded-lg bg-gray-50 space-y-3"
-            >
-              <div className="font-medium text-sm">{item.medicineName}</div>
+            <div className="rounded-lg border bg-slate-50 p-4 mb-4">
+              <p className="font-semibold text-slate-900">{current.medicineName}</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {medicines[currentIndex]?.company} &middot; {medicines[currentIndex]?.category}
+              </p>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">Batch Number *</Label>
-                  <Input
-                    placeholder="e.g., BATCH001"
-                    value={item.batchNumber}
-                    onChange={(e) => updateItem(index, 'batchNumber', e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-2">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
 
-                <div>
-                  <Label className="text-xs">Expiry Date *</Label>
-                  <Input
-                    type="date"
-                    value={item.expiryDate}
-                    onChange={(e) => updateItem(index, 'expiryDate', e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs">Quantity *</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    placeholder="Enter quantity"
-                    value={item.quantity}
-                    onChange={(e) =>
-                      updateItem(index, 'quantity', e.target.value)
-                    }
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs">Purchase Rate (₹) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="Enter purchase rate"
-                    value={item.purchaseRate}
-                    onChange={(e) =>
-                      updateItem(index, 'purchaseRate', e.target.value)
-                    }
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs">MRP (₹) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="Enter MRP"
-                    value={item.mrp}
-                    onChange={(e) =>
-                      updateItem(index, 'mrp', e.target.value)
-                    }
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs">Rack Location</Label>
-                  <Input
-                    placeholder="e.g., A-1-2"
-                    value={item.rackLocation}
-                    onChange={(e) =>
-                      updateItem(index, 'rackLocation', e.target.value)
-                    }
-                    className="mt-1"
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Batch Number *</Label>
+                <Input
+                  placeholder="e.g., BATCH001"
+                  value={current.batchNumber}
+                  onChange={(e) => updateField('batchNumber', e.target.value)}
+                  className="mt-1 h-9 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Expiry Date *</Label>
+                <Input
+                  type="date"
+                  value={current.expiryDate}
+                  onChange={(e) => updateField('expiryDate', e.target.value)}
+                  className="mt-1 h-9 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Quantity *</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Qty"
+                  value={current.quantity}
+                  onChange={(e) => updateField('quantity', e.target.value)}
+                  className="mt-1 h-9 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Purchase Rate (₹) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Rate"
+                  value={current.purchaseRate}
+                  onChange={(e) => updateField('purchaseRate', e.target.value)}
+                  className="mt-1 h-9 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">MRP (₹) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="MRP"
+                  value={current.mrp}
+                  onChange={(e) => updateField('mrp', e.target.value)}
+                  className="mt-1 h-9 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Rack Location</Label>
+                <Input
+                  placeholder="e.g., A-1-2"
+                  value={current.rackLocation}
+                  onChange={(e) => updateField('rackLocation', e.target.value)}
+                  className="mt-1 h-9 text-sm"
+                />
               </div>
             </div>
-          ))}
-        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {loading ? 'Adding...' : 'Add to Inventory'}
-          </Button>
-        </DialogFooter>
+            <DialogFooter className="mt-4 gap-2">
+              <Button variant="outline" onClick={onClose} disabled={loading}>
+                Cancel
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleSkip}
+                disabled={loading}
+                className="gap-1 text-slate-600"
+              >
+                <SkipForward className="h-4 w-4" />
+                Skip
+              </Button>
+              <Button
+                onClick={handleAdd}
+                disabled={!canAdd || loading}
+                className="bg-green-600 hover:bg-green-700 gap-1"
+              >
+                {loading ? 'Adding...' : 'Add to Inventory'}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { AlertTriangle, Pencil, Plus, Trash2, FileDown } from 'lucide-react';
+import { AlertTriangle, Pencil, Plus, Trash2, FileDown, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table';
 import InventoryEditModal, { EditableInventoryBatch } from '@/components/InventoryEditModal';
 import AddInventoryModal from '@/components/AddInventoryModal';
+import ImportPriceList from '@/components/medicine/import-price-list';
 
 interface InventoryBatch extends EditableInventoryBatch {
   sellingRate: number;
@@ -61,6 +62,7 @@ export default function InventoryPage() {
   );
   const [editingBatch, setEditingBatch] = useState<EditableInventoryBatch | null>(null);
   const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
+  const [showPriceListModal, setShowPriceListModal] = useState(false);
 
   useEffect(() => {
     if (isAuthorized) {
@@ -207,6 +209,13 @@ export default function InventoryPage() {
             onClick={() => setExpiryFilter('all')}
           >
             All Expiry
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowPriceListModal(true)}
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Import Price List
           </Button>
           <Button
             onClick={() => { window.location.href = '/api/inventory/export'; }}
@@ -397,6 +406,15 @@ export default function InventoryPage() {
         onSaved={async () => {
           toast.success('Inventory added successfully');
           await loadInventory();
+          await loadMedicines();
+        }}
+      />
+
+      <ImportPriceList
+        isOpen={showPriceListModal}
+        onClose={() => setShowPriceListModal(false)}
+        onSuccess={async (count) => {
+          toast.success(`${count} medicines imported — go to Medicine Master to move them into Inventory`);
           await loadMedicines();
         }}
       />

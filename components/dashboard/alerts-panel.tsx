@@ -2,9 +2,70 @@
 
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts"
 import { useRealtimeInventory } from "@/hooks/useRealtimeInventory"
-import { AlertCircle, TrendingDown, ShieldAlert } from "lucide-react"
+import { AlertCircle, TrendingDown, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
+
+function LowStockCarousel({ items }: { items: any[] }) {
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const total = items.length
+
+  const next = useCallback(() => setActiveIdx((i) => (i + 1) % total), [total])
+  const prev = useCallback(() => setActiveIdx((i) => (i - 1 + total) % total), [total])
+
+  useEffect(() => {
+    if (total <= 1 || paused) return
+    const id = setInterval(next, 3000)
+    return () => clearInterval(id)
+  }, [next, paused, total])
+
+  if (total === 0) return <p className="text-sm text-gray-500">No low stock alerts</p>
+
+  const item = items[activeIdx]
+  const isZero = item.currentStock === 0
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div className={`rounded-xl border p-4 transition-all ${isZero ? 'border-red-200 bg-red-50' : 'border-orange-100 bg-orange-50'}`}>
+        <div className={`font-semibold text-sm ${isZero ? 'text-red-900' : 'text-orange-900'}`}>
+          {item.name}
+        </div>
+        <div className={`mt-1.5 flex items-center gap-2 text-xs ${isZero ? 'text-red-600' : 'text-orange-600'}`}>
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium text-white text-xs ${isZero ? 'bg-red-500' : 'bg-orange-400'}`}>
+            {item.currentStock} in stock
+          </span>
+          <span>Min threshold: {item.threshold}</span>
+        </div>
+      </div>
+
+      {total > 1 && (
+        <div className="mt-2 flex items-center justify-between">
+          <button onClick={prev} className="rounded-lg p-1 hover:bg-orange-100 text-orange-600 transition">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <div className="flex gap-1">
+            {items.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveIdx(i)}
+                className={`h-1.5 rounded-full transition-all ${i === activeIdx ? 'w-4 bg-orange-500' : 'w-1.5 bg-orange-200'}`}
+              />
+            ))}
+          </div>
+          <button onClick={next} className="rounded-lg p-1 hover:bg-orange-100 text-orange-600 transition">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+      <p className="mt-1 text-center text-xs text-slate-400">{activeIdx + 1} / {total}</p>
+    </div>
+  )
+}
 
 export function AlertsPanel() {
   const { data, refetch, isLoading } = useInventoryAlerts()
@@ -161,22 +222,7 @@ export function AlertsPanel() {
           <h3 className="text-orange-600 font-semibold">Low Stock Alerts</h3>
         </div>
 
-        {lowStockMedicines.length === 0 ? (
-          <p className="text-sm text-gray-500">No low stock alerts</p>
-        ) : (
-          <div className="space-y-2">
-            {lowStockMedicines.map((item: any) => (
-              <div key={item.id} className="bg-orange-50 p-3 rounded border border-orange-100">
-                <div className="font-medium text-sm text-orange-900">
-                  {item.name}
-                </div>
-                <div className="text-xs text-orange-600 mt-1">
-                  Stock: {item.currentStock} (Min {item.threshold})
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <LowStockCarousel items={lowStockMedicines} />
       </div>
     </div>
   )
