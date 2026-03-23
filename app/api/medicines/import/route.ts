@@ -24,7 +24,10 @@ export async function POST(req: NextRequest) {
     }
 
     const existingJob = await prisma.importJob.findFirst({
-      where: { status: 'processing' }
+      where: { 
+        shopId: auth.user.shopId,
+        status: 'processing' 
+      }
     });
 
     if (existingJob) {
@@ -46,6 +49,7 @@ export async function POST(req: NextRequest) {
     // Create background job
     const job = await prisma.importJob.create({
       data: {
+        shopId: auth.user.shopId,
         status: 'processing',
         message: 'Starting AI parsing...',
       }

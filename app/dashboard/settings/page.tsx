@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud } from 'lucide-react';
+import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud, Database, Sparkles, ShieldCheck } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,9 @@ import ProfileSettings from '@/components/settings/profile-settings';
 import RackLocationsSettings from '@/components/settings/rack-locations-settings';
 import DataImportSettings from '@/components/settings/data-import-settings';
 import DatabaseAdmin from '@/components/settings/database-admin';
+import ActivityLogTab from '@/components/settings/activity-log-tab';
+import AiUsageTab from '@/components/settings/ai-usage-tab';
+import LoginHistoryTab from '@/components/settings/login-history-tab';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -31,6 +34,9 @@ const SETTINGS_CATEGORIES = [
   { id: 'billing', label: 'Plans & Billing', icon: CreditCard, group: 'Billing' },
   { id: 'import', label: 'Bulk Import Data', icon: UploadCloud, group: 'Advanced' },
   { id: 'database', label: 'Database Admin', icon: Database, group: 'Advanced' },
+  { id: 'activity', label: 'Activity Log', icon: FileText, group: 'Advanced' },
+  { id: 'ai-usage', label: 'AI Usage', icon: Sparkles, group: 'Advanced' },
+  { id: 'login-history', label: 'Login History', icon: ShieldCheck, group: 'Advanced' },
   { id: 'system', label: 'Preferences', icon: SettingsIcon, group: 'Advanced' },
 ];
 
@@ -76,6 +82,9 @@ export default function SettingsPage() {
       case 'billing': return <BillingSettings />;
       case 'import': return <DataImportSettings />;
       case 'database': return <DatabaseAdmin />;
+      case 'activity': return <ActivityLogTab />;
+      case 'ai-usage': return <AiUsageTab />;
+      case 'login-history': return <LoginHistoryTab />;
       case 'system': return <SystemSettings />;
       default: return <ShopSettings />;
     }
