@@ -3,29 +3,29 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog";
-import { 
-  Database, 
-  Download, 
-  Trash2, 
-  AlertTriangle, 
-  Loader2, 
+import {
+  Database,
+  Download,
+  Trash2,
+  AlertTriangle,
+  Loader2,
   RefreshCw,
   Search,
   FileText,
@@ -33,11 +33,14 @@ import {
   ShoppingCart,
   Truck,
   Users,
-  Building
+  Building,
+  ChevronDown
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+
+type CompanyEntry = { name: string; count: number };
 
 export default function DatabaseAdmin() {
   const [stats, setStats] = useState<any>(null);
@@ -48,6 +51,52 @@ export default function DatabaseAdmin() {
   const [loadingMedicines, setLoadingMedicines] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Delete by company state
+  const [companies, setCompanies] = useState<CompanyEntry[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<CompanyEntry | null>(null);
+  const [isCompanyDialogOpen, setIsCompanyDialogOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [isDeletingCompany, setIsDeletingCompany] = useState(false);
+
+  const fetchCompanies = async () => {
+    setLoadingCompanies(true);
+    try {
+      const response = await axios.get('/api/medicines/companies');
+      if (response.data.success) {
+        setCompanies(response.data.companies);
+      }
+    } catch (error) {
+      console.error('Failed to fetch companies:', error);
+      toast.error('Failed to load company list');
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
+
+  const handleDeleteByCompany = async () => {
+    if (!selectedCompany || confirmText !== selectedCompany.name) return;
+    setIsDeletingCompany(true);
+    try {
+      const response = await axios.delete('/api/medicines/by-company', {
+        data: { companyName: selectedCompany.name },
+      });
+      if (response.data.success) {
+        toast.success(`Deleted ${response.data.deletedCount} medicines from ${selectedCompany.name}`);
+        setIsCompanyDialogOpen(false);
+        setSelectedCompany(null);
+        setConfirmText('');
+        fetchStats();
+        fetchCompanies();
+        fetchMedicines();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete medicines');
+    } finally {
+      setIsDeletingCompany(false);
+    }
+  };
 
   const fetchStats = async () => {
     setLoadingStats(true);
@@ -82,6 +131,7 @@ export default function DatabaseAdmin() {
   useEffect(() => {
     fetchStats();
     fetchMedicines();
+    fetchCompanies();
   }, []);
 
   const handleClearAll = async () => {
@@ -272,6 +322,138 @@ export default function DatabaseAdmin() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Medicines by Company */}
+      <Card className="border-orange-200 shadow-sm bg-orange-50/30">
+        <CardHeader className="pb-3 bg-orange-50/60 border-b border-orange-200">
+          <CardTitle className="text-base font-bold text-orange-900 flex items-center gap-2">
+            <Building className="h-4 w-4" />
+            Delete Medicines by Company
+          </CardTitle>
+          <CardDescription className="text-orange-700/80">
+            Permanently remove all medicines belonging to a specific company.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6 space-y-4">
+          {/* Company dropdown */}
+          <div className="relative">
+            <select
+              className="w-full appearance-none rounded-lg border border-orange-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:opacity-50"
+              value={selectedCompany?.name ?? ''}
+              onChange={(e) => {
+                const found = companies.find((c) => c.name === e.target.value) ?? null;
+                setSelectedCompany(found);
+                setConfirmText('');
+              }}
+              disabled={loadingCompanies}
+            >
+              <option value="">
+                {loadingCompanies ? 'Loading companies…' : `— Select a company (${companies.length} found) —`}
+              </option>
+              {companies.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name} ({c.count} medicine{c.count !== 1 ? 's' : ''})
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-400" />
+          </div>
+
+          {/* Warning banner */}
+          {selectedCompany && (
+            <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
+              <p className="text-sm text-red-800 font-medium">
+                This will permanently delete all{' '}
+                <span className="font-bold">{selectedCompany.count}</span> medicines from{' '}
+                <span className="font-bold">{selectedCompany.name}</span>. This cannot be undone.
+              </p>
+            </div>
+          )}
+
+          {/* Delete button + dialog */}
+          <Dialog
+            open={isCompanyDialogOpen}
+            onOpenChange={(open) => {
+              setIsCompanyDialogOpen(open);
+              if (!open) setConfirmText('');
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button
+                variant="destructive"
+                className="w-full gap-2 font-bold"
+                disabled={!selectedCompany}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete All {selectedCompany ? `"${selectedCompany.name}"` : 'Company'} Medicines
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-red-700">
+                  <AlertTriangle className="h-5 w-5" />
+                  Confirm Deletion
+                </DialogTitle>
+                <DialogDescription className="pt-2 text-slate-700">
+                  You are about to permanently delete{' '}
+                  <span className="font-bold text-slate-900">
+                    {selectedCompany?.count ?? 0} medicines
+                  </span>{' '}
+                  from{' '}
+                  <span className="font-bold text-slate-900">{selectedCompany?.name}</span>.
+                  <br />
+                  <span className="text-red-600 font-semibold text-xs uppercase mt-1 block">
+                    This cannot be undone.
+                  </span>
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-2 mt-2">
+                <p className="text-sm text-slate-600">
+                  Type{' '}
+                  <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1 rounded">
+                    {selectedCompany?.name}
+                  </span>{' '}
+                  to confirm:
+                </p>
+                <Input
+                  placeholder="Type company name here…"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+
+              <DialogFooter className="mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsCompanyDialogOpen(false);
+                    setConfirmText('');
+                  }}
+                  disabled={isDeletingCompany}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteByCompany}
+                  disabled={isDeletingCompany || confirmText !== selectedCompany?.name}
+                  className="gap-2 font-bold"
+                >
+                  {isDeletingCompany ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  Delete {selectedCompany?.count ?? 0} Medicines
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardContent>
+      </Card>
 
       {/* Raw Preview Table */}
       <Card className="border-slate-200 shadow-sm">
