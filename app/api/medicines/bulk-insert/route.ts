@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
       };
     });
 
+    console.log('Auth shopId:', user.shopId);
     console.log(`📦 [Bulk Insert API] Saving ${sanitizedMedicines.length} medicines to Database for shopId: ${user.shopId}`);
 
     let createdMedicineCount = 0;

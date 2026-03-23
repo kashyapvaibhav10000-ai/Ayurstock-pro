@@ -15,6 +15,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     const shopId = auth.user.shopId;
+    console.log('Clearing all medicines for shopId:', shopId);
 
     // Delete in correct order to avoid foreign key errors across ALL relations
     // 1. Transaction items and ledgers (reference Medicine and InventoryBatch)

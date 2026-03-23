@@ -69,6 +69,8 @@ export async function GET(request: NextRequest) {
           : {})
     };
 
+    console.log('Fetching medicines for shopId:', auth.user.shopId);
+
     const [medicines, total] = await Promise.all([
       prisma.medicine.findMany({
         where: coreWhere,
