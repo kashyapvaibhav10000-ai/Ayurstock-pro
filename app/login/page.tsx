@@ -80,8 +80,8 @@ export default function LoginPage() {
 
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-white/10 flex items-center justify-center ring-1 ring-white/20">
-              <Image src="/logo.png" width={28} height={28} alt="AyurStock Pro" />
+            <div className="h-12 w-12 rounded-2xl bg-white shadow-lg flex items-center justify-center p-1.5">
+              <Image src="/logo.png" width={36} height={36} alt="AyurStock Pro" className="object-contain" />
             </div>
             <div>
               <p className="text-white font-bold text-base leading-none tracking-tight">AyurStock Pro</p>
@@ -129,8 +129,8 @@ export default function LoginPage() {
 
         {/* Mobile logo (visible only on small screens) */}
         <div className="lg:hidden flex items-center gap-3 mb-10">
-          <div className="h-10 w-10 rounded-2xl bg-green-50 border border-green-100 flex items-center justify-center">
-            <Image src="/logo.png" width={24} height={24} alt="AyurStock Pro" />
+          <div className="h-11 w-11 rounded-2xl bg-white shadow-md border border-surface-border flex items-center justify-center p-1.5">
+            <Image src="/logo.png" width={28} height={28} alt="AyurStock Pro" className="object-contain" />
           </div>
           <div>
             <p className="font-bold text-text-primary">AyurStock Pro</p>
