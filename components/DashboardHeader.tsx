@@ -13,10 +13,12 @@ import Image from 'next/image';
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/dashboard/billing': 'Billing',
-  '/dashboard/medicines': 'Medicines',
+  '/dashboard/medicines': 'Medicine Master',
   '/dashboard/inventory': 'Inventory',
   '/dashboard/purchases': 'Purchases',
   '/dashboard/suppliers': 'Suppliers',
+  '/dashboard/returns': 'Returns',
+  '/dashboard/sales-history': 'Sales History',
   '/dashboard/reports': 'Reports',
   '/dashboard/settings': 'Settings',
 };
