@@ -16,6 +16,7 @@ import CompanySettings from '@/components/settings/company-settings';
 import ProfileSettings from '@/components/settings/profile-settings';
 import RackLocationsSettings from '@/components/settings/rack-locations-settings';
 import DataImportSettings from '@/components/settings/data-import-settings';
+import DatabaseAdmin from '@/components/settings/database-admin';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -29,6 +30,7 @@ const SETTINGS_CATEGORIES = [
   { id: 'companies', label: 'Suppliers', icon: Building, group: 'Billing' },
   { id: 'billing', label: 'Plans & Billing', icon: CreditCard, group: 'Billing' },
   { id: 'import', label: 'Bulk Import Data', icon: UploadCloud, group: 'Advanced' },
+  { id: 'database', label: 'Database Admin', icon: Database, group: 'Advanced' },
   { id: 'system', label: 'Preferences', icon: SettingsIcon, group: 'Advanced' },
 ];
 
@@ -73,6 +75,7 @@ export default function SettingsPage() {
       case 'companies': return <CompanySettings />;
       case 'billing': return <BillingSettings />;
       case 'import': return <DataImportSettings />;
+      case 'database': return <DatabaseAdmin />;
       case 'system': return <SystemSettings />;
       default: return <ShopSettings />;
     }
