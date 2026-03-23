@@ -52,8 +52,11 @@ interface ParsedMedicine {
   packing?: string
   mrp?: number
   tradePrice?: number
+  purchaseRate?: number
   category?: string
   hsn?: string
+  batchNo?: string
+  expiryDate?: string
   barcode?: string
   rackLocation?: string
   action?: "create" | "update" | "skip"
@@ -658,11 +661,13 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                     <TableHead>Name</TableHead>
                     <TableHead>Company</TableHead>
                     <TableHead>Packing</TableHead>
+                    <TableHead>HSN</TableHead>
+                    <TableHead>Batch No</TableHead>
+                    <TableHead>Expiry</TableHead>
                     <TableHead>MRP</TableHead>
-                    <TableHead>Trade</TableHead>
+                    <TableHead>Purchase Rate</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Issues</TableHead>
-                    <TableHead>HSN</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -703,8 +708,11 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                           ))}
                         </select>
                       </TableCell>
+                      <TableCell>{medicine.hsn || "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{medicine.batchNo || "-"}</TableCell>
+                      <TableCell className="text-xs">{medicine.expiryDate || "-"}</TableCell>
                       <TableCell>{medicine.mrp ? `₹${medicine.mrp}` : "-"}</TableCell>
-                      <TableCell>{medicine.tradePrice ? `₹${medicine.tradePrice}` : "-"}</TableCell>
+                      <TableCell>{medicine.purchaseRate ? `₹${medicine.purchaseRate}` : (medicine.tradePrice ? `₹${medicine.tradePrice}` : "-")}</TableCell>
                       <TableCell>
                         <select
                           value={category}
@@ -729,7 +737,6 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                           <span className="text-xs text-slate-500">OK</span>
                         )}
                       </TableCell>
-                      <TableCell>{medicine.hsn || "-"}</TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-2">
                           {duplicate ? (
