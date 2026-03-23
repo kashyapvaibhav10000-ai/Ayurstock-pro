@@ -47,24 +47,24 @@ export default function ReorderListPage() {
   return (
     <div className="space-y-4 p-6 md:p-8 max-w-[1200px] mx-auto print:p-4 print:max-w-full">
       {/* Header — hidden on print */}
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-text-primary">Low Stock Reorder List</h1>
+            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-text-primary">Low Stock Reorder List</h1>
             <p className="text-sm text-text-secondary">Medicines at or below stock threshold</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 pl-12 sm:pl-0">
           <label className="text-sm font-medium text-text-secondary flex items-center gap-2">
             Threshold ≤
             <input
               type="number"
               value={threshold}
               onChange={(e) => setThreshold(Number(e.target.value))}
-              className="w-16 rounded-md border border-input bg-background px-2 py-1 text-sm text-center"
+              className="w-16 rounded-md border border-input bg-background px-2 py-1.5 text-sm text-center"
               min={0}
             />
           </label>

@@ -137,7 +137,7 @@ export default function MoveToInventoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Move to Inventory</DialogTitle>
         </DialogHeader>
@@ -181,7 +181,7 @@ export default function MoveToInventoryModal({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Batch Number *</Label>
                 <Input
@@ -246,15 +246,15 @@ export default function MoveToInventoryModal({
               </div>
             </div>
 
-            <DialogFooter className="mt-4 gap-2">
-              <Button variant="outline" onClick={onClose} disabled={loading}>
+            <DialogFooter className="mt-4 flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={onClose} disabled={loading} className="w-full sm:w-auto">
                 Cancel
               </Button>
               <Button
                 variant="ghost"
                 onClick={handleSkip}
                 disabled={loading}
-                className="gap-1 text-slate-600"
+                className="gap-1 text-slate-600 w-full sm:w-auto"
               >
                 <SkipForward className="h-4 w-4" />
                 Skip
@@ -262,7 +262,7 @@ export default function MoveToInventoryModal({
               <Button
                 onClick={handleAdd}
                 disabled={!canAdd || loading}
-                className="bg-green-600 hover:bg-green-700 gap-1"
+                className="bg-green-600 hover:bg-green-700 gap-1 w-full sm:w-auto"
               >
                 {loading ? 'Adding...' : 'Add to Inventory'}
               </Button>

@@ -400,7 +400,7 @@ export default function MedicinesPage() {
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative min-w-[280px]">
+          <div className="relative w-full sm:min-w-[280px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
             <Input
               value={searchQuery}
@@ -467,7 +467,7 @@ export default function MedicinesPage() {
               <select
                 value={companyFilter}
                 onChange={(e) => setCompanyFilter(e.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm min-w-[160px]"
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm w-full sm:min-w-[160px]"
               >
                 <option value="">All Companies</option>
                 {companies.map((c) => (
@@ -520,9 +520,9 @@ export default function MedicinesPage() {
                   <TableHead className="font-bold text-text-secondary">Medicine</TableHead>
                   <TableHead className="font-bold text-text-secondary">Company</TableHead>
                   <TableHead className="font-bold text-text-secondary">Category</TableHead>
-                  <TableHead className="font-bold text-text-secondary">Packing</TableHead>
-                  <TableHead className="font-bold text-text-secondary">Barcode</TableHead>
-                  <TableHead className="font-bold text-text-secondary">GST %</TableHead>
+                  <TableHead className="font-bold text-text-secondary hidden sm:table-cell">Packing</TableHead>
+                  <TableHead className="font-bold text-text-secondary hidden lg:table-cell">Barcode</TableHead>
+                  <TableHead className="font-bold text-text-secondary hidden md:table-cell">GST %</TableHead>
                   <TableHead className="text-right font-bold text-text-secondary">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -585,7 +585,7 @@ export default function MedicinesPage() {
                           medicine.category
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         {editingRowId === medicine.id ? (
                           <select
                             value={editDraft?.packing || ''}
@@ -607,8 +607,8 @@ export default function MedicinesPage() {
                           medicine.packing || '-'
                         )}
                       </TableCell>
-                      <TableCell>{medicine.barcode || '-'}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell">{medicine.barcode || '-'}</TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {editingRowId === medicine.id ? (
                           <select
                             value={(editDraft as any)?.gstPercent ?? 0}
@@ -629,7 +629,7 @@ export default function MedicinesPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className={`flex justify-end gap-2 transition-opacity duration-150 ${editingRowId === medicine.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                        <div className={`flex justify-end gap-2 transition-opacity duration-150 ${editingRowId === medicine.id ? 'opacity-100' : 'opacity-100 xl:opacity-0 xl:group-hover:opacity-100'}`}>
                           {editingRowId === medicine.id ? (
                             <>
                               <Button size="sm" variant="outline" onClick={cancelInlineEdit}>

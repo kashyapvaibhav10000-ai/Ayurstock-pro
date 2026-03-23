@@ -176,7 +176,7 @@ export default function CreditsPage() {
                     {customer.sales.map((sale) => (
                       <div
                         key={sale.id}
-                        className="flex items-center justify-between gap-4 rounded-xl border border-surface-border bg-surface-muted/30 px-4 py-3"
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-surface-border bg-surface-muted/30 px-4 py-3"
                       >
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-text-primary">{sale.invoiceNumber}</p>
@@ -184,10 +184,10 @@ export default function CreditsPage() {
                             {new Date(sale.createdAt).toLocaleDateString('en-IN', {
                               day: 'numeric', month: 'short', year: 'numeric',
                             })}
-                            {' · '}Bill total: ₹{sale.grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                            {' · '}Bill: ₹{sale.grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                           </p>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                           <span className="text-sm font-bold text-orange-600">
                             ₹{sale.creditDue.toLocaleString('en-IN', { maximumFractionDigits: 2 })} due
                           </span>

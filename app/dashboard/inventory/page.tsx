@@ -185,7 +185,7 @@ export default function InventoryPage() {
             Track live stock, update batch details, and manage expiry-sensitive inventory.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
           <select
             className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
             value={companyFilter}
@@ -265,7 +265,7 @@ export default function InventoryPage() {
 
 
 
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
         <Card className="hover:-translate-y-1 transition-all duration-300">
           <CardHeader>
             <CardDescription className="font-bold tracking-wider text-xs uppercase">Total Batches</CardDescription>
@@ -314,16 +314,16 @@ export default function InventoryPage() {
                   <TableHead className="font-bold text-text-secondary">Batch</TableHead>
                   <TableHead className="font-bold text-text-secondary">Expiry</TableHead>
                   <TableHead className="font-bold text-text-secondary">Stock</TableHead>
-                  <TableHead className="font-bold text-text-secondary">Purchase Rate</TableHead>
+                  <TableHead className="font-bold text-text-secondary hidden md:table-cell">Purchase Rate</TableHead>
                   <TableHead className="font-bold text-text-secondary">MRP</TableHead>
-                  <TableHead className="font-bold text-text-secondary">Rack</TableHead>
+                  <TableHead className="font-bold text-text-secondary hidden sm:table-cell">Rack</TableHead>
                   <TableHead className="text-right font-bold text-text-secondary">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredBatches.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
+                    <TableCell colSpan={6} className="py-10 text-center text-sm text-slate-500">
                       No inventory batches found.
                     </TableCell>
                   </TableRow>
@@ -358,11 +358,11 @@ export default function InventoryPage() {
                           ) : null}
                         </TableCell>
                         <TableCell>{batch.stockQty}</TableCell>
-                        <TableCell>Rs. {Number(batch.purchaseRate).toFixed(2)}</TableCell>
+                        <TableCell className="hidden md:table-cell">Rs. {Number(batch.purchaseRate).toFixed(2)}</TableCell>
                         <TableCell>Rs. {Number(batch.mrp).toFixed(2)}</TableCell>
-                        <TableCell>{batch.rackLocation || '-'}</TableCell>
+                        <TableCell className="hidden sm:table-cell">{batch.rackLocation || '-'}</TableCell>
                         <TableCell>
-                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                          <div className="flex justify-end gap-2 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity duration-150">
                             <Button
                               size="icon"
                               variant="ghost"

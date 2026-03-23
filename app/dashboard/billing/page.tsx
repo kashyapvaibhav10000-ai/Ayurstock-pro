@@ -299,9 +299,9 @@ export default function BillingPage() {
   }, [handleCheckout, loading, resetBill]);
 
   return (
-    <div className="grid min-h-[calc(100vh-96px)] grid-cols-1 gap-6 p-6 xl:grid-cols-[1.15fr_1fr_360px] bg-background">
+    <div className="grid grid-cols-1 gap-3 p-3 md:gap-5 md:p-5 xl:grid-cols-[1.15fr_1fr_360px] xl:min-h-[calc(100vh-96px)] bg-background">
       {/* Search Section */}
-      <section className="flex flex-col h-full rounded-[24px] border border-surface-border bg-surface p-6 shadow-soft transition-shadow hover:shadow-bento">
+      <section className="flex flex-col xl:h-full rounded-[24px] border border-surface-border bg-surface p-4 md:p-6 shadow-soft transition-shadow hover:shadow-bento">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.22em] text-primary">
@@ -353,7 +353,7 @@ export default function BillingPage() {
           )}
         </div>
 
-        <div className="mt-auto pt-6">
+        <div className="mt-4 hidden sm:block">
           <div className="rounded-2xl bg-surface-muted px-4 py-3 text-xs text-text-secondary font-medium text-center">
             Shortcuts: <span className="font-bold text-text-primary">Arrow keys</span> navigate,
             <span className="ml-1 font-bold text-text-primary">Enter</span> adds item,
@@ -363,7 +363,7 @@ export default function BillingPage() {
       </section>
 
       {/* Cart Section */}
-      <section className="flex flex-col h-full rounded-[24px] border border-surface-border bg-surface shadow-soft transition-shadow hover:shadow-bento overflow-hidden">
+      <section className="flex flex-col xl:h-full rounded-[24px] border border-surface-border bg-surface shadow-soft transition-shadow hover:shadow-bento overflow-hidden">
         <div className="flex items-center justify-between border-b border-surface-border px-6 py-5 bg-surface-muted/30">
           <div>
             <div className="text-lg font-extrabold tracking-tight text-text-primary">Bill Cart</div>
@@ -376,7 +376,7 @@ export default function BillingPage() {
           </div>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-auto p-6 bg-[#fcfcfc]">
+        <div className="space-y-4 overflow-auto p-4 md:p-6 xl:flex-1 bg-[#fcfcfc] max-h-[60vh] xl:max-h-none">
           {cart.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-center text-sm text-text-muted space-y-4">
               <div className="h-16 w-16 bg-surface-muted rounded-full flex items-center justify-center">
@@ -397,7 +397,7 @@ export default function BillingPage() {
                   </div>
                   <button
                     onClick={() => removeFromCart(index)}
-                    className="opacity-0 group-hover:opacity-100 rounded-xl border border-surface-border bg-surface p-2 text-text-muted transition-all hover:bg-danger-bg hover:text-danger hover:border-danger/30"
+                    className="opacity-100 xl:opacity-0 xl:group-hover:opacity-100 rounded-xl border border-surface-border bg-surface p-2 text-text-muted transition-all hover:bg-danger-bg hover:text-danger hover:border-danger/30"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -444,7 +444,7 @@ export default function BillingPage() {
       </section>
 
       {/* Summary / Payment Section */}
-      <aside className="flex flex-col h-full rounded-[24px] border border-surface-border bg-surface shadow-soft transition-shadow hover:shadow-bento overflow-hidden">
+      <aside className="flex flex-col xl:h-full rounded-[24px] border border-surface-border bg-surface shadow-soft transition-shadow hover:shadow-bento overflow-hidden">
         <div className="p-6 pb-2 border-b border-surface-border bg-surface">
           <h2 className="text-lg font-extrabold tracking-tight text-text-primary">Payment Summary</h2>
         </div>
