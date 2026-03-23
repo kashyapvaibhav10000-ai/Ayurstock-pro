@@ -90,6 +90,7 @@ export async function GET(request: NextRequest) {
           hsn: true,
           packing: true,
           unit: true,
+          gstPercent: true,
           createdAt: true,
         },
         orderBy: { name: 'asc' },
@@ -189,6 +190,7 @@ export async function POST(request: NextRequest) {
         hsn: data.hsn,
         packing: data.packing || null,
         unit: data.unit || 'strip',
+        gstPercent: typeof (body as any).gstPercent === 'number' ? (body as any).gstPercent : 0,
       },
     });
 

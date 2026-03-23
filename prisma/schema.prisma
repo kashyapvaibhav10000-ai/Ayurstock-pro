@@ -197,6 +197,7 @@ model Medicine {
   mrp         Decimal? @default(0)
   tradePrice  Decimal? @default(0)
   lowStockThreshold Int    @default(0)
+  gstPercent  Int     @default(0)
   isActive    Boolean @default(true)
 
   batches     InventoryBatch[]

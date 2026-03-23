@@ -30,7 +30,7 @@ const SETTINGS_CATEGORIES = [
   { id: 'racks', label: 'Rack Locations', icon: Archive, group: 'General' },
   { id: 'profile', label: 'My Profile', icon: User, group: 'Account' },
   { id: 'users', label: 'Team', icon: Users, group: 'Account' },
-  { id: 'companies', label: 'Suppliers', icon: Building, group: 'Billing' },
+  { id: 'companies', label: 'Company', icon: Building, group: 'General' },
   { id: 'billing', label: 'Plans & Billing', icon: CreditCard, group: 'Billing' },
   { id: 'import', label: 'Bulk Import Data', icon: UploadCloud, group: 'Advanced' },
   { id: 'database', label: 'Database Admin', icon: Database, group: 'Advanced' },

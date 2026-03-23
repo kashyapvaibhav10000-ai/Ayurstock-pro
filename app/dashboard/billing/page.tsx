@@ -14,6 +14,7 @@ interface BillingSuggestion {
   name: string;
   company: string;
   barcode?: string;
+  gstPercent: number;
   batchNumber: string;
   stockQty: number;
   mrp: number;
@@ -92,7 +93,7 @@ export default function BillingPage() {
       mrp: suggestion.mrp,
       rate: suggestion.rate,
       discount: 0,
-      gstPercent: saleType === 'RETAIL' ? 5 : 12,
+      gstPercent: suggestion.gstPercent ?? 0,
       gst: 0,
       amount: 0,
       rackLocation: suggestion.rackLocation,
@@ -208,7 +209,7 @@ export default function BillingPage() {
     try {
       const normalizedCustomer = {
         name: customerName.trim() || 'Walk-in Customer',
-        phone: customerPhone.trim() || '0000000000',
+        phone: customerPhone.trim() || '',
         address: customerAddress.trim() || 'Walk-in',
       };
 

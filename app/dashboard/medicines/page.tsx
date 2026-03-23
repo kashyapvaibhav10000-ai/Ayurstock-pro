@@ -44,6 +44,7 @@ const emptyForm = {
   category: '',
   barcode: '',
   hsn: '',
+  gstPercent: 0,
 };
 
 const CATEGORY_OPTIONS = [
@@ -521,13 +522,14 @@ export default function MedicinesPage() {
                   <TableHead className="font-bold text-text-secondary">Category</TableHead>
                   <TableHead className="font-bold text-text-secondary">Packing</TableHead>
                   <TableHead className="font-bold text-text-secondary">Barcode</TableHead>
+                  <TableHead className="font-bold text-text-secondary">GST %</TableHead>
                   <TableHead className="text-right font-bold text-text-secondary">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visibleMedicines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center text-sm text-slate-500">
+                    <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
                       No medicines found.
                     </TableCell>
                   </TableRow>
@@ -606,6 +608,26 @@ export default function MedicinesPage() {
                         )}
                       </TableCell>
                       <TableCell>{medicine.barcode || '-'}</TableCell>
+                      <TableCell>
+                        {editingRowId === medicine.id ? (
+                          <select
+                            value={(editDraft as any)?.gstPercent ?? 0}
+                            onChange={(e) =>
+                              setEditDraft((current) =>
+                                current ? { ...current, gstPercent: Number(e.target.value) } as any : current
+                              )
+                            }
+                            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                          >
+                            <option value={0}>0%</option>
+                            <option value={5}>5%</option>
+                            <option value={12}>12%</option>
+                            <option value={18}>18%</option>
+                          </select>
+                        ) : (
+                          `${(medicine as any).gstPercent ?? 0}%`
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
                           {editingRowId === medicine.id ? (
@@ -737,14 +759,30 @@ export default function MedicinesPage() {
                 />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="medicine-create-barcode">Barcode (optional)</Label>
-              <Input
-                id="medicine-create-barcode"
-                value={formData.barcode}
-                onChange={(e) => setFormData((current) => ({ ...current, barcode: e.target.value }))}
-                placeholder="Numeric barcode"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="medicine-create-barcode">Barcode (optional)</Label>
+                <Input
+                  id="medicine-create-barcode"
+                  value={formData.barcode}
+                  onChange={(e) => setFormData((current) => ({ ...current, barcode: e.target.value }))}
+                  placeholder="Numeric barcode"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="medicine-create-gst">GST %</Label>
+                <select
+                  id="medicine-create-gst"
+                  value={formData.gstPercent}
+                  onChange={(e) => setFormData((current) => ({ ...current, gstPercent: Number(e.target.value) }))}
+                  className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value={0}>0% (Exempt)</option>
+                  <option value={5}>5%</option>
+                  <option value={12}>12%</option>
+                  <option value={18}>18%</option>
+                </select>
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => { setShowAddModal(false); setFormData(emptyForm); }}>

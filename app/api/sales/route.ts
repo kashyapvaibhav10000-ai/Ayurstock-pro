@@ -35,32 +35,36 @@ export async function POST(request: NextRequest) {
       const normalizedName = customer.name.trim();
       const normalizedAddress = customer.address.trim();
 
-      const existingCustomer = await prisma.customer.findFirst({
-        where: {
-          shopId: auth.user.shopId,
-          phone: normalizedPhone,
-        },
-      });
-
-      if (existingCustomer) {
-        resolvedCustomerId = existingCustomer.id;
-        await prisma.customer.update({
-          where: { id: existingCustomer.id },
-          data: {
-            name: normalizedName,
-            address: normalizedAddress,
-          },
-        });
-      } else {
-        const createdCustomer = await prisma.customer.create({
-          data: {
+      // Only create/link a customer record when a real phone number is provided.
+      // Walk-in sales (empty phone) are recorded without a customer FK.
+      if (normalizedPhone) {
+        const existingCustomer = await prisma.customer.findFirst({
+          where: {
             shopId: auth.user.shopId,
-            name: normalizedName,
             phone: normalizedPhone,
-            address: normalizedAddress,
           },
         });
-        resolvedCustomerId = createdCustomer.id;
+
+        if (existingCustomer) {
+          resolvedCustomerId = existingCustomer.id;
+          await prisma.customer.update({
+            where: { id: existingCustomer.id },
+            data: {
+              name: normalizedName,
+              address: normalizedAddress,
+            },
+          });
+        } else {
+          const createdCustomer = await prisma.customer.create({
+            data: {
+              shopId: auth.user.shopId,
+              name: normalizedName,
+              phone: normalizedPhone,
+              address: normalizedAddress,
+            },
+          });
+          resolvedCustomerId = createdCustomer.id;
+        }
       }
     }
 
