@@ -535,7 +535,7 @@ export default function MedicinesPage() {
                   </TableRow>
                 ) : (
                   visibleMedicines.map((medicine) => (
-                    <TableRow key={medicine.id} className="hover:bg-gray-50">
+                    <TableRow key={medicine.id} className="group hover:bg-green-50/40 transition-colors duration-100">
                       <TableCell>
                         <Checkbox
                           checked={selectedMedicines.has(medicine.id)}
@@ -629,7 +629,7 @@ export default function MedicinesPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex justify-end gap-2">
+                        <div className={`flex justify-end gap-2 transition-opacity duration-150 ${editingRowId === medicine.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                           {editingRowId === medicine.id ? (
                             <>
                               <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
@@ -642,20 +642,22 @@ export default function MedicinesPage() {
                           ) : (
                             <Button
                               size="icon"
-                              variant="outline"
+                              variant="ghost"
+                              className="h-8 w-8 text-text-muted hover:text-primary hover:bg-primary/10"
                               onClick={() => startInlineEdit(medicine)}
                               title="Quick edit"
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           <Button
                             size="icon"
-                            variant="outline"
+                            variant="ghost"
+                            className="h-8 w-8 text-text-muted hover:text-red-600 hover:bg-red-50"
                             onClick={() => handleDeleteMedicine(medicine)}
                             title="Delete medicine"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </TableCell>
