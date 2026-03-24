@@ -141,7 +141,17 @@ function normalizeMedicine(item: any): ParsedMedicine | null {
   const mrp = typeof item.mrp === 'number' ? item.mrp : Number(item.mrp)
   const tradePrice = typeof item.tradePrice === 'number' ? item.tradePrice : Number(item.tradePrice)
   if (!name || !packing || Number.isNaN(mrp) || Number.isNaN(tradePrice)) return null
-  return { name, packing, mrp, tradePrice }
+  
+  const normalized: ParsedMedicine = { name, packing, mrp, tradePrice }
+  if (item.company && typeof item.company === 'string') normalized.company = item.company.trim()
+  if (item.hsn && (typeof item.hsn === 'string' || typeof item.hsn === 'number')) normalized.hsn = String(item.hsn).trim()
+  if (item.batchNo && typeof item.batchNo === 'string') normalized.batchNo = item.batchNo.trim()
+  if (item.expiryDate && typeof item.expiryDate === 'string') normalized.expiryDate = item.expiryDate.trim()
+  if (typeof item.purchaseRate === 'number' || (item.purchaseRate && !Number.isNaN(Number(item.purchaseRate)))) {
+    normalized.purchaseRate = Number(item.purchaseRate)
+  }
+  
+  return normalized
 }
 
 // Dedup removed — bulk-insert handles DB-level deduplication via upsert.
@@ -984,3 +994,4 @@ export async function parseTextWithAI(extractedText: string): Promise<ParseResul
 export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseResult> {
   return parseTextWithAI(rawOcrText);
 }
+
