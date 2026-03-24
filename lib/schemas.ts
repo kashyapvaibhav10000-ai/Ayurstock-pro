@@ -137,9 +137,9 @@ export const CreateSaleSchema = z.object({
   customerId: z.string().optional().nullable(),
   customer: z
     .object({
-      name: z.string().min(2, 'Customer name is required'),
-      phone: z.string().min(10, 'Valid phone number required'),
-      address: z.string().min(5, 'Address is required'),
+      name: z.string().min(1, 'Customer name is required'),
+      phone: z.string().optional().nullable().or(z.literal('')),
+      address: z.string().optional().nullable().or(z.literal('')),
     })
     .optional(),
   saleType: z.enum(['RETAIL', 'WHOLESALE']),
