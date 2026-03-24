@@ -218,12 +218,27 @@ async function processChunks(
   delayMs: number = REQUEST_INTERVAL_MS
 ): Promise<ParsedMedicine[]> {
   const allMedicines: ParsedMedicine[] = []
+  let failedChunks = 0
   for (let i = 0; i < chunks.length; i++) {
-    const medicines = await processFn(chunks[i], i, chunks.length)
-    allMedicines.push(...medicines)
+    try {
+      const medicines = await processFn(chunks[i], i, chunks.length)
+      allMedicines.push(...medicines)
+    } catch (err: any) {
+      failedChunks++
+      const msg = err instanceof Error ? err.message : String(err)
+      console.warn(`  ⚠️ Chunk ${i + 1}/${chunks.length} failed: ${msg}`)
+      // On rate limit, stop sending more chunks (they'll all fail too)
+      if (msg.includes('RATE_LIMIT') || err?.status === 429) {
+        console.warn(`  🛑 Rate limited at chunk ${i + 1}/${chunks.length}. Keeping ${allMedicines.length} medicines from ${i} successful chunks.`)
+        break
+      }
+    }
     if (i < chunks.length - 1) {
       await new Promise(r => setTimeout(r, delayMs))
     }
+  }
+  if (allMedicines.length === 0 && failedChunks > 0) {
+    throw new Error('All chunks failed')
   }
   return allMedicines
 }
