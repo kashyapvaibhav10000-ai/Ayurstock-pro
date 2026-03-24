@@ -369,7 +369,7 @@ async function parseWithCerebras(text: string, pdfType: PdfType = 'scanned'): Pr
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'llama3.3-70b',
+        model: 'llama3.1-8b',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
