@@ -27,13 +27,14 @@ export type ParseErrorCode =
 export interface ParseResult {
   medicines: ParsedMedicine[];
   pdfType: PdfType;
-  provider?: 'gemini' | 'groq' | 'cloudflare' | 'mistral' | 'openrouter';
+  provider?: 'gemini' | 'cerebras' | 'groq' | 'cloudflare' | 'mistral' | 'openrouter';
   errorCode?: ParseErrorCode;
   errorMessage?: string;
 }
 
 // ─── Chunk sizes per tier (based on each API's limits) ───────────────────────
 const GEMINI_CHUNK_SIZE = 25000   // 2 chunks for ~50k char PDF
+const CEREBRAS_CHUNK_SIZE = 8000  // 60k TPM — can handle larger chunks
 const GROQ_CHUNK_SIZE = 7000    // 7 chunks
 const CLOUDFLARE_CHUNK_SIZE = 6000   // Reduced chunk count
 const MISTRAL_CHUNK_SIZE = 7000    // ~22 chunks for large PDFs
@@ -59,6 +60,7 @@ const MAX_CONCURRENT = 1
 
 // ─── Daily usage limits ───────────────────────────────────────────────────────
 const GEMINI_DAILY_LIMIT = 1400
+const CEREBRAS_DAILY_LIMIT = 50000  // Very generous free tier
 const GROQ_DAILY_LIMIT = 14000
 const CLOUDFLARE_DAILY_LIMIT = 10000
 const MISTRAL_DAILY_LIMIT = 1000
@@ -102,13 +104,13 @@ async function getDailyUsage() {
   try {
     const today = new Date().toISOString().split('T')[0];
     const record = await prisma.apiUsageCounter.findUnique({ where: { date: today } });
-    return record || { gemini: 0, groq: 0, openrouter: 0, cloudflare: 0, mistral: 0 };
+    return record || { gemini: 0, cerebras: 0, groq: 0, openrouter: 0, cloudflare: 0, mistral: 0 };
   } catch (e) {
-    return { gemini: 0, groq: 0, openrouter: 0, cloudflare: 0, mistral: 0 };
+    return { gemini: 0, cerebras: 0, groq: 0, openrouter: 0, cloudflare: 0, mistral: 0 };
   }
 }
 
-async function incrementUsage(provider: 'gemini' | 'groq' | 'cloudflare' | 'mistral' | 'openrouter') {
+async function incrementUsage(provider: 'gemini' | 'cerebras' | 'groq' | 'cloudflare' | 'mistral' | 'openrouter') {
   try {
     const today = new Date().toISOString().split('T')[0];
     await prisma.apiUsageCounter.upsert({
@@ -245,7 +247,7 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
   };
 
   const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
   );
 
@@ -279,7 +281,7 @@ async function parseTextWithGemini(text: string): Promise<ParseResult> {
     };
 
     const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
     );
 
@@ -328,7 +330,7 @@ async function parseTextWithGroq(text: string, pdfType: PdfType = 'scanned'): Pr
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'gemma2-9b-it',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
@@ -349,6 +351,45 @@ async function parseTextWithGroq(text: string, pdfType: PdfType = 'scanned'): Pr
 
   console.log(`⚡ Groq extracted ${allMedicines.length} medicines`);
   return { medicines: dedup(allMedicines), pdfType, provider: 'groq' };
+}
+
+// ─── TIER 2b: Cerebras ────────────────────────────────────────────────────────
+async function parseWithCerebras(text: string, pdfType: PdfType = 'scanned'): Promise<ParseResult> {
+  const apiKey = process.env.CEREBRAS_API_KEY;
+  if (!apiKey) throw new Error('NO_API_KEY');
+  if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
+
+  console.log('🧠 Calling Cerebras API...');
+  const chunks = splitTextIntoChunks(text, CEREBRAS_CHUNK_SIZE);
+  console.log(`  Cerebras: ${chunks.length} chunks`);
+
+  const allMedicines = await processChunks(chunks, async (chunk, i, total) => {
+    console.log(`  🧠 Cerebras chunk ${i + 1}/${total} (${chunk.length} chars)`);
+    const resp = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
+        ],
+        temperature: 0,
+        max_tokens: 8192
+      })
+    });
+
+    if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
+    if (!resp.ok) throw new Error(`Cerebras status ${resp.status}`);
+
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Empty response from Cerebras');
+    return parseJsonSafely(content);
+  }, 1000);
+
+  console.log(`🧠 Cerebras extracted ${allMedicines.length} medicines`);
+  return { medicines: dedup(allMedicines), pdfType, provider: 'cerebras' };
 }
 
 // ─── TIER 3: Cloudflare AI ────────────────────────────────────────────────────
@@ -632,20 +673,31 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
 
   console.log(`📊 Extracted ${extractedText.length} chars from PDF`);
 
-  // TIER 2 — Groq
+  // TIER 2 — Cerebras
+  try {
+    if (process.env.CEREBRAS_API_KEY && ((usage as any).cerebras ?? 0) < CEREBRAS_DAILY_LIMIT) {
+      const result = await parseWithCerebras(extractedText, 'searchable');
+      if (result.medicines.length > 0) { await incrementUsage('cerebras'); return result; }
+    }
+  } catch (error: any) {
+    if (error?.status === 429) console.log('Cerebras rate limited, trying Groq...');
+    else console.error('Cerebras error:', error?.message || error);
+  }
+
+  // TIER 3 — Groq
   try {
     if (process.env.GROQ_API_KEY && usage.groq < GROQ_DAILY_LIMIT) {
       const result = await parseTextWithGroq(extractedText, 'searchable');
       if (result.medicines.length > 0) { await incrementUsage('groq'); return result; }
     } else if (usage.groq >= GROQ_DAILY_LIMIT) {
-      console.log('Groq daily limit reached. Skipping Tier 2.');
+      console.log('Groq daily limit reached. Skipping Tier 3.');
     }
   } catch (error: any) {
     if (error?.status === 429) console.log('Groq rate limited, trying Mistral...');
     else console.error('Groq error:', error?.message || error);
   }
 
-  // TIER 3 — Mistral
+  // TIER 4 — Mistral
   try {
     if (process.env.MISTRAL_API_KEY && usage.mistral < MISTRAL_DAILY_LIMIT) {
       const result = await parseWithMistral(extractedText, 'searchable');
@@ -710,20 +762,31 @@ export async function parseTextWithAI(extractedText: string): Promise<ParseResul
     else console.error('Gemini error:', error?.message || error);
   }
 
-  // TIER 2 — Groq
+  // TIER 2 — Cerebras
+  try {
+    if (process.env.CEREBRAS_API_KEY && ((usage as any).cerebras ?? 0) < CEREBRAS_DAILY_LIMIT) {
+      const result = await parseWithCerebras(cleanedText);
+      if (result.medicines.length > 0) { await incrementUsage('cerebras'); return result; }
+    }
+  } catch (error: any) {
+    if (error?.status === 429) console.log('Cerebras rate limited, trying Groq...');
+    else console.error('Cerebras error:', error?.message || error);
+  }
+
+  // TIER 3 — Groq
   try {
     if (process.env.GROQ_API_KEY && usage.groq < GROQ_DAILY_LIMIT) {
       const result = await parseTextWithGroq(cleanedText);
       if (result.medicines.length > 0) { await incrementUsage('groq'); return result; }
     } else if (usage.groq >= GROQ_DAILY_LIMIT) {
-      console.log('Groq daily limit reached. Skipping Tier 2.');
+      console.log('Groq daily limit reached. Skipping Tier 3.');
     }
   } catch (error: any) {
     if (error?.status === 429) console.log('Groq rate limited, trying Mistral...');
     else console.error('Groq error:', error?.message || error);
   }
 
-  // TIER 3 — Mistral
+  // TIER 4 — Mistral
   try {
     if (process.env.MISTRAL_API_KEY && usage.mistral < MISTRAL_DAILY_LIMIT) {
       const result = await parseWithMistral(cleanedText);

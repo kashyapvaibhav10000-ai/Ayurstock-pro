@@ -508,5 +508,6 @@ model ApiUsageCounter {
   openrouter Int      @default(0)
   cloudflare Int      @default(0)
   mistral    Int      @default(0)
+  cerebras   Int      @default(0)
   updatedAt  DateTime @updatedAt
 }
