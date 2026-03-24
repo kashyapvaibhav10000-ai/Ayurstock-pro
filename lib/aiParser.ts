@@ -35,7 +35,7 @@ export interface ParseResult {
 // ─── Chunk sizes per tier (based on each API's limits) ───────────────────────
 const GEMINI_CHUNK_SIZE = 500000  // always 1 chunk — Gemini has 1M token context
 const CEREBRAS_CHUNK_SIZE = 8000  // 60k TPM — can handle larger chunks
-const GROQ_CHUNK_SIZE = 7000    // 7 chunks
+const GROQ_CHUNK_SIZE = 6000    // smaller chunks to avoid context overflow
 const CLOUDFLARE_CHUNK_SIZE = 6000   // Reduced chunk count
 const MISTRAL_CHUNK_SIZE = 7000    // ~22 chunks for large PDFs
 const OPENROUTER_CHUNK_SIZE = 3500   // 15 chunks
@@ -247,7 +247,7 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
   };
 
   const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
   );
 
@@ -281,7 +281,7 @@ async function parseTextWithGemini(text: string): Promise<ParseResult> {
     };
 
     const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
     );
 
@@ -330,7 +330,7 @@ async function parseTextWithGroq(text: string, pdfType: PdfType = 'scanned'): Pr
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'llama-3.3-70b-versatile',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
@@ -369,7 +369,7 @@ async function parseWithCerebras(text: string, pdfType: PdfType = 'scanned'): Pr
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'llama3.1-8b',
+        model: 'llama-3.3-70b',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
@@ -649,14 +649,16 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
 
   // TIER 1 — Gemini (sends whole PDF natively)
   try {
-    if (process.env.GEMINI_API_KEY && usage.gemini < GEMINI_DAILY_LIMIT) {
-      const result = await parseWithGemini(pdfBuffer);
-      if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
+    if (!process.env.GEMINI_API_KEY) {
+      console.log('⚠️ GEMINI_API_KEY not found in environment. Skipping Gemini.');
     } else if (usage.gemini >= GEMINI_DAILY_LIMIT) {
       console.log('Gemini daily limit reached. Skipping Tier 1.');
+    } else {
+      const result = await parseWithGemini(pdfBuffer);
+      if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
     }
   } catch (error: any) {
-    if (error?.status === 429) console.log('Gemini rate limited, trying Groq...');
+    if (error?.status === 429) console.log('Gemini rate limited, trying next tier...');
     else console.error('Gemini error:', error?.message || error);
   }
 
@@ -751,14 +753,16 @@ export async function parseTextWithAI(extractedText: string): Promise<ParseResul
 
   // TIER 1 — Gemini
   try {
-    if (process.env.GEMINI_API_KEY && usage.gemini < GEMINI_DAILY_LIMIT) {
-      const result = await parseTextWithGemini(cleanedText);
-      if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
+    if (!process.env.GEMINI_API_KEY) {
+      console.log('⚠️ GEMINI_API_KEY not found in environment. Skipping Gemini.');
     } else if (usage.gemini >= GEMINI_DAILY_LIMIT) {
       console.log('Gemini daily limit reached. Skipping Tier 1.');
+    } else {
+      const result = await parseTextWithGemini(cleanedText);
+      if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
     }
   } catch (error: any) {
-    if (error?.status === 429) console.log('Gemini rate limited, trying Groq...');
+    if (error?.status === 429) console.log('Gemini rate limited, trying next tier...');
     else console.error('Gemini error:', error?.message || error);
   }
 
