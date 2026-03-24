@@ -330,7 +330,7 @@ async function parseTextWithGroq(text: string, pdfType: PdfType = 'scanned'): Pr
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'gemma2-9b-it',
+        model: 'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
