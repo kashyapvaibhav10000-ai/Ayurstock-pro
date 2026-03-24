@@ -676,6 +676,15 @@ export default function ImportMedicinesModal({
   const handleImport = async () => {
     console.log('Save clicked, medicines count:', previewRef.current?.length);
     const selectedMedicines = Array.from(selectedRows).map((index) => previewRef.current[index]).filter(Boolean);
+    
+    // Prevent importing with missing company
+    const missingCompany = selectedMedicines.find(m => !m.company || !m.company.trim());
+    if (missingCompany) {
+      toast.error('Missing Company Name! Please select or enter a company for all medicines before saving.');
+      setParseError('Missing Company Name! Please select or enter a company for all medicines before saving.');
+      return;
+    }
+
     console.log('Sending to API:', JSON.stringify(selectedMedicines));
     
     setLoading(true);

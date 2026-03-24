@@ -37,7 +37,7 @@ const GEMINI_CHUNK_SIZE = 500000  // always 1 chunk — Gemini has 1M token cont
 const CEREBRAS_CHUNK_SIZE = 4000  // smaller chunks to prevent JSON output truncation
 const GROQ_CHUNK_SIZE = 5000    // smaller chunks for 70b model context limits
 const CLOUDFLARE_CHUNK_SIZE = 6000   // Reduced chunk count
-const MISTRAL_CHUNK_SIZE = 7000    // ~22 chunks for large PDFs
+const MISTRAL_CHUNK_SIZE = 5000    // ~22 chunks for large PDFs
 const OPENROUTER_CHUNK_SIZE = 3500   // 15 chunks
 
 // ─── Cloudflare & Mistral config ─────────────────────────────────────────────
@@ -97,7 +97,8 @@ RULES:
 10. Extract ALL medicines — do not stop early or limit the count
 11. NEVER extract disease names as medicine names (e.g. LEPROSY, ARTHRITIS, FEVER, PAIN are NOT medicines)
 12. Medicine names are product brand names like 'TRIPHALA CHURNA', 'AROGYAVARDHINI VATI', 'ADULSA SYRUP'
-13. Price sanity: MRP must be 1–10000. TradePrice must be ≤ MRP. Skip impossible prices.`
+13. IMPORTANT: Check meticulously for Company or Manufacturer names if present in the text structure.
+14. Price sanity: MRP must be 1–10000. TradePrice must be ≤ MRP. Skip impossible prices.`
 
 // ─── Prisma usage tracking ────────────────────────────────────────────────────
 async function getDailyUsage() {
@@ -196,7 +197,7 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
   const lines = text.split('\n')
   const chunks: string[] = []
   let currentChunk = ''
-  const OVERLAP_LINES = 2
+  const OVERLAP_LINES = 5
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
