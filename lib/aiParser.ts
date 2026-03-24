@@ -33,7 +33,7 @@ export interface ParseResult {
 }
 
 // ─── Chunk sizes per tier (based on each API's limits) ───────────────────────
-const GEMINI_CHUNK_SIZE = 25000   // 2 chunks for ~50k char PDF
+const GEMINI_CHUNK_SIZE = 500000  // always 1 chunk — Gemini has 1M token context
 const CEREBRAS_CHUNK_SIZE = 8000  // 60k TPM — can handle larger chunks
 const GROQ_CHUNK_SIZE = 7000    // 7 chunks
 const CLOUDFLARE_CHUNK_SIZE = 6000   // Reduced chunk count
