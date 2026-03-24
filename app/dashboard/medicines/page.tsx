@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import ImportMedicinesModal, { ParsedMedicine } from '@/components/ImportMedicinesModal';
+import { AYUKALP_CATALOG } from '@/lib/ayukalp-catalog';
 import MoveToInventoryModal from '@/components/MoveToInventoryModal';
 import { EditableMedicine } from '@/components/MedicineEditModal';
 
@@ -104,6 +105,7 @@ export default function MedicinesPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [importingAyukalp, setImportingAyukalp] = useState(false);
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAll, setSelectedAll] = useState(false);
@@ -249,6 +251,21 @@ export default function MedicinesPage() {
     } catch (error) {
       console.error('Failed to add medicine:', error);
       toast.error('Failed to add medicine');
+    }
+  };
+
+  const handleAyukalpImport = async () => {
+    if (!window.confirm(`Import ${AYUKALP_CATALOG.length} Ayukalp classical medicines? Duplicates will be skipped.`)) return;
+    setImportingAyukalp(true);
+    try {
+      const response = await axios.post('/api/medicines/bulk-insert', { medicines: AYUKALP_CATALOG });
+      if (!response.data.success) throw new Error(response.data.message || 'Import failed');
+      toast.success(response.data.message || 'Ayukalp catalog imported successfully');
+      await loadMedicines();
+    } catch (error) {
+      toast.error('Failed to import Ayukalp catalog');
+    } finally {
+      setImportingAyukalp(false);
     }
   };
 
@@ -412,6 +429,10 @@ export default function MedicinesPage() {
           <Button variant="outline" className="gap-2 rounded-2xl shadow-soft hover:shadow-bento transition-all" onClick={() => setShowImportModal(true)}>
             <Upload className="h-4 w-4" />
             Import Medicines
+          </Button>
+          <Button variant="outline" className="gap-2 rounded-2xl shadow-soft hover:shadow-bento transition-all border-green-200 text-green-700 hover:bg-green-50" onClick={handleAyukalpImport} disabled={importingAyukalp}>
+            <Boxes className="h-4 w-4" />
+            {importingAyukalp ? 'Importing…' : 'Import Ayukalp Catalog'}
           </Button>
           <Button className="gap-2 rounded-2xl shadow-soft hover:shadow-bento transition-all" onClick={() => setShowAddModal(true)}>
             <Plus className="h-4 w-4" />
