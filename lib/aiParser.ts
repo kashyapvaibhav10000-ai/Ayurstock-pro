@@ -198,17 +198,31 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
   const chunks: string[] = []
   let currentChunk = ''
   const OVERLAP_LINES = 5
+  // Safety cap to prevent infinite accumulation when PDF text lacks newlines
+  const MAX_OVERLAP_CHARS = 500
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+    if (!line.trim()) continue
+    
     const potentialLength = currentChunk.length + line.length + (currentChunk ? 1 : 0)
+    
     if (potentialLength > maxChars && currentChunk) {
       chunks.push(currentChunk)
-      const overlapLines = currentChunk.split('\n').slice(-OVERLAP_LINES)
-      currentChunk = overlapLines.join('\n')
+      
+      let overlapLines = currentChunk.split('\n').slice(-OVERLAP_LINES)
+      let overlapText = overlapLines.join('\n')
+      
+      if (overlapText.length > MAX_OVERLAP_CHARS) {
+        overlapText = overlapText.substring(overlapText.length - MAX_OVERLAP_CHARS)
+      }
+      
+      currentChunk = overlapText
     }
+    
     currentChunk += (currentChunk ? '\n' : '') + line
   }
+  
   if (currentChunk) chunks.push(currentChunk)
   return chunks
 }
