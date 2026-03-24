@@ -34,7 +34,7 @@ export interface ParseResult {
 
 // ─── Chunk sizes per tier (based on each API's limits) ───────────────────────
 const GEMINI_CHUNK_SIZE = 500000  // always 1 chunk — Gemini has 1M token context
-const CEREBRAS_CHUNK_SIZE = 8000  // 60k TPM — can handle larger chunks
+const CEREBRAS_CHUNK_SIZE = 4000  // smaller chunks to prevent JSON output truncation
 const GROQ_CHUNK_SIZE = 5000    // smaller chunks for 70b model context limits
 const CLOUDFLARE_CHUNK_SIZE = 6000   // Reduced chunk count
 const MISTRAL_CHUNK_SIZE = 7000    // ~22 chunks for large PDFs
@@ -774,7 +774,41 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
 
 // ─── Build tier configs ───────────────────────────────────────────────────────
 function buildTextTiers(usage: any): TextTierConfig[] {
+  // Mistral first — best quality (2100+ medicines vs 1200 from Cerebras)
   return [
+    {
+      name: 'mistral',
+      chunkSize: MISTRAL_CHUNK_SIZE,
+      delayMs: REQUEST_INTERVAL_MS,
+      available: () => !!(process.env.MISTRAL_API_KEY && usage.mistral < MISTRAL_DAILY_LIMIT),
+      processFn: async (chunk, i, total) => {
+        console.log(`  🌟 Mistral chunk ${i + 1}/${total} (${chunk.length} chars)`);
+        const apiKey = process.env.MISTRAL_API_KEY!;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        try {
+          const resp = await fetch('https://api.mistral.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: MISTRAL_MODEL,
+              messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
+              ],
+              temperature: 0, max_tokens: 8192
+            }),
+            signal: controller.signal
+          });
+          if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
+          if (!resp.ok) throw new Error(`Mistral status ${resp.status}`);
+          const data = await resp.json();
+          const content = data?.choices?.[0]?.message?.content;
+          if (!content) throw new Error('Empty response');
+          return parseJsonSafely(content);
+        } finally { clearTimeout(timeoutId); }
+      }
+    },
     {
       name: 'cerebras',
       chunkSize: CEREBRAS_CHUNK_SIZE,
@@ -829,39 +863,6 @@ function buildTextTiers(usage: any): TextTierConfig[] {
         const content = data?.choices?.[0]?.message?.content;
         if (!content) throw new Error('Empty response');
         return parseJsonSafely(content);
-      }
-    },
-    {
-      name: 'mistral',
-      chunkSize: MISTRAL_CHUNK_SIZE,
-      delayMs: REQUEST_INTERVAL_MS,
-      available: () => !!(process.env.MISTRAL_API_KEY && usage.mistral < MISTRAL_DAILY_LIMIT),
-      processFn: async (chunk, i, total) => {
-        console.log(`  🌟 Mistral chunk ${i + 1}/${total} (${chunk.length} chars)`);
-        const apiKey = process.env.MISTRAL_API_KEY!;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-        try {
-          const resp = await fetch('https://api.mistral.ai/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({
-              model: MISTRAL_MODEL,
-              messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
-              ],
-              temperature: 0, max_tokens: 8192
-            }),
-            signal: controller.signal
-          });
-          if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-          if (!resp.ok) throw new Error(`Mistral status ${resp.status}`);
-          const data = await resp.json();
-          const content = data?.choices?.[0]?.message?.content;
-          if (!content) throw new Error('Empty response');
-          return parseJsonSafely(content);
-        } finally { clearTimeout(timeoutId); }
       }
     },
     {
