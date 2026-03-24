@@ -35,7 +35,7 @@ export interface ParseResult {
 // ─── Chunk sizes per tier (based on each API's limits) ───────────────────────
 const GEMINI_CHUNK_SIZE = 500000  // always 1 chunk — Gemini has 1M token context
 const CEREBRAS_CHUNK_SIZE = 8000  // 60k TPM — can handle larger chunks
-const GROQ_CHUNK_SIZE = 6000    // smaller chunks to avoid context overflow
+const GROQ_CHUNK_SIZE = 5000    // smaller chunks for 70b model context limits
 const CLOUDFLARE_CHUNK_SIZE = 6000   // Reduced chunk count
 const MISTRAL_CHUNK_SIZE = 7000    // ~22 chunks for large PDFs
 const OPENROUTER_CHUNK_SIZE = 3500   // 15 chunks
@@ -267,9 +267,9 @@ async function parseTextWithGemini(text: string): Promise<ParseResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('NO_API_KEY');
 
-  console.log('💎 Calling Gemini API (Text mode — 2 chunks)...');
+  console.log(`💎 Calling Gemini API (Text mode)...`);
   const chunks = splitTextIntoChunks(text, GEMINI_CHUNK_SIZE);
-  console.log(`  Gemini: ${chunks.length} chunks`);
+  console.log(`  Gemini: ${chunks.length} chunk(s)`);
 
   const allMedicines = await processChunks(chunks, async (chunk, i, total) => {
     console.log(`  💎 Gemini chunk ${i + 1}/${total} (${chunk.length} chars)`);
@@ -336,12 +336,16 @@ async function parseTextWithGroq(text: string, pdfType: PdfType = 'scanned'): Pr
           { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
         ],
         temperature: 0,
-        max_tokens: 8192
+        max_tokens: 4096
       })
     });
 
     if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-    if (!resp.ok) throw new Error(`Groq status ${resp.status}`);
+    if (!resp.ok) {
+      const errorBody = await resp.text().catch(() => '');
+      console.error(`Groq error body: ${errorBody.substring(0, 200)}`);
+      throw new Error(`Groq status ${resp.status}`);
+    }
 
     const data = await resp.json();
     const content = data?.choices?.[0]?.message?.content;
@@ -380,7 +384,11 @@ async function parseWithCerebras(text: string, pdfType: PdfType = 'scanned'): Pr
     });
 
     if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-    if (!resp.ok) throw new Error(`Cerebras status ${resp.status}`);
+    if (!resp.ok) {
+      const errorBody = await resp.text().catch(() => '');
+      console.error(`Cerebras error body: ${errorBody.substring(0, 200)}`);
+      throw new Error(`Cerebras status ${resp.status}`);
+    }
 
     const data = await resp.json();
     const content = data?.choices?.[0]?.message?.content;
