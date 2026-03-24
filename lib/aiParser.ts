@@ -212,24 +212,96 @@ function splitTextIntoChunks(text: string, maxChars: number): string[] {
   return chunks
 }
 
+type ChunkResult = {
+  medicines: ParsedMedicine[];
+  completedChunks: number;
+  totalChunks: number;
+  rateLimited: boolean;
+}
+
+type TextTierConfig = {
+  name: string;
+  chunkSize: number;
+  delayMs: number;
+  available: () => boolean;
+  processFn: (chunk: string, index: number, total: number) => Promise<ParsedMedicine[]>;
+}
+
+async function relayParseText(
+  text: string,
+  tiers: TextTierConfig[],
+  pdfType: PdfType = 'searchable'
+): Promise<ParseResult> {
+  let remainingText = text
+  const allMedicines: ParsedMedicine[] = []
+  const usedProviders: string[] = []
+
+  for (const tier of tiers) {
+    if (!remainingText.trim() || remainingText.trim().length < 50) {
+      console.log('  ✅ No remaining text. Relay complete.')
+      break
+    }
+
+    if (!tier.available()) {
+      console.log(`  ⏭️ ${tier.name}: not available, skipping.`)
+      continue
+    }
+
+    try {
+      console.log(`\n🔗 Relay → ${tier.name} (${remainingText.length} chars remaining)`);
+      const chunks = splitTextIntoChunks(remainingText, tier.chunkSize)
+      console.log(`  ${tier.name}: ${chunks.length} chunks`)
+
+      const result = await processChunks(chunks, tier.processFn, tier.delayMs)
+      allMedicines.push(...result.medicines)
+
+      if (result.medicines.length > 0) {
+        usedProviders.push(tier.name)
+        await incrementUsage(tier.name as any)
+      }
+
+      if (!result.rateLimited) {
+        console.log(`  ✅ ${tier.name} completed all ${result.totalChunks} chunks. Total: ${allMedicines.length} medicines.`)
+        break
+      }
+
+      const unprocessedChunks = chunks.slice(result.completedChunks)
+      remainingText = unprocessedChunks.join('\n')
+      console.log(`  🔄 ${tier.name} completed ${result.completedChunks}/${result.totalChunks} chunks (${result.medicines.length} medicines). Relaying ${remainingText.length} chars to next tier...`)
+
+    } catch (error: any) {
+      console.error(`  ❌ ${tier.name} error: ${error?.message || error}`)
+    }
+  }
+
+  if (allMedicines.length === 0) {
+    return { medicines: [], pdfType, errorCode: 'AI_FAILED', errorMessage: 'All AI tiers failed.' }
+  }
+
+  console.log(`\n🏁 Relay complete! ${allMedicines.length} total medicines from [${usedProviders.join(' → ')}]`)
+  return { medicines: dedup(allMedicines), pdfType, provider: usedProviders[0] as any }
+}
+
 async function processChunks(
   chunks: string[],
   processFn: (chunk: string, index: number, total: number) => Promise<ParsedMedicine[]>,
   delayMs: number = REQUEST_INTERVAL_MS
-): Promise<ParsedMedicine[]> {
+): Promise<ChunkResult> {
   const allMedicines: ParsedMedicine[] = []
-  let failedChunks = 0
+  let completedChunks = 0
+  let rateLimited = false
   for (let i = 0; i < chunks.length; i++) {
     try {
       const medicines = await processFn(chunks[i], i, chunks.length)
       allMedicines.push(...medicines)
+      completedChunks++
     } catch (err: any) {
-      failedChunks++
       const msg = err instanceof Error ? err.message : String(err)
       console.warn(`  ⚠️ Chunk ${i + 1}/${chunks.length} failed: ${msg}`)
       // On rate limit, stop sending more chunks (they'll all fail too)
       if (msg.includes('RATE_LIMIT') || err?.status === 429) {
-        console.warn(`  🛑 Rate limited at chunk ${i + 1}/${chunks.length}. Keeping ${allMedicines.length} medicines from ${i} successful chunks.`)
+        console.warn(`  🛑 Rate limited at chunk ${i + 1}/${chunks.length}. Keeping ${allMedicines.length} medicines from ${completedChunks} chunks.`)
+        rateLimited = true
         break
       }
     }
@@ -237,10 +309,7 @@ async function processChunks(
       await new Promise(r => setTimeout(r, delayMs))
     }
   }
-  if (allMedicines.length === 0 && failedChunks > 0) {
-    throw new Error('All chunks failed')
-  }
-  return allMedicines
+  return { medicines: allMedicines, completedChunks, totalChunks: chunks.length, rateLimited }
 }
 
 // ─── TIER 1: Gemini ───────────────────────────────────────────────────────────
@@ -309,8 +378,8 @@ async function parseTextWithGemini(text: string): Promise<ParseResult> {
     return parseJsonSafely(content);
   });
 
-  console.log(`💎 Gemini extracted ${allMedicines.length} medicines`);
-  return { medicines: dedup(allMedicines), pdfType: 'scanned', provider: 'gemini' };
+  console.log(`💎 Gemini extracted ${allMedicines.medicines.length} medicines`);
+  return { medicines: dedup(allMedicines.medicines), pdfType: 'scanned', provider: 'gemini' };
 }
 
 // ─── TIER 2: Groq ─────────────────────────────────────────────────────────────
@@ -368,8 +437,8 @@ async function parseTextWithGroq(text: string, pdfType: PdfType = 'scanned'): Pr
     return parseJsonSafely(content);
   }, 3000);
 
-  console.log(`⚡ Groq extracted ${allMedicines.length} medicines`);
-  return { medicines: dedup(allMedicines), pdfType, provider: 'groq' };
+  console.log(`⚡ Groq extracted ${allMedicines.medicines.length} medicines`);
+  return { medicines: dedup(allMedicines.medicines), pdfType, provider: 'groq' };
 }
 
 // ─── TIER 2b: Cerebras ────────────────────────────────────────────────────────
@@ -411,8 +480,8 @@ async function parseWithCerebras(text: string, pdfType: PdfType = 'scanned'): Pr
     return parseJsonSafely(content);
   }, 1000);
 
-  console.log(`🧠 Cerebras extracted ${allMedicines.length} medicines`);
-  return { medicines: dedup(allMedicines), pdfType, provider: 'cerebras' };
+  console.log(`🧠 Cerebras extracted ${allMedicines.medicines.length} medicines`);
+  return { medicines: dedup(allMedicines.medicines), pdfType, provider: 'cerebras' };
 }
 
 // ─── TIER 3: Cloudflare AI ────────────────────────────────────────────────────
@@ -462,8 +531,8 @@ async function parseWithCloudflare(text: string, pdfType: PdfType = 'scanned'): 
     }
   });
 
-  console.log(`☁️ Cloudflare extracted ${allMedicines.length} medicines`);
-  return { medicines: dedup(allMedicines), pdfType, provider: 'cloudflare' };
+  console.log(`☁️ Cloudflare extracted ${allMedicines.medicines.length} medicines`);
+  return { medicines: dedup(allMedicines.medicines), pdfType, provider: 'cloudflare' };
 }
 
 // ─── TIER 4: Mistral AI ───────────────────────────────────────────────────────
@@ -512,8 +581,8 @@ async function parseWithMistral(text: string, pdfType: PdfType = 'scanned'): Pro
     }
   });
 
-  console.log(`🌟 Mistral extracted ${allMedicines.length} medicines`);
-  return { medicines: dedup(allMedicines), pdfType, provider: 'mistral' };
+  console.log(`🌟 Mistral extracted ${allMedicines.medicines.length} medicines`);
+  return { medicines: dedup(allMedicines.medicines), pdfType, provider: 'mistral' };
 }
 
 // ─── TIER 5: OpenRouter ───────────────────────────────────────────────────────
@@ -698,70 +767,171 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
 
   console.log(`📊 Extracted ${extractedText.length} chars from PDF`);
 
-  // TIER 2 — Cerebras
-  try {
-    if (process.env.CEREBRAS_API_KEY && ((usage as any).cerebras ?? 0) < CEREBRAS_DAILY_LIMIT) {
-      const result = await parseWithCerebras(extractedText, 'searchable');
-      if (result.medicines.length > 0) { await incrementUsage('cerebras'); return result; }
-    }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Cerebras rate limited, trying Groq...');
-    else console.error('Cerebras error:', error?.message || error);
-  }
+  // ─── RELAY MODE: Tiers 2-5 share remaining text ───────────────────
+  const usage2 = await getDailyUsage(); // refresh usage
+  return relayParseText(extractedText, buildTextTiers(usage2), 'searchable');
+}
 
-  // TIER 3 — Groq
-  try {
-    if (process.env.GROQ_API_KEY && usage.groq < GROQ_DAILY_LIMIT) {
-      const result = await parseTextWithGroq(extractedText, 'searchable');
-      if (result.medicines.length > 0) { await incrementUsage('groq'); return result; }
-    } else if (usage.groq >= GROQ_DAILY_LIMIT) {
-      console.log('Groq daily limit reached. Skipping Tier 3.');
+// ─── Build tier configs ───────────────────────────────────────────────────────
+function buildTextTiers(usage: any): TextTierConfig[] {
+  return [
+    {
+      name: 'cerebras',
+      chunkSize: CEREBRAS_CHUNK_SIZE,
+      delayMs: 1000,
+      available: () => !!(process.env.CEREBRAS_API_KEY && ((usage as any).cerebras ?? 0) < CEREBRAS_DAILY_LIMIT),
+      processFn: async (chunk, i, total) => {
+        console.log(`  🧠 Cerebras chunk ${i + 1}/${total} (${chunk.length} chars)`);
+        const apiKey = process.env.CEREBRAS_API_KEY!;
+        const resp = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: 'llama3.1-8b',
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
+            ],
+            temperature: 0, max_tokens: 8192
+          })
+        });
+        if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
+        if (!resp.ok) { const b = await resp.text().catch(() => ''); console.error(`Cerebras error body: ${b.substring(0, 200)}`); throw new Error(`Cerebras status ${resp.status}`); }
+        const data = await resp.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (!content) throw new Error('Empty response');
+        return parseJsonSafely(content);
+      }
+    },
+    {
+      name: 'groq',
+      chunkSize: GROQ_CHUNK_SIZE,
+      delayMs: 3000,
+      available: () => !!(process.env.GROQ_API_KEY && usage.groq < GROQ_DAILY_LIMIT),
+      processFn: async (chunk, i, total) => {
+        console.log(`  ⚡ Groq chunk ${i + 1}/${total} (${chunk.length} chars)`);
+        const apiKey = process.env.GROQ_API_KEY!;
+        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: 'llama-3.1-8b-instant',
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
+            ],
+            temperature: 0, max_tokens: 4096
+          })
+        });
+        if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
+        if (!resp.ok) { const b = await resp.text().catch(() => ''); console.error(`Groq error body: ${b.substring(0, 200)}`); throw new Error(`Groq status ${resp.status}`); }
+        const data = await resp.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (!content) throw new Error('Empty response');
+        return parseJsonSafely(content);
+      }
+    },
+    {
+      name: 'mistral',
+      chunkSize: MISTRAL_CHUNK_SIZE,
+      delayMs: REQUEST_INTERVAL_MS,
+      available: () => !!(process.env.MISTRAL_API_KEY && usage.mistral < MISTRAL_DAILY_LIMIT),
+      processFn: async (chunk, i, total) => {
+        console.log(`  🌟 Mistral chunk ${i + 1}/${total} (${chunk.length} chars)`);
+        const apiKey = process.env.MISTRAL_API_KEY!;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        try {
+          const resp = await fetch('https://api.mistral.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: MISTRAL_MODEL,
+              messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
+              ],
+              temperature: 0, max_tokens: 8192
+            }),
+            signal: controller.signal
+          });
+          if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
+          if (!resp.ok) throw new Error(`Mistral status ${resp.status}`);
+          const data = await resp.json();
+          const content = data?.choices?.[0]?.message?.content;
+          if (!content) throw new Error('Empty response');
+          return parseJsonSafely(content);
+        } finally { clearTimeout(timeoutId); }
+      }
+    },
+    {
+      name: 'cloudflare',
+      chunkSize: CLOUDFLARE_CHUNK_SIZE,
+      delayMs: REQUEST_INTERVAL_MS,
+      available: () => !!(process.env.CLOUDFLARE_API_TOKEN && usage.cloudflare < CLOUDFLARE_DAILY_LIMIT),
+      processFn: async (chunk, i, total) => {
+        console.log(`  ☁️ Cloudflare chunk ${i + 1}/${total} (${chunk.length} chars)`);
+        const apiKey = process.env.CLOUDFLARE_API_TOKEN!;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        try {
+          const resp = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/${CF_MODEL}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
+              ],
+              max_tokens: 2048
+            }),
+            signal: controller.signal
+          });
+          if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
+          if (!resp.ok) throw new Error(`Cloudflare status ${resp.status}`);
+          const data = await resp.json();
+          const content = data?.result?.response || '';
+          if (!content) throw new Error('Empty response');
+          return parseJsonSafely(content);
+        } finally { clearTimeout(timeoutId); }
+      }
+    },
+    {
+      name: 'openrouter',
+      chunkSize: OPENROUTER_CHUNK_SIZE,
+      delayMs: REQUEST_INTERVAL_MS,
+      available: () => !!process.env.OPENROUTER_API_KEY,
+      processFn: async (chunk, i, total) => {
+        console.log(`  🔄 OpenRouter chunk ${i + 1}/${total} (${chunk.length} chars)`);
+        const apiKey = process.env.OPENROUTER_API_KEY!;
+        const model = await findWorkingOpenRouterModel(apiKey);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        try {
+          const resp = await fetch(OPENROUTER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: chunk }
+              ],
+              temperature: 0, max_tokens: 4096
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (resp.status === 429) throw new Error('RATE_LIMIT');
+          if (!resp.ok) throw new Error(`OpenRouter status ${resp.status}`);
+          const data = await resp.json();
+          const content = data?.choices?.[0]?.message?.content || '';
+          if (!content) throw new Error('Empty response');
+          return parseJsonSafely(content);
+        } finally { clearTimeout(timeoutId); }
+      }
     }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Groq rate limited, trying Mistral...');
-    else console.error('Groq error:', error?.message || error);
-  }
-
-  // TIER 4 — Mistral
-  try {
-    if (process.env.MISTRAL_API_KEY && usage.mistral < MISTRAL_DAILY_LIMIT) {
-      const result = await parseWithMistral(extractedText, 'searchable');
-      if (result.medicines.length > 0) { await incrementUsage('mistral'); return result; }
-    } else if (usage.mistral >= MISTRAL_DAILY_LIMIT) {
-      console.log('Mistral daily limit reached. Skipping Tier 3.');
-    }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Mistral rate limited, trying Cloudflare...');
-    else console.error('Mistral error:', error?.message || error);
-  }
-
-  // TIER 4 — Cloudflare
-  try {
-    if (process.env.CLOUDFLARE_API_TOKEN && usage.cloudflare < CLOUDFLARE_DAILY_LIMIT) {
-      const result = await parseWithCloudflare(extractedText, 'searchable');
-      if (result.medicines.length > 0) { await incrementUsage('cloudflare'); return result; }
-    } else if (usage.cloudflare >= CLOUDFLARE_DAILY_LIMIT) {
-      console.log('Cloudflare daily limit reached. Skipping Tier 4.');
-    }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Cloudflare rate limited, trying OpenRouter...');
-    else console.error('Cloudflare error:', error?.message || error);
-  }
-
-  // TIER 5 — OpenRouter
-  try {
-    if (process.env.OPENROUTER_API_KEY) {
-      const result = await parseWithOpenRouter(extractedText, 'searchable');
-      if (result.medicines.length > 0) { await incrementUsage('openrouter'); return result; }
-    }
-  } catch (error: any) {
-    console.error('OpenRouter error:', error?.message || error);
-  }
-
-  return {
-    medicines: [], pdfType: 'unknown', errorCode: 'AI_FAILED',
-    errorMessage: 'All AI tiers failed. Please try again in a few minutes.',
-  };
+  ];
 }
 
 // ─── MAIN: parseTextWithAI ────────────────────────────────────────────────────
@@ -789,70 +959,9 @@ export async function parseTextWithAI(extractedText: string): Promise<ParseResul
     else console.error('Gemini error:', error?.message || error);
   }
 
-  // TIER 2 — Cerebras
-  try {
-    if (process.env.CEREBRAS_API_KEY && ((usage as any).cerebras ?? 0) < CEREBRAS_DAILY_LIMIT) {
-      const result = await parseWithCerebras(cleanedText);
-      if (result.medicines.length > 0) { await incrementUsage('cerebras'); return result; }
-    }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Cerebras rate limited, trying Groq...');
-    else console.error('Cerebras error:', error?.message || error);
-  }
-
-  // TIER 3 — Groq
-  try {
-    if (process.env.GROQ_API_KEY && usage.groq < GROQ_DAILY_LIMIT) {
-      const result = await parseTextWithGroq(cleanedText);
-      if (result.medicines.length > 0) { await incrementUsage('groq'); return result; }
-    } else if (usage.groq >= GROQ_DAILY_LIMIT) {
-      console.log('Groq daily limit reached. Skipping Tier 3.');
-    }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Groq rate limited, trying Mistral...');
-    else console.error('Groq error:', error?.message || error);
-  }
-
-  // TIER 4 — Mistral
-  try {
-    if (process.env.MISTRAL_API_KEY && usage.mistral < MISTRAL_DAILY_LIMIT) {
-      const result = await parseWithMistral(cleanedText);
-      if (result.medicines.length > 0) { await incrementUsage('mistral'); return result; }
-    } else if (usage.mistral >= MISTRAL_DAILY_LIMIT) {
-      console.log('Mistral daily limit reached. Skipping Tier 3.');
-    }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Mistral rate limited, trying Cloudflare...');
-    else console.error('Mistral error:', error?.message || error);
-  }
-
-  // TIER 4 — Cloudflare
-  try {
-    if (process.env.CLOUDFLARE_API_TOKEN && usage.cloudflare < CLOUDFLARE_DAILY_LIMIT) {
-      const result = await parseWithCloudflare(cleanedText);
-      if (result.medicines.length > 0) { await incrementUsage('cloudflare'); return result; }
-    } else if (usage.cloudflare >= CLOUDFLARE_DAILY_LIMIT) {
-      console.log('Cloudflare daily limit reached. Skipping Tier 4.');
-    }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Cloudflare rate limited, trying OpenRouter...');
-    else console.error('Cloudflare error:', error?.message || error);
-  }
-
-  // TIER 5 — OpenRouter
-  try {
-    if (process.env.OPENROUTER_API_KEY) {
-      const result = await parseWithOpenRouter(cleanedText);
-      if (result.medicines.length > 0) { await incrementUsage('openrouter'); return result; }
-    }
-  } catch (error: any) {
-    console.error('OpenRouter error:', error?.message || error);
-  }
-
-  return {
-    medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
-    errorMessage: 'All AI tiers failed. Please try again in a few minutes.',
-  };
+  // ─── RELAY MODE: Tiers 2-5 share remaining text ───────────────────
+  const usage2 = await getDailyUsage(); // refresh usage
+  return relayParseText(cleanedText, buildTextTiers(usage2), 'scanned');
 }
 
 // ─── Legacy export (kept for backward compatibility) ──────────────────────────
