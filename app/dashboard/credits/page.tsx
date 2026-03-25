@@ -90,54 +90,54 @@ export default function CreditsPage() {
   return (
     <div className="space-y-6 p-6 md:p-8 max-w-[1200px] mx-auto">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">Credit Tracking</h1>
-        <p className="mt-1 text-sm text-text-secondary">
+        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Credit Tracking</h1>
+        <p className="mt-1 text-sm font-medium text-muted-foreground">
           Customers with outstanding credit balances.
         </p>
       </div>
 
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card>
+        <Card className="rounded-[24px] border-border bg-surface shadow-soft border-l-[6px] border-l-primary/30">
           <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-orange-50 text-orange-600">
+            <div className="p-3 rounded-xl bg-primary/10 text-primary">
               <IndianRupee className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Total Outstanding</p>
-              <p className="text-2xl font-extrabold text-text-primary">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Outstanding</p>
+              <p className="text-2xl font-extrabold text-foreground mt-1">
                 ₹{totalOutstanding.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
               </p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="rounded-[24px] border-border bg-surface shadow-soft border-l-[6px] border-l-primary/30">
           <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-blue-50 text-blue-600">
+            <div className="p-3 rounded-xl bg-primary/10 text-primary">
               <User className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Customers with Credit</p>
-              <p className="text-2xl font-extrabold text-text-primary">{credits.length}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Customers with Credit</p>
+              <p className="text-2xl font-extrabold text-foreground mt-1">{credits.length}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {credits.length === 0 ? (
-        <Card>
+        <Card className="rounded-[24px] border-border bg-surface shadow-soft border-l-[6px] border-l-primary/30">
           <CardContent className="py-16 flex flex-col items-center gap-3 text-center">
-            <CheckCircle2 className="h-12 w-12 text-emerald-500" />
-            <h3 className="text-lg font-bold text-text-primary">All Clear!</h3>
-            <p className="text-sm text-text-secondary">No outstanding credit balances.</p>
+            <CheckCircle2 className="h-12 w-12 text-primary" />
+            <h3 className="text-lg font-extrabold text-foreground">All Clear!</h3>
+            <p className="text-sm font-medium text-muted-foreground">No outstanding credit balances.</p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
           {credits.map((customer) => (
-            <Card key={customer.customerId} className="overflow-hidden">
+            <Card key={customer.customerId} className="overflow-hidden rounded-[24px] border-border bg-surface shadow-soft">
               <CardHeader
-                className="cursor-pointer select-none py-4 px-5 hover:bg-surface-muted/50 transition-colors"
+                className="cursor-pointer select-none py-4 px-5 hover:bg-primary/5 transition-colors"
                 onClick={() => toggleExpand(customer.customerId)}
               >
                 <div className="flex items-center justify-between gap-4">
@@ -146,9 +146,9 @@ export default function CreditsPage() {
                       {customer.customerName.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <CardTitle className="text-base font-bold truncate">{customer.customerName}</CardTitle>
+                      <CardTitle className="text-base font-extrabold text-foreground truncate">{customer.customerName}</CardTitle>
                       {customer.customerPhone && (
-                        <CardDescription className="flex items-center gap-1 text-xs mt-0.5">
+                        <CardDescription className="flex items-center gap-1 text-xs mt-0.5 font-bold text-muted-foreground">
                           <Phone className="h-3 w-3" />
                           {customer.customerPhone}
                         </CardDescription>
@@ -157,14 +157,14 @@ export default function CreditsPage() {
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right">
-                      <p className="text-xs text-text-muted font-semibold uppercase">Due</p>
-                      <p className="text-lg font-extrabold text-orange-600">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Due</p>
+                      <p className="text-lg font-extrabold text-primary">
                         ₹{customer.totalDue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                       </p>
                     </div>
                     {expanded.has(customer.customerId)
-                      ? <ChevronUp className="h-4 w-4 text-text-muted" />
-                      : <ChevronDown className="h-4 w-4 text-text-muted" />
+                      ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                      : <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     }
                   </div>
                 </div>
@@ -172,15 +172,15 @@ export default function CreditsPage() {
 
               {expanded.has(customer.customerId) && (
                 <CardContent className="px-5 pb-4 pt-0">
-                  <div className="border-t border-surface-border pt-4 space-y-2">
+                  <div className="border-t border-border pt-4 space-y-2">
                     {customer.sales.map((sale) => (
                       <div
                         key={sale.id}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-surface-border bg-surface-muted/30 px-4 py-3"
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border bg-surface-muted/30 px-4 py-3"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-text-primary">{sale.invoiceNumber}</p>
-                          <p className="text-xs text-text-muted mt-0.5">
+                          <p className="text-sm font-bold text-foreground">{sale.invoiceNumber}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
                             {new Date(sale.createdAt).toLocaleDateString('en-IN', {
                               day: 'numeric', month: 'short', year: 'numeric',
                             })}
@@ -188,12 +188,12 @@ export default function CreditsPage() {
                           </p>
                         </div>
                         <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                          <span className="text-sm font-bold text-orange-600">
+                          <span className="text-sm font-extrabold text-primary">
                             ₹{sale.creditDue.toLocaleString('en-IN', { maximumFractionDigits: 2 })} due
                           </span>
                           <Button
                             size="sm"
-                            className="h-8 rounded-lg gap-1.5"
+                            className="h-8 rounded-lg gap-1.5 font-bold bg-primary hover:bg-primary/90 text-background"
                             disabled={paying === sale.id}
                             onClick={() => markSalePaid(sale.id)}
                           >

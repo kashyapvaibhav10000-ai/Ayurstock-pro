@@ -28,26 +28,27 @@
 
 .dark {
   --background: #0A0A0A;
-  --surface: #111111;
-  --surface-muted: #1A1A1A;
-  --surface-elevated: #1A1A1A;
+  --surface: #1A1A1A;
+  --surface-muted: #1F1F1F;
+  --surface-elevated: #242424;
   --border: #2A2A2A;
-  --foreground: #E5E5E5;
-  --muted-foreground: #a1a1aa;
+  --foreground: #F5F5F5;
+  --muted-foreground: #A1A1AA;
   --primary: #D4AF37;
-  --primary-hover: #C5A028;
-  --secondary: #2A2A2A;
+  --primary-hover: #B8860B;
+  --secondary: #1F1F1F;
   --accent: #D4AF37;
 
-  --stitch-surface: #0a0a0a;
-  --stitch-surface-low: #1A1A1A;
-  --stitch-surface-lowest: #0a0a0a;
-  --stitch-on-surface: #E5E5E5;
-  --stitch-on-surface-variant: #a1a1aa;
+  --stitch-background: #0A0A0A;
+  --stitch-surface: #1A1A1A;
+  --stitch-surface-low: #1F1F1F;
+  --stitch-surface-lowest: #0A0A0A;
+  --stitch-on-surface: #F5F5F5;
+  --stitch-on-surface-variant: #A1A1AA;
   --stitch-primary: #D4AF37;
-  --stitch-primary-dim: #C5A028;
-  --stitch-primary-container: #332b00;
-  --stitch-outline-variant: #52525b;
+  --stitch-primary-dim: #B8860B;
+  --stitch-primary-container: #2A2100;
+  --stitch-outline-variant: #3F3F46;
 }
 
 @media print {

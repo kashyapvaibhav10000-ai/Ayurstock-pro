@@ -146,8 +146,8 @@ export default function SalesHistoryPage() {
     <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">Sales History</h1>
-          <p className="mt-1 text-sm text-text-secondary">Track revenue, purchases, returns, and overall profit.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Sales History</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Track revenue, purchases, returns, and overall profit.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           {PRESETS.map((p) => (
@@ -167,14 +167,14 @@ export default function SalesHistoryPage() {
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="h-10 rounded-xl border border-surface-border bg-surface-muted px-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                className="h-10 rounded-xl border border-border bg-surface px-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
               />
-              <span className="text-text-muted text-sm font-bold">–</span>
+              <span className="text-muted-foreground/60 text-sm font-bold">–</span>
               <input
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="h-10 rounded-xl border border-surface-border bg-surface-muted px-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                className="h-10 rounded-xl border border-border bg-surface px-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
               />
               <Button size="sm" className="rounded-xl shadow-soft" onClick={load} disabled={!customStart || !customEnd}>Apply</Button>
             </>
@@ -184,9 +184,9 @@ export default function SalesHistoryPage() {
 
       {/* Summary stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="rounded-[24px] shadow-soft border border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+        <Card className="rounded-[24px] shadow-soft border border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs text-text-muted">
+            <CardDescription className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs text-muted-foreground/60">
               <IndianRupee className="h-4 w-4 text-primary" /> Total Sales
             </CardDescription>
             <CardTitle className="text-3xl font-extrabold text-primary">
@@ -194,58 +194,58 @@ export default function SalesHistoryPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs font-semibold text-text-secondary">{s?.salesCount ?? 0} invoices</p>
+            <p className="text-xs font-semibold text-muted-foreground">{s?.salesCount ?? 0} invoices</p>
           </CardContent>
         </Card>
 
-        <Card className="rounded-[24px] shadow-soft border border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+        <Card className="rounded-[24px] shadow-soft border border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs text-text-muted">
-              <ShoppingCart className="h-4 w-4 text-blue-500" /> Total Purchases
+            <CardDescription className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs text-muted-foreground/60">
+              <ShoppingCart className="h-4 w-4 text-blue-400" /> Total Purchases
             </CardDescription>
-            <CardTitle className="text-3xl font-extrabold text-blue-600">
+            <CardTitle className="text-3xl font-extrabold text-blue-400">
               {loading ? '—' : fmt(s?.totalPurchaseCost ?? 0)}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs font-semibold text-text-secondary">{s?.purchasesCount ?? 0} purchase orders</p>
+            <p className="text-xs font-semibold text-muted-foreground">{s?.purchasesCount ?? 0} purchase orders</p>
           </CardContent>
         </Card>
 
-        <Card className="rounded-[24px] shadow-soft border border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+        <Card className="rounded-[24px] shadow-soft border border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs text-text-muted">
-              <RotateCcw className="h-4 w-4 text-orange-500" /> Net Returns
+            <CardDescription className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs text-muted-foreground/60">
+              <RotateCcw className="h-4 w-4 text-orange-400" /> Net Returns
             </CardDescription>
-            <CardTitle className="text-3xl font-extrabold text-orange-600">
+            <CardTitle className="text-3xl font-extrabold text-orange-400">
               {loading ? '—' : fmt(s?.totalReturnsAmount ?? 0)}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs font-semibold text-text-secondary">{s?.returnsCount ?? 0} return entries</p>
+            <p className="text-xs font-semibold text-muted-foreground">{s?.returnsCount ?? 0} return entries</p>
           </CardContent>
         </Card>
 
-        <Card className={`rounded-[24px] shadow-soft hover:-translate-y-1 transition-all duration-300 hover:shadow-bento border-2 ${isProfit ? 'border-success/30 bg-success-bg' : 'border-danger/30 bg-danger-bg'}`}>
+        <Card className={`rounded-[24px] shadow-soft hover:-translate-y-1 transition-all duration-300 hover:shadow-bento border-2 bg-surface ${isProfit ? 'border-primary/20' : 'border-danger/20'}`}>
           <CardHeader className="pb-2">
-            <CardDescription className={`flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs ${isProfit ? 'text-success-text' : 'text-danger-text'}`}>
+            <CardDescription className={`flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs ${isProfit ? 'text-primary' : 'text-danger'}`}>
               {isProfit
-                ? <TrendingUp className="h-4 w-4 text-success" />
-                : <TrendingDown className="h-4 w-4 text-danger" />}
+                ? <TrendingUp className="h-4 w-4" />
+                : <TrendingDown className="h-4 w-4" />}
               Gross Profit
             </CardDescription>
-            <CardTitle className={`text-3xl font-extrabold ${isProfit ? 'text-success' : 'text-danger'}`}>
+            <CardTitle className={`text-3xl font-extrabold ${isProfit ? 'text-primary' : 'text-danger'}`}>
               {loading ? '—' : fmt(s?.grossProfit ?? 0)}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`text-xs font-semibold ${isProfit ? 'text-success-text/70' : 'text-danger-text/70'}`}>Revenue − Purchases − Returns</p>
+            <p className={`text-xs font-semibold ${isProfit ? 'text-muted-foreground' : 'text-muted-foreground'}`}>Revenue − Purchases − Returns</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-1 border-b border-surface-border">
+      <div className="flex gap-1 border-b border-border">
         {(['sales', 'purchases', 'returns'] as const).map((tab) => (
           <button
             key={tab}
@@ -253,7 +253,7 @@ export default function SalesHistoryPage() {
             className={`px-4 py-3 text-sm font-bold capitalize transition-all border-b-2 -mb-px ${
               activeTab === tab
                 ? 'border-primary text-primary'
-                : 'border-transparent text-text-muted hover:text-text-primary hover:border-surface-border/50'
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
             }`}
           >
             {tab === 'sales' ? `Sales ${data?.sales.length ? `(${data.sales.length})` : ''}` :
@@ -263,42 +263,42 @@ export default function SalesHistoryPage() {
         ))}
       </div>
 
-      <Card className="rounded-[24px] border-surface-border shadow-soft overflow-hidden">
+      <Card className="rounded-[24px] border-border bg-surface shadow-soft overflow-hidden">
         <CardContent className="p-0">
           {loading ? (
-            <div className="py-16 text-center text-sm font-bold text-text-muted">Loading Data...</div>
+            <div className="py-16 text-center text-sm font-bold text-muted-foreground">Loading Data...</div>
           ) : activeTab === 'sales' ? (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-surface-muted/50 border-b border-surface-border">
-                  <TableRow>
-                    <TableHead className="font-bold text-text-secondary">Date</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Invoice</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Customer</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Items</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Payment</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Type</TableHead>
-                    <TableHead className="text-right font-bold text-text-secondary">Total</TableHead>
+                <TableHeader className="bg-surface-muted/50 border-b border-border">
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Date</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Invoice</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Customer</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Items</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Payment</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Type</TableHead>
+                    <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {data?.sales.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="py-10 text-center font-semibold text-sm text-text-muted">
+                    <TableRow className="border-border">
+                      <TableCell colSpan={7} className="py-10 text-center font-semibold text-sm text-muted-foreground">
                         No sales found for this period.
                       </TableCell>
                     </TableRow>
                   ) : data?.sales.map((row) => (
-                    <TableRow key={row.id} className="hover:bg-surface-muted transition-colors border-b border-surface-muted/50">
-                      <TableCell className="text-sm font-medium text-text-secondary">{fmtDate(row.date)}</TableCell>
-                      <TableCell className="font-bold text-text-primary">{row.invoiceNumber}</TableCell>
-                      <TableCell className="font-medium text-text-primary">{row.customer}</TableCell>
-                      <TableCell className="font-bold text-text-secondary">{row.itemCount}</TableCell>
+                    <TableRow key={row.id} className="hover:bg-primary/5 transition-colors border-b border-border">
+                      <TableCell className="text-sm font-medium text-muted-foreground">{fmtDate(row.date)}</TableCell>
+                      <TableCell className="font-bold text-foreground">{row.invoiceNumber}</TableCell>
+                      <TableCell className="font-bold text-foreground">{row.customer}</TableCell>
+                      <TableCell className="font-bold text-muted-foreground">{row.itemCount}</TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center rounded-xl border border-surface-border bg-surface px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-text-primary shadow-sm">{row.paymentMode}</span>
+                        <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-foreground shadow-sm">{row.paymentMode}</span>
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-xl border border-surface-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${row.saleType === 'WHOLESALE' ? 'bg-surface-muted text-text-secondary' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${row.saleType === 'WHOLESALE' ? 'bg-surface-muted/50 text-muted-foreground' : 'bg-primary/10 text-primary border-primary/20'}`}>
                           {row.saleType}
                         </span>
                       </TableCell>
@@ -313,39 +313,39 @@ export default function SalesHistoryPage() {
           ) : activeTab === 'purchases' ? (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-surface-muted/50 border-b border-surface-border">
-                  <TableRow>
-                    <TableHead className="font-bold text-text-secondary">Date</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Invoice</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Supplier</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Items</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Payment</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Status</TableHead>
-                    <TableHead className="text-right font-bold text-text-secondary">Total</TableHead>
+                <TableHeader className="bg-surface-muted/50 border-b border-border">
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Date</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Invoice</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Supplier</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Items</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Payment</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Status</TableHead>
+                    <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {data?.purchases.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="py-10 text-center font-semibold text-sm text-text-muted">
+                    <TableRow className="border-border">
+                      <TableCell colSpan={7} className="py-10 text-center font-semibold text-sm text-muted-foreground">
                         No purchases found for this period.
                       </TableCell>
                     </TableRow>
                   ) : data?.purchases.map((row) => (
-                    <TableRow key={row.id} className="hover:bg-surface-muted transition-colors border-b border-surface-muted/50">
-                      <TableCell className="text-sm font-medium text-text-secondary">{fmtDate(row.date)}</TableCell>
-                      <TableCell className="font-bold text-text-primary">{row.invoiceNumber}</TableCell>
-                      <TableCell className="font-medium text-text-primary">{row.supplier}</TableCell>
-                      <TableCell className="font-bold text-text-secondary">{row.itemCount}</TableCell>
+                    <TableRow key={row.id} className="hover:bg-primary/5 transition-colors border-b border-border">
+                      <TableCell className="text-sm font-medium text-muted-foreground">{fmtDate(row.date)}</TableCell>
+                      <TableCell className="font-bold text-foreground">{row.invoiceNumber}</TableCell>
+                      <TableCell className="font-bold text-foreground">{row.supplier}</TableCell>
+                      <TableCell className="font-bold text-muted-foreground">{row.itemCount}</TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center rounded-xl border border-surface-border bg-surface px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-text-primary shadow-sm">{row.paymentType}</span>
+                        <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-foreground shadow-sm">{row.paymentType}</span>
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-xl border border-surface-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${row.status === 'PAID' ? 'bg-success-bg/50 text-success-text border-success/20' : 'bg-danger-bg text-danger-text border-danger/20'}`}>
+                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${row.status === 'PAID' ? 'bg-primary/20 text-primary border-primary/20' : 'bg-danger/20 text-danger border-danger/20'}`}>
                           {row.status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right text-lg font-extrabold text-blue-600">
+                      <TableCell className="text-right text-lg font-extrabold text-blue-400">
                         {fmt(row.total)}
                       </TableCell>
                     </TableRow>
@@ -356,35 +356,35 @@ export default function SalesHistoryPage() {
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-surface-muted/50 border-b border-surface-border">
-                  <TableRow>
-                    <TableHead className="font-bold text-text-secondary">Date</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Type</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Medicine</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Qty</TableHead>
-                    <TableHead className="font-bold text-text-secondary">Reason</TableHead>
-                    <TableHead className="text-right font-bold text-text-secondary">Amount</TableHead>
+                <TableHeader className="bg-surface-muted/50 border-b border-border">
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Date</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Type</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Medicine</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Qty</TableHead>
+                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Reason</TableHead>
+                    <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Amount</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {data?.returns.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center font-semibold text-sm text-text-muted">
+                    <TableRow className="border-border">
+                      <TableCell colSpan={6} className="py-10 text-center font-semibold text-sm text-muted-foreground">
                         No returns found for this period.
                       </TableCell>
                     </TableRow>
                   ) : data?.returns.map((row) => (
-                    <TableRow key={row.id} className="hover:bg-surface-muted transition-colors border-b border-surface-muted/50">
-                      <TableCell className="text-sm font-medium text-text-secondary">{fmtDate(row.date)}</TableCell>
+                    <TableRow key={row.id} className="hover:bg-primary/5 transition-colors border-b border-border">
+                      <TableCell className="text-sm font-medium text-muted-foreground">{fmtDate(row.date)}</TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-xl border border-surface-border px-3 py-1 text-[10px] uppercase font-bold tracking-wider shadow-sm ${row.type === 'CUSTOMER_RETURN' ? 'bg-surface text-text-secondary' : 'bg-surface-muted text-text-primary'}`}>
+                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase font-bold tracking-wider shadow-sm ${row.type === 'CUSTOMER_RETURN' ? 'bg-background text-muted-foreground' : 'bg-surface-muted/50 text-foreground'}`}>
                           {row.type === 'CUSTOMER_RETURN' ? 'Customer' : 'Supplier'}
                         </span>
                       </TableCell>
-                      <TableCell className="font-bold text-text-primary">{row.medicine}</TableCell>
-                      <TableCell className="font-bold text-text-secondary">{row.quantity}</TableCell>
-                      <TableCell className="text-sm font-medium text-text-secondary">{row.reason}</TableCell>
-                      <TableCell className="text-right text-lg font-extrabold text-orange-600">
+                      <TableCell className="font-bold text-foreground">{row.medicine}</TableCell>
+                      <TableCell className="font-bold text-muted-foreground">{row.quantity}</TableCell>
+                      <TableCell className="text-sm font-medium text-muted-foreground">{row.reason}</TableCell>
+                      <TableCell className="text-right text-lg font-extrabold text-orange-400">
                         {fmt(row.amount)}
                       </TableCell>
                     </TableRow>

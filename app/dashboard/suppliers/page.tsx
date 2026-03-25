@@ -119,11 +119,11 @@ export default function SuppliersPage() {
     <div className="space-y-6 p-4 md:p-8 max-w-[1600px] mx-auto">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-text-primary flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-3">
             <Building2 className="h-8 w-8 text-primary" />
             Suppliers & Distributors
           </h1>
-          <p className="mt-1 text-sm font-medium text-text-secondary">
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
             Maintain your network of reliable medicine providers.
           </p>
         </div>
@@ -182,10 +182,10 @@ export default function SuppliersPage() {
       </header>
 
       <div className="relative w-full md:w-96">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60" />
         <Input 
           placeholder="Search by name or city..." 
-          className="pl-12 h-12 rounded-[20px] shadow-soft border-surface-border bg-surface font-medium text-text-primary focus:ring-4 focus:ring-primary/10 transition-all focus:shadow-bento outline-none"
+          className="pl-12 h-12 rounded-[20px] shadow-soft border-border bg-surface font-medium text-foreground focus:ring-4 focus:ring-primary/10 transition-all focus:shadow-bento outline-none"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -194,33 +194,33 @@ export default function SuppliersPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
           <div className="col-span-full h-64 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/30" />
           </div>
         ) : filteredSuppliers.length === 0 ? (
-          <div className="col-span-full py-20 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-            <Building2 className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-slate-900">No suppliers found</h3>
-            <p className="text-slate-500">Add your first supplier to track inventory sources.</p>
+          <div className="col-span-full py-20 text-center bg-surface/50 rounded-2xl border-2 border-dashed border-border">
+            <Building2 className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-foreground">No suppliers found</h3>
+            <p className="text-muted-foreground">Add your first supplier to track inventory sources.</p>
           </div>
         ) : (
           filteredSuppliers.map((supplier) => (
-            <Card key={supplier.id} className="group hover:-translate-y-1 rounded-[24px] shadow-soft hover:shadow-bento transition-all duration-300 border-surface-border bg-surface overflow-hidden">
-              <CardHeader className="pb-3 border-b border-surface-border bg-surface-muted/30">
+            <Card key={supplier.id} className="group hover:-translate-y-1 rounded-[24px] shadow-soft hover:shadow-bento transition-all duration-300 border-border bg-surface overflow-hidden">
+              <CardHeader className="pb-3 border-b border-border bg-surface-muted/30">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-[16px] bg-white border border-surface-border flex items-center justify-center shadow-sm text-primary">
+                    <div className="h-12 w-12 rounded-[16px] bg-background border border-border flex items-center justify-center shadow-sm text-primary">
                       <Building2 className="h-6 w-6" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg font-extrabold text-text-primary tracking-tight">{supplier.name}</CardTitle>
-                      <CardDescription className="text-xs font-semibold uppercase tracking-wider text-text-secondary truncate max-w-[150px]">{supplier.city || 'Location N/A'}</CardDescription>
+                      <CardTitle className="text-lg font-extrabold text-foreground tracking-tight">{supplier.name}</CardTitle>
+                      <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate max-w-[150px]">{supplier.city || 'Location N/A'}</CardDescription>
                     </div>
                   </div>
                   <div className="flex gap-1">
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 text-text-muted hover:text-primary transition-colors"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
                       onClick={() => {
                         setCurrentSupplier(supplier);
                         setIsEditDialogOpen(true);
@@ -231,7 +231,7 @@ export default function SuppliersPage() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 text-text-muted hover:bg-danger-bg hover:text-danger transition-colors"
+                      className="h-8 w-8 text-muted-foreground hover:bg-danger/20 hover:text-danger transition-colors"
                       onClick={() => handleDeleteSupplier(supplier.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -241,22 +241,22 @@ export default function SuppliersPage() {
               </CardHeader>
               <CardContent className="pt-5 space-y-4">
                 <div className="grid grid-cols-1 gap-3 text-sm font-medium">
-                  <div className="flex items-center gap-3 text-text-secondary">
-                    <Phone className="h-4 w-4 text-text-muted" />
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <Phone className="h-4 w-4 text-muted-foreground/60" />
                     {supplier.phone}
                   </div>
-                  <div className="flex items-center gap-3 text-text-secondary">
-                    <Mail className="h-4 w-4 text-text-muted" />
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <Mail className="h-4 w-4 text-muted-foreground/60" />
                     <span className="truncate">{supplier.email}</span>
                   </div>
-                  <div className="flex items-start gap-3 text-text-secondary">
-                    <MapPin className="h-4 w-4 text-text-muted mt-0.5" />
+                  <div className="flex items-start gap-3 text-muted-foreground">
+                    <MapPin className="h-4 w-4 text-muted-foreground/60 mt-0.5" />
                     <span className="line-clamp-2 leading-relaxed">{supplier.address}</span>
                   </div>
                 </div>
                 
-                <div className="pt-5 mt-2 flex items-center justify-between border-t border-surface-border">
-                  <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-text-muted bg-surface-muted px-3 py-1 rounded-lg">
+                <div className="pt-5 mt-2 flex items-center justify-between border-t border-border">
+                  <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-muted-foreground bg-surface-muted/50 px-3 py-1 rounded-lg">
                     {supplier._count?.purchases || 0} Purchases
                   </div>
                   <Button 
@@ -336,20 +336,20 @@ export default function SuppliersPage() {
                 <DialogDescription>Recent invoices associated with this distributor.</DialogDescription>
               </DialogHeader>
           </div>
-          <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto p-6 bg-surface">
              <div className="space-y-4">
                 {currentSupplier?.purchases?.length === 0 ? (
-                  <div className="text-center py-10 text-slate-400">No purchase records found.</div>
+                  <div className="text-center py-10 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">No purchase records found.</div>
                 ) : (
                   currentSupplier?.purchases?.map((p: any) => (
-                    <div key={p.id} className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+                    <div key={p.id} className="p-4 bg-surface-muted/30 rounded-xl border border-border shadow-sm flex items-center justify-between group-hover:bg-primary/5 transition-colors">
                        <div>
-                         <div className="font-bold text-slate-900">{p.invoiceNumber}</div>
-                         <div className="text-xs text-slate-500">{new Date(p.invoiceDate).toLocaleDateString()}</div>
+                         <div className="font-bold text-foreground">{p.invoiceNumber}</div>
+                         <div className="text-xs text-muted-foreground">{new Date(p.invoiceDate).toLocaleDateString()}</div>
                        </div>
                        <div className="text-right">
-                         <div className="font-bold text-slate-900">₹{p.totalAmount}</div>
-                         <div className={`text-[10px] font-bold ${p.status === 'PAID' ? 'text-emerald-500' : 'text-orange-500'}`}>
+                         <div className="font-bold text-foreground">₹{p.totalAmount}</div>
+                         <div className={`text-[10px] font-bold ${p.status === 'PAID' ? 'text-primary' : 'text-orange-400'}`}>
                            {p.status}
                          </div>
                        </div>
@@ -358,7 +358,7 @@ export default function SuppliersPage() {
                 )}
              </div>
           </div>
-          <div className="p-4 border-t bg-white flex justify-end">
+          <div className="p-4 border-t border-border bg-surface flex justify-end">
             <Button variant="outline" onClick={() => setIsHistoryOpen(false)}>Close Window</Button>
           </div>
         </DialogContent>

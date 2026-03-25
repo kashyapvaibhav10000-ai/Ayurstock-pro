@@ -88,7 +88,7 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
 
   return (
     <>
-      <header className="flex items-center justify-between border-b border-surface-border bg-surface/80 backdrop-blur-md px-4 sm:px-6 py-4 h-[81px] relative z-20">
+      <header className="flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-md px-4 sm:px-6 py-4 h-[81px] relative z-20">
         <div className="flex items-center gap-3">
           <Button 
             variant="ghost" 
@@ -99,23 +99,23 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
             <Menu className="h-5 w-5" />
           </Button>
           <div className="xl:hidden flex items-center gap-2 mr-2">
-            <Image src="/logo.png" width={32} height={32} alt="AyurStock Pro" className="w-8 h-8" />
+            <Image src="/logo.png" width={32} height={32} alt="AyurStock Pro" className="w-8 h-8 rounded-lg bg-white p-0.5" />
           </div>
-          <span className="text-lg sm:text-xl font-bold text-text-primary tracking-tight truncate">{pageTitle}</span>
+          <span className="text-lg sm:text-xl font-black text-foreground tracking-tighter uppercase truncate">{pageTitle}</span>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative hidden md:block w-[280px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-            <Input placeholder="Search everything..." className="rounded-2xl border-surface-border bg-surface shadow-soft pl-9 h-10 transition-shadow focus-visible:shadow-bento" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search everything..." className="rounded-2xl border-border bg-surface shadow-soft pl-9 h-10 transition-shadow focus-visible:shadow-bento text-foreground" />
           </div>
           
-          <Button variant="outline" size="icon" className="hidden sm:flex rounded-2xl border-surface-border bg-surface shadow-soft hover:shadow-bento h-10 w-10">
-            <Bell className="h-4 w-4 text-text-secondary" />
+          <Button variant="outline" size="icon" className="hidden sm:flex rounded-2xl border-border bg-surface shadow-soft hover:shadow-bento h-10 w-10">
+            <Bell className="h-4 w-4 text-muted-foreground" />
           </Button>
           
           <button
-            className="group flex items-center gap-2 sm:gap-3 rounded-2xl border border-surface-border bg-surface p-1 sm:px-1.5 sm:py-1.5 shadow-soft transition-all hover:shadow-bento hover:border-primary/20 focus:outline-none"
+            className="group flex items-center gap-2 sm:gap-3 rounded-2xl border border-border bg-surface p-1 sm:px-1.5 sm:py-1.5 shadow-soft transition-all hover:shadow-bento hover:border-primary/20 focus:outline-none"
             onClick={() => setProfileOpen(true)}
           >
             <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-sm font-semibold text-primary transition-colors group-hover:bg-primary/20">
@@ -126,8 +126,8 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
               )}
             </div>
             <div className="hidden text-left sm:block pr-3">
-              <div className="text-sm font-bold text-text-primary leading-tight">{user.name}</div>
-              <div className="text-[11px] font-bold tracking-wider uppercase text-text-secondary">{user.role}</div>
+              <div className="text-sm font-bold text-foreground leading-tight">{user.name}</div>
+              <div className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">{user.role}</div>
             </div>
           </button>
         </div>
@@ -144,15 +144,17 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
           
           {/* Panel */}
           <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-            <div className="pointer-events-auto w-screen max-w-md transform transition-all shadow-2xl bg-surface h-full flex flex-col pt-4 border-l border-surface-border">
+            <div className="pointer-events-auto w-screen max-w-md transform transition-all shadow-2xl bg-surface h-full flex flex-col pt-4 border-l border-border backdrop-blur-3xl">
               
               {/* Panel Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border">
-                <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                  <UserCircle className="h-5 w-5 text-primary" />
-                  Your Profile 
+              <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+                <h2 className="text-lg font-black text-foreground flex items-center gap-3 uppercase tracking-tight">
+                  <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                    <UserCircle className="h-5 w-5 text-primary" />
+                  </div>
+                  Clinical Identity
                 </h2>
-                <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setProfileOpen(false)}>
+                <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-surface-muted" onClick={() => setProfileOpen(false)}>
                   <X className="h-5 w-5" />
                 </Button>
               </div>
@@ -161,8 +163,8 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 
                 {/* User Info Segment */}
-                <div className="flex items-center gap-4 bg-surface-muted p-4 rounded-2xl border border-surface-border">
-                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-lg font-bold text-primary shrink-0">
+                <div className="flex items-center gap-5 bg-surface-muted/30 p-5 rounded-2xl border border-border shadow-inner">
+                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-primary/10 text-xl font-black text-primary shrink-0 border border-primary/20">
                     {user.avatarUrl ? (
                       <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
                     ) : (
@@ -170,42 +172,50 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-base font-bold text-text-primary truncate">{user.name}</p>
-                    <p className="text-sm text-text-secondary capitalize">{user.role.toLowerCase()}</p>
+                    <p className="text-lg font-black text-foreground truncate tracking-tight">{user.name}</p>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">{user.role}</p>
                   </div>
                 </div>
 
-                <hr className="border-surface-border" />
+                <hr className="border-border" />
 
                 {/* Shop Info Segment */}
                 <div>
-                  <h3 className="text-sm font-bold tracking-wider text-text-secondary uppercase mb-4">Shop Details</h3>
+                  <h3 className="text-[10px] font-black tracking-[0.25em] text-muted-foreground/60 uppercase mb-5 ml-1">Foundation Metadata</h3>
                   {shopInfo ? (
-                    <div className="space-y-4">
-                      <div className="flex gap-3 items-start">
-                        <Building2 className="h-5 w-5 text-text-muted shrink-0 mt-0.5" />
+                    <div className="space-y-5">
+                      <div className="flex gap-4 items-start">
+                        <div className="h-10 w-10 rounded-xl bg-surface-muted flex items-center justify-center border border-border shrink-0">
+                          <Building2 className="h-5 w-5 text-muted-foreground" />
+                        </div>
                         <div>
-                          <p className="text-sm font-semibold text-text-primary">{shopInfo.shopName}</p>
-                          <p className="text-sm text-text-secondary mt-1">{shopInfo.addressLine1}</p>
-                          {shopInfo.addressLine2 && <p className="text-sm text-text-secondary">{shopInfo.addressLine2}</p>}
+                          <p className="text-sm font-black text-foreground uppercase tracking-tight">{shopInfo.shopName}</p>
+                          <p className="text-[11px] font-bold text-muted-foreground mt-1 uppercase tracking-wide">{shopInfo.addressLine1}</p>
+                          {shopInfo.addressLine2 && <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">{shopInfo.addressLine2}</p>}
                         </div>
                       </div>
 
-                      <div className="flex gap-3 items-center">
-                        <Phone className="h-5 w-5 text-text-muted shrink-0" />
-                        <p className="text-sm text-text-primary">{shopInfo.phone || 'Not provided'}</p>
+                      <div className="flex gap-4 items-center">
+                        <div className="h-10 w-10 rounded-xl bg-surface-muted flex items-center justify-center border border-border shrink-0">
+                          <Phone className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <p className="text-[11px] font-black text-foreground uppercase tracking-widest">{shopInfo.phone || 'NULL_VCTR'}</p>
                       </div>
 
-                      <div className="flex gap-3 items-center">
-                        <Mail className="h-5 w-5 text-text-muted shrink-0" />
-                        <p className="text-sm text-text-primary">{shopInfo.email || 'Not provided'}</p>
+                      <div className="flex gap-4 items-center">
+                        <div className="h-10 w-10 rounded-xl bg-surface-muted flex items-center justify-center border border-border shrink-0">
+                          <Mail className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <p className="text-[11px] font-black text-foreground uppercase tracking-widest">{shopInfo.email || 'NULL_VCTR'}</p>
                       </div>
 
-                      <div className="flex gap-3 items-center border border-surface-border bg-surface-muted p-3 rounded-xl mt-2">
-                        <FileText className="h-5 w-5 text-primary shrink-0" />
+                      <div className="flex gap-4 items-center border border-primary/20 bg-primary/5 p-4 rounded-2xl mt-4 shadow-soft">
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
                         <div>
-                          <p className="text-xs font-semibold text-text-secondary uppercase">GSTIN / Tax ID</p>
-                          <p className="text-sm font-mono font-semibold text-text-primary mt-0.5">{shopInfo.gstin}</p>
+                          <p className="text-[9px] font-black text-primary uppercase tracking-[0.25em]">GSTIN_AUTH_PTRN</p>
+                          <p className="text-sm font-mono font-black text-foreground mt-0.5 tracking-tighter">{shopInfo.gstin}</p>
                         </div>
                       </div>
                     </div>
@@ -220,34 +230,34 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
               </div>
               
               {/* Panel Footer Actions */}
-              <div className="p-6 border-t border-surface-border bg-surface-muted space-y-3">
+              <div className="p-6 border-t border-border bg-surface-muted/30 space-y-3">
                 <Button
-                  className="w-full gap-2 justify-start h-11 bg-surface hover:bg-surface-muted text-text-primary border border-surface-border"
+                  className="w-full gap-3 justify-start h-12 bg-surface hover:bg-surface-muted text-[11px] font-black uppercase tracking-widest text-foreground border border-border rounded-xl transition-all"
                   onClick={() => {
                     setProfileOpen(false);
                     router.push('/dashboard/settings?tab=shop');
                   }}
                 >
-                  <Store className="h-4 w-4 text-text-muted" />
-                  Edit Shop Profile
+                  <Store className="h-4 w-4 text-primary" />
+                  Calibrate Shop Metadata
                 </Button>
                 <Button
-                  className="w-full gap-2 justify-start h-11 bg-surface hover:bg-surface-muted text-text-primary border border-surface-border"
+                  className="w-full gap-3 justify-start h-12 bg-surface hover:bg-surface-muted text-[11px] font-black uppercase tracking-widest text-foreground border border-border rounded-xl transition-all"
                   onClick={() => {
                     setProfileOpen(false);
                     router.push('/dashboard/settings');
                   }}
                 >
-                  <Settings className="h-4 w-4 text-text-muted" />
-                  System Settings
+                  <Settings className="h-4 w-4 text-primary" />
+                  System Core Config
                 </Button>
                 <Button
                   variant="destructive"
-                  className="w-full gap-2 h-11"
+                  className="w-full gap-3 h-12 text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-danger/10 mt-2"
                   onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4" />
-                  Log Out Securely
+                  Terminate Session
                 </Button>
               </div>
 

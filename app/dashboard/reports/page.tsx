@@ -84,15 +84,15 @@ export default function ReportsPage() {
     <div className="space-y-6 md:space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-primary">Reports & Analytics</h1>
-          <p className="mt-1 text-sm text-text-secondary">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">Reports & Analytics</h1>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
             Generate insights, view sales trends, and export your data.
           </p>
         </div>
       </header>
 
       {/* Report Filters */}
-      <Card className="rounded-2xl border-surface-border">
+      <Card className="rounded-[24px] border-border bg-surface shadow-soft">
         <CardContent className="p-4 md:p-6 space-y-4">
           <div className="flex flex-wrap gap-2">
             {[
@@ -105,7 +105,7 @@ export default function ReportsPage() {
                 key={label}
                 size="sm"
                 variant="outline"
-                className="rounded-lg"
+                className="rounded-xl font-bold border-border hover:bg-primary/5 transition-all"
                 onClick={() => {
                   const end = new Date();
                   const start = new Date();
@@ -120,21 +120,21 @@ export default function ReportsPage() {
           </div>
           <div className="flex flex-col md:flex-row gap-4 items-end">
             <div className="w-full md:w-auto flex-1 space-y-2">
-              <label className="text-sm font-medium text-text-secondary">Start Date</label>
-              <Input type="date" className="w-full" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Start Date</label>
+              <Input type="date" className="w-full rounded-xl border-border bg-surface focus-visible:ring-primary/20" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div className="w-full md:w-auto flex-1 space-y-2">
-              <label className="text-sm font-medium text-text-secondary">End Date</label>
-              <Input type="date" className="w-full" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">End Date</label>
+              <Input type="date" className="w-full rounded-xl border-border bg-surface focus-visible:ring-primary/20" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
             <div className="flex gap-3 w-full md:w-auto">
-              <Button className="flex-1 md:flex-none gap-2 px-6" onClick={handleGenerate} disabled={isLoading}>
+              <Button className="flex-1 md:flex-none gap-2 px-6 rounded-xl font-bold bg-primary hover:bg-primary/90 text-background" onClick={handleGenerate} disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Filter className="h-4 w-4" />}
                 {isLoading ? 'Generating...' : 'Generate'}
               </Button>
               <Button
                 variant="outline"
-                className="flex-1 md:flex-none gap-2 px-6"
+                className="flex-1 md:flex-none gap-2 px-6 rounded-xl font-bold border-border"
                 disabled={!reportData}
                 onClick={() => window.print()}
               >
@@ -147,41 +147,41 @@ export default function ReportsPage() {
       </Card>
 
       {!reportData ? (
-        <Card className="rounded-2xl border-surface-border min-h-[400px] flex items-center justify-center bg-surface-muted">
+        <Card className="rounded-[24px] border-border min-h-[400px] flex items-center justify-center bg-surface-muted/30">
           <CardContent className="flex flex-col items-center text-center p-12">
-            <div className="h-16 w-16 bg-surface rounded-2xl flex items-center justify-center border border-surface-border shadow-sm mb-6">
-              <FileBarChart className="h-8 w-8 text-text-muted" />
+            <div className="h-20 w-20 bg-surface rounded-3xl flex items-center justify-center border border-border shadow-soft mb-6">
+              <FileBarChart className="h-10 w-10 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold text-text-primary">Select a date range to begin</h3>
-            <p className="text-sm text-text-secondary mt-2 max-w-sm mb-6">
+            <h3 className="text-2xl font-extrabold text-foreground">Select a date range to begin</h3>
+            <p className="text-sm text-muted-foreground mt-2 max-w-sm mb-6 font-medium">
               Choose your start and end dates above, then click <strong>Generate</strong> to view your sales report.
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Card className="rounded-2xl border-surface-border">
+          <Card className="rounded-[24px] border-border bg-surface shadow-soft border-l-[6px] border-l-primary/30">
             <CardContent className="p-5 md:p-6">
-              <p className="text-sm font-medium text-text-secondary">Total Sales</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-text-primary mt-1">₹{reportData.totalSales.toLocaleString()}</h2>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Sales</p>
+              <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mt-2">₹{reportData.totalSales.toLocaleString()}</h2>
             </CardContent>
           </Card>
-          <Card className="rounded-2xl border-surface-border">
+          <Card className="rounded-[24px] border-border bg-surface shadow-soft border-l-[6px] border-l-primary/30">
             <CardContent className="p-5 md:p-6">
-              <p className="text-sm font-medium text-text-secondary">Total Bills</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-text-primary mt-1">{reportData.totalBills}</h2>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Bills</p>
+              <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mt-2">{reportData.totalBills}</h2>
             </CardContent>
           </Card>
-          <Card className="rounded-2xl border-surface-border">
+          <Card className="rounded-[24px] border-border bg-surface shadow-soft border-l-[6px] border-l-primary/30">
             <CardContent className="p-5 md:p-6">
-              <p className="text-sm font-medium text-text-secondary">Credit Sales</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-text-primary mt-1">₹{reportData.creditSales.toLocaleString()}</h2>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Credit Sales</p>
+              <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mt-2">₹{reportData.creditSales.toLocaleString()}</h2>
             </CardContent>
           </Card>
-          <Card className="rounded-2xl border-surface-border">
+          <Card className="rounded-[24px] border-border bg-surface shadow-soft border-l-[6px] border-l-primary/30">
             <CardContent className="p-5 md:p-6">
-              <p className="text-sm font-medium text-text-secondary">GST Collected</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-text-primary mt-1">₹{reportData.gstCollected.toLocaleString()}</h2>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">GST Collected</p>
+              <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mt-2">₹{reportData.gstCollected.toLocaleString()}</h2>
             </CardContent>
           </Card>
         </div>

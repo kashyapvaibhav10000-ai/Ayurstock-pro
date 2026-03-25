@@ -404,33 +404,33 @@ export default function MedicinesPage() {
   if (!isAuthorized) return null;
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading medicines...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Loading medicines...</div>;
   }
 
   return (
     <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">Medicines</h1>
-          <p className="mt-1 text-sm text-text-secondary">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Medicines</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Manage your medicine master and move selected items into inventory when stock arrives.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative w-full sm:min-w-[280px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search medicine, company, barcode..."
-              className="pl-9 rounded-2xl bg-surface shadow-soft border-surface-border transition-all focus-visible:shadow-bento"
+              className="pl-9 rounded-2xl bg-surface shadow-soft border-border transition-all focus-visible:shadow-bento"
             />
           </div>
           <Button variant="outline" className="gap-2 rounded-2xl shadow-soft hover:shadow-bento transition-all" onClick={() => setShowImportModal(true)}>
             <Upload className="h-4 w-4" />
             Import Medicines
           </Button>
-          <Button variant="outline" className="gap-2 rounded-2xl shadow-soft hover:shadow-bento transition-all border-green-200 text-green-700 hover:bg-green-50" onClick={handleAyukalpImport} disabled={importingAyukalp}>
+          <Button variant="outline" className="gap-2 rounded-2xl shadow-soft hover:shadow-bento transition-all border-primary/20 text-primary hover:bg-primary/10" onClick={handleAyukalpImport} disabled={importingAyukalp}>
             <Boxes className="h-4 w-4" />
             {importingAyukalp ? 'Importing…' : 'Import Ayukalp Catalog'}
           </Button>
@@ -445,12 +445,12 @@ export default function MedicinesPage() {
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-xl">Medicine Master</CardTitle>
-            <CardDescription>
+            <CardDescription className="text-muted-foreground/70">
               {totalCount} medicines available. Imported medicines stay here until you move them to inventory.
             </CardDescription>
           </div>
           {selectedMedicines.size > 0 ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-primary/10 px-4 py-2 text-sm text-primary font-bold shadow-soft">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-primary/20 px-4 py-2 text-sm text-primary font-bold shadow-soft border border-primary/20">
               <span>{selectedMedicines.size} selected</span>
               <Button size="sm" className="gap-2 rounded-xl" onClick={() => setShowMoveModal(true)}>
                 <Boxes className="h-4 w-4" />
@@ -472,11 +472,11 @@ export default function MedicinesPage() {
           {/* Filter bar */}
           <div className="mb-4 flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1">
-              <Label className="text-xs text-slate-500">Category</Label>
+              <Label className="text-xs text-muted-foreground/60 font-semibold uppercase tracking-wider pl-1">Category</Label>
               <select
                 value={activeFilter}
                 onChange={(e) => setActiveFilter(e.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                className="h-9 rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 ring-offset-0 transition-all font-medium"
               >
                 {CATEGORY_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
@@ -484,11 +484,11 @@ export default function MedicinesPage() {
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-xs text-slate-500">Company</Label>
+              <Label className="text-xs text-muted-foreground/60 font-semibold uppercase tracking-wider pl-1">Company</Label>
               <select
                 value={companyFilter}
                 onChange={(e) => setCompanyFilter(e.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm w-full sm:min-w-[160px]"
+                className="h-9 rounded-xl border border-border bg-surface px-3 text-sm w-full sm:min-w-[160px] focus:ring-2 focus:ring-primary/20 ring-offset-0 transition-all font-medium"
               >
                 <option value="">All Companies</option>
                 {companies.map((c) => (
@@ -501,7 +501,7 @@ export default function MedicinesPage() {
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
-                className="gap-1 text-slate-500 hover:text-slate-900 self-end"
+                className="gap-1 text-muted-foreground hover:text-foreground self-end"
               >
                 <X className="h-3.5 w-3.5" />
                 Clear Filters
@@ -509,32 +509,32 @@ export default function MedicinesPage() {
             )}
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-surface-border">
+          <div className="overflow-x-auto rounded-2xl border border-border">
             <Table>
               <TableHeader className="bg-surface-muted/50">
-                <TableRow>
+                <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="w-12">
                     <Checkbox checked={selectedAll} onCheckedChange={toggleSelectAll} />
                   </TableHead>
-                  <TableHead className="font-bold text-text-secondary">Medicine</TableHead>
-                  <TableHead className="font-bold text-text-secondary">Company</TableHead>
-                  <TableHead className="font-bold text-text-secondary">Category</TableHead>
-                  <TableHead className="font-bold text-text-secondary hidden sm:table-cell">Packing</TableHead>
-                  <TableHead className="font-bold text-text-secondary hidden lg:table-cell">Barcode</TableHead>
-                  <TableHead className="font-bold text-text-secondary hidden md:table-cell">GST %</TableHead>
-                  <TableHead className="text-right font-bold text-text-secondary">Actions</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Medicine</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Company</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Category</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden sm:table-cell">Packing</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden lg:table-cell">Barcode</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden md:table-cell">GST %</TableHead>
+                  <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visibleMedicines.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="py-10 text-center text-sm text-slate-500">
+                  <TableRow className="border-border">
+                    <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
                       No medicines found.
                     </TableCell>
                   </TableRow>
                 ) : (
                   visibleMedicines.map((medicine) => (
-                    <TableRow key={medicine.id} className="group hover:bg-green-50/40 transition-colors duration-100">
+                    <TableRow key={medicine.id} className="group border-border hover:bg-primary/5 transition-colors duration-200">
                       <TableCell>
                         <Checkbox
                           checked={selectedMedicines.has(medicine.id)}
@@ -542,7 +542,7 @@ export default function MedicinesPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium text-slate-900">{medicine.name}</div>
+                        <div className="font-bold text-foreground">{medicine.name}</div>
                       </TableCell>
                       <TableCell>
                         {editingRowId === medicine.id ? (
@@ -652,7 +652,7 @@ export default function MedicinesPage() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-text-muted hover:text-red-600 hover:bg-red-50"
+                            className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                             onClick={() => handleDeleteMedicine(medicine)}
                             title="Delete medicine"
                           >
@@ -668,8 +668,8 @@ export default function MedicinesPage() {
           </div>
 
           {totalCount > 0 && (
-            <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-6">
-              <p className="text-sm text-slate-500">
+            <div className="mt-6 flex items-center justify-between border-t border-border pt-6">
+              <p className="text-sm text-muted-foreground">
                 Showing {Math.min(totalCount, (currentPage - 1) * PAGE_SIZE + 1)} to{' '}
                 {Math.min(totalCount, currentPage * PAGE_SIZE)} of {totalCount} medicines
               </p>

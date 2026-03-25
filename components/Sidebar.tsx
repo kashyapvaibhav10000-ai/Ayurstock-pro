@@ -83,7 +83,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
       {/* Mobile Backdrop */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm xl:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm xl:hidden"
           onClick={onMobileClose}
         />
       )}
@@ -91,7 +91,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 flex flex-col
-          border-r border-stitch-surfaceLow bg-stitch-surfaceLowest shadow-[4px_0_24px_rgba(43,53,47,0.03)]
+          border-r border-border bg-surface shadow-2xl
           transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
           xl:static xl:shadow-none xl:translate-x-0
           ${isMobileOpen ? 'translate-x-0 w-[260px]' : '-translate-x-full xl:translate-x-0'}
@@ -103,23 +103,23 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-5 h-[72px] overflow-hidden shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="h-10 w-10 shrink-0 rounded-[12px] bg-gradient-to-br from-stitch-primary to-stitch-primaryDim shadow-[0_4px_12px_rgba(0,109,79,0.15)] flex items-center justify-center">
-              <Image src="/logo.png" width={24} height={24} alt="AyurStock Pro" className="brightness-0 invert opacity-90" />
+            <div className="h-10 w-10 shrink-0 rounded-[12px] bg-gradient-to-br from-primary to-primary/80 shadow-primary/20 shadow-lg flex items-center justify-center">
+              <Image src="/logo.png" width={24} height={24} alt="AyurStock Pro" className="brightness-0 invert opacity-100" />
             </div>
             {isExpanded && (
               <div className="overflow-hidden transition-all duration-300 opacity-100 whitespace-nowrap">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-stitch-primary">
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-primary">
                   AyurStock Pro
                 </p>
-                <p className="text-[13px] font-bold text-stitch-onSurface mt-0.5">
-                  Command Center
+                <p className="text-[12px] font-black text-foreground mt-0.5 uppercase tracking-tight">
+                  Archival Center
                 </p>
               </div>
             )}
           </div>
 
           {/* Mobile close */}
-          <Button variant="ghost" size="icon" className="xl:hidden h-8 w-8 rounded-lg shrink-0 text-stitch-onSurfaceVariant hover:bg-stitch-surfaceLow" onClick={onMobileClose}>
+          <Button variant="ghost" size="icon" className="xl:hidden h-8 w-8 rounded-lg shrink-0 text-muted-foreground hover:bg-surface-muted" onClick={onMobileClose}>
             <X className="h-4 w-4" />
           </Button>
 
@@ -127,7 +127,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
           {isExpanded && (
             <button
               onClick={() => setIsPinned((p) => !p)}
-              className="hidden xl:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-stitch-outlineVariant hover:text-stitch-primary hover:bg-stitch-primaryContainer/30 transition-colors"
+              className="hidden xl:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
               title={isPinned ? 'Unpin sidebar' : 'Pin sidebar open'}
             >
               {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
@@ -137,8 +137,8 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
 
         {/* User pill */}
         <div className="px-3 pb-2 pt-1 shrink-0">
-          <div className={`flex items-center gap-3 rounded-[14px] bg-stitch-surfaceLow px-2.5 py-2.5 transition-all duration-200 ${!isExpanded ? 'justify-center px-0 bg-transparent' : ''}`}>
-            <div className="h-8 w-8 shrink-0 flex items-center justify-center rounded-[10px] bg-stitch-primaryContainer/50 text-xs font-bold text-stitch-primary">
+          <div className={`flex items-center gap-3 rounded-[14px] bg-surface-muted px-2.5 py-2.5 transition-all duration-200 ${!isExpanded ? 'justify-center px-0 bg-transparent' : ''}`}>
+            <div className="h-8 w-8 shrink-0 flex items-center justify-center rounded-[10px] bg-primary/10 text-xs font-bold text-primary">
               {user.avatarUrl
                 ? <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover rounded-[10px]" />
                 : user.name.slice(0, 2).toUpperCase()
@@ -146,8 +146,8 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
             </div>
             {isExpanded && (
               <div className="min-w-0 overflow-hidden">
-                <p className="text-[12px] font-extrabold text-stitch-onSurface truncate leading-tight">{user.name}</p>
-                <p className="text-[10px] font-semibold text-stitch-onSurfaceVariant uppercase tracking-wider mt-0.5">{user.role}</p>
+                <p className="text-[12px] font-extrabold text-foreground truncate leading-tight">{user.name}</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-0.5">{user.role}</p>
               </div>
             )}
           </div>
@@ -159,7 +159,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
             <div key={groupIndex} className="flex flex-col">
               {/* Group Title Box */}
               <div className={`flex items-center h-6 mb-1 overflow-hidden transition-all duration-300 ${!isExpanded ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
-                <span className="text-[10px] font-bold text-stitch-outlineVariant uppercase tracking-[0.15em] pl-3 whitespace-nowrap">
+                <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.3em] pl-4 whitespace-nowrap">
                   {group.label}
                 </span>
               </div>
@@ -178,11 +178,11 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
                       }}
                       title={!isExpanded ? item.label : undefined}
                       className={`
-                        group relative flex items-center gap-3.5 rounded-[12px] px-3 py-2.5 text-[13px] font-semibold transition-all duration-200
+                        group relative flex items-center gap-3.5 rounded-[12px] px-3 py-3 text-[12px] font-black transition-all duration-200 uppercase tracking-widest
                         ${isExpanded ? '' : 'xl:justify-center px-0 mx-1 w-12 h-12 flex items-center justify-center'}
                         ${isActive
-                          ? 'bg-stitch-primaryContainer/30 text-stitch-primary shadow-[inset_2px_0_0_#006d4f]'
-                          : 'text-stitch-onSurfaceVariant hover:bg-stitch-surfaceLow hover:text-stitch-onSurface'
+                          ? 'bg-primary/15 text-primary shadow-[inset_3px_0_0_#D4AF37] border border-primary/10'
+                          : 'text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent'
                         }
                       `}
                     >
@@ -194,7 +194,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
                       <Icon 
                         className={`shrink-0 transition-transform duration-200 
                           ${isExpanded ? 'w-[18px] h-[18px]' : 'w-5 h-5 group-hover:scale-110'}
-                          ${isActive ? 'text-stitch-primary drop-shadow-[0_2px_4px_rgba(0,109,79,0.2)]' : 'text-stitch-outlineVariant group-hover:text-stitch-primaryDim'}
+                          ${isActive ? 'text-primary drop-shadow-[0_2px_4px_rgba(212,175,55,0.2)]' : 'text-muted-foreground group-hover:text-primary'}
                         `} 
                       />
 
@@ -206,7 +206,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
 
                       {/* Tooltip on collapsed desktop */}
                       {!isExpanded && (
-                        <span className="pointer-events-none absolute left-full ml-3 hidden xl:block whitespace-nowrap rounded-[8px] bg-stitch-onSurface px-3 py-2 text-[11px] font-bold tracking-wide text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-xl z-50">
+                        <span className="pointer-events-none absolute left-full ml-3 hidden xl:block whitespace-nowrap rounded-[8px] bg-foreground px-3 py-2 text-[11px] font-bold tracking-wide text-background opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-xl z-50">
                           {item.label}
                         </span>
                       )}

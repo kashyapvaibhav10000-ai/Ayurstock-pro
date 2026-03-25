@@ -43,17 +43,17 @@ export default function SystemSettings() {
   if (!mounted) return null;
 
   return (
-    <Card className="border-surface-border bg-surface">
+    <Card className="border-border bg-surface shadow-soft">
       <CardContent className="p-6 space-y-6">
         <div>
-          <h2 className="font-semibold text-lg text-text-primary">System Preferences</h2>
-          <p className="text-sm text-text-secondary mt-1">Manage global system configurations and sync tools.</p>
+          <h2 className="text-xl font-black text-foreground tracking-tight uppercase">System Calibration</h2>
+          <p className="text-[11px] font-bold text-muted-foreground mt-2 uppercase tracking-widest">Global configurations and interface synchronization.</p>
         </div>
 
-        <div className="flex justify-between items-center py-2">
-          <div className="space-y-0.5">
-            <h3 className="text-sm font-medium text-text-primary">Dark Mode</h3>
-            <p className="text-xs text-text-secondary">Switch the UI theme to dark</p>
+        <div className="flex justify-between items-center py-4 border-t border-border mt-6">
+          <div className="space-y-1">
+            <h3 className="text-sm font-extrabold text-foreground uppercase tracking-tight">Dark Mode Protocol</h3>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Enable high-contrast 'Soft Black & Gold' interface</p>
           </div>
           <Switch
             checked={theme === 'dark'}
@@ -64,10 +64,10 @@ export default function SystemSettings() {
           />
         </div>
 
-        <div className="flex justify-between items-center py-2 border-t border-surface-border">
-          <div className="space-y-0.5">
-            <h3 className="text-sm font-medium text-text-primary">Enable Notifications</h3>
-            <p className="text-xs text-text-secondary">Receive alerts for low stock and tasks</p>
+        <div className="flex justify-between items-center py-4 border-t border-border">
+          <div className="space-y-1">
+            <h3 className="text-sm font-extrabold text-foreground uppercase tracking-tight">System Notifications</h3>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Real-time alerts for inventory and logistics</p>
           </div>
           <Switch
             checked={settings.enableNotifications}
@@ -75,10 +75,10 @@ export default function SystemSettings() {
           />
         </div>
 
-        <div className="flex justify-between items-center py-2 border-t border-surface-border">
-          <div className="space-y-0.5">
-            <h3 className="text-sm font-medium text-text-primary">Enable Cloud Sync</h3>
-            <p className="text-xs text-text-secondary">Automatically securely backup your data</p>
+        <div className="flex justify-between items-center py-4 border-t border-border">
+          <div className="space-y-1">
+            <h3 className="text-sm font-extrabold text-foreground uppercase tracking-tight">Cloud Synchronicity</h3>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Automated secure archival of clinical records</p>
           </div>
           <Switch
             checked={settings.enableCloudBackup}

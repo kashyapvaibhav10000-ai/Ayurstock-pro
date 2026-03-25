@@ -173,21 +173,21 @@ export default function InventoryPage() {
   if (!isAuthorized) return null;
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading inventory...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Loading inventory...</div>;
   }
 
   return (
     <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">Inventory</h1>
-          <p className="mt-1 text-sm text-text-secondary">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Inventory</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Track live stock, update batch details, and manage expiry-sensitive inventory.
           </p>
         </div>
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
           <select
-            className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="h-10 rounded-xl border border-border bg-surface px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
           >
@@ -201,12 +201,14 @@ export default function InventoryPage() {
           <Button
             variant={showLowStock ? 'default' : 'outline'}
             onClick={() => setShowLowStock((current) => !current)}
+            className="rounded-xl shadow-soft"
           >
             Low Stock
           </Button>
           <Button
             variant={expiryFilter === 'all' ? 'default' : 'outline'}
             onClick={() => setExpiryFilter('all')}
+            className="rounded-xl shadow-soft"
           >
             All Expiry
           </Button>
@@ -290,9 +292,9 @@ export default function InventoryPage() {
             <CardTitle className="text-3xl font-extrabold">{expiryStats.expiring60}</CardTitle>
           </CardHeader>
         </Card>
-        <Card className="border-danger/30 bg-danger-bg hover:-translate-y-1 transition-all duration-300">
+        <Card className="border-danger/20 bg-danger/10 hover:-translate-y-1 transition-all duration-300">
           <CardHeader>
-            <CardDescription className="font-bold tracking-wider text-xs uppercase text-danger-text">Expired</CardDescription>
+            <CardDescription className="font-bold tracking-wider text-xs uppercase text-danger">Expired</CardDescription>
             <CardTitle className="text-3xl font-extrabold text-danger">{expiryStats.expired}</CardTitle>
           </CardHeader>
         </Card>
@@ -306,24 +308,24 @@ export default function InventoryPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded-2xl border border-surface-border">
+          <div className="overflow-x-auto rounded-2xl border border-border">
             <Table>
               <TableHeader className="bg-surface-muted/50">
-                <TableRow>
-                  <TableHead className="font-bold text-text-secondary">Medicine</TableHead>
-                  <TableHead className="font-bold text-text-secondary">Batch</TableHead>
-                  <TableHead className="font-bold text-text-secondary">Expiry</TableHead>
-                  <TableHead className="font-bold text-text-secondary">Stock</TableHead>
-                  <TableHead className="font-bold text-text-secondary hidden md:table-cell">Purchase Rate</TableHead>
-                  <TableHead className="font-bold text-text-secondary">MRP</TableHead>
-                  <TableHead className="font-bold text-text-secondary hidden sm:table-cell">Rack</TableHead>
-                  <TableHead className="text-right font-bold text-text-secondary">Actions</TableHead>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Medicine</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Batch</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Expiry</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Stock</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden md:table-cell">Purchase Rate</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">MRP</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden sm:table-cell">Rack</TableHead>
+                  <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredBatches.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="py-10 text-center text-sm text-slate-500">
+                  <TableRow className="border-border">
+                    <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
                       No inventory batches found.
                     </TableCell>
                   </TableRow>
@@ -341,11 +343,11 @@ export default function InventoryPage() {
                             ? 'bg-yellow-50 hover:bg-yellow-100/60'
                           : 'hover:bg-gray-50';
 
-                    return (
-                      <TableRow key={batch.id} className={`group ${rowClassName}`}>
+                     return (
+                      <TableRow key={batch.id} className={`group border-border transition-colors duration-200 ${rowClassName}`}>
                         <TableCell>
-                          <div className="font-medium text-slate-900">{batch.medicine.name}</div>
-                          <div className="text-xs text-slate-500">{batch.medicine.company}</div>
+                          <div className="font-bold text-foreground">{batch.medicine.name}</div>
+                          <div className="text-xs text-muted-foreground font-medium">{batch.medicine.company}</div>
                         </TableCell>
                         <TableCell>{batch.batchNumber}</TableCell>
                         <TableCell>
@@ -375,7 +377,7 @@ export default function InventoryPage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-text-muted hover:text-red-600 hover:bg-red-50"
+                              className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                               onClick={() => handleDeleteBatch(batch)}
                               title="Delete inventory"
                             >
