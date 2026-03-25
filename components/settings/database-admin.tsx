@@ -1,46 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger
 } from "@/components/ui/dialog";
 import {
-  Database,
-  Download,
-  Trash2,
-  AlertTriangle,
-  Loader2,
-  RefreshCw,
-  Search,
-  FileText,
-  Package,
-  ShoppingCart,
-  Truck,
-  Users,
-  Building,
-  ChevronDown
+  Database, Download, Trash2, AlertTriangle, Loader2, RefreshCw, Search,
+  FileText, Package, ShoppingCart, Truck, Users, Building, ChevronDown,
+  Upload, ShieldCheck, CheckCircle2, XCircle, HardDrive, RotateCcw
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 
 type CompanyEntry = { name: string; count: number };
+type DryRunSummary = {
+  medicines: number; inventoryBatches: number; suppliers: number;
+  companies: number; rackLocations: number; customers: number; message: string;
+};
 
 export default function DatabaseAdmin() {
   const [stats, setStats] = useState<any>(null);
@@ -60,13 +42,22 @@ export default function DatabaseAdmin() {
   const [confirmText, setConfirmText] = useState('');
   const [isDeletingCompany, setIsDeletingCompany] = useState(false);
 
+  // Backup & Restore state
+  const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [isDryRunning, setIsDryRunning] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [dryRunSummary, setDryRunSummary] = useState<DryRunSummary | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [restoreConfirmText, setRestoreConfirmText] = useState('');
+  const [restoreResult, setRestoreResult] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const fetchCompanies = async () => {
     setLoadingCompanies(true);
     try {
       const response = await axios.get('/api/medicines/companies');
-      if (response.data.success) {
-        setCompanies(response.data.companies);
-      }
+      if (response.data.success) setCompanies(response.data.companies);
     } catch (error) {
       console.error('Failed to fetch companies:', error);
       toast.error('Failed to load company list');
@@ -87,9 +78,7 @@ export default function DatabaseAdmin() {
         setIsCompanyDialogOpen(false);
         setSelectedCompany(null);
         setConfirmText('');
-        fetchStats();
-        fetchCompanies();
-        fetchMedicines();
+        fetchStats(); fetchCompanies(); fetchMedicines();
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete medicines');
@@ -102,9 +91,7 @@ export default function DatabaseAdmin() {
     setLoadingStats(true);
     try {
       const response = await axios.get('/api/admin/db-stats');
-      if (response.data.success) {
-        setStats(response.data.counts);
-      }
+      if (response.data.success) setStats(response.data.counts);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
       toast.error('Failed to load database statistics');
@@ -116,11 +103,8 @@ export default function DatabaseAdmin() {
   const fetchMedicines = async () => {
     setLoadingMedicines(true);
     try {
-      // Use existing search API to preview raw data
       const response = await axios.get(`/api/medicines/search?query=${searchQuery}&limit=10`);
-      if (response.data.success) {
-        setMedicines(response.data.data);
-      }
+      if (response.data.success) setMedicines(response.data.data);
     } catch (error) {
       console.error('Failed to fetch medicines:', error);
     } finally {
@@ -128,11 +112,7 @@ export default function DatabaseAdmin() {
     }
   };
 
-  useEffect(() => {
-    fetchStats();
-    fetchMedicines();
-    fetchCompanies();
-  }, []);
+  useEffect(() => { fetchStats(); fetchMedicines(); fetchCompanies(); }, []);
 
   const handleClearAll = async () => {
     setIsDeleting(true);
@@ -141,8 +121,7 @@ export default function DatabaseAdmin() {
       if (response.data.success) {
         toast.success("Database cleared successfully");
         setIsDialogOpen(false);
-        fetchStats();
-        fetchMedicines();
+        fetchStats(); fetchMedicines();
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to clear data");
@@ -170,6 +149,79 @@ export default function DatabaseAdmin() {
     }
   };
 
+  // --- Backup Handlers ---
+  const handleDownloadBackup = async () => {
+    setIsDownloadingBackup(true);
+    try {
+      const response = await axios.get('/api/database/backup', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `AyurStock_Backup_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Backup downloaded successfully!");
+    } catch (error) {
+      toast.error("Failed to generate backup");
+    } finally {
+      setIsDownloadingBackup(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.json')) {
+      toast.error('Please upload a valid AyurStock .json backup file');
+      return;
+    }
+    setRestoreFile(file);
+    setDryRunSummary(null);
+    setRestoreResult(null);
+    setShowRestoreConfirm(false);
+    setRestoreConfirmText('');
+  };
+
+  const handleDryRun = async () => {
+    if (!restoreFile) return;
+    setIsDryRunning(true);
+    try {
+      const text = await restoreFile.text();
+      const backup = JSON.parse(text);
+      const response = await axios.post('/api/database/restore?dryRun=true', backup);
+      if (response.data.success) {
+        setDryRunSummary(response.data.summary);
+        toast.success("Validation complete! Review the summary below.");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Invalid backup file. Cannot validate.');
+    } finally {
+      setIsDryRunning(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!restoreFile || restoreConfirmText !== 'RESTORE') return;
+    setIsRestoring(true);
+    setShowRestoreConfirm(false);
+    try {
+      const text = await restoreFile.text();
+      const backup = JSON.parse(text);
+      const response = await axios.post('/api/database/restore', backup);
+      if (response.data.success) {
+        setRestoreResult(response.data);
+        toast.success(response.data.message);
+        fetchStats(); fetchMedicines();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Restore failed. Please try again.');
+    } finally {
+      setIsRestoring(false);
+      setRestoreConfirmText('');
+    }
+  };
+
   const StatCard = ({ title, count, icon: Icon, color }: any) => (
     <Card className="shadow-sm border-slate-200">
       <CardContent className="p-4 flex items-center gap-4">
@@ -179,7 +231,7 @@ export default function DatabaseAdmin() {
         <div>
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{title}</p>
           <p className="text-xl font-bold text-slate-900">
-            {loadingStats ? <Loader2 className="h-4 w-4 animate-spin" /> : count.toLocaleString()}
+            {loadingStats ? <Loader2 className="h-4 w-4 animate-spin" /> : (count || 0).toLocaleString()}
           </p>
         </div>
       </CardContent>
@@ -206,59 +258,193 @@ export default function DatabaseAdmin() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          title="Medicines" 
-          count={stats?.medicines || 0} 
-          icon={Package} 
-          color="bg-blue-50 text-blue-600" 
-        />
-        <StatCard 
-          title="Inventory Batches" 
-          count={stats?.inventoryBatches || 0} 
-          icon={Database} 
-          color="bg-emerald-50 text-emerald-600" 
-        />
-        <StatCard 
-          title="Sales" 
-          count={stats?.sales || 0} 
-          icon={ShoppingCart} 
-          color="bg-purple-50 text-purple-600" 
-        />
-        <StatCard 
-          title="Purchases" 
-          count={stats?.purchases || 0} 
-          icon={Truck} 
-          color="bg-orange-50 text-orange-600" 
-        />
-        <StatCard 
-          title="Suppliers" 
-          count={stats?.suppliers || 0} 
-          icon={Building} 
-          color="bg-indigo-50 text-indigo-600" 
-        />
-        <StatCard 
-          title="Customers" 
-          count={stats?.customers || 0} 
-          icon={Users} 
-          color="bg-pink-50 text-pink-600" 
-        />
+        <StatCard title="Medicines" count={stats?.medicines} icon={Package} color="bg-blue-50 text-blue-600" />
+        <StatCard title="Inventory Batches" count={stats?.inventoryBatches} icon={Database} color="bg-emerald-50 text-emerald-600" />
+        <StatCard title="Sales" count={stats?.sales} icon={ShoppingCart} color="bg-purple-50 text-purple-600" />
+        <StatCard title="Purchases" count={stats?.purchases} icon={Truck} color="bg-orange-50 text-orange-600" />
+        <StatCard title="Suppliers" count={stats?.suppliers} icon={Building} color="bg-indigo-50 text-indigo-600" />
+        <StatCard title="Customers" count={stats?.customers} icon={Users} color="bg-pink-50 text-pink-600" />
       </div>
 
-      {/* Actions */}
+      {/* ===================== BACKUP & RESTORE SECTION ===================== */}
+      <div>
+        <h3 className="text-base font-bold text-stitch-onSurface mb-3 flex items-center gap-2">
+          <HardDrive className="h-4 w-4 text-stitch-primary" />
+          Backup & Restore
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Download Backup */}
+          <Card className="border-stitch-surfaceLow bg-stitch-surfaceLowest shadow-sm">
+            <CardHeader className="pb-3 border-b border-stitch-surfaceLow">
+              <CardTitle className="text-sm font-bold text-stitch-onSurface flex items-center gap-2">
+                <Download className="h-4 w-4 text-stitch-primary" />
+                Download Full Backup
+              </CardTitle>
+              <CardDescription className="text-xs text-stitch-onSurfaceVariant">
+                Downloads a complete snapshot of your medicines, inventory, suppliers & rack locations as a <code>.json</code> file. Sales history is NOT included (safe).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4">
+              <Button
+                onClick={handleDownloadBackup}
+                disabled={isDownloadingBackup}
+                className="w-full gap-2 bg-stitch-primary hover:bg-stitch-primary/90 text-white font-bold"
+              >
+                {isDownloadingBackup
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
+                  : <><Download className="h-4 w-4" /> Download AyurStock Backup</>
+                }
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Restore from Backup */}
+          <Card className="border-amber-200 bg-amber-50/30 shadow-sm">
+            <CardHeader className="pb-3 border-b border-amber-200">
+              <CardTitle className="text-sm font-bold text-amber-900 flex items-center gap-2">
+                <Upload className="h-4 w-4 text-amber-600" />
+                Restore from Backup
+              </CardTitle>
+              <CardDescription className="text-xs text-amber-700/80">
+                Upload a previously downloaded backup file. Uses safe UPSERT — sales records are never touched.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              {/* File Dropzone */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="cursor-pointer rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 hover:border-amber-400 hover:bg-amber-100 transition-colors p-6 text-center"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+                <HardDrive className="h-8 w-8 text-amber-400 mx-auto mb-2" />
+                {restoreFile
+                  ? <p className="text-sm font-bold text-amber-800">{restoreFile.name}</p>
+                  : <p className="text-sm text-amber-600 font-medium">Click to select <code>.json</code> backup file</p>
+                }
+              </div>
+
+              {/* Dry Run */}
+              {restoreFile && !dryRunSummary && (
+                <Button
+                  onClick={handleDryRun}
+                  disabled={isDryRunning}
+                  variant="outline"
+                  className="w-full gap-2 border-amber-300 text-amber-800 hover:bg-amber-100"
+                >
+                  {isDryRunning
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Validating...</>
+                    : <><ShieldCheck className="h-4 w-4" /> Validate File (Dry Run)</>
+                  }
+                </Button>
+              )}
+
+              {/* Dry-Run Summary */}
+              {dryRunSummary && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-2">
+                  <p className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-blue-500" /> Validation Complete
+                  </p>
+                  <p className="text-sm text-blue-700">{dryRunSummary.message}</p>
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    {[
+                      { label: 'Medicines', val: dryRunSummary.medicines },
+                      { label: 'Batches', val: dryRunSummary.inventoryBatches },
+                      { label: 'Suppliers', val: dryRunSummary.suppliers },
+                    ].map(({ label, val }) => (
+                      <div key={label} className="rounded-lg bg-white border border-blue-100 text-center p-2">
+                        <p className="text-lg font-extrabold text-blue-800">{val}</p>
+                        <p className="text-[10px] text-blue-500 font-semibold uppercase">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    onClick={() => setShowRestoreConfirm(true)}
+                    className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold mt-1"
+                  >
+                    <RotateCcw className="h-4 w-4" /> Proceed with Restore
+                  </Button>
+                </div>
+              )}
+
+              {/* Restore Result */}
+              {restoreResult && (
+                <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+                  <p className="text-sm font-bold text-green-800 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" /> Restore Complete!
+                  </p>
+                  <p className="text-xs text-green-700 mt-1">{restoreResult.message}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ===================== RED ZONE RESTORE CONFIRM DIALOG ===================== */}
+      <Dialog open={showRestoreConfirm} onOpenChange={(o) => { setShowRestoreConfirm(o); if (!o) setRestoreConfirmText(''); }}>
+        <DialogContent className="max-w-md border-red-200 bg-red-50">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700 text-lg">
+              <AlertTriangle className="h-6 w-6" />
+              Confirm Database Restore
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-red-800">
+              <strong>This will overwrite your current medicines, suppliers, and rack locations</strong> using UPSERT. Your sales history and financial records will NOT be changed.
+              <br /><br />
+              An automatic backup of your current data will be saved to your Activity Log before the restore begins.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 mt-2">
+            <p className="text-sm text-red-700 font-medium">
+              Type <span className="font-mono font-extrabold bg-red-100 px-1.5 py-0.5 rounded text-red-900">RESTORE</span> to confirm:
+            </p>
+            <Input
+              placeholder="Type RESTORE here..."
+              value={restoreConfirmText}
+              onChange={(e) => setRestoreConfirmText(e.target.value)}
+              className="font-mono border-red-300 focus:ring-red-400 bg-white"
+            />
+          </div>
+          <DialogFooter className="mt-4 gap-2">
+            <Button variant="outline" onClick={() => setShowRestoreConfirm(false)} disabled={isRestoring}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRestore}
+              disabled={isRestoring || restoreConfirmText !== 'RESTORE'}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold gap-2"
+            >
+              {isRestoring
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Restoring...</>
+                : <><RotateCcw className="h-4 w-4" /> Yes, Restore Database</>
+              }
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===================== EXISTING ACTIONS ===================== */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="border-slate-200 shadow-sm">
           <CardHeader className="pb-3 text-slate-900 bg-slate-50 border-b">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <Download className="h-4 w-4 text-primary" />
-              Data Export
+              Export Medicines as CSV
             </CardTitle>
             <CardDescription className="text-slate-500">
-              Download your master medicine list for backup or external analysis.
+              Download your master medicine list for external analysis or printing.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <Button 
-              onClick={handleExport} 
+            <Button
+              onClick={handleExport}
               disabled={exporting || loadingStats || (stats?.medicines === 0)}
               className="w-full gap-2 bg-slate-800 hover:bg-slate-950 text-white font-medium"
             >
@@ -293,7 +479,7 @@ export default function DatabaseAdmin() {
                     Destructive Action
                   </DialogTitle>
                   <DialogDescription className="pt-2 text-slate-700 font-medium">
-                    You are about to permanently delete everything. 
+                    You are about to permanently delete everything.
                     This will wipe:
                     <ul className="list-disc list-inside mt-2 space-y-1 text-slate-900">
                       <li>Total {stats?.medicines || 0} Medicines</li>
@@ -307,12 +493,7 @@ export default function DatabaseAdmin() {
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isDeleting}>
                     Cancel
                   </Button>
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleClearAll} 
-                    disabled={isDeleting}
-                    className="gap-2 font-bold"
-                  >
+                  <Button variant="destructive" onClick={handleClearAll} disabled={isDeleting} className="gap-2 font-bold">
                     {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     Confirm Absolute Wipeout
                   </Button>
@@ -335,7 +516,6 @@ export default function DatabaseAdmin() {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
-          {/* Company dropdown */}
           <div className="relative">
             <select
               className="w-full appearance-none rounded-lg border border-orange-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:opacity-50"
@@ -359,7 +539,6 @@ export default function DatabaseAdmin() {
             <ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-400" />
           </div>
 
-          {/* Warning banner */}
           {selectedCompany && (
             <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
               <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
@@ -371,7 +550,6 @@ export default function DatabaseAdmin() {
             </div>
           )}
 
-          {/* Delete button + dialog */}
           <Dialog
             open={isCompanyDialogOpen}
             onOpenChange={(open) => {
@@ -397,18 +575,12 @@ export default function DatabaseAdmin() {
                 </DialogTitle>
                 <DialogDescription className="pt-2 text-slate-700">
                   You are about to permanently delete{' '}
-                  <span className="font-bold text-slate-900">
-                    {selectedCompany?.count ?? 0} medicines
-                  </span>{' '}
-                  from{' '}
+                  <span className="font-bold text-slate-900">{selectedCompany?.count ?? 0} medicines</span> from{' '}
                   <span className="font-bold text-slate-900">{selectedCompany?.name}</span>.
                   <br />
-                  <span className="text-red-600 font-semibold text-xs uppercase mt-1 block">
-                    This cannot be undone.
-                  </span>
+                  <span className="text-red-600 font-semibold text-xs uppercase mt-1 block">This cannot be undone.</span>
                 </DialogDescription>
               </DialogHeader>
-
               <div className="space-y-2 mt-2">
                 <p className="text-sm text-slate-600">
                   Type{' '}
@@ -424,14 +596,10 @@ export default function DatabaseAdmin() {
                   className="font-mono"
                 />
               </div>
-
               <DialogFooter className="mt-4">
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setIsCompanyDialogOpen(false);
-                    setConfirmText('');
-                  }}
+                  onClick={() => { setIsCompanyDialogOpen(false); setConfirmText(''); }}
                   disabled={isDeletingCompany}
                 >
                   Cancel
@@ -442,11 +610,7 @@ export default function DatabaseAdmin() {
                   disabled={isDeletingCompany || confirmText !== selectedCompany?.name}
                   className="gap-2 font-bold"
                 >
-                  {isDeletingCompany ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
+                  {isDeletingCompany ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                   Delete {selectedCompany?.count ?? 0} Medicines
                 </Button>
               </DialogFooter>
@@ -463,24 +627,22 @@ export default function DatabaseAdmin() {
               <FileText className="h-4 w-4 text-primary" />
               Raw Medicine Data (Last 10 Records)
             </CardTitle>
-            <CardDescription>
-              Quick verification of underlying database structure.
-            </CardDescription>
+            <CardDescription>Quick verification of underlying database structure.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-             <div className="relative">
-               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-               <Input 
-                 placeholder="Search raw..."
-                 className="pl-9 h-9 w-44 lg:w-64"
-                 value={searchQuery}
-                 onChange={(e) => setSearchQuery(e.target.value)}
-                 onKeyDown={(e) => e.key === 'Enter' && fetchMedicines()}
-               />
-             </div>
-             <Button size="sm" variant="ghost" onClick={fetchMedicines} disabled={loadingMedicines}>
-                <RefreshCw className={`h-4 w-4 ${loadingMedicines ? 'animate-spin' : ''}`} />
-             </Button>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search raw..."
+                className="pl-9 h-9 w-44 lg:w-64"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && fetchMedicines()}
+              />
+            </div>
+            <Button size="sm" variant="ghost" onClick={fetchMedicines} disabled={loadingMedicines}>
+              <RefreshCw className={`h-4 w-4 ${loadingMedicines ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -512,9 +674,7 @@ export default function DatabaseAdmin() {
                 ) : (
                   medicines.map((med) => (
                     <TableRow key={med.id}>
-                      <TableCell className="font-mono text-[10px] text-slate-400 truncate max-w-[80px]">
-                        {med.id}
-                      </TableCell>
+                      <TableCell className="font-mono text-[10px] text-slate-400 truncate max-w-[80px]">{med.id}</TableCell>
                       <TableCell className="font-medium text-slate-900">{med.name}</TableCell>
                       <TableCell className="text-slate-600">{med.company}</TableCell>
                       <TableCell>
