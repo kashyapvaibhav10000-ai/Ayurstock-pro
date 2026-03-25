@@ -4,31 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import Image from 'next/image';
-import { ArrowRight, Lock, Mail, Leaf, ShieldCheck, Zap, BarChart3 } from 'lucide-react';
+import { ArrowRight, Lock, Mail, Pill } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-
-const features = [
-  {
-    icon: Zap,
-    title: 'Fast GST Billing',
-    desc: 'Bill a customer in under 10 seconds with barcode scanning.',
-  },
-  {
-    icon: Leaf,
-    title: 'Expiry Tracking',
-    desc: 'Batch-wise FEFO dispensing with expiry alerts built in.',
-  },
-  {
-    icon: BarChart3,
-    title: 'AI Invoice Import',
-    desc: 'Import full price lists from PDF invoices automatically.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Multi-user & Secure',
-    desc: 'Role-based access with full audit logs.',
-  },
-];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -41,11 +18,17 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
+      // PRE-FLIGHT PURGE: 
+      // Forcefully wipe any existing stale local state to prevent collision
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      // Attempt to clear the stale HTTP-only cookie before taking a new one
       await axios.post('/api/auth/logout').catch(() => {});
+
       const response = await axios.post('/api/auth/login', { email, password });
+
       if (response.data.success) {
         localStorage.setItem('token', response.data.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.data.user));
@@ -59,150 +42,63 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex font-sans">
+    <div className="relative min-h-screen overflow-hidden bg-slate-950">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.34),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(6,182,212,0.28),_transparent_22%),linear-gradient(135deg,_#020617_0%,_#0f172a_45%,_#312e81_100%)]" />
+      <div className="animate-blob-slow absolute -left-20 top-10 h-72 w-72 rounded-full bg-emerald-500/35 blur-3xl" />
+      <div className="animate-blob-medium absolute right-[-5rem] top-24 h-80 w-80 rounded-full bg-cyan-500/30 blur-3xl" />
+      <div className="animate-blob-fast absolute bottom-[-5rem] left-1/3 h-80 w-80 rounded-full bg-blue-600/30 blur-3xl" />
+      <div className="animate-blob-slow absolute bottom-16 right-1/4 h-72 w-72 rounded-full bg-purple-600/30 blur-3xl" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:120px_120px] opacity-20" />
 
-      {/* ── LEFT BRAND PANEL ── */}
-      <div className="hidden lg:flex lg:w-[58%] flex-col relative overflow-hidden bg-gradient-to-br from-[#050505] via-[#0A0A0A] to-[#111111]">
-
-        {/* Decorative blobs */}
-        <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-primary/20 blur-3xl animate-blob-slow" />
-        <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-primary/15 blur-3xl animate-blob-medium" />
-        <div className="pointer-events-none absolute top-1/2 left-1/3 h-64 w-64 rounded-full bg-primary/10 blur-3xl animate-blob-fast" />
-        {/* Subtle grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(212,175,55,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(212,175,55,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col items-center h-full px-12 xl:px-16 py-10 xl:py-14">
-
-          {/* ── LOGO — top center, large on white disc ── */}
-          <div className="flex flex-col items-center gap-4 mb-10">
-            <div className="h-[168px] w-[168px] rounded-full bg-white shadow-[0_0_40px_var(--primary)] shadow-primary/20 overflow-hidden ring-4 ring-primary/20">
-              <Image
-                src="/logo.png"
-                width={168}
-                height={168}
-                alt="AyurStock Pro Logo"
-                className="w-full h-full object-cover"
-                priority
-              />
-            </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/70">
-              Ayurvedic Alchemy & Logistics
-            </p>
-          </div>
-
-          {/* ── Headline ── */}
-          <div className="text-center mb-10 max-w-lg">
-            <div className="inline-flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-4 py-2 mb-6 shadow-soft">
-              <Leaf className="h-3.5 w-3.5 text-primary" />
-              <span className="text-primary text-[10px] font-black tracking-[0.2em] uppercase">
-                The Gold Standard in Ayurveda
-              </span>
-            </div>
-            <h1 className="text-4xl xl:text-5xl font-black text-white leading-[1.1] tracking-tighter">
-              Precision Logistics.<br />
-              <span className="text-primary drop-shadow-[0_0_15px_var(--primary)] drop-shadow-primary/30">Ultimate Control.</span>
-            </h1>
-            <p className="mt-6 text-muted-foreground font-bold text-sm uppercase tracking-widest leading-relaxed">
-              From high-speed billing to batch archival — manage your clinical sanctuary with absolute grace.
-            </p>
-          </div>
-
-          {/* ── Feature cards ── */}
-          <div className="grid grid-cols-2 gap-4 w-full max-w-lg mt-auto">
-            {features.map(({ icon: Icon, title, desc }) => (
-              <div
-                key={title}
-                className="rounded-2xl bg-surface/40 border border-primary/10 p-5 backdrop-blur-md hover:bg-surface/60 transition-all duration-300 hover:border-primary/30 group"
-              >
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center mb-4 border border-primary/20 group-hover:scale-110 transition-transform">
-                  <Icon className="h-5 w-5 text-primary" />
-                </div>
-                <p className="text-white font-black text-xs uppercase tracking-widest leading-none">{title}</p>
-                <p className="text-muted-foreground/60 text-[10px] font-bold mt-2 leading-relaxed uppercase tracking-wide">{desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Footer */}
-          <p className="mt-8 text-primary/30 text-[9px] font-black uppercase tracking-[0.3em]">
-            Curated by <span className="text-primary/60">Digital Artisans</span>
-          </p>
-        </div>
-      </div>
-
-      {/* ── RIGHT FORM PANEL ── */}
-      <div className="flex-1 flex flex-col items-center justify-center bg-background p-5 sm:p-8 lg:p-16">
-
-        {/* Mobile logo */}
-        <div className="lg:hidden flex flex-col items-center gap-3 mb-10">
-          <div className="h-24 w-24 rounded-full bg-white shadow-xl overflow-hidden border-4 border-primary/20">
-            <Image
-              src="/logo.png"
-              width={96}
-              height={96}
-              alt="AyurStock Pro"
-              className="w-full h-full object-cover"
-              priority
-            />
-          </div>
-          <div className="text-center">
-            <p className="font-black text-foreground text-xl tracking-tighter uppercase">AyurStock Pro</p>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">Clinical Inventory Engine</p>
-          </div>
-        </div>
-
-        <div className="w-full max-w-[380px]">
-          {/* Heading */}
+      <div className="relative z-10 flex min-h-screen items-center justify-center p-6">
+        <div className="w-full max-w-md rounded-[28px] border border-white/20 bg-white/10 p-8 text-white shadow-2xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] sm:p-9">
           <div className="mb-8">
-            <h2 className="text-3xl font-extrabold text-foreground tracking-tight">
-              Welcome back
-            </h2>
-            <p className="text-muted-foreground text-sm mt-1.5">
-              Sign in to your workspace to continue.
-            </p>
+            <div className="mb-5 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-lg">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-200">
+                <Image src="/logo.png" width={80} height={80} alt="AyurStock Pro Logo" />
+              </div>
+              <div>
+                <div className="text-lg font-semibold tracking-tight text-white">AyurStock Pro</div>
+                <div className="text-xs text-white/65">Ayurvedic Pharmacy Management System</div>
+              </div>
+            </div>
+
+            <h1 className="text-3xl font-semibold tracking-tight text-white">Login to your workspace</h1>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-5">
-            {error && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 font-medium">
+          <form onSubmit={handleLogin} className="space-y-4">
+            {error ? (
+              <div className="rounded-2xl border border-red-300/25 bg-red-500/10 px-4 py-3 text-sm text-red-100">
                 {error}
               </div>
-            )}
+            ) : null}
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-muted-foreground">
-                Email address
-              </label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-white/80">Email / Username</label>
               <div className="relative">
-                <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
                 <Input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 pl-10 rounded-xl border-border bg-surface text-foreground placeholder:text-muted-foreground/40 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary transition-all"
-                  placeholder="you@pharmacy.com"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                  className="h-12 rounded-xl border-white/15 bg-white/10 pl-11 text-white placeholder:text-white/35 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-0"
+                  placeholder="admin@pharmacy.com"
                   disabled={loading}
-                  required
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-muted-foreground">
-                Password
-              </label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-white/80">Password</label>
               <div className="relative">
-                <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+                <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
                 <Input
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-11 pl-10 rounded-xl border-border bg-surface text-foreground placeholder:text-muted-foreground/40 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary transition-all"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                  className="h-12 rounded-xl border-white/15 bg-white/10 pl-11 text-white placeholder:text-white/35 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-0"
                   placeholder="Enter your password"
                   disabled={loading}
-                  required
                 />
               </div>
             </div>
@@ -210,28 +106,17 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-sm transition-all duration-200 hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 font-medium text-white shadow-lg transition-all duration-300 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                  Signing in…
-                </span>
-              ) : (
-                <>
-                  Sign in to Dashboard
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
+              {loading ? 'Signing in...' : 'Login to Dashboard'}
+              {!loading ? <ArrowRight className="h-4 w-4" /> : null}
+            </button>
             </button>
           </form>
 
-          {/* Trust note */}
-          <div className="mt-8 pt-8 border-t border-border">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-              <span>Your data is stored locally and never shared.</span>
-            </div>
+          {/* Footer */}
+          <div className="mt-8 flex justify-center text-sm font-medium text-white/50">
+            <span>Developed with <span className="text-red-500">❤️</span> by <span className="font-semibold tracking-wide text-white/80">Vaibhav</span></span>
           </div>
         </div>
       </div>
