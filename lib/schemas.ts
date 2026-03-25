@@ -62,7 +62,7 @@ export const CreateBatchSchema = z.object({
   expiryDate: z.coerce.date(),
   stockQty: z.number().int().min(0),
   mrp: z.number().positive('MRP must be positive'),
-  purchaseRate: z.number().positive('Purchase rate must be positive'),
+  purchaseRate: z.number().positive('Purchase rate must be positive').optional().nullable(),
   sellingRate: z.number().positive('Selling rate must be positive'),
   rackLocation: z.string().trim().optional(),
 });
@@ -123,7 +123,7 @@ export const CreatePurchaseSchema = z.object({
       quantity: z.number().int().positive(),
       freeQty: z.number().int().min(0).default(0),
       scheme: z.string().optional(),
-      purchaseRate: z.number().positive(),
+      purchaseRate: z.number().positive().optional().nullable(),
       mrp: z.number().positive(),
       discount: z.number().min(0).default(0),
       gst: z.number().min(0).default(0),

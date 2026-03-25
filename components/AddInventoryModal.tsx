@@ -168,7 +168,7 @@ export default function AddInventoryModal({
     if (!formData.expiryDate) newErrors.expiryDate = 'Expiry Date is required';
     
     if (formData.stockQty === '' || Number(formData.stockQty) <= 0) newErrors.stockQty = 'Quantity must be greater than 0';
-    if (formData.purchaseRate === '' || Number(formData.purchaseRate) <= 0) newErrors.purchaseRate = 'Purchase Rate must be greater than 0';
+    // purchaseRate is now optional
     if (formData.mrp === '' || Number(formData.mrp) <= 0) newErrors.mrp = 'MRP must be greater than 0';
     
     if (!formData.rackLocation) newErrors.rackLocation = 'Rack Location is required';
@@ -188,7 +188,7 @@ export default function AddInventoryModal({
         expiryDate: formData.expiryDate,
         stockQty: Number(formData.stockQty),
         mrp: Number(formData.mrp),
-        purchaseRate: Number(formData.purchaseRate),
+        purchaseRate: formData.purchaseRate === '' ? null : Number(formData.purchaseRate),
         sellingRate: Number(formData.mrp),
         rackLocation: formData.rackLocation,
       });
@@ -326,7 +326,7 @@ export default function AddInventoryModal({
             </div>
             
             <div className="grid gap-2">
-              <Label>Purchase Rate *</Label>
+              <Label>Purchase Rate</Label>
               <Input
                 type="number"
                 step="0.01"
