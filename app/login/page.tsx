@@ -54,13 +54,13 @@ export default function LoginPage() {
 
           {/* Logo */}
           <div className="flex flex-col items-center gap-4 mb-10">
-            <div className="h-[168px] w-[168px] rounded-full bg-white shadow-[0_0_40px_rgba(16,185,129,0.3)] overflow-hidden ring-4 ring-white/20 flex items-center justify-center">
+            <div className="h-[168px] w-[168px] rounded-full bg-white shadow-[0_0_40px_rgba(16,185,129,0.3)] overflow-hidden ring-4 ring-white/20 flex items-center justify-center p-1">
               <Image
                 src="/logo.png"
-                width={140}
-                height={140}
+                width={168}
+                height={168}
                 alt="AyurStock Pro"
-                className="object-contain"
+                className="object-cover rounded-full w-full h-full"
               />
             </div>
             <p className="text-emerald-200/70 text-xs font-bold uppercase tracking-[0.25em]">
