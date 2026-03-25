@@ -442,29 +442,77 @@ Return ONLY a valid JSON array. Example:
 Return ONLY the JSON array. No markdown, no explanation, no extra text.`;
 
 export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: string): Promise<ParseResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return {
-      medicines: [], pdfType: 'scanned', errorCode: 'NO_API_KEY',
-      errorMessage: 'GEMINI_API_KEY is not configured. Cannot process images.',
-    };
+  const base64Image = imageBuffer.toString('base64');
+  const errors: string[] = [];
+
+  // ── TIER 1: Gemini Vision ────────────────────────────────────────────
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      console.log(`🖼️ [Tier 1] Gemini Vision (${imageBuffer.length} bytes)...`);
+      const result = await callGeminiVision(base64Image, mimeType);
+      if (result.medicines.length > 0) return result;
+      errors.push('Gemini: no medicines extracted');
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.warn(`  ❌ Gemini Vision failed: ${msg}`);
+      errors.push(`Gemini: ${msg}`);
+    }
+  } else {
+    errors.push('Gemini: no API key');
   }
 
-  const base64Image = imageBuffer.toString('base64');
-  console.log(`🖼️ Calling Gemini Vision API (image mode, ${imageBuffer.length} bytes, ${mimeType})...`);
+  // ── TIER 2: Groq Vision ──────────────────────────────────────────────
+  if (process.env.GROQ_API_KEY) {
+    try {
+      console.log(`🖼️ [Tier 2] Groq Vision...`);
+      const result = await callGroqVision(base64Image, mimeType);
+      if (result.medicines.length > 0) return result;
+      errors.push('Groq: no medicines extracted');
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.warn(`  ❌ Groq Vision failed: ${msg}`);
+      errors.push(`Groq: ${msg}`);
+    }
+  } else {
+    errors.push('Groq: no API key');
+  }
 
-  const payload = {
-    contents: [{
-      parts: [
-        { inlineData: { mimeType, data: base64Image } },
-        { text: INVOICE_IMAGE_PROMPT }
-      ]
-    }],
-    generationConfig: { temperature: 0 }
+  // ── TIER 3: OpenRouter Vision ────────────────────────────────────────
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      console.log(`🖼️ [Tier 3] OpenRouter Vision...`);
+      const result = await callOpenRouterVision(base64Image, mimeType);
+      if (result.medicines.length > 0) return result;
+      errors.push('OpenRouter: no medicines extracted');
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.warn(`  ❌ OpenRouter Vision failed: ${msg}`);
+      errors.push(`OpenRouter: ${msg}`);
+    }
+  } else {
+    errors.push('OpenRouter: no API key');
+  }
+
+  console.error(`🖼️ All vision tiers failed: ${errors.join(' | ')}`);
+  return {
+    medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
+    errorMessage: `All vision APIs failed. ${errors[0] || 'Please try again later.'}`,
   };
+}
 
+// ── Vision Tier Helpers ───────────────────────────────────────────────────────
+
+function logExtractedMedicines(medicines: ParsedMedicine[], provider: string) {
+  console.log(`🖼️ ${provider} extracted ${medicines.length} medicines from image`);
+  medicines.forEach((m, i) => {
+    console.log(`  [${i + 1}] ${m.name} | Batch: ${m.batchNo || '-'} | Qty: ${m.quantity || '-'} | MRP: ${m.mrp} | PTS: ${m.purchaseRate || m.tradePrice}`);
+  });
+}
+
+async function callGeminiVision(base64Image: string, mimeType: string): Promise<ParseResult> {
+  const apiKey = process.env.GEMINI_API_KEY!;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for images
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
   try {
     const resp = await fetch(
@@ -472,61 +520,140 @@ export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: 
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { inlineData: { mimeType, data: base64Image } },
+            { text: INVOICE_IMAGE_PROMPT }
+          ]}],
+          generationConfig: { temperature: 0 }
+        }),
         signal: controller.signal
       }
     );
 
-    if (resp.status === 429) {
-      return {
-        medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
-        errorMessage: 'Gemini API rate limited. Please try again in a moment.',
-      };
-    }
-
-    if (!resp.ok) {
-      const errorBody = await resp.text().catch(() => '');
-      console.error(`Gemini Vision error: ${resp.status} — ${errorBody.substring(0, 200)}`);
-      return {
-        medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
-        errorMessage: `Gemini Vision failed with status ${resp.status}. Please try again.`,
-      };
-    }
+    if (resp.status === 429) throw new Error('RATE_LIMIT');
+    if (!resp.ok) throw new Error(`Status ${resp.status}`);
 
     const data = await resp.json();
     const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    // Log raw AI response for debugging
-    console.log(`🖼️ Gemini Vision raw response (first 500 chars): ${(content || '').substring(0, 500)}`);
-    
-    if (!content) {
-      return {
-        medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
-        errorMessage: 'Gemini Vision returned an empty response.',
-      };
-    }
+    console.log(`🖼️ Gemini raw (first 300): ${(content || '').substring(0, 300)}`);
+    if (!content) throw new Error('Empty response');
 
     const medicines = parseJsonSafely(content);
-    console.log(`🖼️ Gemini Vision extracted ${medicines.length} medicines from image`);
-    
-    // Log each extracted medicine for debugging
-    medicines.forEach((m, i) => {
-      console.log(`  [${i + 1}] ${m.name} | Batch: ${m.batchNo || '-'} | Qty: ${m.quantity || '-'} | MRP: ${m.mrp} | PTS: ${m.purchaseRate || m.tradePrice}`);
-    });
-    
+    logExtractedMedicines(medicines, 'Gemini');
     await incrementUsage('gemini');
     return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'gemini' };
-  } catch (err: any) {
-    if (err?.name === 'AbortError') {
-      return {
-        medicines: [], pdfType: 'scanned', errorCode: 'TIMEOUT',
-        errorMessage: 'Image processing timed out. Please try again.',
-      };
-    }
-    throw err;
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+async function callGroqVision(base64Image: string, mimeType: string): Promise<ParseResult> {
+  const apiKey = process.env.GROQ_API_KEY!;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'llama-3.2-90b-vision-preview',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
+              { type: 'text', text: INVOICE_IMAGE_PROMPT }
+            ]
+          }
+        ],
+        temperature: 0,
+        max_tokens: 4096
+      }),
+      signal: controller.signal
+    });
+
+    if (resp.status === 429) throw new Error('RATE_LIMIT');
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '');
+      throw new Error(`Status ${resp.status}: ${body.substring(0, 100)}`);
+    }
+
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content;
+    console.log(`🖼️ Groq Vision raw (first 300): ${(content || '').substring(0, 300)}`);
+    if (!content) throw new Error('Empty response');
+
+    const medicines = parseJsonSafely(content);
+    logExtractedMedicines(medicines, 'Groq Vision');
+    await incrementUsage('groq');
+    return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'groq' };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function callOpenRouterVision(base64Image: string, mimeType: string): Promise<ParseResult> {
+  const apiKey = process.env.OPENROUTER_API_KEY!;
+  const visionModels = [
+    'meta-llama/llama-3.2-90b-vision-instruct:free',
+    'meta-llama/llama-3.2-11b-vision-instruct:free',
+    'google/gemini-2.0-flash-lite-preview-02-05:free',
+  ];
+
+  for (const model of visionModels) {
+    try {
+      console.log(`  🔄 OpenRouter trying ${model}...`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      try {
+        const resp = await fetch(OPENROUTER_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
+                  { type: 'text', text: INVOICE_IMAGE_PROMPT }
+                ]
+              }
+            ],
+            temperature: 0,
+            max_tokens: 4096
+          }),
+          signal: controller.signal
+        });
+
+        if (resp.status === 429) { console.warn(`  ⚠️ ${model}: rate limited`); continue; }
+        if (!resp.ok) { console.warn(`  ⚠️ ${model}: status ${resp.status}`); continue; }
+
+        const data = await resp.json();
+        if (data?.error) { console.warn(`  ⚠️ ${model}: ${data.error.message?.substring(0, 80)}`); continue; }
+
+        const content = data?.choices?.[0]?.message?.content;
+        console.log(`🖼️ OpenRouter (${model}) raw (first 300): ${(content || '').substring(0, 300)}`);
+        if (!content) continue;
+
+        const medicines = parseJsonSafely(content);
+        if (medicines.length > 0) {
+          logExtractedMedicines(medicines, `OpenRouter/${model}`);
+          await incrementUsage('openrouter');
+          return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'openrouter' };
+        }
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch (err) {
+      console.warn(`  ❌ OpenRouter ${model}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  throw new Error('All OpenRouter vision models failed');
 }
 
 async function parseTextWithGemini(text: string): Promise<ParseResult> {
