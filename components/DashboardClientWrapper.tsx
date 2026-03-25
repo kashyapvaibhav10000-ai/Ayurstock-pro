@@ -37,7 +37,7 @@ export default function DashboardClientWrapper({
 
   return (
     <AuthProvider user={user}>
-      <div className="flex h-screen bg-[#F8FAF8] text-text-primary overflow-hidden">
+      <div className="flex h-screen bg-background text-text-primary overflow-hidden">
         <Sidebar
           user={user}
           isMobileOpen={isMobileSidebarOpen}
@@ -49,14 +49,14 @@ export default function DashboardClientWrapper({
             user={user}
             onMenuToggle={() => setIsMobileSidebarOpen(true)}
           />
-          <div className="flex-1 overflow-auto pb-16 xl:pb-0 bg-[#F8FAF8] bg-[radial-gradient(circle_at_top_left,_rgba(22,163,74,0.04),_transparent_40%)]">
+          <div className="flex-1 overflow-auto pb-16 xl:pb-0 bg-background bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.04),_transparent_40%)]">
             {children}
           </div>
         </main>
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-surface-border flex items-stretch shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+      <nav className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-surface-border flex items-stretch shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
         {visibleMobileNav.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;

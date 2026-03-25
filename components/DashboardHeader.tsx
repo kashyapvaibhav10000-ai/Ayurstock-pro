@@ -138,13 +138,13 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop Overlay */}
           <div 
-            className="absolute inset-0 bg-slate-900/40 transition-opacity"
+            className="absolute inset-0 bg-black/60 transition-opacity backdrop-blur-[2px]"
             onClick={() => setProfileOpen(false)}
           />
           
           {/* Panel */}
           <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-            <div className="pointer-events-auto w-screen max-w-md transform transition-all shadow-2xl bg-surface h-full flex flex-col pt-4">
+            <div className="pointer-events-auto w-screen max-w-md transform transition-all shadow-2xl bg-surface h-full flex flex-col pt-4 border-l border-surface-border">
               
               {/* Panel Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border">
@@ -162,7 +162,7 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
                 
                 {/* User Info Segment */}
                 <div className="flex items-center gap-4 bg-surface-muted p-4 rounded-2xl border border-surface-border">
-                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-primary-light text-lg font-bold text-primary shrink-0">
+                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-lg font-bold text-primary shrink-0">
                     {user.avatarUrl ? (
                       <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
                     ) : (
@@ -201,7 +201,7 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
                         <p className="text-sm text-text-primary">{shopInfo.email || 'Not provided'}</p>
                       </div>
 
-                      <div className="flex gap-3 items-center border border-surface-border bg-slate-50 p-3 rounded-xl mt-2">
+                      <div className="flex gap-3 items-center border border-surface-border bg-surface-muted p-3 rounded-xl mt-2">
                         <FileText className="h-5 w-5 text-primary shrink-0" />
                         <div>
                           <p className="text-xs font-semibold text-text-secondary uppercase">GSTIN / Tax ID</p>
@@ -220,9 +220,9 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
               </div>
               
               {/* Panel Footer Actions */}
-              <div className="p-6 border-t border-surface-border bg-slate-50 space-y-3">
+              <div className="p-6 border-t border-surface-border bg-surface-muted space-y-3">
                 <Button
-                  className="w-full gap-2 justify-start h-11 bg-white hover:bg-slate-100 text-text-primary border border-surface-border"
+                  className="w-full gap-2 justify-start h-11 bg-surface hover:bg-surface-muted text-text-primary border border-surface-border"
                   onClick={() => {
                     setProfileOpen(false);
                     router.push('/dashboard/settings?tab=shop');
@@ -232,7 +232,7 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
                   Edit Shop Profile
                 </Button>
                 <Button
-                  className="w-full gap-2 justify-start h-11 bg-white hover:bg-slate-100 text-text-primary border border-surface-border"
+                  className="w-full gap-2 justify-start h-11 bg-surface hover:bg-surface-muted text-text-primary border border-surface-border"
                   onClick={() => {
                     setProfileOpen(false);
                     router.push('/dashboard/settings');

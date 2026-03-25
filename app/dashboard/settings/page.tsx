@@ -25,19 +25,19 @@ import { useAuth } from '@/components/providers/AuthProvider';
 
 const SETTINGS_CATEGORIES = [
   { id: 'shop', label: 'Shop Details', icon: Store, group: 'General' },
-  { id: 'invoice', label: 'Invoices', icon: FileText, group: 'General' },
   { id: 'inventory', label: 'Inventory', icon: Package, group: 'General' },
   { id: 'racks', label: 'Rack Locations', icon: Archive, group: 'General' },
+  { id: 'companies', label: 'Company', icon: Building, group: 'General' },
+  { id: 'system', label: 'Preferences', icon: SettingsIcon, group: 'General' },
   { id: 'profile', label: 'My Profile', icon: User, group: 'Account' },
   { id: 'users', label: 'Team', icon: Users, group: 'Account' },
-  { id: 'companies', label: 'Company', icon: Building, group: 'General' },
   { id: 'billing', label: 'Plans & Billing', icon: CreditCard, group: 'Billing' },
+  { id: 'invoice', label: 'Invoices', icon: FileText, group: 'Billing' },
   { id: 'import', label: 'Bulk Import Data', icon: UploadCloud, group: 'Advanced' },
   { id: 'database', label: 'Database Admin', icon: Database, group: 'Advanced' },
   { id: 'activity', label: 'Activity Log', icon: FileText, group: 'Advanced' },
   { id: 'ai-usage', label: 'AI Usage', icon: Sparkles, group: 'Advanced' },
   { id: 'login-history', label: 'Login History', icon: ShieldCheck, group: 'Advanced' },
-  { id: 'system', label: 'Preferences', icon: SettingsIcon, group: 'Advanced' },
 ];
 
 export default function SettingsPage() {
