@@ -388,6 +388,59 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
 }
 
 // ─── Gemini Vision: Parse images directly ─────────────────────────────────────
+const INVOICE_IMAGE_PROMPT = `You are an expert at reading Indian pharmacy purchase invoices from photos.
+The image is a PHOTO of a physical invoice/bill. It may be rotated, tilted, or partially obscured.
+
+STEP 1: First, rotate the image mentally so the text is readable (invoices are usually landscape).
+STEP 2: Find the TABLE of line items. Look for columns like:
+  - Sr/S.No (serial number)
+  - Description / Particulars / Product Name (MEDICINE NAME)
+  - Packing / Pack
+  - HSN
+  - Mfg By / Company
+  - Batch No / Batch
+  - Expiry / Exp
+  - Qty / Quantity
+  - Free (free quantity)
+  - MRP
+  - PTS / Rate (purchase rate/trade price)
+  - PTR
+  - Amount / Value
+
+STEP 3: Extract EACH medicine row from the table. These are Ayurvedic/herbal medicines.
+
+IMPORTANT RULES:
+1. Extract the FULL medicine name (e.g. "NATURALLY CHURNA", "ASHWAGANDHA CHURNA", "TRIPHALA CHURNA"). Do NOT abbreviate or truncate names.
+2. Extract the EXACT batch number string (e.g. "CHM007", "ACH023").
+3. Extract the expiry date as shown (e.g. "Jan-28", "Feb-28", "05/28").
+4. Extract the quantity as a number (e.g. 72, 30, 48).
+5. Extract MRP as a decimal number (e.g. 112.50, 95.00).
+6. Extract PTS (Price To Stockist) as the purchase rate (e.g. 78.75, 66.50).
+7. Extract packing (e.g. "100GM", "200ML", "60TAB").
+8. Extract HSN code if visible (e.g. "30049011").
+9. Extract the company name from "Mfg By" or from the invoice header (e.g. "AYUKALP").
+10. Count carefully — extract EXACTLY the number of medicine rows in the table. Do not make up extra rows or skip any.
+11. MRP values are typically between 10 and 5000. If you see values like 100000, you are reading wrongly.
+12. Set tradePrice = purchaseRate (the PTS column value).
+
+Return ONLY a valid JSON array. Example:
+[
+  {
+    "name": "NATURALLY CHURNA",
+    "packing": "100GM",
+    "hsn": "30049011",
+    "company": "AYUKALP",
+    "batchNo": "CHM007",
+    "expiryDate": "Jan-28",
+    "mrp": 112.50,
+    "tradePrice": 78.75,
+    "purchaseRate": 78.75,
+    "quantity": 72
+  }
+]
+
+Return ONLY the JSON array. No markdown, no explanation, no extra text.`;
+
 export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: string): Promise<ParseResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -404,7 +457,7 @@ export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: 
     contents: [{
       parts: [
         { inlineData: { mimeType, data: base64Image } },
-        { text: SYSTEM_PROMPT + "\n\nExtract ALL medicines from this pharmacy invoice image. Return ONLY valid JSON array. This is an invoice/bill — extract batch numbers, expiry dates, quantities, MRP, and PTS (purchase rate)." }
+        { text: INVOICE_IMAGE_PROMPT }
       ]
     }],
     generationConfig: { temperature: 0 }
@@ -442,6 +495,10 @@ export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: 
 
     const data = await resp.json();
     const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    // Log raw AI response for debugging
+    console.log(`🖼️ Gemini Vision raw response (first 500 chars): ${(content || '').substring(0, 500)}`);
+    
     if (!content) {
       return {
         medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
@@ -451,6 +508,12 @@ export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: 
 
     const medicines = parseJsonSafely(content);
     console.log(`🖼️ Gemini Vision extracted ${medicines.length} medicines from image`);
+    
+    // Log each extracted medicine for debugging
+    medicines.forEach((m, i) => {
+      console.log(`  [${i + 1}] ${m.name} | Batch: ${m.batchNo || '-'} | Qty: ${m.quantity || '-'} | MRP: ${m.mrp} | PTS: ${m.purchaseRate || m.tradePrice}`);
+    });
+    
     await incrementUsage('gemini');
     return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'gemini' };
   } catch (err: any) {
