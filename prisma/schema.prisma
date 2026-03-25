@@ -229,7 +229,7 @@ model InventoryBatch {
   expiryDate  DateTime
   stockQty    Int     @default(0)
   mrp         Decimal
-  purchaseRate Decimal
+  purchaseRate Decimal?
   sellingRate Decimal
   rackLocation String?
 
@@ -293,7 +293,7 @@ model PurchaseItem {
   quantity      Int
   freeQty       Int      @default(0)
   scheme        String?
-  purchaseRate  Decimal
+  purchaseRate  Decimal?
   mrp           Decimal
   discount      Decimal  @default(0)
   gst           Decimal  @default(0)

@@ -67,7 +67,10 @@ export default function InventoryEditModal({
     setError('');
 
     try {
-      await axios.put('/api/inventory/update', formData);
+      await axios.put('/api/inventory/update', {
+        ...formData,
+        purchaseRate: formData.purchaseRate || null,
+      });
       await onSaved();
       onClose();
     } catch (submitError) {

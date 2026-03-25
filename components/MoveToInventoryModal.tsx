@@ -112,7 +112,7 @@ export default function MoveToInventoryModal({
         items: [{
           ...current,
           quantity: Number(current.quantity),
-          purchaseRate: Number(current.purchaseRate),
+          purchaseRate: current.purchaseRate === '' ? undefined : Number(current.purchaseRate),
           mrp: Number(current.mrp),
         }],
       };
@@ -212,7 +212,7 @@ export default function MoveToInventoryModal({
                 />
               </div>
               <div>
-                <Label className="text-xs">Purchase Rate (₹) *</Label>
+                <Label className="text-xs">Purchase Rate (₹)</Label>
                 <Input
                   type="number"
                   step="0.01"
