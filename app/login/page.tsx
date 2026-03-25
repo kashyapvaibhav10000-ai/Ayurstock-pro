@@ -54,11 +54,11 @@ export default function LoginPage() {
 
           {/* Logo */}
           <div className="flex flex-col items-center gap-4 mb-10">
-            <div className="h-[140px] w-[140px] rounded-full bg-white/10 backdrop-blur-sm shadow-xl overflow-hidden ring-4 ring-white/20 flex items-center justify-center">
+            <div className="h-[168px] w-[168px] rounded-full bg-white shadow-[0_0_40px_rgba(16,185,129,0.3)] overflow-hidden ring-4 ring-white/20 flex items-center justify-center">
               <Image
                 src="/logo.png"
-                width={120}
-                height={120}
+                width={140}
+                height={140}
                 alt="AyurStock Pro"
                 className="object-contain"
               />
@@ -103,7 +103,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p className="mt-10 text-[10px] text-emerald-400/40 uppercase tracking-[0.3em] font-bold">
-            Built with care by <span className="text-emerald-300/60">vStudio</span>
+            Built with care by <span className="text-emerald-300/60">Vaibhav</span>
           </p>
         </div>
       </div>
