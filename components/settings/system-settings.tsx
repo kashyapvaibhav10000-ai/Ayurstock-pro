@@ -3,12 +3,13 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { useState, useEffect } from "react"
+import { useTheme } from "next-themes"
 import { toast } from "sonner"
 
 export default function SystemSettings() {
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [settings, setSettings] = useState({
-    darkMode: false,
     enableNotifications: true,
     enableCloudBackup: true,
   });
@@ -42,7 +43,7 @@ export default function SystemSettings() {
   if (!mounted) return null;
 
   return (
-    <Card>
+    <Card className="border-surface-border bg-surface">
       <CardContent className="p-6 space-y-6">
         <div>
           <h2 className="font-semibold text-lg text-text-primary">System Preferences</h2>
@@ -55,8 +56,11 @@ export default function SystemSettings() {
             <p className="text-xs text-text-secondary">Switch the UI theme to dark</p>
           </div>
           <Switch
-            checked={settings.darkMode}
-            onCheckedChange={() => handleToggle("darkMode", "Dark Mode")}
+            checked={theme === 'dark'}
+            onCheckedChange={(checked) => {
+              setTheme(checked ? 'dark' : 'light');
+              toast.success(`Dark Mode turned ${checked ? 'on' : 'off'}`);
+            }}
           />
         </div>
 

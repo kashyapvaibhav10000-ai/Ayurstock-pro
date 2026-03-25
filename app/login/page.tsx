@@ -133,11 +133,11 @@ export default function LoginPage() {
       </div>
 
       {/* ── RIGHT FORM PANEL ── */}
-      <div className="flex-1 flex flex-col items-center justify-center bg-white p-5 sm:p-8 lg:p-16">
+      <div className="flex-1 flex flex-col items-center justify-center bg-background p-5 sm:p-8 lg:p-16">
 
         {/* Mobile logo */}
         <div className="lg:hidden flex flex-col items-center gap-3 mb-10">
-          <div className="h-24 w-24 rounded-full bg-white shadow-lg overflow-hidden">
+          <div className="h-24 w-24 rounded-full bg-surface shadow-lg overflow-hidden">
             <Image
               src="/logo.png"
               width={96}

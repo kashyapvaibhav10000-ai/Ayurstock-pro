@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     './app/**/*.{js,ts,jsx,tsx}',
     './components/**/*.{js,ts,jsx,tsx}',
@@ -43,18 +44,18 @@ module.exports = {
           text: '#78350f',
         },
         stitch: {
-          background: '#f7faf6',
-          surface: '#f7faf6',
-          surfaceLow: '#eff5ef',
-          surfaceLowest: '#ffffff',
-          primary: '#006d4f',
-          primaryDim: '#005f44',
-          primaryContainer: '#8ff6cb',
+          background: 'var(--stitch-surface)',
+          surface: 'var(--stitch-surface)',
+          surfaceLow: 'var(--stitch-surface-low)',
+          surfaceLowest: 'var(--stitch-surface-lowest)',
+          primary: 'var(--stitch-primary)',
+          primaryDim: 'var(--stitch-primary-dim)',
+          primaryContainer: 'var(--stitch-primary-container)',
           errorContainer: '#fa746f',
           tertiaryContainer: '#bbf5fe',
-          outlineVariant: '#aab4ad',
-          onSurface: '#2b352f',
-          onSurfaceVariant: '#57615b',
+          outlineVariant: 'var(--stitch-outline-variant)',
+          onSurface: 'var(--stitch-on-surface)',
+          onSurfaceVariant: 'var(--stitch-on-surface-variant)',
         },
       },
       boxShadow: {
