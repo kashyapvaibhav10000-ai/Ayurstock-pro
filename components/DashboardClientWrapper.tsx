@@ -37,7 +37,7 @@ export default function DashboardClientWrapper({
 
   return (
     <AuthProvider user={user}>
-      <div className="flex h-screen bg-background text-text-primary overflow-hidden">
+      <div className="flex h-screen bg-background text-foreground overflow-hidden">
         <Sidebar
           user={user}
           isMobileOpen={isMobileSidebarOpen}
@@ -49,14 +49,14 @@ export default function DashboardClientWrapper({
             user={user}
             onMenuToggle={() => setIsMobileSidebarOpen(true)}
           />
-          <div className="flex-1 overflow-auto pb-16 xl:pb-0 bg-background bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.04),_transparent_40%)]">
+          <div className="flex-1 overflow-auto pb-16 xl:pb-0 bg-background bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.06),_transparent_40%)]">
             {children}
           </div>
         </main>
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-surface-border flex items-stretch shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+      <nav className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-xl border-t border-border flex items-stretch shadow-[0_-8px_24px_rgba(0,0,0,0.4)]">
         {visibleMobileNav.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -64,14 +64,14 @@ export default function DashboardClientWrapper({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-colors ${
-                isActive ? 'text-primary' : 'text-text-muted'
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-all ${
+                isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
-              <div className={`relative flex items-center justify-center h-8 w-8 rounded-xl transition-all ${isActive ? 'bg-primary/10' : ''}`}>
-                <Icon className={`h-5 w-5 transition-all ${isActive ? 'text-primary scale-110' : 'text-text-muted'}`} />
+              <div className={`relative flex items-center justify-center h-10 w-10 rounded-2xl transition-all duration-300 ${isActive ? 'bg-primary/20 shadow-[0_0_15px_rgba(212,175,55,0.2)] border border-primary/20' : ''}`}>
+                <Icon className={`h-5 w-5 transition-all duration-300 ${isActive ? 'text-primary scale-110 drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]' : 'text-muted-foreground'}`} />
               </div>
-              <span className={`text-[10px] font-bold tracking-wide ${isActive ? 'text-primary' : 'text-text-muted'}`}>
+              <span className={`text-[9px] font-black uppercase tracking-[0.15em] mt-1 ${isActive ? 'text-primary' : 'text-muted-foreground/60'}`}>
                 {item.label}
               </span>
             </Link>

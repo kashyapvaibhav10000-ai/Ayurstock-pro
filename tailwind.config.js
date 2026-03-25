@@ -11,22 +11,24 @@ module.exports = {
         sans: ['var(--font-plus-jakarta)', 'Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
-        background: '#F8FAF8',
+        background: 'var(--background)',
+        foreground: 'var(--foreground)',
         primary: {
-          DEFAULT: '#16a34a',   // green-600 — Forest Green
-          hover: '#15803d',     // green-700
-          light: '#dcfce7',     // green-100
+          DEFAULT: 'var(--primary)',
+          hover: 'var(--primary-hover)',
+          light: '#dcfce7',
           foreground: '#ffffff',
         },
         surface: {
-          DEFAULT: '#ffffff',
-          muted: '#f4f6f4',
-          border: '#e2e8e2',
+          DEFAULT: 'var(--surface)',
+          muted: 'var(--surface-muted)',
+          elevated: 'var(--surface-elevated)',
+          border: 'var(--border)',
         },
         text: {
-          primary: '#1a1f1a',
-          secondary: '#4b5563',
-          muted: '#9ca3af',
+          primary: 'var(--foreground)',
+          secondary: 'var(--muted-foreground)',
+          muted: 'var(--muted-foreground)',
         },
         success: {
           DEFAULT: '#10b981',

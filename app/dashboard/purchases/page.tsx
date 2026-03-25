@@ -463,15 +463,15 @@ export default function PurchasesPage() {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500">Loading purchases...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Loading purchases...</div>;
   }
 
   return (
     <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">Purchases</h1>
-          <p className="mt-1 text-sm font-medium text-text-secondary">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Purchases</h1>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
             Capture distributor invoices, increase stock, and manage supplier returns.
           </p>
         </div>
@@ -512,33 +512,33 @@ export default function PurchasesPage() {
 
       {stats ? (
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="rounded-[24px] shadow-soft border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+          <Card className="rounded-[24px] shadow-soft border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
             <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-text-muted">Today Purchases</CardTitle>
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60">Today Purchases</CardTitle>
               <CardDescription className="text-3xl font-extrabold text-primary">
                 {stats.todayPurchases}
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="rounded-[24px] shadow-soft border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+          <Card className="rounded-[24px] shadow-soft border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
             <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-text-muted">Month Purchases</CardTitle>
-              <CardDescription className="text-3xl font-extrabold text-blue-600">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60">Month Purchases</CardTitle>
+              <CardDescription className="text-3xl font-extrabold text-blue-400">
                 {stats.monthPurchases}
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="rounded-[24px] shadow-soft border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+          <Card className="rounded-[24px] shadow-soft border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
             <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-text-muted">Pending Invoices</CardTitle>
-              <CardDescription className="text-3xl font-extrabold text-orange-600">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60">Pending Invoices</CardTitle>
+              <CardDescription className="text-3xl font-extrabold text-orange-400">
                 {stats.pendingInvoices}
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="rounded-[24px] shadow-soft border-surface-border hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+          <Card className="rounded-[24px] shadow-soft border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
             <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-text-muted">Low Stock</CardTitle>
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60">Low Stock</CardTitle>
               <CardDescription className="text-3xl font-extrabold text-danger">
                 {stats.lowStockMedicines}
               </CardDescription>
@@ -548,7 +548,7 @@ export default function PurchasesPage() {
       ) : null}
 
       <Tabs defaultValue="new" className="space-y-6">
-        <TabsList className="grid w-full rounded-2xl bg-surface-muted p-1.5 md:grid-cols-3 shadow-inner">
+        <TabsList className="grid w-full rounded-2xl bg-surface-muted/50 p-1.5 md:grid-cols-3 shadow-inner">
           <TabsTrigger value="new" className="rounded-xl font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
             New Purchase
           </TabsTrigger>
@@ -561,15 +561,15 @@ export default function PurchasesPage() {
         </TabsList>
 
         <TabsContent value="new">
-          <Card className="rounded-[24px] shadow-soft border-surface-border">
+          <Card className="rounded-[24px] shadow-soft border-border bg-surface">
             <CardHeader>
-              <CardTitle className="text-xl font-extrabold text-text-primary">Create Purchase</CardTitle>
-              <CardDescription className="font-medium text-text-secondary">Enter distributor invoice details and stock items.</CardDescription>
+              <CardTitle className="text-xl font-extrabold text-foreground">Create Purchase</CardTitle>
+              <CardDescription className="font-medium text-muted-foreground">Enter distributor invoice details and stock items.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {scanPreview.length > 0 ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-700">
-                  <div className="font-semibold text-amber-800">OCR Review Required</div>
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-primary">
+                  <div className="font-semibold text-primary">OCR Review Required</div>
                   <div className="mt-1">
                     Matched: {scanSummary.matched} · Possible duplicates: {scanSummary.possible} · New: {scanSummary.newItems}
                   </div>
@@ -581,7 +581,7 @@ export default function PurchasesPage() {
                       Discard Scan
                     </Button>
                   </div>
-                  <div className="mt-2 text-xs text-amber-700">
+                  <div className="mt-2 text-xs text-primary/70">
                     Review possible or new items after applying. You can choose the correct medicine for each row.
                   </div>
                 </div>
@@ -590,7 +590,7 @@ export default function PurchasesPage() {
                 <div className="space-y-2">
                   <Label>Supplier</Label>
                   <select
-                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                     value={purchaseForm.supplierId}
                     onChange={(event) =>
                       setPurchaseForm((current) => ({
@@ -611,6 +611,7 @@ export default function PurchasesPage() {
                   <Label>Invoice Number</Label>
                   <Input
                     value={purchaseForm.invoiceNumber}
+                    className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                     onChange={(event) =>
                       setPurchaseForm((current) => ({
                         ...current,
@@ -624,6 +625,7 @@ export default function PurchasesPage() {
                   <Input
                     type="date"
                     value={purchaseForm.invoiceDate}
+                    className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                     onChange={(event) =>
                       setPurchaseForm((current) => ({
                         ...current,
@@ -639,6 +641,7 @@ export default function PurchasesPage() {
                   <Label>GST Type</Label>
                   <Input
                     value={purchaseForm.gstType}
+                    className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                     onChange={(event) =>
                       setPurchaseForm((current) => ({
                         ...current,
@@ -650,7 +653,7 @@ export default function PurchasesPage() {
                 <div className="space-y-2">
                   <Label>Payment Type</Label>
                   <select
-                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                     value={purchaseForm.paymentType}
                     onChange={(event) =>
                       setPurchaseForm((current) => ({
@@ -668,7 +671,7 @@ export default function PurchasesPage() {
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <select
-                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                     value={purchaseForm.status}
                     onChange={(event) =>
                       setPurchaseForm((current) => ({
@@ -686,6 +689,7 @@ export default function PurchasesPage() {
                   <Label>Notes</Label>
                   <Input
                     value={purchaseForm.notes}
+                    className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                     onChange={(event) =>
                       setPurchaseForm((current) => ({
                         ...current,
@@ -696,21 +700,21 @@ export default function PurchasesPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-surface-border mt-4">
+              <div className="overflow-hidden rounded-2xl border border-border mt-4">
                 <Table>
-                  <TableHeader className="bg-surface-muted/50 border-b border-surface-border">
-                    <TableRow>
-                      <TableHead className="font-bold text-text-secondary py-3">Medicine</TableHead>
-                      <TableHead className="font-bold text-text-secondary py-3">Status</TableHead>
-                      <TableHead className="font-bold text-text-secondary py-3">Batch</TableHead>
-                      <TableHead className="font-bold text-text-secondary py-3">Expiry</TableHead>
-                      <TableHead className="text-right font-bold text-text-secondary py-3">Qty</TableHead>
-                      <TableHead className="text-right font-bold text-text-secondary py-3">Free</TableHead>
-                      <TableHead className="text-right font-bold text-text-secondary py-3">Rate</TableHead>
-                      <TableHead className="text-right font-bold text-text-secondary py-3">MRP</TableHead>
-                      <TableHead className="text-right font-bold text-text-secondary py-3">Discount</TableHead>
-                      <TableHead className="text-right font-bold text-text-secondary py-3">GST</TableHead>
-                      <TableHead className="font-bold text-text-secondary py-3">Rack</TableHead>
+                  <TableHeader className="bg-surface-muted/50 border-b border-border">
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Medicine</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Status</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Batch</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Expiry</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Qty</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Free</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Rate</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">MRP</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Discount</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">GST</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Rack</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -718,10 +722,10 @@ export default function PurchasesPage() {
                     {purchaseForm.items.map((item) => {
                       const meta = appliedScanMeta[item.tempId];
                       return (
-                      <TableRow key={item.tempId}>
+                      <TableRow key={item.tempId} className="border-border">
                         <TableCell>
                           <select
-                            className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                            className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                             value={item.medicineId}
                             onChange={(event) =>
                               handlePurchaseItemChange(item.tempId, 'medicineId', event.target.value)
@@ -738,23 +742,24 @@ export default function PurchasesPage() {
                         <TableCell>
                           {meta ? (
                             <span
-                              className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                              className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide shadow-sm ${
                                 meta.status === 'matched'
-                                  ? 'bg-emerald-100 text-emerald-700'
+                                  ? 'bg-primary/20 text-primary'
                                   : meta.status === 'possible'
-                                    ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-slate-100 text-slate-600'
+                                    ? 'bg-amber-400/20 text-amber-400'
+                                    : 'bg-muted-foreground/20 text-muted-foreground'
                               }`}
                             >
                               {meta.status}
                             </span>
                           ) : (
-                            <span className="text-xs text-slate-500">Manual</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40">Manual</span>
                           )}
                         </TableCell>
                         <TableCell>
                           <Input
                             value={item.batchNumber}
+                            className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                             onChange={(event) =>
                               handlePurchaseItemChange(item.tempId, 'batchNumber', event.target.value)
                             }
@@ -764,6 +769,7 @@ export default function PurchasesPage() {
                           <Input
                             type="date"
                             value={item.expiryDate}
+                            className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                             onChange={(event) =>
                               handlePurchaseItemChange(item.tempId, 'expiryDate', event.target.value)
                             }
@@ -774,6 +780,7 @@ export default function PurchasesPage() {
                             type="number"
                             min={0}
                             value={item.quantity}
+                            className="w-20 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
                             onChange={(event) =>
                               handlePurchaseItemChange(
                                 item.tempId,
@@ -788,6 +795,7 @@ export default function PurchasesPage() {
                             type="number"
                             min={0}
                             value={item.freeQty}
+                            className="w-16 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
                             onChange={(event) =>
                               handlePurchaseItemChange(
                                 item.tempId,
@@ -802,6 +810,7 @@ export default function PurchasesPage() {
                             type="number"
                             min={0}
                             value={item.purchaseRate}
+                            className="w-24 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
                             onChange={(event) =>
                               handlePurchaseItemChange(
                                 item.tempId,
@@ -816,6 +825,7 @@ export default function PurchasesPage() {
                             type="number"
                             min={0}
                             value={item.mrp}
+                            className="w-24 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
                             onChange={(event) =>
                               handlePurchaseItemChange(item.tempId, 'mrp', Number(event.target.value))
                             }
@@ -826,6 +836,7 @@ export default function PurchasesPage() {
                             type="number"
                             min={0}
                             value={item.discount}
+                            className="w-20 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
                             onChange={(event) =>
                               handlePurchaseItemChange(
                                 item.tempId,
@@ -840,6 +851,7 @@ export default function PurchasesPage() {
                             type="number"
                             min={0}
                             value={item.gst}
+                            className="w-20 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
                             onChange={(event) =>
                               handlePurchaseItemChange(item.tempId, 'gst', Number(event.target.value))
                             }
@@ -848,6 +860,7 @@ export default function PurchasesPage() {
                         <TableCell>
                           <Input
                             value={item.rackLocation}
+                            className="w-24 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                             onChange={(event) =>
                               handlePurchaseItemChange(item.tempId, 'rackLocation', event.target.value)
                             }
@@ -857,9 +870,10 @@ export default function PurchasesPage() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary rounded-lg"
                             onClick={() => removePurchaseRow(item.tempId)}
                           >
-                            <RotateCcw className="h-4 w-4" />
+                            <Plus className="h-4 w-4 rotate-45" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -889,22 +903,23 @@ export default function PurchasesPage() {
         </TabsContent>
 
         <TabsContent value="history">
-          <Card className="rounded-2xl">
+          <Card className="rounded-[24px] border-border bg-surface shadow-soft">
             <CardHeader>
-              <CardTitle className="text-lg">Purchase History</CardTitle>
-              <CardDescription>Track invoices and quick filters.</CardDescription>
+              <CardTitle className="text-xl font-extrabold text-foreground">Purchase History</CardTitle>
+              <CardDescription className="font-medium text-muted-foreground">Track invoices and quick filters.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-3">
                 <Input
                   placeholder="Search invoice number"
+                  className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                   value={filters.invoice}
                   onChange={(event) =>
                     setFilters((current) => ({ ...current, invoice: event.target.value }))
                   }
                 />
                 <select
-                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                   value={filters.supplierId}
                   onChange={(event) =>
                     setFilters((current) => ({ ...current, supplierId: event.target.value }))
@@ -918,7 +933,7 @@ export default function PurchasesPage() {
                   ))}
                 </select>
                 <select
-                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                   value={filters.status}
                   onChange={(event) =>
                     setFilters((current) => ({ ...current, status: event.target.value }))
@@ -931,35 +946,41 @@ export default function PurchasesPage() {
                 </select>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="overflow-hidden rounded-2xl border border-border mt-4">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                  <TableHeader className="bg-surface-muted/50 border-b border-border">
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Invoice</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Supplier</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Status</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Payment</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Total</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredHistory.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-slate-500">
+                      <TableRow className="border-border">
+                        <TableCell colSpan={6} className="text-center py-10 font-bold text-muted-foreground">
                           No purchases found.
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredHistory.map((purchase) => (
-                        <TableRow key={purchase.id}>
-                          <TableCell>{purchase.invoiceNumber}</TableCell>
-                          <TableCell>{purchase.supplier.name}</TableCell>
-                          <TableCell>{purchase.status}</TableCell>
-                          <TableCell>{purchase.paymentType}</TableCell>
-                          <TableCell className="text-right">₹{purchase.totalAmount.toFixed(2)}</TableCell>
+                        <TableRow key={purchase.id} className="hover:bg-primary/5 transition-colors border-border">
+                          <TableCell className="font-bold text-foreground">{purchase.invoiceNumber}</TableCell>
+                          <TableCell className="font-bold text-foreground">{purchase.supplier.name}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${purchase.status === 'PAID' ? 'bg-primary/20 text-primary border-primary/20' : 'bg-danger/20 text-danger border-danger/20'}`}>
+                              {purchase.status}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-foreground shadow-sm">{purchase.paymentType}</span>
+                          </TableCell>
+                          <TableCell className="text-right text-lg font-extrabold text-blue-400">₹{purchase.totalAmount.toFixed(2)}</TableCell>
                           <TableCell className="text-right">
-                            <Button variant="outline" size="sm" onClick={() => void handleLoadPurchaseDetail(purchase.id)}>
+                            <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={() => void handleLoadPurchaseDetail(purchase.id)}>
                               View
                             </Button>
                           </TableCell>
@@ -971,15 +992,15 @@ export default function PurchasesPage() {
               </div>
 
               {selectedPurchase ? (
-                <Card className="rounded-2xl border border-slate-200">
+                <Card className="rounded-[24px] border-border bg-surface shadow-soft mt-8 border-2 border-primary/10">
                   <CardHeader>
-                    <CardTitle className="text-base">Create Return</CardTitle>
-                    <CardDescription>Selected invoice: {selectedPurchase.invoiceNumber}</CardDescription>
+                    <CardTitle className="text-xl font-extrabold text-primary">Create Return</CardTitle>
+                    <CardDescription className="font-medium text-muted-foreground">Selected invoice: {selectedPurchase.invoiceNumber}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="grid gap-3 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-3">
                       <select
-                        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                        className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                         value={returnForm.batchId}
                         onChange={(event) => {
                           const batchId = event.target.value;
@@ -1002,6 +1023,7 @@ export default function PurchasesPage() {
                         type="number"
                         min={1}
                         value={returnForm.quantity}
+                        className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                         onChange={(event) =>
                           setReturnForm((current) => ({
                             ...current,
@@ -1012,6 +1034,7 @@ export default function PurchasesPage() {
                       <Input
                         placeholder="Reason"
                         value={returnForm.reason}
+                        className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                         onChange={(event) =>
                           setReturnForm((current) => ({
                             ...current,
@@ -1031,38 +1054,38 @@ export default function PurchasesPage() {
         </TabsContent>
 
         <TabsContent value="returns">
-          <Card className="rounded-2xl">
+          <Card className="rounded-[24px] border-border bg-surface shadow-soft">
             <CardHeader>
-              <CardTitle className="text-lg">Purchase Returns</CardTitle>
-              <CardDescription>Track supplier returns logged in the system.</CardDescription>
+              <CardTitle className="text-xl font-extrabold text-foreground">Purchase Returns</CardTitle>
+              <CardDescription className="font-medium text-muted-foreground">Track supplier returns logged in the system.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="overflow-hidden rounded-2xl border border-border mt-4">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Medicine</TableHead>
-                      <TableHead>Batch</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead>Reason</TableHead>
+                  <TableHeader className="bg-surface-muted/50 border-b border-border">
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Date</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Medicine</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Batch</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Qty</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Reason</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {returns.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-slate-500">
+                      <TableRow className="border-border">
+                        <TableCell colSpan={5} className="text-center py-10 font-bold text-muted-foreground">
                           No returns recorded yet.
                         </TableCell>
                       </TableRow>
                     ) : (
                       returns.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell>{new Date(entry.createdAt).toLocaleDateString('en-GB')}</TableCell>
-                          <TableCell>{entry.medicine.name}</TableCell>
-                          <TableCell>{entry.batch.batchNumber}</TableCell>
-                          <TableCell className="text-right">{entry.quantity}</TableCell>
-                          <TableCell>{entry.reason}</TableCell>
+                        <TableRow key={entry.id} className="hover:bg-primary/5 transition-colors border-border">
+                          <TableCell className="text-sm font-medium text-muted-foreground">{new Date(entry.createdAt).toLocaleDateString('en-GB')}</TableCell>
+                          <TableCell className="font-bold text-foreground">{entry.medicine.name}</TableCell>
+                          <TableCell className="font-bold text-muted-foreground">{entry.batch.batchNumber}</TableCell>
+                          <TableCell className="text-right font-bold text-foreground">{entry.quantity}</TableCell>
+                          <TableCell className="text-sm font-medium text-muted-foreground">{entry.reason}</TableCell>
                         </TableRow>
                       ))
                     )}

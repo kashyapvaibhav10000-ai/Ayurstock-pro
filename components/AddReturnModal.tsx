@@ -111,18 +111,18 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
         </DialogHeader>
 
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+          <div className="p-3 bg-danger/10 border border-danger/20 rounded-lg text-sm text-danger font-bold">
             {error}
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-1">
           <div className="col-span-2">
-            <Label>Return Type *</Label>
+            <Label className="text-muted-foreground font-bold text-xs uppercase tracking-wider">Return Type *</Label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-1 flex h-10 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
             >
               <option value="CUSTOMER">Customer Return (Adds to Stock)</option>
               <option value="SUPPLIER">Supplier Return (Removes from Stock)</option>
@@ -130,11 +130,11 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
           </div>
 
           <div className="col-span-2 sm:col-span-1">
-            <Label>Company Name *</Label>
+            <Label className="text-muted-foreground font-bold text-xs uppercase tracking-wider">Company Name *</Label>
             <select
               value={companyId}
               onChange={(e) => setCompanyId(e.target.value)}
-              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-1 flex h-10 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
             >
               <option value="" disabled>Select Company</option>
               {companies.map(c => (
@@ -144,11 +144,11 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
           </div>
 
           <div className="col-span-2 sm:col-span-1">
-            <Label>Medicine Name *</Label>
+            <Label className="text-muted-foreground font-bold text-xs uppercase tracking-wider">Medicine Name *</Label>
             <select
               value={medicineId}
               onChange={(e) => setMedicineId(e.target.value)}
-              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-1 flex h-10 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
             >
               <option value="" disabled>Select Medicine</option>
               {medicines.filter(m => !companyId || m.companyId === companyId || m.company === (companies.find(c => c.id === companyId)?.name)).map(m => (
@@ -158,17 +158,17 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
           </div>
 
           <div className="col-span-2 sm:col-span-1">
-            <Label>Expiry Date *</Label>
+            <Label className="text-muted-foreground font-bold text-xs uppercase tracking-wider">Expiry Date *</Label>
             <Input
               type="date"
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}
-              className="mt-1"
+              className="mt-1 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
             />
           </div>
 
           <div className="col-span-2 sm:col-span-1">
-            <Label>MRP (₹) *</Label>
+            <Label className="text-muted-foreground font-bold text-xs uppercase tracking-wider">MRP (₹) *</Label>
             <Input
               type="number"
               min="0"
@@ -176,38 +176,38 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
               placeholder="0.00"
               value={mrp}
               onChange={(e) => setMrp(e.target.value)}
-              className="mt-1"
+              className="mt-1 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
             />
           </div>
 
           <div className="col-span-2 sm:col-span-1">
-            <Label>Batch Number</Label>
+            <Label className="text-muted-foreground font-bold text-xs uppercase tracking-wider">Batch Number</Label>
             <Input
               placeholder="e.g. BTC-992"
               value={batchNumber}
               onChange={(e) => setBatchNumber(e.target.value)}
-              className="mt-1"
+              className="mt-1 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
             />
           </div>
 
           <div className="col-span-2 sm:col-span-1">
-            <Label>Quantity Returned *</Label>
+            <Label className="text-muted-foreground font-bold text-xs uppercase tracking-wider">Quantity Returned *</Label>
             <Input
               type="number"
               min="1"
               placeholder="Enter units"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className="mt-1"
+              className="mt-1 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
             />
           </div>
 
           <div className="col-span-2">
-            <Label>Reason *</Label>
+            <Label className="text-muted-foreground font-bold text-xs uppercase tracking-wider">Reason *</Label>
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-1 flex h-10 w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
             >
               <option value="" disabled>Select Reason</option>
               <option value="Expired">Expired</option>
@@ -219,25 +219,25 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
           </div>
 
           <div className="col-span-2">
-            <Label>Extra Notes</Label>
+            <Label className="text-muted-foreground font-bold text-xs uppercase tracking-wider">Extra Notes</Label>
             <textarea
               placeholder="Any additional context regarding this return (optional)..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+              className="mt-1 flex min-h-[80px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all disabled:cursor-not-allowed disabled:opacity-50 resize-none font-medium"
               rows={2}
             />
           </div>
         </div>
 
         <DialogFooter className="mt-6">
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+          <Button variant="outline" onClick={onClose} disabled={loading} className="rounded-xl font-bold">
             Cancel
           </Button>
           <Button 
             onClick={handleSubmit} 
             disabled={loading || !medicineId || !expiryDate || !mrp || !quantity || !reason || !companyId}
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="rounded-xl bg-primary hover:bg-primary/90 text-background font-bold shadow-lg shadow-primary/10 transition-all"
           >
             {loading ? 'Processing...' : 'Process Return & Upsert Inventory'}
           </Button>

@@ -21,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={plusJakartaSans.variable}>
-      <body className="min-h-screen bg-surface-muted text-text-primary antialiased selection:bg-primary-light selection:text-primary-hover">
+    <html lang="en" className={plusJakartaSans.variable} suppressHydrationWarning>
+      <body className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20">
         <Providers>
           {children}
         </Providers>

@@ -25,14 +25,14 @@ import { useAuth } from '@/components/providers/AuthProvider';
 
 const SETTINGS_CATEGORIES = [
   { id: 'shop', label: 'Shop Details', icon: Store, group: 'General' },
+  { id: 'system', label: 'Preferences', icon: SettingsIcon, group: 'General' },
   { id: 'inventory', label: 'Inventory', icon: Package, group: 'General' },
   { id: 'racks', label: 'Rack Locations', icon: Archive, group: 'General' },
   { id: 'companies', label: 'Company', icon: Building, group: 'General' },
-  { id: 'system', label: 'Preferences', icon: SettingsIcon, group: 'General' },
   { id: 'profile', label: 'My Profile', icon: User, group: 'Account' },
   { id: 'users', label: 'Team', icon: Users, group: 'Account' },
-  { id: 'billing', label: 'Plans & Billing', icon: CreditCard, group: 'Billing' },
   { id: 'invoice', label: 'Invoices', icon: FileText, group: 'Billing' },
+  { id: 'billing', label: 'Plans & Billing', icon: CreditCard, group: 'Billing' },
   { id: 'import', label: 'Bulk Import Data', icon: UploadCloud, group: 'Advanced' },
   { id: 'database', label: 'Database Admin', icon: Database, group: 'Advanced' },
   { id: 'activity', label: 'Activity Log', icon: FileText, group: 'Advanced' },
@@ -93,8 +93,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 md:space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
       <div>
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-text-primary">Settings</h1>
-        <p className="mt-2 text-sm font-medium text-text-secondary">
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">Settings</h1>
+        <p className="mt-2 text-sm font-medium text-muted-foreground">
           Manage your account settings and set preferences.
         </p>
       </div>
@@ -105,7 +105,7 @@ export default function SettingsPage() {
           <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible pb-4 lg:pb-0 gap-2 lg:gap-1 scrollbar-hide no-scrollbar">
             {['General', 'Account', 'Billing', 'Advanced'].map(group => (
               <div key={group} className="flex lg:flex-col shrink-0 lg:mb-6 last:mb-0 items-center lg:items-stretch gap-2 lg:gap-0">
-                <h4 className="hidden lg:block mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                <h4 className="hidden lg:block mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {group}
                 </h4>
                 {SETTINGS_CATEGORIES.filter(c => c.group === group).map(category => {
@@ -117,8 +117,8 @@ export default function SettingsPage() {
                       className={cn(
                         "flex items-center gap-2 lg:gap-3 rounded-xl lg:rounded-lg px-4 py-2 lg:px-3 lg:py-2 text-sm font-medium transition-all whitespace-nowrap",
                         activeTab === category.id 
-                          ? "bg-primary-light text-primary-hover shadow-sm lg:shadow-none"
-                          : "text-text-secondary hover:bg-surface-muted hover:text-text-primary border border-transparent lg:border-none"
+                          ? "bg-primary/20 text-primary shadow-sm lg:shadow-none border border-primary/20"
+                          : "text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent lg:border-none"
                       )}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
@@ -127,15 +127,15 @@ export default function SettingsPage() {
                   );
                 })}
                 {/* Visual separator for mobile */}
-                <div className="lg:hidden w-px h-4 bg-surface-border mx-2 last:hidden" />
+                <div className="lg:hidden w-px h-4 bg-border mx-2 last:hidden" />
               </div>
             ))}
           </nav>
 
           <div className="hidden lg:block mt-8">
-            <Card className="border-danger/20 bg-danger-bg shadow-none rounded-xl">
+            <Card className="border-danger/20 bg-danger/10 shadow-none rounded-xl">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-semibold text-danger-text">Session</CardTitle>
+                <CardTitle className="text-sm font-semibold text-danger">Session</CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 <Button 
@@ -153,11 +153,11 @@ export default function SettingsPage() {
 
         {/* Dynamic Content Area */}
         <main className="flex-1 min-w-0">
-          <Card className="rounded-[24px] shadow-soft hover:shadow-bento transition-all duration-300 border-surface-border bg-surface">
+          <Card className="rounded-[24px] shadow-soft hover:shadow-bento transition-all duration-300 border-border bg-surface">
             <CardContent className="p-4 md:p-8">
               {renderContent()}
               
-              <div className="lg:hidden mt-8 pt-8 border-t border-surface-border">
+              <div className="lg:hidden mt-8 pt-8 border-t border-border">
                 <Button 
                   variant="destructive" 
                   className="w-full justify-center gap-2 h-11" 

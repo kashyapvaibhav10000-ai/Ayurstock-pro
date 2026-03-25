@@ -10,9 +10,9 @@ import {
 } from 'recharts';
 
 const LIMITS = {
-  gemini:    { daily: 1400,  color: '#4285F4', label: 'Gemini',     bg: 'bg-blue-50',   text: 'text-blue-700',   bar: 'bg-blue-500',   barLight: 'bg-blue-100'  },
-  groq:      { daily: 14000, color: '#ff6b00', label: 'Groq',       bg: 'bg-orange-50', text: 'text-orange-700', bar: 'bg-orange-500', barLight: 'bg-orange-100' },
-  openrouter:{ daily: null,  color: '#6c47ff', label: 'OpenRouter', bg: 'bg-purple-50', text: 'text-purple-700', bar: 'bg-purple-500', barLight: 'bg-purple-100' },
+  gemini:    { daily: 1400,  color: '#D4AF37', label: 'Gemini',     bg: 'bg-primary/10',   text: 'text-primary',   bar: 'bg-primary',   barLight: 'bg-primary/20'  },
+  groq:      { daily: 14000, color: '#D4AF37', label: 'Groq',       bg: 'bg-primary/5', text: 'text-primary/80', bar: 'bg-primary/80', barLight: 'bg-primary/10' },
+  openrouter:{ daily: null,  color: '#D4AF37', label: 'OpenRouter', bg: 'bg-primary/5', text: 'text-primary/80', bar: 'bg-primary/80', barLight: 'bg-primary/10' },
 };
 
 function getMillisUntilMidnightUTC() {
@@ -34,12 +34,12 @@ function GaugeCard({ provider, used, loading }: { provider: keyof typeof LIMITS;
   const isOverHalf = pct !== null && pct > 70;
 
   return (
-    <Card className={`border-slate-200 shadow-sm overflow-hidden`}>
+    <Card className={`border-border bg-surface shadow-soft overflow-hidden hover:border-primary/30 transition-all duration-300`}>
       <div className={`h-1 w-full ${pct !== null ? (isOverHalf ? 'bg-red-500' : config.bar) : config.bar}`} 
            style={pct !== null ? { width: `${pct}%`, transition: 'width 1s ease' } : {}} />
       <CardHeader className="pb-2 pt-4">
-        <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-          <div className={`h-2.5 w-2.5 rounded-full`} style={{ backgroundColor: config.color }} />
+        <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+          <div className={`h-2.5 w-2.5 rounded-full shadow-[0_0_5px_rgba(212,175,55,0.5)]`} style={{ backgroundColor: config.color }} />
           {config.label}
         </CardTitle>
       </CardHeader>
@@ -48,32 +48,32 @@ function GaugeCard({ provider, used, loading }: { provider: keyof typeof LIMITS;
           <Loader2 className="h-5 w-5 animate-spin text-slate-300 mt-1" />
         ) : (
           <>
-            <div className="flex items-end gap-1.5">
-              <span className="text-3xl font-extrabold text-slate-900">{used.toLocaleString()}</span>
+            <div className="flex items-end gap-1.5 leading-none">
+              <span className="text-3xl font-black text-foreground tracking-tighter">{used.toLocaleString()}</span>
               {config.daily && (
-                <span className="text-sm text-slate-400 mb-1">/ {config.daily.toLocaleString()}</span>
+                <span className="text-[10px] font-bold text-muted-foreground mb-1 uppercase tracking-widest">/ {config.daily.toLocaleString()}</span>
               )}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">calls today</p>
+            <p className="text-[9px] font-black text-muted-foreground mt-2 uppercase tracking-[0.2em]">calls processed</p>
 
             {/* Progress bar for capped providers */}
             {pct !== null && (
-              <div className="mt-3">
-                <div className={`h-2 w-full rounded-full ${config.barLight}`}>
+              <div className="mt-4">
+                <div className={`h-[6px] w-full rounded-full bg-surface-muted border border-border overflow-hidden`}>
                   <div
-                    className={`h-2 rounded-full transition-all duration-700 ${isOverHalf ? 'bg-red-500' : config.bar}`}
+                    className={`h-full rounded-full transition-all duration-1000 ${isOverHalf ? 'bg-danger shadow-[0_0_10px_rgba(239,68,68,0.4)]' : 'bg-primary shadow-[0_0_10px_rgba(212,175,55,0.4)]'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <p className={`text-[11px] mt-1 font-semibold ${isOverHalf ? 'text-red-500' : 'text-slate-400'}`}>
-                  {pct.toFixed(1)}% of daily limit used
+                <p className={`text-[9px] mt-2 font-black uppercase tracking-[0.1em] ${isOverHalf ? 'text-danger' : 'text-muted-foreground'}`}>
+                  {pct.toFixed(1)}% usage intensity
                 </p>
               </div>
             )}
 
             {/* Unlimited indicator */}
             {pct === null && (
-              <p className="text-[11px] text-purple-500 font-semibold mt-2">No daily cap (pay-per-use)</p>
+              <p className="text-[10px] text-primary font-black mt-3 uppercase tracking-widest bg-primary/10 px-2 py-1 rounded inline-block">Uncapped Pipeline</p>
             )}
           </>
         )}
@@ -124,24 +124,26 @@ export default function AiUsageTab() {
       {/* Header Row */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-stitch-primary" />
-            AI Engine Usage
+          <h2 className="text-xl font-black text-foreground tracking-tight uppercase flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            AI Engine Pulse
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Daily call volume across AI providers. Limits reset at UTC midnight.
+          <p className="text-[11px] font-bold text-muted-foreground mt-2 uppercase tracking-widest leading-relaxed">
+            Call volume across distributed providers. Refresh resets at <span className="text-foreground">UTC 00:00</span>.
           </p>
         </div>
         <div className="flex items-center gap-3">
           {timeToReset && (
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5">
+            <div className="flex items-center gap-2 text-[10px] font-black text-primary bg-primary/10 border border-primary/20 rounded-xl px-4 py-2.5 uppercase tracking-[0.15em] shadow-soft">
               <Clock className="h-3.5 w-3.5" />
-              Resets in {timeToReset}
+              Reset in {timeToReset}
             </div>
           )}
-          <Button variant="outline" size="sm" onClick={fetchUsage} disabled={loading} className="gap-1.5">
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+          <Button variant="outline" size="sm" onClick={fetchUsage} disabled={loading} className="h-10 gap-2 px-4 rounded-xl border-border bg-background hover:bg-primary/5 hover:text-primary font-black uppercase tracking-widest text-[10px] transition-all">
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Sync
           </Button>
         </div>
       </div>
@@ -154,28 +156,33 @@ export default function AiUsageTab() {
       </div>
 
       {/* Summary */}
-      <div className="flex items-center gap-6 rounded-xl bg-slate-50 border border-slate-200 px-5 py-3">
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Calls (All Time)</p>
-          <p className="text-2xl font-extrabold text-slate-900">{totalCalls.toLocaleString()}</p>
+      <div className="flex items-center gap-10 rounded-2xl bg-surface-muted/30 border border-border px-8 py-6 shadow-inner relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-5">
+          <Cpu className="w-32 h-32 text-primary" />
         </div>
-        <div className="w-px h-10 bg-slate-200" />
         <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Today Total</p>
-          <p className="text-2xl font-extrabold text-slate-900">{(todayGemini + todayGroq + todayOR).toLocaleString()}</p>
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-2">Aggregate Volume</p>
+          <p className="text-3xl font-black text-foreground tracking-tighter">{totalCalls.toLocaleString()}</p>
         </div>
-        <div className="w-px h-10 bg-slate-200" />
+        <div className="w-px h-12 bg-border" />
         <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Providers</p>
-          <p className="text-sm font-bold text-stitch-primary mt-0.5">Gemini → Groq → OpenRouter</p>
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-2">Intraday Total</p>
+          <p className="text-3xl font-black text-primary tracking-tighter drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]">{(todayGemini + todayGroq + todayOR).toLocaleString()}</p>
+        </div>
+        <div className="w-px h-12 bg-border" />
+        <div>
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-2">active pipeline</p>
+          <p className="text-[11px] font-black text-primary mt-1 uppercase tracking-widest flex items-center gap-2">
+            GEMINI <span className="h-1 w-4 bg-primary/20 rounded-full" /> GROQ <span className="h-1 w-4 bg-primary/20 rounded-full" /> OPENROUTER
+          </p>
         </div>
       </div>
 
       {/* Historical Chart */}
-      <Card className="border-slate-200">
+      <Card className="border-border bg-surface shadow-soft">
         <CardHeader>
-          <CardTitle className="text-base font-bold">Provider Distribution (History)</CardTitle>
-          <CardDescription>Daily breakdown of AI call volume across all providers.</CardDescription>
+          <CardTitle className="text-[13px] font-black tracking-[0.2em] uppercase text-foreground">Timeline Distribution</CardTitle>
+          <CardDescription className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Provider processing load over time.</CardDescription>
         </CardHeader>
         <CardContent className="h-[360px]">
           {loading ? (
@@ -184,17 +191,20 @@ export default function AiUsageTab() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={usage} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="date" fontSize={10} tickFormatter={(val) => val.split('-').slice(1).join('/')} />
-                <YAxis fontSize={10} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
-                <Bar dataKey="gemini"     fill="#4285F4" radius={[4,4,0,0]} name="Gemini" />
-                <Bar dataKey="groq"       fill="#ff6b00" radius={[4,4,0,0]} name="Groq" />
-                <Bar dataKey="mistral"    fill="#fca43a" radius={[4,4,0,0]} name="Mistral" />
-                <Bar dataKey="cloudflare" fill="#f48120" radius={[4,4,0,0]} name="Workers AI" />
-                <Bar dataKey="openrouter" fill="#6c47ff" radius={[4,4,0,0]} name="OpenRouter" />
+              <BarChart data={usage} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(212,175,55,0.05)" />
+                <XAxis dataKey="date" fontSize={10} fontWeight="900" tickFormatter={(val) => val.split('-').slice(1).join('/')} axisLine={false} tickLine={false} tick={{fill: 'rgba(255,255,255,0.4)'}} />
+                <YAxis fontSize={10} fontWeight="900" axisLine={false} tickLine={false} tick={{fill: 'rgba(255,255,255,0.4)'}} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1A1A1A', borderRadius: '16px', border: '1px solid rgba(212,175,55,0.2)', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} 
+                  cursor={{fill: 'rgba(212,175,55,0.03)'}}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', paddingTop: '20px', letterSpacing: '0.1em' }} />
+                <Bar dataKey="gemini"     fill="#D4AF37" radius={[4,4,0,0]} name="Gemini" />
+                <Bar dataKey="groq"       fill="rgba(212,175,55,0.6)" radius={[4,4,0,0]} name="Groq" />
+                <Bar dataKey="mistral"    fill="rgba(212,175,55,0.4)" radius={[4,4,0,0]} name="Mistral" />
+                <Bar dataKey="cloudflare" fill="rgba(212,175,55,0.3)" radius={[4,4,0,0]} name="Workers AI" />
+                <Bar dataKey="openrouter" fill="rgba(212,175,55,0.2)" radius={[4,4,0,0]} name="OpenRouter" />
               </BarChart>
             </ResponsiveContainer>
           )}

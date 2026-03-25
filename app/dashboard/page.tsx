@@ -30,7 +30,7 @@ function RevenueChart({ data, isLoading }: { data: SaleDate[]; isLoading: boolea
   const hasData = data.length > 0 && data.some(d => d.totalAmount > 0);
   if (!hasData) {
     return (
-      <div className="h-[180px] flex items-center justify-center text-stitch-onSurfaceVariant text-[13px]">
+      <div className="h-[180px] flex items-center justify-center text-muted-foreground text-[13px] font-medium">
         No performance data for this period
       </div>
     );
@@ -49,16 +49,16 @@ function RevenueChart({ data, isLoading }: { data: SaleDate[]; isLoading: boolea
           <div key={d.date} className="flex-1 flex flex-col items-center gap-2 group">
             <div className="relative w-full flex flex-col items-center justify-end h-[140px]">
               {d.totalAmount > 0 && (
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-stitch-onSurface text-white text-[10px] font-semibold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap">
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap shadow-lg">
                   ₹{d.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </div>
               )}
               <div
-                className={`w-full rounded-t-[4px] transition-all ${isToday ? 'bg-stitch-primary' : 'bg-stitch-surfaceLow hover:bg-stitch-primaryContainer'}`}
+                className={`w-full rounded-t-[4px] transition-all duration-300 ${isToday ? 'bg-primary shadow-[0_0_15px_rgba(212,175,55,0.3)]' : 'bg-surface-muted/50 hover:bg-primary/20'}`}
                 style={{ height: `${pct}%`, minHeight: d.totalAmount > 0 ? '8px' : '0' }}
               />
             </div>
-            <span className={`text-[10px] font-semibold ${isToday ? 'text-stitch-primary' : 'text-stitch-outlineVariant'}`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
               {days[date.getDay()]}
             </span>
           </div>
@@ -154,16 +154,16 @@ export default function DashboardPage() {
   // Stitch UI Typography & Layout
   return (
     <>
-      <div className="bg-stitch-background min-h-full font-sans text-stitch-onSurface selection:bg-stitch-primaryContainer p-6 md:p-10">
+      <div className="bg-background min-h-full font-sans text-foreground selection:bg-primary/20 p-6 md:p-10">
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
           <div className="flex items-baseline gap-4">
-            <h1 className="text-sm font-semibold tracking-[0.2em] text-stitch-onSurfaceVariant uppercase">
+            <h1 className="text-sm font-bold tracking-[0.25em] text-muted-foreground uppercase">
               COMMAND CENTER V1.2
             </h1>
           </div>
-          <div className="flex items-center gap-4 text-sm text-stitch-onSurfaceVariant font-medium">
+          <div className="flex items-center gap-4 text-xs text-muted-foreground font-bold uppercase tracking-widest">
             <span className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-stitch-primary animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(212,175,55,0.5)]" />
               Live Processing
             </span>
           </div>
@@ -175,20 +175,20 @@ export default function DashboardPage() {
           <div className="lg:col-span-3 space-y-8 flex flex-col">
             
             {/* Financial Pulse */}
-            <div className="bg-stitch-surfaceLowest rounded-[24px] p-6 shadow-[0_12px_32px_rgba(43,53,47,0.03)] border-none relative overflow-hidden">
+            <div className="bg-surface rounded-[24px] p-6 shadow-soft hover:shadow-bento transition-all duration-300 border border-border relative overflow-hidden">
               <div className="flex justify-between items-start mb-6">
-                <h2 className="text-[11px] font-bold tracking-[0.1em] uppercase text-stitch-onSurfaceVariant">
+                <h2 className="text-[11px] font-bold tracking-[0.15em] uppercase text-muted-foreground">
                   Financial Pulse
                 </h2>
-                <DollarSign className="w-4 h-4 text-stitch-primary" />
+                <DollarSign className="w-4 h-4 text-primary" />
               </div>
 
               <div className="space-y-6">
                 <div>
-                  <p className="text-xs text-stitch-onSurfaceVariant font-medium pb-1">Total Sales (Today)</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider pb-1">Total Sales (Today)</p>
                   {isLoading ? <Skeleton className="h-9 w-32" /> : (
                     <div className="flex items-baseline gap-3">
-                      <p className="text-3xl font-extrabold text-stitch-primary tracking-tight">
+                      <p className="text-3xl font-extrabold text-primary tracking-tight">
                         ₹{(metrics?.totalSalesToday || 0).toLocaleString('en-IN')}
                       </p>
                     </div>
@@ -196,50 +196,50 @@ export default function DashboardPage() {
                 </div>
                 
                 <div>
-                  <p className="text-xs text-stitch-onSurfaceVariant font-medium pb-1">GST Collected</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider pb-1">GST Collected</p>
                   {isLoading ? <Skeleton className="h-6 w-24" /> : (
-                    <p className="text-lg font-bold text-stitch-onSurface">
+                    <p className="text-lg font-extrabold text-foreground">
                       ₹{(metrics?.gstCollectedToday || 0).toLocaleString('en-IN')}
                     </p>
                   )}
                 </div>
 
                 <div className="pt-2">
-                  <div className="flex justify-between text-xs font-bold text-stitch-onSurfaceVariant mb-2">
+                  <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
                     <span>Performance Target</span>
-                    <span className="text-stitch-primary">98.2%</span>
+                    <span className="text-primary">98.2%</span>
                   </div>
-                  <div className="h-[4px] w-full bg-stitch-surfaceLow rounded-full overflow-hidden">
-                    <div className="h-full bg-stitch-primary rounded-full w-[98.2%]" />
+                  <div className="h-[6px] w-full bg-surface-muted/50 rounded-full overflow-hidden border border-border">
+                    <div className="h-full bg-primary rounded-full w-[98.2%] shadow-[0_0_8px_rgba(212,175,55,0.4)]" />
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Shop Pulse */}
-            <div className="bg-stitch-surfaceLowest rounded-[24px] p-6 shadow-[0_12px_32px_rgba(43,53,47,0.03)] border-none">
+            <div className="bg-surface rounded-[24px] p-6 shadow-soft hover:shadow-bento transition-all duration-300 border border-border">
               <div className="flex justify-between items-start mb-5">
-                <h2 className="text-[11px] font-bold tracking-[0.1em] uppercase text-stitch-onSurfaceVariant">
+                <h2 className="text-[11px] font-bold tracking-[0.15em] uppercase text-muted-foreground">
                   Active Vitality
                 </h2>
-                <Users className="w-4 h-4 text-stitch-primary" />
+                <Users className="w-4 h-4 text-primary" />
               </div>
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[13px] font-bold text-stitch-onSurface">Customers Today</p>
-                    <p className="text-[11px] text-stitch-onSurfaceVariant mt-0.5">In-store & Billed</p>
+                    <p className="text-[13px] font-bold text-foreground">Customers Today</p>
+                    <p className="text-[11px] font-medium text-muted-foreground mt-0.5">In-store & Billed</p>
                   </div>
-                  <span className="text-sm font-bold bg-stitch-surfaceLow text-stitch-primary px-3 py-1 rounded-full">
+                  <span className="text-xs font-bold bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
                     {metrics?.newCustomers || 0}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[13px] font-bold text-stitch-onSurface">Low Stock Items</p>
-                    <p className="text-[11px] text-stitch-onSurfaceVariant mt-0.5">Requires Re-order</p>
+                    <p className="text-[13px] font-bold text-foreground">Low Stock Items</p>
+                    <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Requires Re-order</p>
                   </div>
-                  <span className="text-sm font-bold bg-stitch-errorContainer/20 text-stitch-onSurface px-3 py-1 rounded-full">
+                  <span className="text-xs font-bold bg-danger/10 text-danger px-3 py-1 rounded-full border border-danger/20">
                     {metrics?.lowStockCount || 0}
                   </span>
                 </div>
@@ -247,11 +247,11 @@ export default function DashboardPage() {
             </div>
 
             {/* Herb of the Day (Soft Visual Element) */}
-            <div className="mt-auto bg-gradient-to-br from-stitch-primary to-stitch-primaryDim rounded-[24px] p-6 text-stitch-surfaceLowest relative overflow-hidden shadow-[0_16px_32px_rgba(0,109,79,0.2)]">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
-              <h3 className="text-[10px] font-bold tracking-[0.2em] text-white/70 uppercase mb-2">Notice</h3>
-              <p className="text-lg font-bold mb-1 shadow-sm">Daily Verification</p>
-              <p className="text-[11px] text-white/80 leading-relaxed font-medium">
+            <div className="mt-auto bg-primary/5 rounded-[24px] p-6 border border-primary/20 text-foreground relative overflow-hidden shadow-soft">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -mr-10 -mt-10" />
+              <h3 className="text-[10px] font-bold tracking-[0.25em] text-primary uppercase mb-2">Notice</h3>
+              <p className="text-lg font-extrabold text-foreground mb-1">Daily Verification</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed font-bold">
                 Ensure all incoming stock purchases are logged before EOD.
               </p>
             </div>
@@ -262,54 +262,54 @@ export default function DashboardPage() {
           <div className="lg:col-span-6 space-y-8">
             
             {/* Transaction Monitor */}
-            <div className="bg-stitch-surfaceLowest rounded-[24px] p-7 shadow-[0_12px_32px_rgba(43,53,47,0.03)] flex flex-col h-full">
+            <div className="bg-surface rounded-[24px] p-7 shadow-soft hover:shadow-bento transition-all duration-300 border border-border flex flex-col h-full">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-lg font-bold text-stitch-onSurface">Transaction Monitor</h2>
-                  <p className="text-[13px] text-stitch-onSurfaceVariant mt-1">Real-time prescription processing</p>
+                  <h2 className="text-lg font-extrabold text-foreground tracking-tight">Transaction Monitor</h2>
+                  <p className="text-[13px] font-medium text-muted-foreground mt-1">Real-time prescription processing</p>
                 </div>
-                <Button variant="ghost" className="text-stitch-primary hover:bg-stitch-surfaceLow hover:text-stitch-primary text-xs font-bold px-3 tracking-wide" onClick={() => router.push('/dashboard/sales-history')}>
-                  VIEW ALL
+                <Button variant="ghost" className="text-primary hover:bg-primary/5 hover:text-primary text-[10px] font-black tracking-[0.15em] px-4 py-2 border border-primary/10 uppercase" onClick={() => router.push('/dashboard/sales-history')}>
+                  VIEW MONITOR
                 </Button>
               </div>
 
               <div className="flex-1 overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-stitch-surfaceLow">
-                      <th className="pb-4 text-[10px] font-bold text-stitch-onSurfaceVariant uppercase tracking-wider pl-2">ID / Time</th>
-                      <th className="pb-4 text-[10px] font-bold text-stitch-onSurfaceVariant uppercase tracking-wider">Customer</th>
-                      <th className="pb-4 text-[10px] font-bold text-stitch-onSurfaceVariant uppercase tracking-wider text-right">Amount</th>
-                      <th className="pb-4 text-[10px] font-bold text-stitch-onSurfaceVariant uppercase tracking-wider text-right pr-2">Status</th>
+                    <tr className="border-b border-border bg-surface-muted/30">
+                      <th className="py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] pl-4">ID / Time</th>
+                      <th className="py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Customer</th>
+                      <th className="py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] text-right">Amount</th>
+                      <th className="py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] text-right pr-4">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {isLoading ? (
                       Array.from({ length: 4 }).map((_, i) => (
-                        <tr key={i} className="border-b border-stitch-surfaceLow last:border-0 hover:bg-stitch-surfaceLow/50 transition-colors">
-                          <td className="py-4 pl-2"><Skeleton className="h-4 w-16" /><Skeleton className="h-3 w-10 mt-1" /></td>
+                        <tr key={i} className="border-b border-border last:border-0 hover:bg-primary/[0.02] transition-colors font-medium">
+                          <td className="py-4 pl-4"><Skeleton className="h-4 w-16" /><Skeleton className="h-3 w-10 mt-1" /></td>
                           <td className="py-4"><Skeleton className="h-4 w-24" /></td>
-                          <td className="py-4"><Skeleton className="h-4 w-16 ml-auto" /></td>
-                          <td className="py-4"><Skeleton className="h-6 w-20 ml-auto rounded-full" /></td>
+                          <td className="py-4 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                          <td className="py-4 text-right pr-4"><Skeleton className="h-6 w-20 ml-auto rounded-full" /></td>
                         </tr>
                       ))
                     ) : metrics?.recentSales.length === 0 ? (
-                        <tr><td colSpan={4} className="py-8 text-center text-sm text-stitch-onSurfaceVariant">No transactions today</td></tr>
+                        <tr><td colSpan={4} className="py-12 text-center text-[13px] font-bold text-muted-foreground uppercase tracking-widest">No transactions today</td></tr>
                     ) : (
                       metrics?.recentSales.map((sale: any) => (
-                        <tr key={sale.id} className="border-b border-stitch-surfaceLow last:border-0 hover:bg-stitch-surfaceLow/60 transition-colors group cursor-pointer" onClick={() => router.push(`/dashboard/sales-history`)}>
-                          <td className="py-4 pl-2">
-                            <p className="text-[13px] font-bold text-stitch-onSurface">#{sale.invoiceNumber}</p>
-                            <p className="text-[11px] text-stitch-onSurfaceVariant mt-0.5">{format(new Date(sale.createdAt), 'HH:mm')}</p>
+                        <tr key={sale.id} className="border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors group cursor-pointer" onClick={() => router.push(`/dashboard/sales-history`)}>
+                          <td className="py-4 pl-4">
+                            <p className="text-[13px] font-extrabold text-foreground">#{sale.invoiceNumber}</p>
+                            <p className="text-[11px] font-bold text-muted-foreground mt-0.5">{format(new Date(sale.createdAt), 'HH:mm')}</p>
                           </td>
                           <td className="py-4">
-                            <p className="text-[13px] font-semibold text-stitch-onSurface">{sale.customer?.name || "Walk-in"}</p>
+                            <p className="text-[13px] font-bold text-foreground">{sale.customer?.name || "Walk-in"}</p>
                           </td>
                           <td className="py-4 text-right">
-                            <p className="text-[14px] font-bold text-stitch-primary">₹{parseFloat(sale.grandTotal).toLocaleString('en-IN')}</p>
+                            <p className="text-[14px] font-extrabold text-primary">₹{parseFloat(sale.grandTotal).toLocaleString('en-IN')}</p>
                           </td>
-                          <td className="py-4 text-right pr-2">
-                            <span className="inline-flex items-center text-[10px] font-bold px-3 py-1.5 rounded-full bg-stitch-primaryContainer/30 text-stitch-primary tracking-wide">
+                          <td className="py-4 text-right pr-4">
+                            <span className="inline-flex items-center text-[10px] font-black px-3 py-1.5 rounded-full bg-primary/10 text-primary tracking-widest uppercase border border-primary/20">
                               COMPLETED
                             </span>
                           </td>
@@ -327,28 +327,28 @@ export default function DashboardPage() {
           <div className="lg:col-span-3 space-y-8 flex flex-col">
             
             {/* Stock Vitality */}
-            <div className="bg-stitch-surfaceLowest rounded-[24px] p-6 shadow-[0_12px_32px_rgba(43,53,47,0.03)] border-none">
-              <h2 className="text-[11px] font-bold tracking-[0.1em] uppercase text-stitch-onSurfaceVariant mb-5">
+            <div className="bg-surface rounded-[24px] p-6 shadow-soft hover:shadow-bento transition-all duration-300 border border-border">
+              <h2 className="text-[11px] font-bold tracking-[0.15em] uppercase text-muted-foreground mb-5">
                 Stock Vitality
               </h2>
               <div className="space-y-3">
-                <div className="relative overflow-hidden rounded-xl bg-[#fff7f6] p-4 flex justify-between items-center group cursor-pointer border border-[#fa746f]/20 hover:bg-[#ffeaea] transition-colors" onClick={() => router.push('/dashboard/inventory')}>
+                <div className="relative overflow-hidden rounded-xl bg-danger/10 p-4 flex justify-between items-center group cursor-pointer border border-danger/20 hover:bg-danger/20 transition-colors" onClick={() => router.push('/dashboard/inventory')}>
                   <div>
-                    <p className="text-[13px] font-bold text-[#6e0a12]">Critical Low</p>
-                    <p className="text-[11px] text-[#93000a]/70 mt-0.5 max-w-[120px] truncate">
+                    <p className="text-[13px] font-extrabold text-danger">Critical Low</p>
+                    <p className="text-[11px] font-bold text-danger/70 mt-0.5 max-w-[120px] truncate uppercase tracking-widest">
                       {isAlertsLoading ? 'Loading...' : alertsData?.lowStockMedicines?.slice(0,2).map((m: any) => m.name).join(', ') || 'No critical items'}
                     </p>
                   </div>
-                  <p className="text-base font-extrabold text-[#ba1a1a]">{metrics?.lowStockCount || 0}</p>
+                  <p className="text-xl font-black text-danger">{metrics?.lowStockCount || 0}</p>
                 </div>
                 
-                <div className="relative overflow-hidden rounded-xl bg-stitch-surfaceLow p-4 flex justify-between items-center group cursor-pointer border border-stitch-primaryContainer/50 hover:bg-[#e4efe5] transition-colors" onClick={() => router.push('/dashboard/inventory')}>
+                <div className="relative overflow-hidden rounded-xl bg-surface p-4 flex justify-between items-center group cursor-pointer border border-border hover:bg-primary/5 hover:border-primary/30 transition-all duration-300" onClick={() => router.push('/dashboard/inventory')}>
                   <div>
-                    <p className="text-[13px] font-bold text-stitch-primaryDim">Optimal Stock</p>
-                    <p className="text-[11px] text-stitch-primary/70 mt-0.5">Ready for processing</p>
+                    <p className="text-[13px] font-extrabold text-foreground">Optimal Stock</p>
+                    <p className="text-[11px] font-bold text-muted-foreground mt-0.5 uppercase tracking-widest">Ready for processing</p>
                   </div>
-                  <div className="h-6 w-6 rounded-full bg-stitch-primaryContainer/50 flex items-center justify-center">
-                    <div className="h-2 w-2 rounded-full bg-stitch-primary" />
+                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                    <div className="h-2 w-2 rounded-full bg-primary shadow-[0_0_5px_rgba(212,175,55,1)]" />
                   </div>
                 </div>
               </div>
@@ -356,7 +356,7 @@ export default function DashboardPage() {
 
             {/* Commander Actions */}
             <div>
-              <h2 className="text-[11px] font-bold tracking-[0.1em] uppercase text-stitch-onSurfaceVariant mb-4 pl-1">
+              <h2 className="text-[11px] font-bold tracking-[0.15em] uppercase text-muted-foreground mb-4 pl-1">
                 Commander Actions
               </h2>
               <div className="grid grid-cols-2 gap-3">
@@ -367,7 +367,7 @@ export default function DashboardPage() {
               </div>
               <Button 
                 variant="outline" 
-                className="w-full mt-3 h-11 text-xs font-bold tracking-widest uppercase border-stitch-outlineVariant/30 text-stitch-primary hover:bg-stitch-surfaceLow hover:text-stitch-primary rounded-[12px]"
+                className="w-full mt-3 h-11 text-[10px] font-black tracking-[0.2em] uppercase border-border/50 text-muted-foreground hover:bg-primary/5 hover:text-primary hover:border-primary/30 rounded-[12px] transition-all"
               >
                 Custom Actions
               </Button>
@@ -376,19 +376,19 @@ export default function DashboardPage() {
             {/* Intraday Performance */}
             <div className="mt-8">
               <div className="flex items-center justify-between mb-4 pl-1">
-                <h2 className="text-[11px] font-bold tracking-[0.1em] uppercase text-stitch-onSurfaceVariant">
+                <h2 className="text-[11px] font-bold tracking-[0.15em] uppercase text-muted-foreground">
                   Intraday Performance
                 </h2>
-                <TrendingUp className="w-3.5 h-3.5 text-stitch-primary" />
+                <TrendingUp className="w-3.5 h-3.5 text-primary" />
               </div>
-              <div className="bg-stitch-surfaceLowest rounded-[24px] p-5 shadow-[0_12px_32px_rgba(43,53,47,0.03)]">
+              <div className="bg-surface rounded-[24px] p-5 shadow-soft hover:shadow-bento transition-all duration-300 border border-border">
                 <RevenueChart data={metrics?.salesByDate ?? []} isLoading={isLoading} />
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-stitch-surfaceLow">
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 bg-stitch-primary rounded-full" />
-                    <span className="text-[11px] font-bold text-stitch-onSurfaceVariant uppercase">Sales Volume</span>
+                    <div className="h-2 w-2 bg-primary rounded-full shadow-[0_0_5px_rgba(212,175,55,0.5)]" />
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em]">Sales Volume</span>
                   </div>
-                  <span className="text-xs font-bold text-stitch-onSurface">7 Days</span>
+                  <span className="text-[10px] font-black text-foreground uppercase tracking-widest">7 Days</span>
                 </div>
               </div>
             </div>
@@ -413,10 +413,10 @@ function ActionButton({ icon: Icon, label, onClick }: { icon: any, label: string
   return (
     <button 
       onClick={onClick}
-      className="flex flex-col items-center justify-center gap-2 bg-stitch-surfaceLowest border border-stitch-outlineVariant/20 p-4 rounded-[16px] hover:border-stitch-primary/30 hover:bg-[#fcfdfc] transition-all group shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
+      className="flex flex-col items-center justify-center gap-2 bg-surface border border-border p-4 rounded-[16px] hover:border-primary/40 hover:bg-primary/[0.03] transition-all group shadow-soft active:scale-[0.98]"
     >
-      <Icon className="w-5 h-5 text-stitch-primary group-hover:scale-110 transition-transform" />
-      <span className="text-[10px] font-bold text-stitch-onSurface text-center leading-tight tracking-wide">
+      <Icon className="w-5 h-5 text-primary group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_rgba(212,175,55,0.3)] transition-transform duration-300" />
+      <span className="text-[10px] font-bold text-foreground text-center leading-tight tracking-widest uppercase">
         {label}
       </span>
     </button>

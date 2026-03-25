@@ -40,40 +40,46 @@ export default function ActivityLogTab() {
   }, [page]);
 
   return (
-    <Card className="border-slate-200">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <CardTitle className="text-xl font-bold flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
+    <Card className="border-border bg-surface shadow-soft">
+      <CardHeader className="flex flex-row items-center justify-between pb-6 space-y-0 border-b border-border">
+        <CardTitle className="text-xl font-black flex items-center gap-3 text-foreground tracking-tight uppercase">
+          <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+            <Activity className="h-5 w-5 text-primary" />
+          </div>
           Audit Trail
         </CardTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Button 
             variant="outline" 
             size="sm" 
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1 || loading}
+            className="h-10 w-10 p-0 rounded-xl border-border bg-background hover:bg-primary/5 hover:text-primary transition-all"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-5 w-5" />
           </Button>
-          <span className="text-xs font-medium px-2">Page {page} of {totalPages}</span>
+          <div className="bg-background border border-border px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            Page <span className="text-primary">{page}</span> of {totalPages}
+          </div>
           <Button 
             variant="outline" 
             size="sm" 
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages || loading}
+            className="h-10 w-10 p-0 rounded-xl border-border bg-background hover:bg-primary/5 hover:text-primary transition-all"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
       </CardHeader>
       <CardContent className="p-0">
         <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow>
-              <TableHead className="w-[180px]">Date</TableHead>
-              <TableHead className="w-[150px]">User</TableHead>
-              <TableHead className="w-[200px]">Action</TableHead>
-              <TableHead>Metadata</TableHead>
+          <TableHeader className="bg-surface-muted/30">
+            <TableRow className="border-b border-border hover:bg-transparent">
+              <TableHead className="w-[180px] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground pl-6">Date / Time</TableHead>
+              <TableHead className="w-[150px] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Officer</TableHead>
+              <TableHead className="w-[200px] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Operation</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground pr-6">Data Trace</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -91,20 +97,20 @@ export default function ActivityLogTab() {
               </TableRow>
             ) : (
               logs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="text-xs text-slate-500 whitespace-nowrap">
+                <TableRow key={log.id} className="border-b border-border/50 hover:bg-primary/[0.02] transition-colors group">
+                  <TableCell className="text-[11px] font-bold text-muted-foreground whitespace-nowrap pl-6">
                     {new Date(log.createdAt).toLocaleString()}
                   </TableCell>
-                  <TableCell className="font-medium text-slate-900">
-                    {log.user?.name || 'System'}
+                  <TableCell className="font-extrabold text-[13px] text-foreground">
+                    {log.user?.name || 'SYSTEM_CORE'}
                   </TableCell>
                   <TableCell>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold uppercase">
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">
                       {log.action}
                     </span>
                   </TableCell>
-                  <TableCell className="text-xs font-mono text-slate-400">
-                    {log.meta ? log.meta : '-'}
+                  <TableCell className="text-[11px] font-mono text-muted-foreground/60 pr-6 break-all">
+                    {log.meta ? log.meta : '—'}
                   </TableCell>
                 </TableRow>
               ))
