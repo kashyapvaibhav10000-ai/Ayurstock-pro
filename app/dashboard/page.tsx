@@ -1,35 +1,37 @@
 'use client';
 
-import { DollarSign, Plus, TrendingUp, Package, AlertTriangle, Users } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { 
+  TrendingUp, Pill, CalendarClock, ShoppingCart, 
+  ChevronRight, AlertTriangle, Plus, FileText, Users, DollarSign 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AlertsPanel } from "@/components/dashboard/alerts-panel";
 import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import AddMedicineChoiceModal from "@/components/dashboard/AddMedicineChoiceModal";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 
 type SaleDate = { date: string; totalAmount: number };
 
 type DashboardMetrics = {
   totalSalesToday: number;
   totalSalesWeek: number;
+  gstCollectedToday: number;
   newCustomers: number;
   lowStockCount: number;
-  expiryCount: number;
   salesByDate: SaleDate[];
+  recentSales: any[];
 };
 
 function RevenueChart({ data, isLoading }: { data: SaleDate[]; isLoading: boolean }) {
-  if (isLoading) return <Skeleton className="h-[220px] w-full rounded-xl" />;
+  if (isLoading) return <Skeleton className="h-[180px] w-full rounded-2xl" />;
 
   const hasData = data.length > 0 && data.some(d => d.totalAmount > 0);
   if (!hasData) {
     return (
-      <div className="h-[220px] flex items-center justify-center text-text-muted text-sm gap-2">
-        <TrendingUp className="h-4 w-4" />
-        No sales in the last 7 days
+      <div className="h-[180px] flex items-center justify-center text-stitch-onSurfaceVariant text-[13px]">
+        No performance data for this period
       </div>
     );
   }
@@ -38,25 +40,25 @@ function RevenueChart({ data, isLoading }: { data: SaleDate[]; isLoading: boolea
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="h-[220px] flex items-end gap-2 px-2 pb-2">
+    <div className="h-[180px] flex items-end gap-3 px-1 pb-1">
       {data.map((d, i) => {
         const pct = Math.max((d.totalAmount / max) * 100, d.totalAmount > 0 ? 4 : 0);
         const date = new Date(d.date);
         const isToday = i === data.length - 1;
         return (
-          <div key={d.date} className="flex-1 flex flex-col items-center gap-1 group">
-            <div className="relative w-full flex flex-col items-center justify-end h-[170px]">
+          <div key={d.date} className="flex-1 flex flex-col items-center gap-2 group">
+            <div className="relative w-full flex flex-col items-center justify-end h-[140px]">
               {d.totalAmount > 0 && (
-                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-semibold px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-stitch-onSurface text-white text-[10px] font-semibold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 whitespace-nowrap">
                   ₹{d.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </div>
               )}
               <div
-                className={`w-full rounded-t-lg transition-all duration-500 ${isToday ? 'bg-primary' : 'bg-primary/30 hover:bg-primary/50'}`}
-                style={{ height: `${pct}%`, minHeight: d.totalAmount > 0 ? '6px' : '0' }}
+                className={`w-full rounded-t-[4px] transition-all ${isToday ? 'bg-stitch-primary' : 'bg-stitch-surfaceLow hover:bg-stitch-primaryContainer'}`}
+                style={{ height: `${pct}%`, minHeight: d.totalAmount > 0 ? '8px' : '0' }}
               />
             </div>
-            <span className={`text-[10px] font-medium ${isToday ? 'text-primary font-bold' : 'text-text-muted'}`}>
+            <span className={`text-[10px] font-semibold ${isToday ? 'text-stitch-primary' : 'text-stitch-outlineVariant'}`}>
               {days[date.getDay()]}
             </span>
           </div>
@@ -77,32 +79,33 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        // Fetch today's sales
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const endOfDay = new Date();
         endOfDay.setHours(23, 59, 59, 999);
 
-        // Fetch last 7 days for chart
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 6);
         weekAgo.setHours(0, 0, 0, 0);
 
         const [todayRes, weekRes] = await Promise.all([
-          fetch(`/api/sales?startDate=${today.toISOString()}&endDate=${endOfDay.toISOString()}&limit=200`),
+          fetch(`/api/sales?startDate=${today.toISOString()}&endDate=${endOfDay.toISOString()}&limit=5`),
           fetch(`/api/sales?startDate=${weekAgo.toISOString()}&endDate=${endOfDay.toISOString()}&limit=500`),
         ]);
 
         let totalSalesToday = 0;
+        let gstCollectedToday = 0;
         let totalSalesWeek = 0;
         let newCustomers = 0;
+        let recentSales: any[] = [];
         const salesByDate: SaleDate[] = [];
 
         if (todayRes.ok) {
           const result = await todayRes.json();
-          const sales = result.data?.sales || [];
-          totalSalesToday = sales.reduce((sum: number, s: any) => sum + parseFloat(s.grandTotal || '0'), 0);
-          newCustomers = sales.filter((s: any) => s.customer).length;
+          recentSales = result.data?.sales || [];
+          totalSalesToday = recentSales.reduce((sum, s) => sum + parseFloat(s.grandTotal || '0'), 0);
+          gstCollectedToday = recentSales.reduce((sum, s) => sum + parseFloat(s.gstTotal || '0'), 0);
+          newCustomers = recentSales.filter(s => s.customer).length;
         }
 
         if (weekRes.ok) {
@@ -110,7 +113,6 @@ export default function DashboardPage() {
           const sales = result.data?.sales || [];
           totalSalesWeek = sales.reduce((sum: number, s: any) => sum + parseFloat(s.grandTotal || '0'), 0);
 
-          // Group by date for chart (last 7 days)
           const byDate: Record<string, number> = {};
           for (let i = 6; i >= 0; i--) {
             const d = new Date();
@@ -128,20 +130,18 @@ export default function DashboardPage() {
 
         setMetrics({
           totalSalesToday: Math.round(totalSalesToday * 100) / 100,
+          gstCollectedToday: Math.round(gstCollectedToday * 100) / 100,
           totalSalesWeek: Math.round(totalSalesWeek * 100) / 100,
           newCustomers,
           lowStockCount: alertsData?.lowStockMedicines?.length ?? 0,
-          expiryCount: alertsData?.expiryAlerts?.length ?? 0,
           salesByDate,
+          recentSales
         });
       } catch {
         setMetrics({
-          totalSalesToday: 0,
-          totalSalesWeek: 0,
-          newCustomers: 0,
+          totalSalesToday: 0, gstCollectedToday: 0, totalSalesWeek: 0, newCustomers: 0,
           lowStockCount: alertsData?.lowStockMedicines?.length ?? 0,
-          expiryCount: alertsData?.expiryAlerts?.length ?? 0,
-          salesByDate: [],
+          salesByDate: [], recentSales: []
         });
       } finally {
         setIsLoading(false);
@@ -151,108 +151,250 @@ export default function DashboardPage() {
     fetchMetrics();
   }, [alertsData]);
 
-  const hasAnySales = metrics && (metrics.totalSalesToday > 0 || metrics.salesByDate.some(d => d.totalAmount > 0));
-
+  // Stitch UI Typography & Layout
   return (
     <>
-      <div className="space-y-6 md:space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-primary">Dashboard</h1>
-            <p className="text-text-secondary text-sm mt-1">Overview of your shop&apos;s daily performance.</p>
+      <div className="bg-stitch-background min-h-full font-sans text-stitch-onSurface selection:bg-stitch-primaryContainer p-6 md:p-10">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+          <div className="flex items-baseline gap-4">
+            <h1 className="text-sm font-semibold tracking-[0.2em] text-stitch-onSurfaceVariant uppercase">
+              COMMAND CENTER V1.2
+            </h1>
           </div>
-          <Button className="w-full sm:w-auto gap-2" onClick={() => setIsChoiceModalOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Add Medicine
-          </Button>
+          <div className="flex items-center gap-4 text-sm text-stitch-onSurfaceVariant font-medium">
+            <span className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-stitch-primary animate-pulse" />
+              Live Processing
+            </span>
+          </div>
         </header>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
-          <StatCard
-            icon={<DollarSign className="h-5 w-5" />}
-            iconBg="bg-emerald-50 text-emerald-600"
-            title="Sales Today"
-            value={isLoading ? null : `₹${(metrics?.totalSalesToday ?? 0).toLocaleString('en-IN')}`}
-            isLoading={isLoading}
-          />
-          <StatCard
-            icon={<TrendingUp className="h-5 w-5" />}
-            iconBg="bg-blue-50 text-blue-600"
-            title="This Week"
-            value={isLoading ? null : `₹${(metrics?.totalSalesWeek ?? 0).toLocaleString('en-IN')}`}
-            isLoading={isLoading}
-          />
-          <StatCard
-            icon={<AlertTriangle className="h-5 w-5" />}
-            iconBg="bg-orange-50 text-orange-500"
-            title="Low Stock"
-            value={isAlertsLoading ? null : (metrics?.lowStockCount ?? 0).toString()}
-            isLoading={isAlertsLoading}
-            onClick={() => router.push('/dashboard/inventory')}
-          />
-          <StatCard
-            icon={<Users className="h-5 w-5" />}
-            iconBg="bg-purple-50 text-purple-600"
-            title="Customers Today"
-            value={isLoading ? null : (metrics?.newCustomers ?? 0).toString()}
-            isLoading={isLoading}
-          />
-        </div>
-
-        {/* Main Content Area */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Chart Area */}
-          <Card className="lg:col-span-2 flex flex-col">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-bold">Revenue — Last 7 Days</CardTitle>
-                  <CardDescription className="text-xs mt-0.5">Daily sales totals</CardDescription>
-                </div>
-                {!isLoading && metrics && (
-                  <div className="text-right">
-                    <p className="text-xs text-text-muted uppercase tracking-wide font-semibold">Week Total</p>
-                    <p className="text-lg font-bold text-text-primary">
-                      ₹{metrics.totalSalesWeek.toLocaleString('en-IN')}
-                    </p>
-                  </div>
-                )}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left Column */}
+          <div className="lg:col-span-3 space-y-8 flex flex-col">
+            
+            {/* Financial Pulse */}
+            <div className="bg-stitch-surfaceLowest rounded-[24px] p-6 shadow-[0_12px_32px_rgba(43,53,47,0.03)] border-none relative overflow-hidden">
+              <div className="flex justify-between items-start mb-6">
+                <h2 className="text-[11px] font-bold tracking-[0.1em] uppercase text-stitch-onSurfaceVariant">
+                  Financial Pulse
+                </h2>
+                <DollarSign className="w-4 h-4 text-stitch-primary" />
               </div>
-            </CardHeader>
-            <CardContent className="flex-1">
-              {!isLoading && !hasAnySales ? (
-                <div className="flex flex-col items-center justify-center text-center space-y-5 py-12">
-                  <div className="h-16 w-16 bg-primary-light rounded-2xl flex items-center justify-center border border-primary/20">
-                    <Package className="h-8 w-8 text-primary" />
-                  </div>
-                  <div className="max-w-sm">
-                    <h3 className="text-lg font-bold text-text-primary">Welcome to AyurStock Pro!</h3>
-                    <p className="text-sm text-text-secondary mt-1 leading-relaxed">
-                      Start by adding medicines to your inventory, then bill your first customer to see revenue data here.
+
+              <div className="space-y-6">
+                <div>
+                  <p className="text-xs text-stitch-onSurfaceVariant font-medium pb-1">Total Sales (Today)</p>
+                  {isLoading ? <Skeleton className="h-9 w-32" /> : (
+                    <div className="flex items-baseline gap-3">
+                      <p className="text-3xl font-extrabold text-stitch-primary tracking-tight">
+                        ₹{(metrics?.totalSalesToday || 0).toLocaleString('en-IN')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <p className="text-xs text-stitch-onSurfaceVariant font-medium pb-1">GST Collected</p>
+                  {isLoading ? <Skeleton className="h-6 w-24" /> : (
+                    <p className="text-lg font-bold text-stitch-onSurface">
+                      ₹{(metrics?.gstCollectedToday || 0).toLocaleString('en-IN')}
                     </p>
+                  )}
+                </div>
+
+                <div className="pt-2">
+                  <div className="flex justify-between text-xs font-bold text-stitch-onSurfaceVariant mb-2">
+                    <span>Performance Target</span>
+                    <span className="text-stitch-primary">98.2%</span>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button className="gap-2 h-10 px-5" onClick={() => setIsChoiceModalOpen(true)}>
-                      <Plus className="h-4 w-4" />
-                      Add Medicine
-                    </Button>
-                    <Button variant="outline" className="h-10 px-5" onClick={() => router.push('/dashboard/billing')}>
-                      Start Billing
-                    </Button>
+                  <div className="h-[4px] w-full bg-stitch-surfaceLow rounded-full overflow-hidden">
+                    <div className="h-full bg-stitch-primary rounded-full w-[98.2%]" />
                   </div>
                 </div>
-              ) : (
-                <RevenueChart data={metrics?.salesByDate ?? []} isLoading={isLoading} />
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            </div>
 
-          {/* Alerts Sidebar */}
-          <div className="h-full">
-            <AlertsPanel />
+            {/* Shop Pulse */}
+            <div className="bg-stitch-surfaceLowest rounded-[24px] p-6 shadow-[0_12px_32px_rgba(43,53,47,0.03)] border-none">
+              <div className="flex justify-between items-start mb-5">
+                <h2 className="text-[11px] font-bold tracking-[0.1em] uppercase text-stitch-onSurfaceVariant">
+                  Active Vitality
+                </h2>
+                <Users className="w-4 h-4 text-stitch-primary" />
+              </div>
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[13px] font-bold text-stitch-onSurface">Customers Today</p>
+                    <p className="text-[11px] text-stitch-onSurfaceVariant mt-0.5">In-store & Billed</p>
+                  </div>
+                  <span className="text-sm font-bold bg-stitch-surfaceLow text-stitch-primary px-3 py-1 rounded-full">
+                    {metrics?.newCustomers || 0}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[13px] font-bold text-stitch-onSurface">Low Stock Items</p>
+                    <p className="text-[11px] text-stitch-onSurfaceVariant mt-0.5">Requires Re-order</p>
+                  </div>
+                  <span className="text-sm font-bold bg-stitch-errorContainer/20 text-stitch-onSurface px-3 py-1 rounded-full">
+                    {metrics?.lowStockCount || 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Herb of the Day (Soft Visual Element) */}
+            <div className="mt-auto bg-gradient-to-br from-stitch-primary to-stitch-primaryDim rounded-[24px] p-6 text-stitch-surfaceLowest relative overflow-hidden shadow-[0_16px_32px_rgba(0,109,79,0.2)]">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
+              <h3 className="text-[10px] font-bold tracking-[0.2em] text-white/70 uppercase mb-2">Notice</h3>
+              <p className="text-lg font-bold mb-1 shadow-sm">Daily Verification</p>
+              <p className="text-[11px] text-white/80 leading-relaxed font-medium">
+                Ensure all incoming stock purchases are logged before EOD.
+              </p>
+            </div>
+
           </div>
-        </section>
+
+          {/* Center Column */}
+          <div className="lg:col-span-6 space-y-8">
+            
+            {/* Transaction Monitor */}
+            <div className="bg-stitch-surfaceLowest rounded-[24px] p-7 shadow-[0_12px_32px_rgba(43,53,47,0.03)] flex flex-col h-full">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-lg font-bold text-stitch-onSurface">Transaction Monitor</h2>
+                  <p className="text-[13px] text-stitch-onSurfaceVariant mt-1">Real-time prescription processing</p>
+                </div>
+                <Button variant="ghost" className="text-stitch-primary hover:bg-stitch-surfaceLow hover:text-stitch-primary text-xs font-bold px-3 tracking-wide" onClick={() => router.push('/dashboard/sales-history')}>
+                  VIEW ALL
+                </Button>
+              </div>
+
+              <div className="flex-1 overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-stitch-surfaceLow">
+                      <th className="pb-4 text-[10px] font-bold text-stitch-onSurfaceVariant uppercase tracking-wider pl-2">ID / Time</th>
+                      <th className="pb-4 text-[10px] font-bold text-stitch-onSurfaceVariant uppercase tracking-wider">Customer</th>
+                      <th className="pb-4 text-[10px] font-bold text-stitch-onSurfaceVariant uppercase tracking-wider text-right">Amount</th>
+                      <th className="pb-4 text-[10px] font-bold text-stitch-onSurfaceVariant uppercase tracking-wider text-right pr-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {isLoading ? (
+                      Array.from({ length: 4 }).map((_, i) => (
+                        <tr key={i} className="border-b border-stitch-surfaceLow last:border-0 hover:bg-stitch-surfaceLow/50 transition-colors">
+                          <td className="py-4 pl-2"><Skeleton className="h-4 w-16" /><Skeleton className="h-3 w-10 mt-1" /></td>
+                          <td className="py-4"><Skeleton className="h-4 w-24" /></td>
+                          <td className="py-4"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                          <td className="py-4"><Skeleton className="h-6 w-20 ml-auto rounded-full" /></td>
+                        </tr>
+                      ))
+                    ) : metrics?.recentSales.length === 0 ? (
+                        <tr><td colSpan={4} className="py-8 text-center text-sm text-stitch-onSurfaceVariant">No transactions today</td></tr>
+                    ) : (
+                      metrics?.recentSales.map((sale: any) => (
+                        <tr key={sale.id} className="border-b border-stitch-surfaceLow last:border-0 hover:bg-stitch-surfaceLow/60 transition-colors group cursor-pointer" onClick={() => router.push(`/dashboard/sales-history`)}>
+                          <td className="py-4 pl-2">
+                            <p className="text-[13px] font-bold text-stitch-onSurface">#{sale.invoiceNumber}</p>
+                            <p className="text-[11px] text-stitch-onSurfaceVariant mt-0.5">{format(new Date(sale.createdAt), 'HH:mm')}</p>
+                          </td>
+                          <td className="py-4">
+                            <p className="text-[13px] font-semibold text-stitch-onSurface">{sale.customer?.name || "Walk-in"}</p>
+                          </td>
+                          <td className="py-4 text-right">
+                            <p className="text-[14px] font-bold text-stitch-primary">₹{parseFloat(sale.grandTotal).toLocaleString('en-IN')}</p>
+                          </td>
+                          <td className="py-4 text-right pr-2">
+                            <span className="inline-flex items-center text-[10px] font-bold px-3 py-1.5 rounded-full bg-stitch-primaryContainer/30 text-stitch-primary tracking-wide">
+                              COMPLETED
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right Column */}
+          <div className="lg:col-span-3 space-y-8 flex flex-col">
+            
+            {/* Stock Vitality */}
+            <div className="bg-stitch-surfaceLowest rounded-[24px] p-6 shadow-[0_12px_32px_rgba(43,53,47,0.03)] border-none">
+              <h2 className="text-[11px] font-bold tracking-[0.1em] uppercase text-stitch-onSurfaceVariant mb-5">
+                Stock Vitality
+              </h2>
+              <div className="space-y-3">
+                <div className="relative overflow-hidden rounded-xl bg-[#fff7f6] p-4 flex justify-between items-center group cursor-pointer border border-[#fa746f]/20 hover:bg-[#ffeaea] transition-colors" onClick={() => router.push('/dashboard/inventory')}>
+                  <div>
+                    <p className="text-[13px] font-bold text-[#6e0a12]">Critical Low</p>
+                    <p className="text-[11px] text-[#93000a]/70 mt-0.5 max-w-[120px] truncate">
+                      {isAlertsLoading ? 'Loading...' : alertsData?.lowStockMedicines?.slice(0,2).map((m: any) => m.name).join(', ') || 'No critical items'}
+                    </p>
+                  </div>
+                  <p className="text-base font-extrabold text-[#ba1a1a]">{metrics?.lowStockCount || 0}</p>
+                </div>
+                
+                <div className="relative overflow-hidden rounded-xl bg-stitch-surfaceLow p-4 flex justify-between items-center group cursor-pointer border border-stitch-primaryContainer/50 hover:bg-[#e4efe5] transition-colors" onClick={() => router.push('/dashboard/inventory')}>
+                  <div>
+                    <p className="text-[13px] font-bold text-stitch-primaryDim">Optimal Stock</p>
+                    <p className="text-[11px] text-stitch-primary/70 mt-0.5">Ready for processing</p>
+                  </div>
+                  <div className="h-6 w-6 rounded-full bg-stitch-primaryContainer/50 flex items-center justify-center">
+                    <div className="h-2 w-2 rounded-full bg-stitch-primary" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Commander Actions */}
+            <div>
+              <h2 className="text-[11px] font-bold tracking-[0.1em] uppercase text-stitch-onSurfaceVariant mb-4 pl-1">
+                Commander Actions
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                <ActionButton icon={Plus} label="New Prescription" onClick={() => router.push('/dashboard/billing')} />
+                <ActionButton icon={Pill} label="Quick Stock" onClick={() => setIsChoiceModalOpen(true)} />
+                <ActionButton icon={Users} label="Add Customer" onClick={() => router.push('/dashboard/billing')} />
+                <ActionButton icon={FileText} label="Daily Report" onClick={() => router.push('/dashboard/reports')} />
+              </div>
+              <Button 
+                variant="outline" 
+                className="w-full mt-3 h-11 text-xs font-bold tracking-widest uppercase border-stitch-outlineVariant/30 text-stitch-primary hover:bg-stitch-surfaceLow hover:text-stitch-primary rounded-[12px]"
+              >
+                Custom Actions
+              </Button>
+            </div>
+
+            {/* Intraday Performance */}
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-4 pl-1">
+                <h2 className="text-[11px] font-bold tracking-[0.1em] uppercase text-stitch-onSurfaceVariant">
+                  Intraday Performance
+                </h2>
+                <TrendingUp className="w-3.5 h-3.5 text-stitch-primary" />
+              </div>
+              <div className="bg-stitch-surfaceLowest rounded-[24px] p-5 shadow-[0_12px_32px_rgba(43,53,47,0.03)]">
+                <RevenueChart data={metrics?.salesByDate ?? []} isLoading={isLoading} />
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-stitch-surfaceLow">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 bg-stitch-primary rounded-full" />
+                    <span className="text-[11px] font-bold text-stitch-onSurfaceVariant uppercase">Sales Volume</span>
+                  </div>
+                  <span className="text-xs font-bold text-stitch-onSurface">7 Days</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
 
       {isChoiceModalOpen && (
@@ -267,39 +409,16 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({
-  icon,
-  iconBg,
-  title,
-  value,
-  isLoading,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  iconBg: string;
-  title: string;
-  value: string | null | undefined;
-  isLoading?: boolean;
-  onClick?: () => void;
-}) {
+function ActionButton({ icon: Icon, label, onClick }: { icon: any, label: string, onClick: () => void }) {
   return (
-    <Card
-      className={`transition-all duration-200 ${onClick ? 'cursor-pointer hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-md' : ''}`}
+    <button 
       onClick={onClick}
+      className="flex flex-col items-center justify-center gap-2 bg-stitch-surfaceLowest border border-stitch-outlineVariant/20 p-4 rounded-[16px] hover:border-stitch-primary/30 hover:bg-[#fcfdfc] transition-all group shadow-[0_4px_12px_rgba(0,0,0,0.02)]"
     >
-      <CardContent className="p-4 md:p-5">
-        <div className="flex items-center gap-3">
-          <div className={`p-2.5 rounded-xl shrink-0 ${iconBg}`}>{icon}</div>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold tracking-wide text-text-muted uppercase truncate">{title}</p>
-            {isLoading ? (
-              <Skeleton className="h-7 w-20 mt-1 rounded-md" />
-            ) : (
-              <p className="text-2xl font-extrabold tracking-tight text-text-primary mt-0.5 truncate">{value ?? '0'}</p>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      <Icon className="w-5 h-5 text-stitch-primary group-hover:scale-110 transition-transform" />
+      <span className="text-[10px] font-bold text-stitch-onSurface text-center leading-tight tracking-wide">
+        {label}
+      </span>
+    </button>
   );
 }
