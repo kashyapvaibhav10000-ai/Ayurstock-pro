@@ -59,6 +59,7 @@ interface ParsedMedicine {
   expiryDate?: string
   barcode?: string
   rackLocation?: string
+  quantity?: number
   action?: "create" | "update" | "skip"
 }
 
@@ -370,7 +371,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     setParsedMedicines(prev => prev.filter((_, i) => i !== index))
   }
 
-  const updateMedicine = (index: number, field: keyof ParsedMedicine, value: string) => {
+  const updateMedicine = (index: number, field: keyof ParsedMedicine, value: any) => {
     setParsedMedicines((prev) =>
       prev.map((item, rowIndex) => (rowIndex === index ? { ...item, [field]: value } : item))
     )
@@ -666,6 +667,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                     <TableHead>Expiry</TableHead>
                     <TableHead>MRP</TableHead>
                     <TableHead>Purchase Rate</TableHead>
+                    <TableHead>Qty</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Issues</TableHead>
                     <TableHead>Actions</TableHead>
@@ -713,6 +715,14 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                       <TableCell className="text-xs">{medicine.expiryDate || "-"}</TableCell>
                       <TableCell>{medicine.mrp ? `₹${medicine.mrp}` : "-"}</TableCell>
                       <TableCell>{medicine.purchaseRate ? `₹${medicine.purchaseRate}` : (medicine.tradePrice ? `₹${medicine.tradePrice}` : "-")}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={medicine.quantity || ""}
+                          onChange={(event) => updateMedicine(index, "quantity", Number(event.target.value))}
+                          className="h-8 w-20"
+                        />
+                      </TableCell>
                       <TableCell>
                         <select
                           value={category}

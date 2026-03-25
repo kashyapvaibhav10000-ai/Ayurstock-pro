@@ -12,6 +12,7 @@ export type ParsedMedicine = {
   batchNo?: string
   expiryDate?: string   // "MM-YY" or "MMM-YY" as extracted
   purchaseRate?: number // PTS column on invoices
+  quantity?: number     // Qty column on invoices
 }
 
 export type PdfType = 'searchable' | 'scanned' | 'unknown';
@@ -81,25 +82,35 @@ EXAMPLE PRICE LIST OUTPUT:
 
 EXAMPLE INVOICE OUTPUT:
 [
-  {"name": "TRIPHALA CHURNA", "packing": "100GM", "hsn": "2106", "company": "AYUKALP", "batchNo": "DH558", "expiryDate": "Feb-28", "mrp": 112.50, "tradePrice": 90, "purchaseRate": 90}
+  {
+    "name": "NATURALLY CHURNA",
+    "packing": "100GM",
+    "hsn": "30049011",
+    "company": "AYUKALP",
+    "batchNo": "CHM007",
+    "expiryDate": "Jan-28",
+    "mrp": 112.50,
+    "tradePrice": 112.50,
+    "purchaseRate": 112.50,
+    "quantity": 72
+  }
 ]
 
 RULES:
-1. Medicine names: normalize to UPPER CASE
-2. Extract ALL packing + price combinations — one record per variant
-3. IMPORTANT TRICK FOR PRICE LISTS: If a row lists a new packing and price but the medicine name is blank (empty), you MUST INHERIT the medicine name from the previous row! (e.g. if row 1 is 'ANU TAILAM 15ml', and row 2 just says '50ml', you must output 'ANU TAILAM' for row 2 as well).
-4. packing format: "200ML", "60TAB", "100GM", "1KG", "40TAB", "50GM", etc
+1. Medicine names: normalize to UPPER CASE. Remove serial numbers or symbols.
+2. Extract ALL packing + price combinations — one record per variant.
+3. IMPORTANT TRICK FOR PRICE LISTS: If a row lists a new packing and price but the medicine name is blank (empty), you MUST INHERIT the medicine name from the previous row!
+4. packing format: "200ML", "60TAB", "100GM", "1KG", "40TAB", "50GM", etc.
 5. For price lists: mrp and tradePrice are required. If only one price column, use it for both. Map "T.P" column to tradePrice.
-6. For invoices: extract batchNo, expiryDate (as printed e.g. "Feb-28"), hsn, company (Mfg By column), purchaseRate (PTS column), mrp. Set tradePrice = purchaseRate.
+6. For invoices: extract batchNo, expiryDate (e.g. "Feb-28"), hsn, company (Mfg By column), purchaseRate (PTS column), mrp, and quantity (Qty column). Set tradePrice = purchaseRate.
 7. Return ONLY valid JSON array starting with '[' and ending with ']'. No markdown, no extra text.
 8. Required fields always: name (string), packing (string), mrp (number), tradePrice (number)
-9. Optional fields when available: company, hsn, batchNo, expiryDate, purchaseRate
-10. Ignore headers, footers, page numbers, totals, tax lines, address lines, and non-medicine text
-11. Extract ALL medicines — do not stop early or limit the count
-12. NEVER extract disease names as medicine names (e.g. LEPROSY, ARTHRITIS, FEVER, PAIN are NOT medicines)
-13. Medicine names are product brand names like 'TRIPHALA CHURNA', 'AROGYAVARDHINI VATI', 'ADULSA SYRUP'
-14. IMPORTANT: Check meticulously for Company or Manufacturer names if present in the text structure.
-15. Price sanity: MRP must be 1–100000. TradePrice must be ≤ MRP. Skip impossible prices.`
+9. Optional fields when available: company, hsn, batchNo, expiryDate, purchaseRate, quantity
+10. Ignore headers, footers, page numbers, totals, tax lines, address lines, and non-medicine text.
+11. Extract ALL medicines — do not stop early. On invoices, check for duplicate item names and extract BOTH if they have different quantities or indices.
+12. NEVER extract disease names as medicine names.
+13. Medicine names are product brand names like 'TRIPHALA CHURNA', 'ADULSA SYRUP'.
+14. Price sanity: MRP must be 1–100000. TradePrice must be ≤ MRP. Skip impossible prices.`
 
 // ─── Prisma usage tracking ────────────────────────────────────────────────────
 async function getDailyUsage() {
@@ -150,6 +161,9 @@ function normalizeMedicine(item: any): ParsedMedicine | null {
   if (item.expiryDate && typeof item.expiryDate === 'string') normalized.expiryDate = item.expiryDate.trim()
   if (typeof item.purchaseRate === 'number' || (item.purchaseRate && !Number.isNaN(Number(item.purchaseRate)))) {
     normalized.purchaseRate = Number(item.purchaseRate)
+  }
+  if (typeof item.quantity === 'number' || (item.quantity && !Number.isNaN(Number(item.quantity)))) {
+    normalized.quantity = Number(item.quantity)
   }
   
   return normalized
