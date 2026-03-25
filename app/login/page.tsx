@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import Image from 'next/image';
-import { ArrowRight, Lock, Mail, Pill } from 'lucide-react';
+import { ArrowRight, Lock, Mail } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,11 +21,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // PRE-FLIGHT PURGE: 
-      // Forcefully wipe any existing stale local state to prevent collision
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Attempt to clear the stale HTTP-only cookie before taking a new one
       await axios.post('/api/auth/logout').catch(() => {});
 
       const response = await axios.post('/api/auth/login', { email, password });
@@ -42,83 +40,83 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.34),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(6,182,212,0.28),_transparent_22%),linear-gradient(135deg,_#020617_0%,_#0f172a_45%,_#312e81_100%)]" />
-      <div className="animate-blob-slow absolute -left-20 top-10 h-72 w-72 rounded-full bg-emerald-500/35 blur-3xl" />
-      <div className="animate-blob-medium absolute right-[-5rem] top-24 h-80 w-80 rounded-full bg-cyan-500/30 blur-3xl" />
-      <div className="animate-blob-fast absolute bottom-[-5rem] left-1/3 h-80 w-80 rounded-full bg-blue-600/30 blur-3xl" />
-      <div className="animate-blob-slow absolute bottom-16 right-1/4 h-72 w-72 rounded-full bg-purple-600/30 blur-3xl" />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:120px_120px] opacity-20" />
-
-      <div className="relative z-10 flex min-h-screen items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-[28px] border border-white/20 bg-white/10 p-8 text-white shadow-2xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] sm:p-9">
-          <div className="mb-8">
-            <div className="mb-5 inline-flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-lg">
-              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-200">
-                <Image src="/logo.png" width={80} height={80} alt="AyurStock Pro Logo" />
-              </div>
-              <div>
-                <div className="text-lg font-semibold tracking-tight text-white">AyurStock Pro</div>
-                <div className="text-xs text-white/65">Ayurvedic Pharmacy Management System</div>
-              </div>
-            </div>
-
-            <h1 className="text-3xl font-semibold tracking-tight text-white">Login to your workspace</h1>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      {/* Original White & Green Design */}
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+        <div className="bg-emerald-600 p-8 text-white flex flex-col items-center gap-4">
+          <div className="h-20 w-20 bg-white/20 rounded-2xl backdrop-blur-sm flex items-center justify-center border border-white/20">
+            <Image src="/logo.png" width={64} height={64} alt="AyurStock Pro" />
           </div>
+          <div className="text-center">
+            <h1 className="text-2xl font-black uppercase tracking-tight">AyurStock Pro</h1>
+            <p className="text-emerald-100/80 text-xs font-bold uppercase tracking-widest mt-1">Management System</p>
+          </div>
+        </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            {error ? (
-              <div className="rounded-2xl border border-red-300/25 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+        <div className="p-8 sm:p-10">
+          <form onSubmit={handleLogin} className="space-y-6">
+            {error && (
+              <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-xs font-bold flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
                 {error}
               </div>
-            ) : null}
+            )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-white/80">Email / Username</label>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
+              <label className="text-xs font-black uppercase tracking-widest text-slate-500 pl-1">Email address</label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                 <Input
+                  className="pl-12 h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-medium"
                   type="email"
+                  placeholder="name@pharmacy.com"
                   value={email}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                  className="h-12 rounded-xl border-white/15 bg-white/10 pl-11 text-white placeholder:text-white/35 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-0"
-                  placeholder="admin@pharmacy.com"
-                  disabled={loading}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-white/80">Password</label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
+              <label className="text-xs font-black uppercase tracking-widest text-slate-500 pl-1">Password</label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                 <Input
+                   className="pl-12 h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-medium"
                   type="password"
+                  placeholder="••••••••"
                   value={password}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                  className="h-12 rounded-xl border-white/15 bg-white/10 pl-11 text-white placeholder:text-white/35 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-0"
-                  placeholder="Enter your password"
-                  disabled={loading}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                 />
               </div>
             </div>
 
             <button
-              type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 font-medium text-white shadow-lg transition-all duration-300 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              type="submit"
+              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-[0.15em] text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98] disabled:opacity-70"
             >
-              {loading ? 'Signing in...' : 'Login to Dashboard'}
-              {!loading ? <ArrowRight className="h-4 w-4" /> : null}
-            </button>
+              {loading ? (
+                <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  Enter Dashboard
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </form>
 
-          {/* Footer */}
-          <div className="mt-8 flex justify-center text-sm font-medium text-white/50">
-            <span>Developed with <span className="text-red-500">❤️</span> by <span className="font-semibold tracking-wide text-white/80">Vaibhav</span></span>
-          </div>
+          <p className="mt-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            Private Access • Licensed Pharmacy Use Only
+          </p>
         </div>
+      </div>
+      
+      {/* Credits Footer */}
+      <div className="fixed bottom-6 text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
+        Curated by <span className="text-emerald-600">Digital Art Sans</span>
       </div>
     </div>
   );
