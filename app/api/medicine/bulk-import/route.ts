@@ -14,6 +14,10 @@ interface MedicineData {
   hsn?: string;
   barcode?: string;
   action?: 'create' | 'update' | 'skip';
+  batchNo?: string;
+  expiryDate?: string;
+  quantity?: number;
+  purchaseRate?: number;
 }
 
 interface PreparedRow {
@@ -30,6 +34,34 @@ interface PreparedRow {
 }
 
 const toKeyPart = (value: unknown) => String(value ?? '').toLowerCase();
+
+function parseExpiryDate(dateStr?: string): Date {
+  if (!dateStr) return new Date(new Date().setFullYear(new Date().getFullYear() + 2)); // Default 2 years expiry
+  
+  // Try to parse "MMM-YY" or "MM-YY" or "MM/YY"
+  const clean = dateStr.trim().replace(/[-\/]/g, ' ');
+  const parts = clean.split(/\s+/);
+  
+  let month = new Date().getMonth();
+  let year = new Date().getFullYear();
+  
+  if (parts.length >= 2) {
+    const m = parts[0].toLowerCase();
+    const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const mIdx = months.findIndex(name => m.startsWith(name));
+    if (mIdx !== -1) month = mIdx;
+    else if (!isNaN(parseInt(m))) month = parseInt(m) - 1;
+    
+    let yStr = parts[1];
+    if (yStr.length === 2) {
+      year = 2000 + parseInt(yStr);
+    } else if (yStr.length === 4) {
+      year = parseInt(yStr);
+    }
+  }
+  
+  return new Date(year, month, 1);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -56,143 +88,132 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const rows: PreparedRow[] = medicines
-      .filter((medicine) => medicine.action !== 'skip')
-      .map((medicine) => {
-        const split = splitMedicineNameAndPacking(medicine.name || '');
-        const cleanedName = split.name || (medicine.name || '').trim();
-        const cleanedPacking = split.packing || medicine.packing || '';
-        return {
-          shopId: user.shopId,
-          name: cleanedName,
-          company: (medicine.company || '').trim(),
-          category: (medicine.category || 'Other').trim(),
-          barcode: ((medicine.barcode || medicine.code || '').trim() || null) as string | null,
-          hsn: (medicine.hsn || '').trim(),
-          packing: cleanedPacking,
-          unit: 'strip',
-          isActive: true,
-          action: medicine.action || 'create',
-        };
-      })
-      .filter((medicine) => medicine.name && medicine.company);
-
-    if (rows.length === 0) {
-      return NextResponse.json(
-        { success: false, message: 'No valid medicines found to import' },
-        { status: 400 }
-      );
-    }
-
-    const dedupedRows: PreparedRow[] = Array.from(
-      new Map(
-        rows.map((row) => [
-          `${toKeyPart(row.name)}|${toKeyPart(row.company)}|${toKeyPart(row.barcode)}|${row.action}`,
-          row,
-        ])
-      ).values()
-    );
-
-    const existingMedicines = await prisma.medicine.findMany({
-      where: {
-        shopId: user.shopId,
-        OR: dedupedRows.map((row) => ({
-          name: row.name,
-          company: row.company,
-        })),
-      } as any,
-      select: {
-        name: true,
-        company: true,
-        packing: true,
-      } as any,
-    });
-
-    const existingKeys = new Set(
-      existingMedicines.map(
-        (medicine) =>
-          `${toKeyPart(medicine.name)}|${toKeyPart(medicine.company)}|${toKeyPart(medicine.packing)}`
-      )
-    );
-
-    const rowsToUpdate = dedupedRows.filter(
-      (row) =>
-        row.action === 'update' &&
-        existingKeys.has(`${toKeyPart(row.name)}|${toKeyPart(row.company)}|${toKeyPart(row.packing)}`)
-    );
-
-    const rowsToInsert = dedupedRows.filter((row) => {
-      const key = `${toKeyPart(row.name)}|${toKeyPart(row.company)}|${toKeyPart(row.packing)}`;
-      if (row.action === 'update') {
-        return !existingKeys.has(key);
-      }
-      return !existingKeys.has(key);
-    });
-
-    if (rowsToInsert.length === 0 && rowsToUpdate.length === 0) {
-      return NextResponse.json({
-        success: true,
-        count: 0,
-        message: 'All medicines already exist in Medicine Master',
+    const uniqueCompanies = Array.from(new Set(medicines.map((m) => m.company))).filter(Boolean);
+    for (const companyName of uniqueCompanies) {
+      await prisma.company.upsert({
+        where: { shopId_name: { shopId: user.shopId, name: companyName } },
+        update: {},
+        create: { shopId: user.shopId, name: companyName }
       });
     }
 
-    const companyRows = Array.from(new Set(rows.map((row) => row.company)))
-      .filter(Boolean)
-      .map((name) => ({
-        shopId: user.shopId,
-        name,
-      }));
-
-    if (companyRows.length > 0) {
-      const existingCompanies = await prisma.company.findMany({
-        where: {
-          shopId: user.shopId,
-          name: { in: companyRows.map((row) => row.name) },
-        },
-        select: { name: true },
-      });
-
-      const existingCompanyNames = new Set(existingCompanies.map((company) => company.name));
-
-      await prisma.company.createMany({
-        data: companyRows.filter((row) => !existingCompanyNames.has(row.name)),
-      });
-    }
-
+    let createdCount = 0;
     let updatedCount = 0;
-    if (rowsToUpdate.length > 0) {
-      const updateOperations = rowsToUpdate.map((row) =>
-        prisma.medicine.updateMany({
+    let batchCount = 0;
+    let totalStockAdded = 0;
+
+    for (const medicine of medicines) {
+      if (medicine.action === 'skip') continue;
+
+      const split = splitMedicineNameAndPacking(medicine.name || '');
+      const cleanedName = split.name || (medicine.name || '').trim();
+      const cleanedPacking = split.packing || medicine.packing || '';
+      
+      if (!cleanedName || !medicine.company) continue;
+
+      // 1. Find the Medicine
+      let medicineRecord = medicine.barcode 
+        ? await prisma.medicine.findFirst({
+            where: { shopId: user.shopId, barcode: medicine.barcode }
+          })
+        : null;
+
+      if (!medicineRecord) {
+        medicineRecord = await prisma.medicine.findFirst({
           where: {
             shopId: user.shopId,
-            name: row.name,
-            company: row.company,
-            OR: [{ packing: row.packing || '' }, { packing: null }],
-          } as any,
+            name: cleanedName,
+            company: medicine.company.trim(),
+            packing: cleanedPacking || null,
+          }
+        });
+      }
+
+      // Requirement 1: purchaseRate from invoice PTS
+      const purchaseRate = medicine.purchaseRate || medicine.tradePrice || 0;
+      
+      // Requirement 2: MRP logic (default to 1.2x if missing)
+      let mrp = medicine.mrp || 0;
+      if (mrp === 0 && purchaseRate > 0) {
+        mrp = Number((purchaseRate * 1.2).toFixed(2));
+      }
+
+      // 2. Create or Update Medicine
+      if (!medicineRecord) {
+        medicineRecord = await prisma.medicine.create({
           data: {
-            category: row.category,
-            barcode: row.barcode,
-            hsn: row.hsn,
-            packing: row.packing,
+            shopId: user.shopId,
+            name: cleanedName,
+            company: medicine.company.trim(),
+            category: medicine.category || 'Other',
+            hsn: medicine.hsn || '',
+            packing: cleanedPacking || null,
+            barcode: medicine.barcode || null,
+            mrp: mrp as any,
+            tradePrice: purchaseRate as any,
+            unit: 'strip',
+          }
+        });
+        createdCount++;
+      } else {
+        medicineRecord = await prisma.medicine.update({
+          where: { id: medicineRecord.id },
+          data: {
+            category: medicine.category || medicineRecord.category,
+            hsn: medicine.hsn || medicineRecord.hsn,
+            packing: cleanedPacking || medicineRecord.packing,
+            mrp: (mrp || medicineRecord.mrp) as any,
+            tradePrice: (purchaseRate || medicineRecord.tradePrice) as any,
+          }
+        });
+        updatedCount++;
+      }
+
+      // 3. Create Inventory Batch if batch details exist
+      if (medicineRecord && medicine.batchNo && medicine.quantity) {
+        const expiryDate = parseExpiryDate(medicine.expiryDate);
+        
+        await prisma.inventoryBatch.upsert({
+          where: {
+            shopId_medicineId_batchNumber: {
+              shopId: user.shopId,
+              medicineId: medicineRecord.id,
+              batchNumber: medicine.batchNo.trim(),
+            }
           },
-        })
-      );
-      const updateResults = await prisma.$transaction(updateOperations);
-      updatedCount = updateResults.reduce((acc, item) => acc + item.count, 0);
+          update: {
+            stockQty: { increment: medicine.quantity },
+            mrp: mrp as any,
+            purchaseRate: (purchaseRate || null) as any,
+            sellingRate: mrp as any,
+            expiryDate: expiryDate,
+          },
+          create: {
+            shopId: user.shopId,
+            medicineId: medicineRecord.id,
+            batchNumber: medicine.batchNo.trim(),
+            expiryDate: expiryDate,
+            stockQty: medicine.quantity,
+            mrp: mrp as any,
+            purchaseRate: (purchaseRate || null) as any,
+            sellingRate: mrp as any,
+          }
+        });
+        batchCount++;
+        totalStockAdded += medicine.quantity;
+      }
     }
 
-    const result = rowsToInsert.length > 0
-      ? await prisma.medicine.createMany({
-          data: rowsToInsert.map(({ action, ...rest }) => rest),
-        })
-      : { count: 0 };
+    // Requirement 4: Summary Message
+    const summaryMessage = `${createdCount + updatedCount} medicines imported\n${batchCount} inventory batches created\nTotal stock added: ${totalStockAdded} units`;
 
     return NextResponse.json({
       success: true,
-      count: result.count,
+      count: createdCount,
       updated: updatedCount,
-      message: `Successfully imported ${result.count} medicines${updatedCount ? `, updated ${updatedCount}` : ''}`,
+      batches: batchCount,
+      totalStock: totalStockAdded,
+      message: summaryMessage,
     });
   } catch (error) {
     console.error('Bulk import error:', error);
