@@ -59,7 +59,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex font-sans">
+    <div className="dark min-h-screen flex font-sans bg-background">
 
       {/* ── LEFT BRAND PANEL ── */}
       <div className="hidden lg:flex lg:w-[58%] flex-col relative overflow-hidden bg-gradient-to-br from-[#050505] via-[#0A0A0A] to-[#111111]">
