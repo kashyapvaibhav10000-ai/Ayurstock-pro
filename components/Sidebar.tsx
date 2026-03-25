@@ -181,7 +181,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
                         group relative flex items-center gap-3.5 rounded-[12px] px-3 py-3 text-[12px] font-black transition-all duration-200 uppercase tracking-widest
                         ${isExpanded ? '' : 'xl:justify-center px-0 mx-1 w-12 h-12 flex items-center justify-center'}
                         ${isActive
-                          ? 'bg-primary/15 text-primary shadow-[inset_3px_0_0_#D4AF37] border border-primary/10'
+                          ? 'bg-primary/15 text-primary shadow-[inset_3px_0_0_var(--primary)] border border-primary/10'
                           : 'text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent'
                         }
                       `}
@@ -194,7 +194,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
                       <Icon 
                         className={`shrink-0 transition-transform duration-200 
                           ${isExpanded ? 'w-[18px] h-[18px]' : 'w-5 h-5 group-hover:scale-110'}
-                          ${isActive ? 'text-primary drop-shadow-[0_2px_4px_rgba(212,175,55,0.2)]' : 'text-muted-foreground group-hover:text-primary'}
+                          ${isActive ? 'text-primary drop-shadow-[0_2px_4px_var(--primary)] drop-shadow-primary/20' : 'text-muted-foreground group-hover:text-primary'}
                         `} 
                       />
 

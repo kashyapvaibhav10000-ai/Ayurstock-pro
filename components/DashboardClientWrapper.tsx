@@ -49,7 +49,7 @@ export default function DashboardClientWrapper({
             user={user}
             onMenuToggle={() => setIsMobileSidebarOpen(true)}
           />
-          <div className="flex-1 overflow-auto pb-16 xl:pb-0 bg-background bg-[radial-gradient(circle_at_top_left,_rgba(212,175,55,0.06),_transparent_40%)]">
+          <div className="flex-1 overflow-auto pb-16 xl:pb-0 bg-background bg-[radial-gradient(circle_at_top_left,_var(--primary),_transparent_40%)] shadow-primary/5">
             {children}
           </div>
         </main>
@@ -68,8 +68,8 @@ export default function DashboardClientWrapper({
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
-              <div className={`relative flex items-center justify-center h-10 w-10 rounded-2xl transition-all duration-300 ${isActive ? 'bg-primary/20 shadow-[0_0_15px_rgba(212,175,55,0.2)] border border-primary/20' : ''}`}>
-                <Icon className={`h-5 w-5 transition-all duration-300 ${isActive ? 'text-primary scale-110 drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]' : 'text-muted-foreground'}`} />
+              <div className={`relative flex items-center justify-center h-10 w-10 rounded-2xl transition-all duration-300 ${isActive ? 'bg-primary/20 shadow-[0_0_15px_var(--primary)] shadow-primary/20 border border-primary/20' : ''}`}>
+                <Icon className={`h-5 w-5 transition-all duration-300 ${isActive ? 'text-primary scale-110 drop-shadow-[0_0_8px_var(--primary)] drop-shadow-primary/40' : 'text-muted-foreground'}`} />
               </div>
               <span className={`text-[9px] font-black uppercase tracking-[0.15em] mt-1 ${isActive ? 'text-primary' : 'text-muted-foreground/60'}`}>
                 {item.label}
