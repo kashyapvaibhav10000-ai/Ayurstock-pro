@@ -76,7 +76,7 @@ export default function LoginPage() {
 
           {/* ── LOGO — top center, large on white disc ── */}
           <div className="flex flex-col items-center gap-4 mb-10">
-            <div className="h-[168px] w-[168px] rounded-full bg-white shadow-[0_0_40px_rgba(212,175,55,0.3)] overflow-hidden ring-4 ring-primary/20">
+            <div className="h-[168px] w-[168px] rounded-full bg-surface shadow-[0_0_50px_rgba(212,175,55,0.15)] overflow-hidden ring-1 ring-primary/30 p-2">
               <Image
                 src="/logo.png"
                 width={168}
@@ -136,7 +136,7 @@ export default function LoginPage() {
 
         {/* Mobile logo */}
         <div className="lg:hidden flex flex-col items-center gap-3 mb-10">
-          <div className="h-24 w-24 rounded-full bg-white shadow-xl overflow-hidden border-4 border-primary/20">
+          <div className="h-24 w-24 rounded-full bg-surface shadow-2xl overflow-hidden border border-primary/20 p-1">
             <Image
               src="/logo.png"
               width={96}
