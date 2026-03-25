@@ -387,6 +387,85 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
   return { medicines: dedup(medicines), pdfType: 'searchable', provider: 'gemini' };
 }
 
+// ─── Gemini Vision: Parse images directly ─────────────────────────────────────
+export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: string): Promise<ParseResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return {
+      medicines: [], pdfType: 'scanned', errorCode: 'NO_API_KEY',
+      errorMessage: 'GEMINI_API_KEY is not configured. Cannot process images.',
+    };
+  }
+
+  const base64Image = imageBuffer.toString('base64');
+  console.log(`🖼️ Calling Gemini Vision API (image mode, ${imageBuffer.length} bytes, ${mimeType})...`);
+
+  const payload = {
+    contents: [{
+      parts: [
+        { inlineData: { mimeType, data: base64Image } },
+        { text: SYSTEM_PROMPT + "\n\nExtract ALL medicines from this pharmacy invoice image. Return ONLY valid JSON array. This is an invoice/bill — extract batch numbers, expiry dates, quantities, MRP, and PTS (purchase rate)." }
+      ]
+    }],
+    generationConfig: { temperature: 0 }
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout for images
+
+  try {
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      }
+    );
+
+    if (resp.status === 429) {
+      return {
+        medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
+        errorMessage: 'Gemini API rate limited. Please try again in a moment.',
+      };
+    }
+
+    if (!resp.ok) {
+      const errorBody = await resp.text().catch(() => '');
+      console.error(`Gemini Vision error: ${resp.status} — ${errorBody.substring(0, 200)}`);
+      return {
+        medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
+        errorMessage: `Gemini Vision failed with status ${resp.status}. Please try again.`,
+      };
+    }
+
+    const data = await resp.json();
+    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) {
+      return {
+        medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
+        errorMessage: 'Gemini Vision returned an empty response.',
+      };
+    }
+
+    const medicines = parseJsonSafely(content);
+    console.log(`🖼️ Gemini Vision extracted ${medicines.length} medicines from image`);
+    await incrementUsage('gemini');
+    return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'gemini' };
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      return {
+        medicines: [], pdfType: 'scanned', errorCode: 'TIMEOUT',
+        errorMessage: 'Image processing timed out. Please try again.',
+      };
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function parseTextWithGemini(text: string): Promise<ParseResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('NO_API_KEY');

@@ -214,12 +214,6 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       return
     }
 
-    // Images must go through OCR — route them automatically
-    if (file.type.startsWith("image/")) {
-      void handleRunOcr()
-      return
-    }
-
     setLoading(true)
     setError("")
     setErrorCode("")

@@ -68,13 +68,39 @@ export async function POST(req: NextRequest) {
     console.log('📄 [import-price-list] Processing:', file.name, file.size, 'bytes');
 
     if (isImage) {
-      // Images must come through client-side OCR — if they reach here raw, reject with NO_TEXT
-      return NextResponse.json({
-        success: false,
-        message: 'Image detected. Please use the OCR button to extract text first.',
-        errorCode: 'NO_TEXT',
-        pdfType: 'scanned',
-      }, { status: 200 });
+      // Send image directly to Gemini Vision for native image understanding
+      console.log('🖼️ [import-price-list] Processing image with Gemini Vision:', file.name);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      
+      try {
+        const { parseImageWithGeminiVision } = await import('@/lib/aiParser');
+        const result = await parseImageWithGeminiVision(buffer, file.type);
+
+        if (result.errorCode || result.medicines.length === 0) {
+          return NextResponse.json({
+            success: false,
+            message: result.errorMessage || 'No medicines found in the image',
+            errorCode: result.errorCode || 'AI_FAILED',
+            pdfType: 'scanned',
+          }, { status: 400 });
+        }
+
+        return NextResponse.json({
+          success: true,
+          medicines: result.medicines,
+          count: result.medicines.length,
+          pdfType: 'scanned',
+          provider: result.provider,
+        }, { headers: { 'X-AI-Provider': result.provider || 'gemini' } });
+      } catch (err) {
+        console.error('🖼️ Gemini Vision failed:', err);
+        return NextResponse.json({
+          success: false,
+          message: 'Failed to process image. Please try again or upload a PDF instead.',
+          errorCode: 'AI_FAILED',
+          pdfType: 'scanned',
+        }, { status: 400 });
+      }
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
