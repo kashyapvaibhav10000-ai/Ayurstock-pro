@@ -76,7 +76,7 @@ export default function LoginPage() {
 
           {/* ── LOGO — top center, large on white disc ── */}
           <div className="flex flex-col items-center gap-4 mb-10">
-            <div className="h-[168px] w-[168px] rounded-full bg-white shadow-[0_0_40px_rgba(212,175,55,0.3)] overflow-hidden ring-4 ring-primary/20">
+            <div className="h-[168px] w-[168px] rounded-full bg-white shadow-[0_0_40px_var(--primary)] shadow-primary/20 overflow-hidden ring-4 ring-primary/20">
               <Image
                 src="/logo.png"
                 width={168}
@@ -101,7 +101,7 @@ export default function LoginPage() {
             </div>
             <h1 className="text-4xl xl:text-5xl font-black text-white leading-[1.1] tracking-tighter">
               Precision Logistics.<br />
-              <span className="text-primary drop-shadow-[0_0_15px_rgba(212,175,55,0.3)]">Ultimate Control.</span>
+              <span className="text-primary drop-shadow-[0_0_15px_var(--primary)] drop-shadow-primary/30">Ultimate Control.</span>
             </h1>
             <p className="mt-6 text-muted-foreground font-bold text-sm uppercase tracking-widest leading-relaxed">
               From high-speed billing to batch archival — manage your clinical sanctuary with absolute grace.

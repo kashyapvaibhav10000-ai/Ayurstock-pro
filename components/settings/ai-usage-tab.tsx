@@ -10,9 +10,9 @@ import {
 } from 'recharts';
 
 const LIMITS = {
-  gemini:    { daily: 1400,  color: '#D4AF37', label: 'Gemini',     bg: 'bg-primary/10',   text: 'text-primary',   bar: 'bg-primary',   barLight: 'bg-primary/20'  },
-  groq:      { daily: 14000, color: '#D4AF37', label: 'Groq',       bg: 'bg-primary/5', text: 'text-primary/80', bar: 'bg-primary/80', barLight: 'bg-primary/10' },
-  openrouter:{ daily: null,  color: '#D4AF37', label: 'OpenRouter', bg: 'bg-primary/5', text: 'text-primary/80', bar: 'bg-primary/80', barLight: 'bg-primary/10' },
+  gemini:    { daily: 1400,  color: 'var(--primary)', label: 'Gemini',     bg: 'bg-primary/10',   text: 'text-primary',   bar: 'bg-primary',   barLight: 'bg-primary/20'  },
+  groq:      { daily: 14000, color: 'var(--primary)', label: 'Groq',       bg: 'bg-primary/5', text: 'text-primary/80', bar: 'bg-primary/80', barLight: 'bg-primary/10' },
+  openrouter:{ daily: null,  color: 'var(--primary)', label: 'OpenRouter', bg: 'bg-primary/5', text: 'text-primary/80', bar: 'bg-primary/80', barLight: 'bg-primary/10' },
 };
 
 function getMillisUntilMidnightUTC() {
@@ -39,7 +39,7 @@ function GaugeCard({ provider, used, loading }: { provider: keyof typeof LIMITS;
            style={pct !== null ? { width: `${pct}%`, transition: 'width 1s ease' } : {}} />
       <CardHeader className="pb-2 pt-4">
         <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-          <div className={`h-2.5 w-2.5 rounded-full shadow-[0_0_5px_rgba(212,175,55,0.5)]`} style={{ backgroundColor: config.color }} />
+          <div className="h-2.5 w-2.5 rounded-full shadow-[0_0_5px_var(--primary)] shadow-primary/50" style={{ backgroundColor: config.color }} />
           {config.label}
         </CardTitle>
       </CardHeader>
@@ -61,7 +61,7 @@ function GaugeCard({ provider, used, loading }: { provider: keyof typeof LIMITS;
               <div className="mt-4">
                 <div className={`h-[6px] w-full rounded-full bg-surface-muted border border-border overflow-hidden`}>
                   <div
-                    className={`h-full rounded-full transition-all duration-1000 ${isOverHalf ? 'bg-danger shadow-[0_0_10px_rgba(239,68,68,0.4)]' : 'bg-primary shadow-[0_0_10px_rgba(212,175,55,0.4)]'}`}
+                    className={`h-full rounded-full transition-all duration-1000 ${isOverHalf ? 'bg-danger shadow-[0_0_10px_rgba(239,68,68,0.4)]' : 'bg-primary shadow-[0_0_10px_var(--primary)] shadow-primary/40'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -167,7 +167,7 @@ export default function AiUsageTab() {
         <div className="w-px h-12 bg-border" />
         <div>
           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-2">Intraday Total</p>
-          <p className="text-3xl font-black text-primary tracking-tighter drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]">{(todayGemini + todayGroq + todayOR).toLocaleString()}</p>
+          <p className="text-3xl font-black text-primary tracking-tighter drop-shadow-[0_0_10px_var(--primary)] drop-shadow-primary/30">{(todayGemini + todayGroq + todayOR).toLocaleString()}</p>
         </div>
         <div className="w-px h-12 bg-border" />
         <div>
@@ -192,19 +192,19 @@ export default function AiUsageTab() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={usage} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(212,175,55,0.05)" />
-                <XAxis dataKey="date" fontSize={10} fontWeight="900" tickFormatter={(val) => val.split('-').slice(1).join('/')} axisLine={false} tickLine={false} tick={{fill: 'rgba(255,255,255,0.4)'}} />
-                <YAxis fontSize={10} fontWeight="900" axisLine={false} tickLine={false} tick={{fill: 'rgba(255,255,255,0.4)'}} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--primary)" strokeOpacity={0.05} />
+                <XAxis dataKey="date" fontSize={10} fontWeight="900" tickFormatter={(val) => val.split('-').slice(1).join('/')} axisLine={false} tickLine={false} tick={{fill: 'currentColor', opacity: 0.4}} />
+                <YAxis fontSize={10} fontWeight="900" axisLine={false} tickLine={false} tick={{fill: 'currentColor', opacity: 0.4}} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#1A1A1A', borderRadius: '16px', border: '1px solid rgba(212,175,55,0.2)', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} 
-                  cursor={{fill: 'rgba(212,175,55,0.03)'}}
+                  contentStyle={{ backgroundColor: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--primary)', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }} 
+                  cursor={{fill: 'var(--primary)', fillOpacity: 0.03}}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', paddingTop: '20px', letterSpacing: '0.1em' }} />
-                <Bar dataKey="gemini"     fill="#D4AF37" radius={[4,4,0,0]} name="Gemini" />
-                <Bar dataKey="groq"       fill="rgba(212,175,55,0.6)" radius={[4,4,0,0]} name="Groq" />
-                <Bar dataKey="mistral"    fill="rgba(212,175,55,0.4)" radius={[4,4,0,0]} name="Mistral" />
-                <Bar dataKey="cloudflare" fill="rgba(212,175,55,0.3)" radius={[4,4,0,0]} name="Workers AI" />
-                <Bar dataKey="openrouter" fill="rgba(212,175,55,0.2)" radius={[4,4,0,0]} name="OpenRouter" />
+                <Bar dataKey="gemini"     fill="var(--primary)" radius={[4,4,0,0]} name="Gemini" />
+                <Bar dataKey="groq"       fill="var(--primary)" fillOpacity={0.6} radius={[4,4,0,0]} name="Groq" />
+                <Bar dataKey="mistral"    fill="var(--primary)" fillOpacity={0.4} radius={[4,4,0,0]} name="Mistral" />
+                <Bar dataKey="cloudflare" fill="var(--primary)" fillOpacity={0.3} radius={[4,4,0,0]} name="Workers AI" />
+                <Bar dataKey="openrouter" fill="var(--primary)" fillOpacity={0.2} radius={[4,4,0,0]} name="OpenRouter" />
               </BarChart>
             </ResponsiveContainer>
           )}

@@ -109,7 +109,7 @@ export default function LoginHistoryTab() {
                   </TableCell>
                   <TableCell className="pr-6">
                     {item.status === 'success' ? (
-                      <div className="flex items-center gap-2 text-primary font-black text-[9px] uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20 shadow-[0_0_10px_rgba(212,175,55,0.2)]">
+                      <div className="flex items-center gap-2 text-primary font-black text-[9px] uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20 shadow-[0_0_10px_var(--primary)] shadow-primary/20">
                         <ShieldCheck className="h-3 w-3" />
                         Authenticated
                       </div>
