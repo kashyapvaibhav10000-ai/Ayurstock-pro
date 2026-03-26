@@ -433,39 +433,34 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
 }
 
 // ─── Gemini Vision: Parse images directly ─────────────────────────────────────
-const INVOICE_IMAGE_PROMPT = `You are a high-accuracy OCR expert for Indian Pharmacy Invoices.
-Extract ALL medicine rows from the table with 100% column alignment.
+const INVOICE_IMAGE_PROMPT = `You are an elite OCR analyst for Indian Ayurvedic Pharmacy Bills.
+STRICT INSTRUCTIONS for 100% Extraction Accuracy:
 
-### TABLE ORIENTATION & SCANNING:
-1. Scan the table from TOP to BOTTOM.
-2. Follow the "Sr.No" column (Column 1) in sequence: 1, 2, 3, 4, 5, 6, 7...
-3. DO NOT SKIP ROWS. Row 1 and Row 2 often have the SAME medicine name (e.g. "NATURALLY CHURNA"). Extract them as SEPARATE JSON objects.
-4. STOP extracting when the Sr.No column ends (usually at Row 7 or 10). DO NOT extract footer totals or bank details as medicines.
+### 1. TABLE ANCHORING:
+- Each row MUST have a "srNo" field in your JSON. Use this to anchor your eyes to the far-left "Sr." column.
+- Scan horizontally from Sr. No 1, 2, 3... all the way to 7.
 
-### EXACT COLUMN MAPPING:
-Look horizontally across each row to align these fields:
-- [Column 1] Sr.No (e.g. 1)
-- [Column 2] Description of Goods (THE FULL MEDICINE NAME - e.g. "MAKARKALP 30 TABLET")
-- [Column 3] Packing (e.g. "30 TABLET", "100 GM")
-- [Column 4] HSN/SAC
-- [Column 6] Batch No (e.g. "CH0087", "TA8647")
-- [Column 7] Mfg Dt (ignore)
-- [Column 8] Exp Dt (THE EXPIRY - e.g. "Sep-28")
-- [Column 9] MRP (e.g. 112.50)
-- [Column 10] Qty (THE QUANTITY - e.g. 72, 48, 144)
-- [Column 13] PTS (THE PURCHASE RATE - e.g. 88.16)
+### 2. COLUMN MAPPING (CRITICAL):
+Look straight down from these headers:
+- [Far Left] "Sr." -> srNo
+- [Middle] "Description of Goods" -> name (FULL name like "JAMRUWIN 100 TAB")
+- [Middle] "Packing" -> packing (ALWAYS extract this for every row - "100 GM", "30 TAB", etc.)
+- [Middle] "Batch No" -> batchNo (e.g. "CH0087", "TA8647")
+- [Middle Right] "Exp Dt" -> expiryDate (e.g. "Sep-28")
+- [Right] "MRP" -> mrp
+- [Right] "Qty" -> quantity (Look straight down from the 'Qty' header. e.g. 72, 48, 144, 36)
+- [Far Right] "PTS" -> purchaseRate (e.g. 88.16)
 
-### ANTI-HALLUCINATION RULES:
-- ONLY extract rows that have a numeric Serial Number (1, 2, 3...). 
-- If you see "Total" or "GST", STOP. Do not invent row names like "MAHACHPULADI" if they aren't in Column 2.
-- Batch numbers must be real codes (CH0087). If they look like abbreviations of the name (NA-001), they are WRONG. Use null instead of guessing.
-- Expiry is always MMM-YY (e.g. Jan-28).
+### 3. PRECISION RULES:
+- NO EMPTY FIELDS: Every row must have Name, Packing, Batch, Exp, MRP, Qty, and PTS. 
+- PACKING: Do not use "Select". If not found, use "100 gm". 
+- DUPLICATES: Row 1 and 2 are BOTH "NATURALLY CHURNA". Extract them both!
+- BOUNDARY: Stop at the "Total" row.
 
-Return ONLY a valid JSON array of objects. NO EXPLANATION. NO MARKDOWN.
-
-Example:
+Return ONLY a valid JSON array.
 [
   {
+    "srNo": 1,
     "name": "NATURALLY CHURNA",
     "packing": "100 gm",
     "batchNo": "CH0087",
@@ -473,15 +468,6 @@ Example:
     "mrp": 112.50,
     "purchaseRate": 88.16,
     "quantity": 72
-  },
-  {
-    "name": "NATURALLY CHURNA",
-    "packing": "100 gm",
-    "batchNo": "CH0087",
-    "expiryDate": "Sep-28",
-    "mrp": 112.50,
-    "purchaseRate": 88.16,
-    "quantity": 48
   }
 ]`;
 
