@@ -341,7 +341,10 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       const result = await response.json()
 
       if (result.success) {
-        toast.success(`Successfully imported ${result.count} medicines to master list`)
+        const msg = result.batches
+          ? `✅ ${result.count || 0} new + ${result.updated || 0} updated medicines | ${result.batches} inventory batches (${result.totalStock} units)`
+          : `✅ ${result.count || 0} medicines imported`;
+        toast.success(msg, { duration: 6000 })
         onSuccess(result.count)
         onClose()
         setStep("upload")
