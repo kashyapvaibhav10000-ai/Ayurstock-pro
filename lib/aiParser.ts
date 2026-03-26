@@ -433,71 +433,58 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
 }
 
 // ─── Gemini Vision: Parse images directly ─────────────────────────────────────
-const INVOICE_IMAGE_PROMPT = `You are an expert at reading Indian Ayurvedic pharmacy purchase invoices/bills from photographs.
-The image is a PHOTO of a physical printed invoice. It may be rotated, tilted, or partially blurry.
+const INVOICE_IMAGE_PROMPT = `You are a high-accuracy OCR engine specializing in Indian Ayurvedic pharmacy invoices.
+Your goal is to extract the medicine table with 100% precision.
 
-STEP 1: Orient the image so text is readable. Indian invoices are usually landscape format.
-STEP 2: Read the INVOICE HEADER to find the company/manufacturer name (e.g. "AYUKALP UAP PHARMA PVT LTD").
-STEP 3: Find the LINE ITEMS TABLE. It has columns like:
-  - S.No / Sr (serial number) — count these to know how many items there are
-  - Description / Particulars / Product Name — the MEDICINE NAME
-  - Pack / Packing — e.g. "100 GM", "30 Tab", "200 ML", "60 Cap"
-  - HSN — tax code like "30049011"
-  - Batch / B.No — alphanumeric batch code
-  - Exp / Expiry — date like "Jan-28" or "01/28"
-  - Qty / Quantity — integer quantity ordered
-  - Free — free quantity (ignore this)
-  - MRP — maximum retail price (decimal number)
-  - PTS / Rate — price to stockist / purchase price (decimal number)
-  - PTR — price to retailer (ignore)
-  - Amount / Value — line total (ignore)
+### ANTI-HALLUCINATION RULES:
+1. DO NOT GUESS. If a value (Batch, Expiry, MRP) is blurry or missing, use null.
+2. DO NOT INVENT placeholders like "AC-001" or "MED-25". Batch numbers are real factory codes (e.g., "CH0087", "AK1234").
+3. DO NOT INVENT expiries. If you can't see "Jan-28" or "09/27", use null.
+4. DO NOT SUM rows yourself. Extract exactly what is on each physical line of the table.
 
-STEP 4: Extract EACH line item row. These are Ayurvedic/herbal/Unani medicines.
+### TABLE STRUCTURE:
+The table typically has these columns from Left to Right:
+[1] Sr.No (1, 2, 3...)
+[2] Description of Goods (Medicine Name)
+[3] Packing (e.g. "100 GM", "30 TAB")
+[4] HSN Code
+[6] Batch No (e.g. "CH0087", "TA8647")
+[7] Mfg Date
+[8] Exp Date (Expiry)
+[9] MRP (Maximum Retail Price)
+[10] Qty (Quantity ordered)
+[13] PTS (Purchase Rate / Rate to Stockist)
 
-CRITICAL RULES — FOLLOW EXACTLY:
-1. COUNT the serial numbers (S.No column) to know EXACTLY how many medicines there are. Extract that EXACT count — no more, no fewer.
-2. Read the FULL medicine name from the "Description" column. Examples: "NATURALLY CHURNA", "MAKARKALP", "JAMRUWIN", "NAVAYAS LOHA", "SHWASAKUTHAR RAS", "SARVAJWARHAR LOHA". Do NOT abbreviate or split names.
-3. DO NOT hallucinate or invent medicines that are not in the table. Only extract rows that have a serial number.
-4. The "Pack" column tells you the packing. Format it as: "100 gm", "30 Tab", "200 ml", "60 Cap", "450 ml", etc. Use lowercase units with a space (e.g. "100 gm" not "100GM").
-5. Read the Qty column carefully. It is the quantity ordered, typically a small number (6, 10, 12, 15, 24, 30, 48, 72, etc.).
-6. MRP values are typically between ₹10 and ₹5000.
-7. PTS (Price To Stockist) is the purchase rate. Set both tradePrice AND purchaseRate to this value.
-8. Extract the batch number exactly as printed (e.g. "CHM007", "AK012", "NM017").
-9. Extract expiry date as shown (e.g. "Jan-28", "Feb-28").
-10. The company name comes from the invoice header or "Mfg By" field — use it for ALL medicines.
-11. If a medicine name has extra text like dosage info in the same cell, ignore the dosage — keep only the medicine name.
-12. FOOTER ROWS like "Total", "CGST", "SGST", "Round Off", etc. are NOT medicines — skip them entirely.
+### EXTRACTION STEPS:
+1. Locate the header to find the "Invoice No" and "Billing Party".
+2. Count the active rows in the table by looking at the Serial Numbers (Sr.No column). 
+3. For each row:
+   - Name: Full name from Description column.
+   - Packing: Standardize to "100 gm", "30 Tab", "200 ml".
+   - Batch: Alphanumeric code. If it looks like a prefix of the name (e.g. "NA-001" for Naturally Churna), it is likely an error — check again or use null.
+   - Exp: Convert to "MMM-YY" format (e.g. "Sep-28").
+   - Qty: Integer from the Qty column.
+   - MRP/PTS: Decimal numbers. PTS is the purchase rate.
 
-Return ONLY a valid JSON array, NO markdown fences, NO explanation.
-Example for a 2-item invoice:
+### FOOTER CHECK:
+Look at the bottom of the table for "Total" or "Grand Total". Verify that your extracted row count makes sense compared to the serial numbers.
+
+Return ONLY a valid JSON array of objects. NO EXPLANATION. NO MARKDOWN.
+Example:
 [
   {
     "name": "NATURALLY CHURNA",
     "packing": "100 gm",
     "hsn": "30049011",
     "company": "AYUKALP",
-    "batchNo": "CHM007",
-    "expiryDate": "Jan-28",
-    "mrp": 125.00,
-    "tradePrice": 106.50,
-    "purchaseRate": 106.50,
-    "quantity": 12
-  },
-  {
-    "name": "MAKARKALP",
-    "packing": "30 Tab",
-    "hsn": "30049011",
-    "company": "AYUKALP",
-    "batchNo": "MK010",
-    "expiryDate": "Jan-28",
-    "mrp": 115.00,
-    "tradePrice": 97.75,
-    "purchaseRate": 97.75,
-    "quantity": 15
+    "batchNo": "CH0087",
+    "expiryDate": "Sep-28",
+    "mrp": 112.50,
+    "tradePrice": 88.16,
+    "purchaseRate": 88.16,
+    "quantity": 72
   }
-]
-
-Return ONLY the JSON array. No markdown, no explanation, no extra text.`;
+]`;
 
 export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: string): Promise<ParseResult> {
   const base64Image = imageBuffer.toString('base64');
@@ -656,8 +643,8 @@ async function callGroqVision(base64Image: string, mimeType: string): Promise<Pa
 
   // Try multiple Groq vision models in order
   const groqVisionModels = [
-    'meta-llama/llama-4-scout-17b-16e-instruct',
     'llama-3.3-70b-versatile',
+    'meta-llama/llama-4-scout-17b-16e-instruct',
   ];
 
   for (const model of groqVisionModels) {
@@ -713,10 +700,10 @@ async function callGroqVision(base64Image: string, mimeType: string): Promise<Pa
 async function callOpenRouterVision(base64Image: string, mimeType: string): Promise<ParseResult> {
   const apiKey = process.env.OPENROUTER_API_KEY!;
   const visionModels = [
+    'google/gemini-2.0-flash-001',
+    'anthropic/claude-3.5-sonnet:beta',
     'google/gemma-3-27b-it:free',
     'mistralai/mistral-small-3.1-24b-instruct:free',
-    'nvidia/nvidia-nemotron-nano-12b-2-vl:free',
-    'google/gemma-3-4b-it:free',
   ];
 
   for (const model of visionModels) {
