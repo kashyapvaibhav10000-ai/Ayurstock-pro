@@ -558,7 +558,7 @@ async function callGroqVision(base64Image: string, mimeType: string): Promise<Pa
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'llama-3.2-90b-vision-preview',
+        model: 'llama-3.2-11b-vision-preview',
         messages: [
           {
             role: 'user',
@@ -597,9 +597,10 @@ async function callGroqVision(base64Image: string, mimeType: string): Promise<Pa
 async function callOpenRouterVision(base64Image: string, mimeType: string): Promise<ParseResult> {
   const apiKey = process.env.OPENROUTER_API_KEY!;
   const visionModels = [
-    'meta-llama/llama-3.2-90b-vision-instruct:free',
-    'meta-llama/llama-3.2-11b-vision-instruct:free',
-    'google/gemini-2.0-flash-lite-preview-02-05:free',
+    'google/gemini-2.5-flash-preview:free',
+    'google/gemini-2.0-flash-lite-001:free',
+    'meta-llama/llama-4-scout:free',
+    'qwen/qwen2.5-vl-72b-instruct:free',
   ];
 
   for (const model of visionModels) {
