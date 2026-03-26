@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { parsePDFWithAI, parseTextWithAI } from '@/lib/aiParser';
 
+// ── Upgrade 7: Server-side OCR with Tesseract.js ────────────────────────
+async function extractTextWithTesseract(imageBuffer: Buffer): Promise<string> {
+  try {
+    const Tesseract = await import('tesseract.js');
+    const worker = await Tesseract.createWorker('eng');
+    const { data } = await worker.recognize(imageBuffer);
+    await worker.terminate();
+    return data.text || '';
+  } catch (err) {
+    console.warn('⚠️ Tesseract OCR failed:', err);
+    return '';
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await verifyAuth(req);
@@ -66,12 +80,41 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('📄 [import-price-list] Processing:', file.name, file.size, 'bytes');
+    const buffer = Buffer.from(await file.arrayBuffer());
 
     if (isImage) {
-      // Send image directly to Gemini Vision for native image understanding
-      console.log('🖼️ [import-price-list] Processing image with Gemini Vision:', file.name);
-      const buffer = Buffer.from(await file.arrayBuffer());
-      
+      // ── Upgrade 7: OCR-first approach for images ──────────────────
+      // Step 1: Try Tesseract OCR first (cheaper, faster)
+      console.log('🔍 [import-price-list] Step 1: Trying Tesseract OCR on image...');
+      const ocrText = await extractTextWithTesseract(buffer);
+
+      if (ocrText.trim().length > 100) {
+        // Step 2: OCR worked — send clean text to text LLM
+        console.log(`✅ [import-price-list] Tesseract extracted ${ocrText.length} chars. Using text LLM.`);
+        try {
+          const result = await parseTextWithAI(ocrText);
+
+          if (result.medicines.length > 0) {
+            console.log(`✅ [import-price-list] Text LLM extracted ${result.medicines.length} medicines from OCR text`);
+            return NextResponse.json({
+              success: true,
+              medicines: result.medicines,
+              count: result.medicines.length,
+              pdfType: 'scanned',
+              provider: `ocr+${result.provider || 'text'}`,
+            }, { headers: { 'X-AI-Provider': `ocr+${result.provider || 'text'}` } });
+          }
+
+          console.warn('⚠️ [import-price-list] Text LLM found 0 medicines from OCR text. Falling back to Vision API.');
+        } catch (err) {
+          console.warn('⚠️ [import-price-list] Text LLM failed on OCR text. Falling back to Vision API.', err);
+        }
+      } else {
+        console.log(`⚠️ [import-price-list] Tesseract extracted only ${ocrText.trim().length} chars. Falling back to Vision API.`);
+      }
+
+      // Step 3: Fallback to Vision API (original approach)
+      console.log('🖼️ [import-price-list] Falling back to Vision API:', file.name);
       try {
         const { parseImageWithGeminiVision } = await import('@/lib/aiParser');
         const result = await parseImageWithGeminiVision(buffer, file.type);
@@ -93,7 +136,7 @@ export async function POST(req: NextRequest) {
           provider: result.provider,
         }, { headers: { 'X-AI-Provider': result.provider || 'gemini' } });
       } catch (err) {
-        console.error('🖼️ Gemini Vision failed:', err);
+        console.error('🖼️ Vision API failed:', err);
         return NextResponse.json({
           success: false,
           message: 'Failed to process image. Please try again or upload a PDF instead.',
@@ -103,7 +146,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    // ── Path C: PDF file ────────────────────────────────────────────
     const result = await parsePDFWithAI(buffer);
 
     // Scanned PDF — let UI offer client-side OCR

@@ -45,6 +45,26 @@ const PACKAGING_OPTIONS: Record<string, string[]> = {
 const BAD_NAME_REGEX = /(loss|appetite|colic|diarrhoea|diarrhea|sprue|epileptic|insanity|blood purifier|health tonic|chronic|general debility|purifier|debility|tonic)/i
 const PACKING_TOKENS = /(bottle|strip|pack|pouch|tube|ml|mg|gm|gms|kg|capsule|tablet|syrup|powder|churna|cap|tab)\b/i
 
+export type FieldConfidence = "high" | "medium" | "low"
+
+export type MedicineConfidence = {
+  overall: FieldConfidence
+  name?: FieldConfidence
+  batch?: FieldConfidence
+  expiry?: FieldConfidence
+  quantity?: FieldConfidence
+  mrp?: FieldConfidence
+  packing?: FieldConfidence
+}
+
+export interface RestockData {
+  exists: boolean
+  currentStock: number
+  lastPurchasePrice: number | null
+  lastMrp: number | null
+  batchCount: number
+}
+
 interface ParsedMedicine {
   code?: string
   name: string
@@ -61,6 +81,9 @@ interface ParsedMedicine {
   rackLocation?: string
   quantity?: number
   action?: "create" | "update" | "skip"
+  selected?: boolean
+  validationError?: string
+  confidence?: MedicineConfidence
 }
 
 interface ImportPriceListProps {
@@ -134,6 +157,15 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
   const [existingKeys, setExistingKeys] = useState<Set<string>>(new Set())
   const [creatingCompany, setCreatingCompany] = useState(false)
   const [ocrProgress, setOcrProgressState] = useState({ phase: "loading", page: 0, totalPages: 0, percent: 0, message: "" })
+  
+  // ── New State for 7-Upgrade features ─────────────────────────────────
+  const [invoiceNumber, setInvoiceNumber] = useState<string>("")
+  const [invoiceDate, setInvoiceDate] = useState<string>("")
+  const [duplicateWarning, setDuplicateWarning] = useState<{ isDuplicate: boolean, message: string } | null>(null)
+  const [forceImport, setForceImport] = useState(false)
+  const [restockData, setRestockData] = useState<Record<string, RestockData>>({})
+  const [validationErrors, setValidationErrors] = useState<{ index: number, field: string, message: string }[]>([])
+
   const abortControllerRef = useRef<AbortController | null>(null)
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
   const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
@@ -199,6 +231,47 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     )
   }, [step, existingKeys])
 
+  // ── Upgrade 5: Restock Detection ─────────────────────────────────────
+  useEffect(() => {
+    if (step !== "preview") return
+    if (parsedMedicines.length === 0) return
+
+    const fetchRestock = async () => {
+      try {
+        const payload = parsedMedicines.map(m => ({ name: m.name, company: m.company, packing: m.packing }))
+        const res = await fetch("/api/medicine/check-restock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ medicines: payload })
+        })
+        const data = await res.json()
+        if (data.success && data.results) {
+          const newRestockData: Record<string, RestockData> = {}
+          parsedMedicines.forEach((m, idx) => {
+            const key = `${m.name?.toLowerCase()}|${m.company?.toLowerCase() || ''}`
+            newRestockData[key] = data.results[idx]
+          })
+          setRestockData(newRestockData)
+        }
+      } catch (err) {
+        console.error("Failed to fetch restock info", err)
+      }
+    }
+
+    const firstKey = `${parsedMedicines[0]?.name?.toLowerCase()}|${parsedMedicines[0]?.company?.toLowerCase() || ''}`
+    if (!restockData[firstKey]) fetchRestock()
+  }, [step, parsedMedicines.length])
+
+  // ── Upgrade 3: Checkbox Toggle Handlers ─────────────────────────────
+  const toggleSelectAll = () => {
+    const allSelected = parsedMedicines.every(m => m.selected !== false)
+    setParsedMedicines(prev => prev.map(m => ({ ...m, selected: !allSelected })))
+  }
+
+  const toggleSelectRow = (index: number) => {
+    setParsedMedicines(prev => prev.map((m, i) => i === index ? { ...m, selected: m.selected === false ? true : false } : m))
+  }
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
@@ -238,10 +311,20 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
           const category = row.category || detectCategory(row.packing || row.name)
           const options = PACKAGING_OPTIONS[category] || []
           const packing = row.packing || (options.length > 0 ? options[0] : "")
-          return { ...row, category, packing }
+          return { ...row, category, packing, selected: true } // Upgrade 3 defaulting to selected
         })
         setParsedMedicines(normalized)
-        setSelectedCompany("")
+        
+        // Extract invoice metadata if API returned it (we updated aiParser for this)
+        if (result.invoiceNumber) setInvoiceNumber(result.invoiceNumber)
+        if (result.invoiceDate) setInvoiceDate(result.invoiceDate)
+        if (result.supplierName) {
+           setSelectedCompany(result.supplierName)
+           applyCompanyToRows(result.supplierName)
+        } else {
+           setSelectedCompany("")
+        }
+        
         setNewCompany("")
         setStep("preview")
       } else if (result.errorCode === "NO_TEXT") {
@@ -305,10 +388,19 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
           const category = row.category || detectCategory(row.packing || row.name)
           const options = PACKAGING_OPTIONS[category] || []
           const packing = row.packing || (options.length > 0 ? options[0] : "")
-          return { ...row, category, packing }
+          return { ...row, category, packing, selected: true }
         })
         setParsedMedicines(normalized)
-        setSelectedCompany("")
+
+        if (result.invoiceNumber) setInvoiceNumber(result.invoiceNumber)
+        if (result.invoiceDate) setInvoiceDate(result.invoiceDate)
+        if (result.supplierName) {
+           setSelectedCompany(result.supplierName)
+           applyCompanyToRows(result.supplierName)
+        } else {
+           setSelectedCompany("")
+        }
+
         setNewCompany("")
         setStep("preview")
       } else {
@@ -326,19 +418,41 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     }
   }
 
-  const handleImport = async () => {
+  const handleImport = async (overrideForce?: boolean) => {
+    const activeForce = overrideForce ?? forceImport
     setStep("importing")
     setLoading(true)
+    setValidationErrors([])
 
     try {
-      const payloadRows = parsedMedicines.filter((row) => row.action !== "skip")
+      // Upgrade 3: Filter out unselected rows
+      const payloadRows = parsedMedicines.filter((row) => row.action !== "skip" && row.selected !== false)
+      
       const response = await fetch("/api/medicine/bulk-import", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ medicines: payloadRows }),
+        body: JSON.stringify({ 
+          medicines: payloadRows,
+          invoiceNumber: invoiceNumber || undefined,
+          supplierName: selectedCompany || undefined,
+          forceImport: activeForce
+        }),
       })
 
       const result = await response.json()
+
+      // Upgrade 1: Duplicate Invoice handling
+      if (result.isDuplicate && !forceImport) {
+        setDuplicateWarning({ isDuplicate: true, message: result.message })
+        setStep("preview")
+        setLoading(false)
+        return
+      }
+
+      if (result.validationErrors && result.validationErrors.length > 0) {
+        setValidationErrors(result.validationErrors)
+        toast.warning(`Found ${result.validationErrors.length} validation errors on rows. Check highlights.`)
+      }
 
       if (result.success) {
         const msg = result.batches
@@ -350,6 +464,9 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
         setStep("upload")
         setFile(null)
         setParsedMedicines([])
+        setInvoiceNumber("")
+        setDuplicateWarning(null)
+        setForceImport(false)
       } else {
         setError(result.message || "Failed to import medicines")
         toast.error(result.message || "Import failed")
@@ -443,6 +560,28 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     )
   }, [invalidRows])
 
+  const isExpired = (dateStr?: string) => {
+    if (!dateStr || dateStr.trim() === '') return false;
+    const d = new Date(dateStr);
+    return !isNaN(d.getTime()) && d < new Date();
+  }
+  
+  const isNearExpiry = (dateStr?: string) => {
+    if (!dateStr || dateStr.trim() === '') return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    if (isNaN(d.getTime())) return false;
+    const msIn6Months = 6 * 30 * 24 * 60 * 60 * 1000;
+    return d > now && d.getTime() - now.getTime() < msIn6Months;
+  }
+
+  const getConfClass = (conf?: string) => {
+    if (conf === 'high') return 'bg-emerald-50/40 text-emerald-900 border-emerald-200 focus:border-emerald-400'
+    if (conf === 'medium') return 'bg-amber-50/40 text-amber-900 border-amber-200 focus:border-amber-400'
+    if (conf === 'low') return 'bg-red-50/40 text-red-900 border-red-200 focus:border-red-400'
+    return 'bg-white border-slate-200 focus:border-primary'
+  }
+
   const resetModal = () => {
     setFile(null)
     setParsedMedicines([])
@@ -459,6 +598,40 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     if (value) {
       applyCompanyToRows(value)
     }
+  }
+
+  // ── Upgrade 4: Sort Problems First ─────────────────────────────
+  const sortProblemsFirst = () => {
+    setParsedMedicines((prev) => {
+      const sorted = [...prev].sort((a, b) => {
+        const issuesA = rowIssues(a)
+        const issuesB = rowIssues(b)
+        
+        // 1. Validation Blocking Issues
+        const hasBlockingA = issuesA.some(i => ["Missing name", "Missing category", "Missing packing"].includes(i))
+        const hasBlockingB = issuesB.some(i => ["Missing name", "Missing category", "Missing packing"].includes(i))
+        if (hasBlockingA !== hasBlockingB) return hasBlockingA ? -1 : 1
+
+        // 2. Expired
+        const expiredA = isExpired(a.expiryDate)
+        const expiredB = isExpired(b.expiryDate)
+        if (expiredA !== expiredB) return expiredA ? -1 : 1
+
+        // 3. Near Expiry
+        const nearA = isNearExpiry(a.expiryDate)
+        const nearB = isNearExpiry(b.expiryDate)
+        if (nearA !== nearB) return nearA ? -1 : 1
+
+        // 4. Low Confidence overall
+        if (a.confidence?.overall === 'low' && b.confidence?.overall !== 'low') return -1
+        if (a.confidence?.overall !== 'low' && b.confidence?.overall === 'low') return 1
+
+        // 5. Total count of issues
+        return issuesB.length - issuesA.length
+      })
+      return sorted
+    })
+    toast.info("Sorted problem rows to the top")
   }
 
   const handleCreateCompany = async () => {
@@ -500,36 +673,35 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
           </div>
           <div className="flex gap-4 items-center">
             {step === "preview" && (
-              <Button onClick={handleImport} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 shadow-lg shadow-primary/20">
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Import {parsedMedicines.filter(m => m.action !== 'skip').length} Medicines
+              <Button onClick={() => handleImport()} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 shadow-lg shadow-primary/20" disabled={loading}>
+                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                {forceImport ? "Confirm Import Anyway" : `Import ${parsedMedicines.filter(m => m.action !== 'skip' && m.selected !== false).length} Medicines`}
               </Button>
             )}
             <Button variant="ghost" size="sm" onClick={onClose} className="rounded-full w-8 h-8 p-0">×</Button>
           </div>
         </div>
-        {step !== "preview" && (
-          <div className="px-6 py-4 border-b bg-slate-50/50">
-            <div className="flex items-center justify-between">
-              <div className="flex space-x-6">
-                <div className={`flex items-center gap-2 ${step === "upload" ? "text-primary font-bold text-sm" : "text-slate-500 text-sm"}`}>
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "upload" ? "bg-primary text-white" : "bg-slate-200"}`}>1</div>
-                  <span>Upload</span>
-                </div>
-                <div className="w-12 border-t border-slate-200 my-auto" />
-                <div className={`flex items-center gap-2 ${step === "ocr" || (step === "upload" && loading) ? "text-primary font-bold text-sm" : "text-slate-500 text-sm"}`}>
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "ocr" || (step === "upload" && loading) ? "bg-primary text-white" : "bg-slate-200"}`}>2</div>
-                  <span>Processing</span>
-                </div>
-                <div className="w-12 border-t border-slate-200 my-auto" />
-                <div className={`flex items-center gap-2 ${step === "preview" ? "text-primary font-bold text-sm" : "text-slate-500 text-sm"}`}>
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "preview" ? "bg-primary text-white" : "bg-slate-200"}`}>3</div>
-                  <span>Review</span>
-                </div>
+        {/* Progress Bar Header */}
+        <div className="px-6 py-4 border-b bg-slate-50/50">
+          <div className="flex items-center justify-between">
+            <div className="flex space-x-6">
+              <div className={`flex items-center gap-2 ${step === "upload" ? "text-primary font-bold text-sm" : "text-slate-500 text-sm"}`}>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "upload" ? "bg-primary text-white" : "bg-slate-200"}`}>1</div>
+                <span>Upload</span>
+              </div>
+              <div className="w-12 border-t border-slate-200 my-auto" />
+              <div className={`flex items-center gap-2 ${step === "ocr" || (step === "upload" && loading) ? "text-primary font-bold text-sm" : "text-slate-500 text-sm"}`}>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "ocr" || (step === "upload" && loading) ? "bg-primary text-white" : "bg-slate-200"}`}>2</div>
+                <span>Processing</span>
+              </div>
+              <div className="w-12 border-t border-slate-200 my-auto" />
+              <div className={`flex items-center gap-2 ${step === "preview" || step === "importing" ? "text-primary font-bold text-sm" : "text-slate-500 text-sm"}`}>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "preview" || step === "importing" ? "bg-primary text-white" : "bg-slate-200"}`}>3</div>
+                <span>Review</span>
               </div>
             </div>
           </div>
-        )}
+        </div>
 
         <div className="flex-1 overflow-y-auto p-6 bg-surface">
         {error && <div className="mb-4"><SmartErrorBanner errorCode={errorCode} message={error} /></div>}
@@ -596,6 +768,28 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
         {/* ── Preview Step ─────────────────────────────────────────── */}
         {step === "preview" && (
           <div className="space-y-4">
+            
+            {/* ── Upgrade 1: Duplicate Invoice Banner ─────────────────── */}
+            {duplicateWarning && (
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-4 shadow-sm animate-in fade-in slide-in-from-top-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-amber-900">Duplicate Invoice Detected</h4>
+                    <p className="text-sm text-amber-700 mt-1">{duplicateWarning.message}</p>
+                    <div className="mt-3 flex gap-3">
+                      <Button onClick={() => { setForceImport(true); handleImport(true); }} className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300">
+                        {loading && forceImport ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Yes, Import Anyway"}
+                      </Button>
+                      <Button variant="ghost" onClick={resetModal} className="text-amber-800 hover:bg-amber-100">
+                        Cancel Import
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -609,12 +803,12 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                     <span className={`text-xs px-2 py-1 rounded-full ${
                       pdfType === "searchable" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
                     }`}>
-                      {pdfType === "searchable" ? "✅ Searchable PDF" : "🔍 Scanned (OCR)"}
+                      {pdfType === "searchable" ? "✅ Searchable PDF" : (provider.includes("ocr") ? "🔍 OCR Extracted" : "🖼️ Vision API Scanned")}
                     </span>
                   )}
                   {provider && (
-                    <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full font-medium whitespace-nowrap">
-                      {provider === 'gemini' ? 'Processed by Google Gemini ✓' : provider === 'groq' ? 'Processed by Groq ✓' : 'Processed by OpenRouter (slow mode) ✓'}
+                    <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full font-medium whitespace-nowrap hidden md:inline-block">
+                       AI: {provider.toUpperCase()}
                     </span>
                   )}
                 </div>
@@ -664,11 +858,32 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
               </div>
             )}
 
-            <div className="border rounded-xl overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <h4 className="text-sm font-semibold text-slate-900">Extracted Invoices</h4>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={sortProblemsFirst} className="h-8 text-xs font-medium border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100">
+                      Sort Problems First ⚠️
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={toggleSelectAll} className="h-8 text-xs font-medium border-slate-200">
+                      {parsedMedicines.every(m => m.selected !== false) ? "Deselect All" : "Select All"}
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                   <AlertCircle className="w-3 h-3" />
+                   Review highlights: 🔴 Low, 🟡 Med, 🟢 High Confidence
+                </div>
+              </div>
+
+              <div className="border rounded-xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
               <Table className="min-w-[1200px]">
                 <TableHeader className="bg-muted/50 sticky top-0 z-10 border-b">
                   <TableRow className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                    <TableHead className="w-10 text-center">
+                      <input type="checkbox" checked={parsedMedicines.length > 0 && parsedMedicines.every(m => m.selected !== false)} onChange={toggleSelectAll} className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer" />
+                    </TableHead>
                     <TableHead className="w-12 text-center text-sm font-bold uppercase tracking-wider text-slate-700">#</TableHead>
                     <TableHead className="min-w-[280px] text-sm font-bold uppercase tracking-wider text-slate-700">Medicine Name</TableHead>
                     <TableHead className="min-w-[150px] text-sm font-bold uppercase tracking-wider text-slate-700">Company</TableHead>
@@ -692,17 +907,42 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                     return (
                     <TableRow
                       key={index}
-                      className={`group transition-colors ${hasIssues ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-slate-50/80"} ${duplicate ? "opacity-60" : ""}`}
+                      className={`group transition-colors ${hasIssues ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-slate-50/80"} ${duplicate ? "opacity-60" : ""} ${medicine.selected === false ? "opacity-50 bg-gray-50 filter grayscale" : ""}`}
                     >
-                      {/* Row number */}
-                      <TableCell className="text-center text-sm text-slate-500 font-mono py-4">{index + 1}</TableCell>
+                      {/* Checkbox */}
+                      <TableCell className="text-center py-4">
+                        <input type="checkbox" checked={medicine.selected !== false} onChange={() => toggleSelectRow(index)} className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer" />
+                      </TableCell>
+
+                      {/* Row number & Restock Badge */}
+                      <TableCell className="text-center text-sm text-slate-500 font-mono py-4">
+                        <div>{index + 1}</div>
+                        {(() => {
+                          const medKey = `${medicine.name?.toLowerCase()}|${medicine.company?.toLowerCase() || ''}`
+                          const rd = restockData[medKey]
+                          if (!rd) return null
+                          if (rd.exists) {
+                            return (
+                              <div className="mt-1" title={`In stock: ${rd.currentStock}. Last bought: ${rd.lastPurchasePrice ? '₹'+rd.lastPurchasePrice : 'N/A'}`}>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-100 text-green-700 whitespace-nowrap">RESTOCK</span>
+                              </div>
+                            )
+                          } else {
+                            return (
+                              <div className="mt-1" title="New medicine not found in your inventory">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700 whitespace-nowrap">NEW</span>
+                              </div>
+                            )
+                          }
+                        })()}
+                      </TableCell>
 
                       {/* Medicine Name — prominent */}
                       <TableCell>
                         <Input
                           value={medicine.name}
                           onChange={(event) => updateMedicine(index, "name", event.target.value)}
-                          className="h-8 text-sm font-semibold border-slate-200 focus:border-primary focus:ring-primary/20"
+                          className={`h-8 text-sm font-semibold border ${getConfClass(medicine.confidence?.name)}`}
                           title={medicine.name}
                         />
                         {hasIssues && (
@@ -721,7 +961,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                         <Input
                           value={medicine.company}
                           onChange={(event) => updateMedicine(index, "company", event.target.value)}
-                          className="h-8 text-xs border-slate-200"
+                          className={`h-8 text-xs border ${getConfClass(medicine.confidence?.overall)}`}
                         />
                       </TableCell>
 
@@ -745,7 +985,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                         <select
                           value={medicine.packing || ""}
                           onChange={(event) => updateMedicine(index, "packing", event.target.value)}
-                          className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:border-primary focus:ring-1 focus:ring-primary/20"
+                          className={`h-8 w-full rounded-md border px-2 text-xs ${getConfClass(medicine.confidence?.packing)}`}
                         >
                           <option value="">Select</option>
                           {packagingOptions.map((option) => (
@@ -757,19 +997,45 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                       </TableCell>
 
                       {/* Batch No */}
-                      <TableCell className="font-mono text-sm text-slate-700 py-4">{medicine.batchNo || "—"}</TableCell>
+                      <TableCell className="font-mono text-sm text-slate-700 py-4">
+                        <Input
+                          value={medicine.batchNo || ""}
+                          onChange={(event) => updateMedicine(index, "batchNo", event.target.value)}
+                          className={`h-8 text-xs border ${getConfClass(medicine.confidence?.batch)}`}
+                        />
+                      </TableCell>
 
                       {/* Expiry */}
-                      <TableCell className="text-sm text-slate-700 py-4">{medicine.expiryDate || "—"}</TableCell>
+                      <TableCell className="text-sm py-4">
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            value={medicine.expiryDate || ""}
+                            onChange={(event) => updateMedicine(index, "expiryDate", event.target.value)}
+                            className={`h-8 text-xs border ${getConfClass(medicine.confidence?.expiry)} ${isExpired(medicine.expiryDate) ? "text-red-700 font-bold bg-red-50" : isNearExpiry(medicine.expiryDate) ? "text-amber-700 font-bold bg-amber-50" : ""}`}
+                          />
+                          {isExpired(medicine.expiryDate) && <span className="text-[10px] font-medium text-red-600 leading-tight">Expired ❌</span>}
+                          {isNearExpiry(medicine.expiryDate) && <span className="text-[10px] font-medium text-amber-600 leading-tight">Near Expiry ⚠️</span>}
+                        </div>
+                      </TableCell>
 
                       {/* MRP */}
-                      <TableCell className="text-right font-mono text-sm font-bold text-slate-900 py-4">
-                        {medicine.mrp ? `₹${Number(medicine.mrp).toFixed(2)}` : "—"}
+                      <TableCell className="text-right py-4">
+                         <Input
+                          type="number"
+                          value={medicine.mrp || ""}
+                          onChange={(e) => updateMedicine(index, "mrp", Number(e.target.value))}
+                          className={`h-8 w-20 ml-auto text-xs text-right font-bold border ${getConfClass(medicine.confidence?.mrp)}`}
+                        />
                       </TableCell>
 
                       {/* Purchase Rate */}
-                      <TableCell className="text-right font-mono text-sm font-bold text-slate-900 py-4">
-                        {medicine.purchaseRate ? `₹${Number(medicine.purchaseRate).toFixed(2)}` : (medicine.tradePrice ? `₹${Number(medicine.tradePrice).toFixed(2)}` : "—")}
+                      <TableCell className="text-right py-4">
+                         <Input
+                          type="number"
+                          value={medicine.purchaseRate ?? medicine.tradePrice ?? ""}
+                          onChange={(e) => updateMedicine(index, "purchaseRate", Number(e.target.value))}
+                          className={`h-8 w-16 ml-auto text-xs text-right font-bold border border-slate-200`}
+                        />
                       </TableCell>
 
                       {/* Qty */}
@@ -778,34 +1044,36 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                           type="number"
                           value={medicine.quantity || ""}
                           onChange={(e) => updateMedicine(index, "quantity", Number(e.target.value))}
-                          className="h-10 w-24 mx-auto text-sm text-center font-bold bg-primary/5 border-primary/20 shadow-inner"
+                          className={`h-10 w-20 mx-auto text-sm text-center font-bold border-2 ${getConfClass(medicine.confidence?.quantity)}`}
                         />
                       </TableCell>
 
                       {/* Action */}
-                      <TableCell className="text-center">
-                        {duplicate ? (
-                          <select
-                            value={medicine.action || "skip"}
-                            onChange={(event) =>
-                              updateMedicine(index, "action", event.target.value)
-                            }
-                            className="h-7 w-full rounded border border-amber-300 bg-amber-50 px-1 text-[10px] font-medium text-amber-800"
-                          >
-                            <option value="skip">Skip</option>
-                            <option value="update">Update</option>
-                          </select>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeMedicine(index)}
-                            className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                            title="Remove"
-                          >
-                            ✕
-                          </Button>
-                        )}
+                      <TableCell className="text-center group">
+                        <div className="flex justify-center gap-1">
+                          {duplicate ? (
+                            <select
+                              value={medicine.action || "skip"}
+                              onChange={(event) =>
+                                updateMedicine(index, "action", event.target.value as any)
+                              }
+                              className="h-7 w-20 rounded border border-amber-300 bg-amber-50 px-1 text-[10px] font-medium text-amber-800 focus:ring-1 focus:ring-amber-500"
+                            >
+                              <option value="skip">Skip</option>
+                              <option value="update">Update</option>
+                            </select>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeMedicine(index)}
+                              className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Delete Row"
+                            >
+                              <AlertCircle className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   )})}
@@ -852,15 +1120,15 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                 Back
               </Button>
               <Button
-                onClick={handleImport}
+                onClick={() => handleImport()}
                 disabled={
-                  parsedMedicines.filter((row) => row.action !== "skip").length === 0 ||
+                  parsedMedicines.filter((row) => row.action !== "skip" && row.selected !== false).length === 0 ||
                   hasBlockingIssues ||
                   loading
                 }
                 className="bg-green-600 hover:bg-green-700"
               >
-                {loading ? "Importing..." : `Import ${parsedMedicines.filter((row) => row.action !== "skip").length} Medicines`}
+                {loading ? "Importing..." : `Import ${parsedMedicines.filter((row) => row.action !== "skip" && row.selected !== false).length} Medicines`}
               </Button>
             </>
           )}
