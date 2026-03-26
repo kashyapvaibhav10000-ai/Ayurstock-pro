@@ -388,54 +388,67 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
 }
 
 // ─── Gemini Vision: Parse images directly ─────────────────────────────────────
-const INVOICE_IMAGE_PROMPT = `You are an expert at reading Indian pharmacy purchase invoices from photos.
-The image is a PHOTO of a physical invoice/bill. It may be rotated, tilted, or partially obscured.
+const INVOICE_IMAGE_PROMPT = `You are an expert at reading Indian Ayurvedic pharmacy purchase invoices/bills from photographs.
+The image is a PHOTO of a physical printed invoice. It may be rotated, tilted, or partially blurry.
 
-STEP 1: First, rotate the image mentally so the text is readable (invoices are usually landscape).
-STEP 2: Find the TABLE of line items. Look for columns like:
-  - Sr/S.No (serial number)
-  - Description / Particulars / Product Name (MEDICINE NAME)
-  - Packing / Pack
-  - HSN
-  - Mfg By / Company
-  - Batch No / Batch
-  - Expiry / Exp
-  - Qty / Quantity
-  - Free (free quantity)
-  - MRP
-  - PTS / Rate (purchase rate/trade price)
-  - PTR
-  - Amount / Value
+STEP 1: Orient the image so text is readable. Indian invoices are usually landscape format.
+STEP 2: Read the INVOICE HEADER to find the company/manufacturer name (e.g. "AYUKALP UAP PHARMA PVT LTD").
+STEP 3: Find the LINE ITEMS TABLE. It has columns like:
+  - S.No / Sr (serial number) — count these to know how many items there are
+  - Description / Particulars / Product Name — the MEDICINE NAME
+  - Pack / Packing — e.g. "100 GM", "30 Tab", "200 ML", "60 Cap"
+  - HSN — tax code like "30049011"
+  - Batch / B.No — alphanumeric batch code
+  - Exp / Expiry — date like "Jan-28" or "01/28"
+  - Qty / Quantity — integer quantity ordered
+  - Free — free quantity (ignore this)
+  - MRP — maximum retail price (decimal number)
+  - PTS / Rate — price to stockist / purchase price (decimal number)
+  - PTR — price to retailer (ignore)
+  - Amount / Value — line total (ignore)
 
-STEP 3: Extract EACH medicine row from the table. These are Ayurvedic/herbal medicines.
+STEP 4: Extract EACH line item row. These are Ayurvedic/herbal/Unani medicines.
 
-IMPORTANT RULES:
-1. Extract the FULL medicine name (e.g. "NATURALLY CHURNA", "ASHWAGANDHA CHURNA", "TRIPHALA CHURNA"). Do NOT abbreviate or truncate names.
-2. Extract the EXACT batch number string (e.g. "CHM007", "ACH023").
-3. Extract the expiry date as shown (e.g. "Jan-28", "Feb-28", "05/28").
-4. Extract the quantity as a number (e.g. 72, 30, 48).
-5. Extract MRP as a decimal number (e.g. 112.50, 95.00).
-6. Extract PTS (Price To Stockist) as the purchase rate (e.g. 78.75, 66.50).
-7. Extract packing (e.g. "100GM", "200ML", "60TAB").
-8. Extract HSN code if visible (e.g. "30049011").
-9. Extract the company name from "Mfg By" or from the invoice header (e.g. "AYUKALP").
-10. Count carefully — extract EXACTLY the number of medicine rows in the table. Do not make up extra rows or skip any.
-11. MRP values are typically between 10 and 5000. If you see values like 100000, you are reading wrongly.
-12. Set tradePrice = purchaseRate (the PTS column value).
+CRITICAL RULES — FOLLOW EXACTLY:
+1. COUNT the serial numbers (S.No column) to know EXACTLY how many medicines there are. Extract that EXACT count — no more, no fewer.
+2. Read the FULL medicine name from the "Description" column. Examples: "NATURALLY CHURNA", "MAKARKALP", "JAMRUWIN", "NAVAYAS LOHA", "SHWASAKUTHAR RAS", "SARVAJWARHAR LOHA". Do NOT abbreviate or split names.
+3. DO NOT hallucinate or invent medicines that are not in the table. Only extract rows that have a serial number.
+4. The "Pack" column tells you the packing. Format it as: "100 gm", "30 Tab", "200 ml", "60 Cap", "450 ml", etc. Use lowercase units with a space (e.g. "100 gm" not "100GM").
+5. Read the Qty column carefully. It is the quantity ordered, typically a small number (6, 10, 12, 15, 24, 30, 48, 72, etc.).
+6. MRP values are typically between ₹10 and ₹5000.
+7. PTS (Price To Stockist) is the purchase rate. Set both tradePrice AND purchaseRate to this value.
+8. Extract the batch number exactly as printed (e.g. "CHM007", "AK012", "NM017").
+9. Extract expiry date as shown (e.g. "Jan-28", "Feb-28").
+10. The company name comes from the invoice header or "Mfg By" field — use it for ALL medicines.
+11. If a medicine name has extra text like dosage info in the same cell, ignore the dosage — keep only the medicine name.
+12. FOOTER ROWS like "Total", "CGST", "SGST", "Round Off", etc. are NOT medicines — skip them entirely.
 
-Return ONLY a valid JSON array. Example:
+Return ONLY a valid JSON array, NO markdown fences, NO explanation.
+Example for a 2-item invoice:
 [
   {
     "name": "NATURALLY CHURNA",
-    "packing": "100GM",
+    "packing": "100 gm",
     "hsn": "30049011",
     "company": "AYUKALP",
     "batchNo": "CHM007",
     "expiryDate": "Jan-28",
-    "mrp": 112.50,
-    "tradePrice": 78.75,
-    "purchaseRate": 78.75,
-    "quantity": 72
+    "mrp": 125.00,
+    "tradePrice": 106.50,
+    "purchaseRate": 106.50,
+    "quantity": 12
+  },
+  {
+    "name": "MAKARKALP",
+    "packing": "30 Tab",
+    "hsn": "30049011",
+    "company": "AYUKALP",
+    "batchNo": "MK010",
+    "expiryDate": "Jan-28",
+    "mrp": 115.00,
+    "tradePrice": 97.75,
+    "purchaseRate": 97.75,
+    "quantity": 15
   }
 ]
 
@@ -502,10 +515,52 @@ export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: 
 
 // ── Vision Tier Helpers ───────────────────────────────────────────────────────
 
+/**
+ * Normalize packing strings from AI output (e.g. "100GM", "100 Gm", "30TAB")
+ * into the format used by UI dropdowns (e.g. "100 gm", "30 Tab", "200 ml").
+ */
+function normalizePacking(raw?: string): string {
+  if (!raw) return '';
+  let s = raw.trim();
+
+  // Insert a space between number and unit if missing: "100GM" → "100 GM"
+  s = s.replace(/(\d)(gm|gms|gram|g|ml|tab|tablet|tablets|cap|capsule|capsules|kg|l|litre)\b/i, '$1 $2');
+
+  // Normalize the unit part
+  const match = s.match(/^(\d+(?:\.\d+)?)\s*(.+)$/i);
+  if (!match) return s;
+
+  const num = match[1];
+  const unit = match[2].trim().toLowerCase();
+
+  // Map unit synonyms to dropdown-compatible labels
+  const unitMap: Record<string, string> = {
+    'gm': 'gm', 'gms': 'gm', 'g': 'gm', 'gram': 'gm', 'grams': 'gm',
+    'ml': 'ml', 'l': 'L', 'litre': 'L', 'liter': 'L',
+    'tab': 'Tab', 'tablet': 'Tab', 'tablets': 'Tab',
+    'cap': 'Cap', 'capsule': 'Cap', 'capsules': 'Cap',
+    'kg': 'kg',
+  };
+
+  const normalized = unitMap[unit] || unit;
+  return `${num} ${normalized}`;
+}
+
+/**
+ * Apply packing normalization to all extracted medicines.
+ */
+function normalizeMedicines(medicines: ParsedMedicine[]): ParsedMedicine[] {
+  return medicines.map(m => ({
+    ...m,
+    name: m.name?.trim() || '',
+    packing: normalizePacking(m.packing),
+  }));
+}
+
 function logExtractedMedicines(medicines: ParsedMedicine[], provider: string) {
   console.log(`🖼️ ${provider} extracted ${medicines.length} medicines from image`);
   medicines.forEach((m, i) => {
-    console.log(`  [${i + 1}] ${m.name} | Batch: ${m.batchNo || '-'} | Qty: ${m.quantity || '-'} | MRP: ${m.mrp} | PTS: ${m.purchaseRate || m.tradePrice}`);
+    console.log(`  [${i + 1}] ${m.name} | Pack: ${m.packing || '-'} | Batch: ${m.batchNo || '-'} | Qty: ${m.quantity || '-'} | MRP: ${m.mrp} | PTS: ${m.purchaseRate || m.tradePrice}`);
   });
 }
 
@@ -539,7 +594,8 @@ async function callGeminiVision(base64Image: string, mimeType: string): Promise<
     console.log(`🖼️ Gemini raw (first 300): ${(content || '').substring(0, 300)}`);
     if (!content) throw new Error('Empty response');
 
-    const medicines = parseJsonSafely(content);
+    const rawMedicines = parseJsonSafely(content);
+    const medicines = normalizeMedicines(rawMedicines);
     logExtractedMedicines(medicines, 'Gemini');
     await incrementUsage('gemini');
     return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'gemini' };
@@ -594,7 +650,8 @@ async function callGroqVision(base64Image: string, mimeType: string): Promise<Pa
     console.log(`🖼️ Groq Vision (${model}) raw (first 300): ${(content || '').substring(0, 300)}`);
     if (!content) { console.warn(`  ⚠️ Groq ${model}: empty response`); continue; }
 
-    const medicines = parseJsonSafely(content);
+    const rawMedicines = parseJsonSafely(content);
+    const medicines = normalizeMedicines(rawMedicines);
     logExtractedMedicines(medicines, `Groq/${model}`);
     await incrementUsage('groq');
     return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'groq' };
@@ -654,7 +711,8 @@ async function callOpenRouterVision(base64Image: string, mimeType: string): Prom
         console.log(`🖼️ OpenRouter (${model}) raw (first 300): ${(content || '').substring(0, 300)}`);
         if (!content) continue;
 
-        const medicines = parseJsonSafely(content);
+        const rawMedicines = parseJsonSafely(content);
+        const medicines = normalizeMedicines(rawMedicines);
         if (medicines.length > 0) {
           logExtractedMedicines(medicines, `OpenRouter/${model}`);
           await incrementUsage('openrouter');
