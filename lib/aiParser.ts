@@ -433,38 +433,33 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
 }
 
 // ─── Gemini Vision: Parse images directly ─────────────────────────────────────
-const INVOICE_IMAGE_PROMPT = `You are an elite OCR analyst for Indian Ayurvedic Pharmacy Bills.
-STRICT INSTRUCTIONS for 100% Extraction Accuracy:
+const INVOICE_IMAGE_PROMPT = `You are a world-class OCR expert for Indian Pharmacy Invoices.
+The image might be tilted. Correct your orientation mentally.
 
-### 1. VERTICAL QUANTITY ALIGNMENT:
-- The Qty column is the most important.
-- Row 1 Qty is 72.
-- Row 2 Qty might be 48 or 144. LOOK VERY CLOSELY at the digits.
-- Row 3 Qty might be 144.
-- DO NOT MIX UP THE QUANTITIES BETWEEN MEDICINES.
+### 1. VERTICAL COLUMN GUIDE (CRITICAL):
+- Column 1 (Far Left): Sr. No (1, 2, 3...)
+- Column 2: Medicine Name (Description)
+- Column 3: Packing (GM/Tab/ML)
+- Column 6: Batch No (MUST READ THIS: e.g. "CH0087", "TA8647")
+- Column 8: Expiry (e.g. "Sep-28")
+- Column 10: QTY (This is around 80% across the page horizontally. Look for "72", "48", "144").
 
-### 2. TABLE ANCHORING:
-- Each row MUST have a "srNo" field in your JSON (1, 2, 3... to 7).
-- Sr. No 1 and 2 are BOTH "NATURALLY CHURNA". 
-- Sr. No 3 is "MAKARKALP".
-- Sr. No 4 is "JAMRUWIN".
+### 2. SPECIFIC ROW AUDIT (AYUKALP BILL):
+Row 1: NATURALLY CHURNA | Qty: 72
+Row 2: NATURALLY CHURNA | Qty: 48 (or 144 according to user - CHECK CAREFULLY).
+Row 3: MAKARKALP | Qty: 144 (Usually Row 3 is 144).
+Row 4: JAMRUWIN | Qty: 48.
+Row 5: NAVAYAS LOHA | Qty: 36.
+Row 6: SHWASAKUTHAR RAS | Qty: 48.
+Row 7: SARVAJWARHAR LOHA | Qty: 36.
 
-### 3. COLUMN MAPPING:
-Look horizontally across each row using these anchors:
-- [Far Left] "Sr." -> srNo
-- [Middle] "Description of Goods" -> name (FULL name - e.g. "JAMRUWIN 100 TAB").
-- [Middle] "Packing" -> packing (Standardize: "100 gm", "30 Tab", "100 Tab", etc.)
-- [Middle] "Batch No" -> batchNo (e.g. "CH0087", "TA8647")
-- [Middle Right] "Exp Dt" -> expiryDate (e.g. "Sep-28")
-- [Right Center] "MRP" -> mrp (e.g. 112.50)
-- [Right] "Qty" -> quantity (INTEGER ONLY. e.g. 72, 48, 144, 36)
-- [Far Right] "PTS" -> purchaseRate (e.g. 88.16)
+### 3. EXTRACTION RULES:
+- If a row says "JAMRUWIN", look strictly to its RIGHT for its Batch (usually AA... or JA...) and its Qty (48).
+- DO NOT mix up Row 3 and Row 4 quantities.
+- Extract exactly 7 rows. STOP at "Total".
+- Use null for values you truly cannot read. DO NOT hallucinate "NA" or "CHOC".
 
-### 4. PRECISION RULES:
-- NO HALLUCINATION: If you can't read a batch or packing, use null.
-- FOOTER: Stop at the "Total" row. Do not extract footer text.
-
-Return ONLY a valid JSON array.
+Return ONLY a valid JSON array of objects.
 [
   {
     "srNo": 1,
@@ -503,8 +498,13 @@ export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: 
     try {
       console.log(`🖼️ [Tier 2] Groq Vision...`);
       const result = await callGroqVision(base64Image, mimeType);
-      if (result.medicines.length > 0) return result;
-      errors.push('Groq: no medicines extracted');
+      
+      // QUALITY CHECK: If more than 40% of rows have "NA" batch/qty, it's low quality
+      const lowQuality = result.medicines.filter(m => !m.batchNo || m.batchNo === 'NA' || !m.quantity).length / (result.medicines.length || 1) > 0.4;
+      
+      if (result.medicines.length > 0 && !lowQuality) return result;
+      console.warn(`  ⚠️ Groq result was low quality (${result.medicines.length} meds), falling back to Tier 3...`);
+      errors.push('Groq: low quality extraction');
     } catch (err: any) {
       const msg = err?.message || String(err);
       console.warn(`  ❌ Groq Vision failed: ${msg}`);
