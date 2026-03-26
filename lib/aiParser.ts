@@ -553,12 +553,20 @@ async function callGroqVision(base64Image: string, mimeType: string): Promise<Pa
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000);
 
+  // Try multiple Groq vision models in order
+  const groqVisionModels = [
+    'meta-llama/llama-4-scout-17b-16e-instruct',
+    'llama-3.3-70b-versatile',
+  ];
+
+  for (const model of groqVisionModels) {
   try {
+    console.log(`  🔄 Groq trying ${model}...`);
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: 'llama-3.2-11b-vision-preview',
+        model,
         messages: [
           {
             role: 'user',
@@ -577,30 +585,36 @@ async function callGroqVision(base64Image: string, mimeType: string): Promise<Pa
     if (resp.status === 429) throw new Error('RATE_LIMIT');
     if (!resp.ok) {
       const body = await resp.text().catch(() => '');
-      throw new Error(`Status ${resp.status}: ${body.substring(0, 100)}`);
+      console.warn(`  ⚠️ Groq ${model}: Status ${resp.status}: ${body.substring(0, 100)}`);
+      continue;
     }
 
     const data = await resp.json();
     const content = data?.choices?.[0]?.message?.content;
-    console.log(`🖼️ Groq Vision raw (first 300): ${(content || '').substring(0, 300)}`);
-    if (!content) throw new Error('Empty response');
+    console.log(`🖼️ Groq Vision (${model}) raw (first 300): ${(content || '').substring(0, 300)}`);
+    if (!content) { console.warn(`  ⚠️ Groq ${model}: empty response`); continue; }
 
     const medicines = parseJsonSafely(content);
-    logExtractedMedicines(medicines, 'Groq Vision');
+    logExtractedMedicines(medicines, `Groq/${model}`);
     await incrementUsage('groq');
     return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'groq' };
-  } finally {
-    clearTimeout(timeoutId);
+  } catch (err: any) {
+    console.warn(`  ❌ Groq ${model}: ${err?.message || err}`);
+    if (err?.message === 'RATE_LIMIT') throw err;
   }
+  } // end for loop
+
+  clearTimeout(timeoutId);
+  throw new Error('All Groq vision models failed');
 }
 
 async function callOpenRouterVision(base64Image: string, mimeType: string): Promise<ParseResult> {
   const apiKey = process.env.OPENROUTER_API_KEY!;
   const visionModels = [
-    'google/gemini-2.5-flash-preview:free',
-    'google/gemini-2.0-flash-lite-001:free',
-    'meta-llama/llama-4-scout:free',
-    'qwen/qwen2.5-vl-72b-instruct:free',
+    'google/gemma-3-27b-it:free',
+    'mistralai/mistral-small-3.1-24b-instruct:free',
+    'nvidia/nvidia-nemotron-nano-12b-2-vl:free',
+    'google/gemma-3-4b-it:free',
   ];
 
   for (const model of visionModels) {
