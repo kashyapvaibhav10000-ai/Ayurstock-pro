@@ -13,6 +13,7 @@ export type ParsedMedicine = {
   expiryDate?: string   // "MM-YY" or "MMM-YY" as extracted
   purchaseRate?: number // PTS column on invoices
   quantity?: number     // Qty column on invoices
+  barcode?: string      // Optional barcode
 }
 
 export type PdfType = 'searchable' | 'scanned' | 'unknown';
@@ -150,15 +151,26 @@ function normalizeMedicine(item: any): ParsedMedicine | null {
   if (!item || typeof item !== 'object') return null
   const name = typeof item.name === 'string' ? item.name.trim() : ''
   const packing = typeof item.packing === 'string' ? item.packing.trim() : ''
-  const mrp = typeof item.mrp === 'number' ? item.mrp : Number(item.mrp)
-  const tradePrice = typeof item.tradePrice === 'number' ? item.tradePrice : Number(item.tradePrice)
-  if (!name || !packing || Number.isNaN(mrp) || Number.isNaN(tradePrice)) return null
   
-  const normalized: ParsedMedicine = { name, packing, mrp, tradePrice }
+  // Be more lenient with pricing for invoice imports
+  const mrp = (typeof item.mrp === 'number' && !Number.isNaN(item.mrp)) ? item.mrp : (Number(item.mrp) || 0)
+  const tradePrice = (typeof item.tradePrice === 'number' && !Number.isNaN(item.tradePrice)) ? item.tradePrice : (Number(item.tradePrice) || 0)
+  
+  if (!name.trim()) return null
+  
+  const normalized: ParsedMedicine = { 
+    name: name.trim(), 
+    packing: packing.trim(), 
+    mrp: Number(mrp), 
+    tradePrice: Number(tradePrice) 
+  }
+  
   if (item.company && typeof item.company === 'string') normalized.company = item.company.trim()
   if (item.hsn && (typeof item.hsn === 'string' || typeof item.hsn === 'number')) normalized.hsn = String(item.hsn).trim()
   if (item.batchNo && typeof item.batchNo === 'string') normalized.batchNo = item.batchNo.trim()
   if (item.expiryDate && typeof item.expiryDate === 'string') normalized.expiryDate = item.expiryDate.trim()
+  if (item.barcode && typeof item.barcode === 'string') normalized.barcode = item.barcode.trim()
+
   if (typeof item.purchaseRate === 'number' || (item.purchaseRate && !Number.isNaN(Number(item.purchaseRate)))) {
     normalized.purchaseRate = Number(item.purchaseRate)
   }
@@ -171,8 +183,41 @@ function normalizeMedicine(item: any): ParsedMedicine | null {
 
 // Dedup removed — bulk-insert handles DB-level deduplication via upsert.
 // Removing this ensures the frontend review screen shows all extracted medicines.
+/**
+ * Merge duplicate medicines (same name + company + packing) by summing quantities
+ * and keeping the best data from each row.
+ */
 function dedup(medicines: ParsedMedicine[]): ParsedMedicine[] {
-  return medicines;
+  const mergeMap = new Map<string, ParsedMedicine>();
+
+  for (const med of medicines) {
+    // Key: lowercase name + company + packing
+    const key = [
+      (med.name || '').trim().toLowerCase(),
+      (med.company || '').trim().toLowerCase(),
+      (med.packing || '').trim().toLowerCase(),
+    ].join('|');
+
+    const existing = mergeMap.get(key);
+    if (existing) {
+      // Sum quantities
+      existing.quantity = (existing.quantity || 0) + (med.quantity || 0);
+      // Keep the better data (first non-empty value wins)
+      existing.batchNo = existing.batchNo || med.batchNo;
+      existing.expiryDate = existing.expiryDate || med.expiryDate;
+      existing.mrp = existing.mrp || med.mrp;
+      existing.purchaseRate = existing.purchaseRate || med.purchaseRate;
+      existing.tradePrice = existing.tradePrice || med.tradePrice;
+      existing.hsn = existing.hsn || med.hsn;
+      existing.barcode = existing.barcode || med.barcode;
+      console.log(`  🔀 Merged duplicate "${med.name}" — combined qty: ${existing.quantity}`);
+    } else {
+      // Clone so we don't mutate the original
+      mergeMap.set(key, { ...med });
+    }
+  }
+
+  return Array.from(mergeMap.values());
 }
 
 function parseJsonSafely(text: string): ParsedMedicine[] {
