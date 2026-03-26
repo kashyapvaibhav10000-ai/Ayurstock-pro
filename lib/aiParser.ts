@@ -1,6 +1,18 @@
 import { prisma } from '@/lib/db';
 const pdfParse = require('pdf-parse') as (buffer: Buffer, options?: any) => Promise<{ text: string; numpages: number }>;
 
+export type FieldConfidence = 'high' | 'medium' | 'low';
+
+export type MedicineConfidence = {
+  overall: FieldConfidence;
+  name?: FieldConfidence;
+  batch?: FieldConfidence;
+  expiry?: FieldConfidence;
+  quantity?: FieldConfidence;
+  mrp?: FieldConfidence;
+  packing?: FieldConfidence;
+};
+
 export type ParsedMedicine = {
   name: string
   packing: string
@@ -14,6 +26,8 @@ export type ParsedMedicine = {
   purchaseRate?: number // PTS column on invoices
   quantity?: number     // Qty column on invoices
   barcode?: string      // Optional barcode
+  // Upgrade 6: Confidence scoring
+  confidence?: MedicineConfidence
 }
 
 export type PdfType = 'searchable' | 'scanned' | 'unknown';
@@ -189,9 +203,70 @@ function normalizeMedicine(item: any): ParsedMedicine | null {
   if (typeof item.quantity === 'number' || (item.quantity && !Number.isNaN(Number(item.quantity)))) {
     normalized.quantity = Number(item.quantity)
   }
+
+  // Upgrade 6: Confidence scoring
+  if (item.confidence && typeof item.confidence === 'object') {
+    // AI provided confidence directly
+    normalized.confidence = {
+      overall: item.confidence.overall || 'medium',
+      name: item.confidence.name,
+      batch: item.confidence.batch,
+      expiry: item.confidence.expiry,
+      quantity: item.confidence.quantity,
+      mrp: item.confidence.mrp,
+      packing: item.confidence.packing,
+    }
+  } else {
+    // Compute heuristically based on field presence/quality
+    normalized.confidence = computeConfidence(normalized)
+  }
   
   return normalized
 }
+
+// ── Upgrade 6: Heuristic confidence computation ─────────────────────────
+function computeConfidence(med: ParsedMedicine): MedicineConfidence {
+  const fc = (val: any, fieldType: string): FieldConfidence => {
+    if (val === null || val === undefined || val === '' || val === 0) return 'low'
+    if (fieldType === 'name' && typeof val === 'string') {
+      if (val.length < 3) return 'low'
+      if (val.length > 40 || /\d{3,}/.test(val)) return 'medium'
+      return 'high'
+    }
+    if (fieldType === 'batch' && typeof val === 'string') {
+      if (val.length < 2) return 'low'
+      return 'high'
+    }
+    if (fieldType === 'expiry' && typeof val === 'string') {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return 'high'
+      if (/[a-zA-Z]{3}/.test(val)) return 'medium' // was normalized
+      return 'low'
+    }
+    if (fieldType === 'number') {
+      const num = Number(val)
+      if (isNaN(num) || num <= 0) return 'low'
+      return 'high'
+    }
+    if (fieldType === 'packing' && typeof val === 'string') {
+      if (/\d+\s*(tab|cap|gm|ml|kg)/i.test(val)) return 'high'
+      return 'medium'
+    }
+    return 'medium'
+  }
+
+  const nameConf = fc(med.name, 'name')
+  const batchConf = fc(med.batchNo, 'batch')
+  const expiryConf = fc(med.expiryDate, 'expiry')
+  const qtyConf = fc(med.quantity, 'number')
+  const mrpConf = fc(med.mrp, 'number')
+  const packingConf = fc(med.packing, 'packing')
+
+  const levels: FieldConfidence[] = [nameConf, batchConf, expiryConf, qtyConf, mrpConf, packingConf]
+  const overall: FieldConfidence = levels.includes('low') ? 'low' : levels.includes('medium') ? 'medium' : 'high'
+
+  return { overall, name: nameConf, batch: batchConf, expiry: expiryConf, quantity: qtyConf, mrp: mrpConf, packing: packingConf }
+}
+
 
 // Dedup removed — bulk-insert handles DB-level deduplication via upsert.
 // Removing this ensures the frontend review screen shows all extracted medicines.
@@ -517,10 +592,26 @@ Return a JSON object with this structure:
       "quantity": 72,
       "discount": 5,
       "cashDiscount": 2,
-      "company": "AYUKALP"
+      "company": "AYUKALP",
+      "confidence": {
+        "overall": "high",
+        "name": "high",
+        "batch": "high",
+        "expiry": "medium",
+        "quantity": "high",
+        "mrp": "high",
+        "packing": "high"
+      }
     }
   ]
 }
+
+### 4. CONFIDENCE RULES:
+For each field, set confidence:
+- "high": field was clearly visible and easily read
+- "medium": field was partially visible or needed inference (e.g. blurry digits, format guessing)
+- "low": field was guessed, very blurry, or filled with null
+Set overall to the LOWEST of all field confidences.
 
 Return ONLY valid JSON. NO explanation. NO markdown.`;
 

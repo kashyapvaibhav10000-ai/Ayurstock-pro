@@ -35,6 +35,7 @@ model Shop {
   stockLedgers     StockLedger[]
   medicineReturns  MedicineReturn[]
   rackLocations    RackLocation[]
+  importedInvoices ImportedInvoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -510,4 +511,23 @@ model ApiUsageCounter {
   mistral    Int      @default(0)
   cerebras   Int      @default(0)
   updatedAt  DateTime @updatedAt
+}
+
+// Imported Invoice — Track previously imported invoices for duplicate detection
+model ImportedInvoice {
+  id              String   @id @default(cuid())
+  shopId          String
+  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  invoiceNumber   String
+  supplierName    String
+  invoiceDate     String?
+  medicineCount   Int      @default(0)
+  totalStock      Int      @default(0)
+  importedByUserId String?
+
+  createdAt       DateTime @default(now())
+
+  @@unique([shopId, invoiceNumber, supplierName])
+  @@index([shopId])
 }
