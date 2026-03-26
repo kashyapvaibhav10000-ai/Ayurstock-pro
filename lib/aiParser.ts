@@ -433,56 +433,55 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
 }
 
 // ─── Gemini Vision: Parse images directly ─────────────────────────────────────
-const INVOICE_IMAGE_PROMPT = `You are a high-accuracy OCR engine specializing in Indian Ayurvedic pharmacy invoices.
-Your goal is to extract the medicine table with 100% precision.
+const INVOICE_IMAGE_PROMPT = `You are a high-accuracy OCR expert for Indian Pharmacy Invoices.
+Extract ALL medicine rows from the table with 100% column alignment.
+
+### TABLE ORIENTATION & SCANNING:
+1. Scan the table from TOP to BOTTOM.
+2. Follow the "Sr.No" column (Column 1) in sequence: 1, 2, 3, 4, 5, 6, 7...
+3. DO NOT SKIP ROWS. Row 1 and Row 2 often have the SAME medicine name (e.g. "NATURALLY CHURNA"). Extract them as SEPARATE JSON objects.
+4. STOP extracting when the Sr.No column ends (usually at Row 7 or 10). DO NOT extract footer totals or bank details as medicines.
+
+### EXACT COLUMN MAPPING:
+Look horizontally across each row to align these fields:
+- [Column 1] Sr.No (e.g. 1)
+- [Column 2] Description of Goods (THE FULL MEDICINE NAME - e.g. "MAKARKALP 30 TABLET")
+- [Column 3] Packing (e.g. "30 TABLET", "100 GM")
+- [Column 4] HSN/SAC
+- [Column 6] Batch No (e.g. "CH0087", "TA8647")
+- [Column 7] Mfg Dt (ignore)
+- [Column 8] Exp Dt (THE EXPIRY - e.g. "Sep-28")
+- [Column 9] MRP (e.g. 112.50)
+- [Column 10] Qty (THE QUANTITY - e.g. 72, 48, 144)
+- [Column 13] PTS (THE PURCHASE RATE - e.g. 88.16)
 
 ### ANTI-HALLUCINATION RULES:
-1. DO NOT GUESS. If a value (Batch, Expiry, MRP) is blurry or missing, use null.
-2. DO NOT INVENT placeholders like "AC-001" or "MED-25". Batch numbers are real factory codes (e.g., "CH0087", "AK1234").
-3. DO NOT INVENT expiries. If you can't see "Jan-28" or "09/27", use null.
-4. DO NOT SUM rows yourself. Extract exactly what is on each physical line of the table.
-
-### TABLE STRUCTURE:
-The table typically has these columns from Left to Right:
-[1] Sr.No (1, 2, 3...)
-[2] Description of Goods (Medicine Name)
-[3] Packing (e.g. "100 GM", "30 TAB")
-[4] HSN Code
-[6] Batch No (e.g. "CH0087", "TA8647")
-[7] Mfg Date
-[8] Exp Date (Expiry)
-[9] MRP (Maximum Retail Price)
-[10] Qty (Quantity ordered)
-[13] PTS (Purchase Rate / Rate to Stockist)
-
-### EXTRACTION STEPS:
-1. Locate the header to find the "Invoice No" and "Billing Party".
-2. Count the active rows in the table by looking at the Serial Numbers (Sr.No column). 
-3. For each row:
-   - Name: Full name from Description column.
-   - Packing: Standardize to "100 gm", "30 Tab", "200 ml".
-   - Batch: Alphanumeric code. If it looks like a prefix of the name (e.g. "NA-001" for Naturally Churna), it is likely an error — check again or use null.
-   - Exp: Convert to "MMM-YY" format (e.g. "Sep-28").
-   - Qty: Integer from the Qty column.
-   - MRP/PTS: Decimal numbers. PTS is the purchase rate.
-
-### FOOTER CHECK:
-Look at the bottom of the table for "Total" or "Grand Total". Verify that your extracted row count makes sense compared to the serial numbers.
+- ONLY extract rows that have a numeric Serial Number (1, 2, 3...). 
+- If you see "Total" or "GST", STOP. Do not invent row names like "MAHACHPULADI" if they aren't in Column 2.
+- Batch numbers must be real codes (CH0087). If they look like abbreviations of the name (NA-001), they are WRONG. Use null instead of guessing.
+- Expiry is always MMM-YY (e.g. Jan-28).
 
 Return ONLY a valid JSON array of objects. NO EXPLANATION. NO MARKDOWN.
+
 Example:
 [
   {
     "name": "NATURALLY CHURNA",
     "packing": "100 gm",
-    "hsn": "30049011",
-    "company": "AYUKALP",
     "batchNo": "CH0087",
     "expiryDate": "Sep-28",
     "mrp": 112.50,
-    "tradePrice": 88.16,
     "purchaseRate": 88.16,
     "quantity": 72
+  },
+  {
+    "name": "NATURALLY CHURNA",
+    "packing": "100 gm",
+    "batchNo": "CH0087",
+    "expiryDate": "Sep-28",
+    "mrp": 112.50,
+    "purchaseRate": 88.16,
+    "quantity": 48
   }
 ]`;
 
@@ -701,6 +700,7 @@ async function callOpenRouterVision(base64Image: string, mimeType: string): Prom
   const apiKey = process.env.OPENROUTER_API_KEY!;
   const visionModels = [
     'google/gemini-2.0-flash-001',
+    'google/gemini-2.0-flash-lite-001',
     'anthropic/claude-3.5-sonnet:beta',
     'google/gemma-3-27b-it:free',
     'mistralai/mistral-small-3.1-24b-instruct:free',
