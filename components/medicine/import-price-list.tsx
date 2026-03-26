@@ -492,31 +492,44 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
 
   return (
     <Dialog open={isOpen} onOpenChange={resetModal}>
-      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-surface border-surface-border">
-        <DialogHeader className="px-6 py-4 border-b border-surface-border bg-slate-50 shrink-0">
-          <DialogTitle className="text-xl flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Import Bill
-          </DialogTitle>
-          <div className="flex items-center justify-between mt-4">
-            <div className="flex space-x-6">
-              <div className={`flex items-center gap-2 ${step === "upload" ? "text-primary font-bold" : "text-text-secondary"}`}>
-                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "upload" ? "bg-primary text-white" : "bg-slate-200"}`}>1</div>
-                <span>Upload</span>
-              </div>
-              <div className="w-12 border-t-2 border-slate-200 my-auto" />
-              <div className={`flex items-center gap-2 ${step === "ocr" || (step === "upload" && loading) ? "text-primary font-bold" : "text-text-secondary"}`}>
-                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "ocr" || (step === "upload" && loading) ? "bg-primary text-white" : "bg-slate-200"}`}>2</div>
-                <span>Processing</span>
-              </div>
-              <div className="w-12 border-t-2 border-slate-200 my-auto" />
-              <div className={`flex items-center gap-2 ${step === "preview" ? "text-primary font-bold" : "text-text-secondary"}`}>
-                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "preview" ? "bg-primary text-white" : "bg-slate-200"}`}>3</div>
-                <span>Review</span>
+      <DialogContent className="max-w-[98vw] h-[95vh] flex flex-col p-0 gap-0 overflow-hidden bg-surface border-surface-border transition-all duration-300">
+        <div className="flex items-center justify-between px-8 py-4 border-b bg-muted/30">
+          <div className="flex flex-col">
+            <h2 className="text-xl font-bold text-foreground">Review & Validate Bill</h2>
+            <p className="text-xs text-muted-foreground">Confirm extracted data before importing to inventory</p>
+          </div>
+          <div className="flex gap-4 items-center">
+            {step === "preview" && (
+              <Button onClick={handleImport} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 shadow-lg shadow-primary/20">
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Import {parsedMedicines.filter(m => m.action !== 'skip').length} Medicines
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={onClose} className="rounded-full w-8 h-8 p-0">×</Button>
+          </div>
+        </div>
+        {step !== "preview" && (
+          <div className="px-6 py-4 border-b bg-slate-50/50">
+            <div className="flex items-center justify-between">
+              <div className="flex space-x-6">
+                <div className={`flex items-center gap-2 ${step === "upload" ? "text-primary font-bold text-sm" : "text-slate-500 text-sm"}`}>
+                  <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "upload" ? "bg-primary text-white" : "bg-slate-200"}`}>1</div>
+                  <span>Upload</span>
+                </div>
+                <div className="w-12 border-t border-slate-200 my-auto" />
+                <div className={`flex items-center gap-2 ${step === "ocr" || (step === "upload" && loading) ? "text-primary font-bold text-sm" : "text-slate-500 text-sm"}`}>
+                  <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "ocr" || (step === "upload" && loading) ? "bg-primary text-white" : "bg-slate-200"}`}>2</div>
+                  <span>Processing</span>
+                </div>
+                <div className="w-12 border-t border-slate-200 my-auto" />
+                <div className={`flex items-center gap-2 ${step === "preview" ? "text-primary font-bold text-sm" : "text-slate-500 text-sm"}`}>
+                  <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === "preview" ? "bg-primary text-white" : "bg-slate-200"}`}>3</div>
+                  <span>Review</span>
+                </div>
               </div>
             </div>
           </div>
-        </DialogHeader>
+        )}
 
         <div className="flex-1 overflow-y-auto p-6 bg-surface">
         {error && <div className="mb-4"><SmartErrorBanner errorCode={errorCode} message={error} /></div>}
@@ -653,20 +666,20 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
 
             <div className="border rounded-xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
-              <Table className="min-w-[1100px]">
-                <TableHeader className="bg-slate-100 sticky top-0 z-10">
-                  <TableRow className="border-b-2 border-slate-200">
-                    <TableHead className="w-8 text-center text-xs font-bold uppercase tracking-wider text-slate-500">#</TableHead>
-                    <TableHead className="min-w-[220px] text-xs font-bold uppercase tracking-wider text-slate-500">Medicine Name</TableHead>
-                    <TableHead className="min-w-[130px] text-xs font-bold uppercase tracking-wider text-slate-500">Company</TableHead>
-                    <TableHead className="min-w-[110px] text-xs font-bold uppercase tracking-wider text-slate-500">Category</TableHead>
-                    <TableHead className="min-w-[100px] text-xs font-bold uppercase tracking-wider text-slate-500">Packing</TableHead>
-                    <TableHead className="min-w-[80px] text-xs font-bold uppercase tracking-wider text-slate-500">Batch</TableHead>
-                    <TableHead className="min-w-[70px] text-xs font-bold uppercase tracking-wider text-slate-500">Expiry</TableHead>
-                    <TableHead className="min-w-[75px] text-xs font-bold uppercase tracking-wider text-slate-500 text-right">MRP</TableHead>
-                    <TableHead className="min-w-[75px] text-xs font-bold uppercase tracking-wider text-slate-500 text-right">PTS</TableHead>
-                    <TableHead className="min-w-[65px] text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Qty</TableHead>
-                    <TableHead className="w-[80px] text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Action</TableHead>
+              <Table className="min-w-[1200px]">
+                <TableHeader className="bg-muted/50 sticky top-0 z-10 border-b">
+                  <TableRow className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                    <TableHead className="w-12 text-center text-sm font-bold uppercase tracking-wider text-slate-700">#</TableHead>
+                    <TableHead className="min-w-[280px] text-sm font-bold uppercase tracking-wider text-slate-700">Medicine Name</TableHead>
+                    <TableHead className="min-w-[150px] text-sm font-bold uppercase tracking-wider text-slate-700">Company</TableHead>
+                    <TableHead className="min-w-[130px] text-sm font-bold uppercase tracking-wider text-slate-700">Category</TableHead>
+                    <TableHead className="min-w-[120px] text-sm font-bold uppercase tracking-wider text-slate-700">Packing</TableHead>
+                    <TableHead className="min-w-[100px] text-sm font-bold uppercase tracking-wider text-slate-700">Batch</TableHead>
+                    <TableHead className="min-w-[100px] text-sm font-bold uppercase tracking-wider text-slate-700">Expiry</TableHead>
+                    <TableHead className="min-w-[90px] text-sm font-bold uppercase tracking-wider text-slate-700 text-right">MRP</TableHead>
+                    <TableHead className="min-w-[90px] text-sm font-bold uppercase tracking-wider text-slate-700 text-right">PTS</TableHead>
+                    <TableHead className="min-w-[80px] text-sm font-bold uppercase tracking-wider text-slate-700 text-center">Qty</TableHead>
+                    <TableHead className="w-[100px] text-sm font-bold uppercase tracking-wider text-slate-700 text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -682,7 +695,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                       className={`group transition-colors ${hasIssues ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-slate-50/80"} ${duplicate ? "opacity-60" : ""}`}
                     >
                       {/* Row number */}
-                      <TableCell className="text-center text-xs text-slate-400 font-mono">{index + 1}</TableCell>
+                      <TableCell className="text-center text-sm text-slate-500 font-mono py-4">{index + 1}</TableCell>
 
                       {/* Medicine Name — prominent */}
                       <TableCell>
@@ -744,28 +757,28 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                       </TableCell>
 
                       {/* Batch No */}
-                      <TableCell className="font-mono text-xs text-slate-600">{medicine.batchNo || "—"}</TableCell>
+                      <TableCell className="font-mono text-sm text-slate-700 py-4">{medicine.batchNo || "—"}</TableCell>
 
                       {/* Expiry */}
-                      <TableCell className="text-xs text-slate-600">{medicine.expiryDate || "—"}</TableCell>
+                      <TableCell className="text-sm text-slate-700 py-4">{medicine.expiryDate || "—"}</TableCell>
 
                       {/* MRP */}
-                      <TableCell className="text-right font-mono text-xs font-medium text-slate-700">
+                      <TableCell className="text-right font-mono text-sm font-bold text-slate-900 py-4">
                         {medicine.mrp ? `₹${Number(medicine.mrp).toFixed(2)}` : "—"}
                       </TableCell>
 
                       {/* Purchase Rate */}
-                      <TableCell className="text-right font-mono text-xs font-medium text-slate-700">
+                      <TableCell className="text-right font-mono text-sm font-bold text-slate-900 py-4">
                         {medicine.purchaseRate ? `₹${Number(medicine.purchaseRate).toFixed(2)}` : (medicine.tradePrice ? `₹${Number(medicine.tradePrice).toFixed(2)}` : "—")}
                       </TableCell>
 
                       {/* Qty */}
-                      <TableCell className="text-center">
+                      <TableCell className="text-center py-4">
                         <Input
                           type="number"
                           value={medicine.quantity || ""}
-                          onChange={(event) => updateMedicine(index, "quantity", Number(event.target.value))}
-                          className="h-8 w-16 mx-auto text-xs text-center border-slate-200"
+                          onChange={(e) => updateMedicine(index, "quantity", Number(e.target.value))}
+                          className="h-10 w-24 mx-auto text-sm text-center font-bold bg-primary/5 border-primary/20 shadow-inner"
                         />
                       </TableCell>
 

@@ -436,26 +436,33 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
 const INVOICE_IMAGE_PROMPT = `You are an elite OCR analyst for Indian Ayurvedic Pharmacy Bills.
 STRICT INSTRUCTIONS for 100% Extraction Accuracy:
 
-### 1. TABLE ANCHORING:
-- Each row MUST have a "srNo" field in your JSON. Use this to anchor your eyes to the far-left "Sr." column.
-- Scan horizontally from Sr. No 1, 2, 3... all the way to 7.
+### 1. VERTICAL QUANTITY ALIGNMENT:
+- The Qty column is the most important.
+- Row 1 Qty is 72.
+- Row 2 Qty might be 48 or 144. LOOK VERY CLOSELY at the digits.
+- Row 3 Qty might be 144.
+- DO NOT MIX UP THE QUANTITIES BETWEEN MEDICINES.
 
-### 2. COLUMN MAPPING (CRITICAL):
-Look straight down from these headers:
+### 2. TABLE ANCHORING:
+- Each row MUST have a "srNo" field in your JSON (1, 2, 3... to 7).
+- Sr. No 1 and 2 are BOTH "NATURALLY CHURNA". 
+- Sr. No 3 is "MAKARKALP".
+- Sr. No 4 is "JAMRUWIN".
+
+### 3. COLUMN MAPPING:
+Look horizontally across each row using these anchors:
 - [Far Left] "Sr." -> srNo
-- [Middle] "Description of Goods" -> name (FULL name like "JAMRUWIN 100 TAB")
-- [Middle] "Packing" -> packing (ALWAYS extract this for every row - "100 GM", "30 TAB", etc.)
+- [Middle] "Description of Goods" -> name (FULL name - e.g. "JAMRUWIN 100 TAB").
+- [Middle] "Packing" -> packing (Standardize: "100 gm", "30 Tab", "100 Tab", etc.)
 - [Middle] "Batch No" -> batchNo (e.g. "CH0087", "TA8647")
 - [Middle Right] "Exp Dt" -> expiryDate (e.g. "Sep-28")
-- [Right] "MRP" -> mrp
-- [Right] "Qty" -> quantity (Look straight down from the 'Qty' header. e.g. 72, 48, 144, 36)
+- [Right Center] "MRP" -> mrp (e.g. 112.50)
+- [Right] "Qty" -> quantity (INTEGER ONLY. e.g. 72, 48, 144, 36)
 - [Far Right] "PTS" -> purchaseRate (e.g. 88.16)
 
-### 3. PRECISION RULES:
-- NO EMPTY FIELDS: Every row must have Name, Packing, Batch, Exp, MRP, Qty, and PTS. 
-- PACKING: Do not use "Select". If not found, use "100 gm". 
-- DUPLICATES: Row 1 and 2 are BOTH "NATURALLY CHURNA". Extract them both!
-- BOUNDARY: Stop at the "Total" row.
+### 4. PRECISION RULES:
+- NO HALLUCINATION: If you can't read a batch or packing, use null.
+- FOOTER: Stop at the "Total" row. Do not extract footer text.
 
 Return ONLY a valid JSON array.
 [
