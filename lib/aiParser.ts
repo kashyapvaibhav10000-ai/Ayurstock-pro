@@ -168,11 +168,23 @@ function normalizeMedicine(item: any): ParsedMedicine | null {
   if (item.company && typeof item.company === 'string') normalized.company = item.company.trim()
   if (item.hsn && (typeof item.hsn === 'string' || typeof item.hsn === 'number')) normalized.hsn = String(item.hsn).trim()
   if (item.batchNo && typeof item.batchNo === 'string') normalized.batchNo = item.batchNo.trim()
-  if (item.expiryDate && typeof item.expiryDate === 'string') normalized.expiryDate = item.expiryDate.trim()
+  if (item.expiryDate && typeof item.expiryDate === 'string') normalized.expiryDate = normalizeExpiryDate(item.expiryDate.trim())
   if (item.barcode && typeof item.barcode === 'string') normalized.barcode = item.barcode.trim()
 
   if (typeof item.purchaseRate === 'number' || (item.purchaseRate && !Number.isNaN(Number(item.purchaseRate)))) {
     normalized.purchaseRate = Number(item.purchaseRate)
+  }
+  // PTR (Price to Retailer) — store as tradePrice if not already set
+  if (typeof item.ptr === 'number' || (item.ptr && !Number.isNaN(Number(item.ptr)))) {
+    normalized.tradePrice = Number(item.ptr)
+  }
+  // Cash Discount %
+  if (typeof item.cashDiscount === 'number' || (item.cashDiscount && !Number.isNaN(Number(item.cashDiscount)))) {
+    (normalized as any).cashDiscount = Number(item.cashDiscount)
+  }
+  // Discount %
+  if (typeof item.discount === 'number' || (item.discount && !Number.isNaN(Number(item.discount)))) {
+    (normalized as any).discount = Number(item.discount)
   }
   if (typeof item.quantity === 'number' || (item.quantity && !Number.isNaN(Number(item.quantity)))) {
     normalized.quantity = Number(item.quantity)
@@ -221,27 +233,49 @@ function dedup(medicines: ParsedMedicine[]): ParsedMedicine[] {
 }
 
 function parseJsonSafely(text: string): ParsedMedicine[] {
-  const jsonText = extractJsonArray(text)
-  let parsed: any[]
+  let cleaned = text.trim()
+  cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/m, '')
+  
+  let parsed: any
   try {
-    parsed = JSON.parse(jsonText)
+    parsed = JSON.parse(cleaned)
   } catch {
-    // Try to salvage truncated JSON
-    const lastComma = jsonText.lastIndexOf('},')
-    if (lastComma > 0) {
-      try {
-        parsed = JSON.parse(jsonText.substring(0, lastComma + 1) + ']')
-        console.warn(`⚠️ Salvaged ${parsed.length} items from truncated JSON`)
-      } catch {
-        throw new Error('AI response JSON is too malformed to recover')
+    // Try extracting just the array portion
+    const jsonText = extractJsonArray(cleaned)
+    try {
+      parsed = JSON.parse(jsonText)
+    } catch {
+      // Try to salvage truncated JSON
+      const lastComma = jsonText.lastIndexOf('},')
+      if (lastComma > 0) {
+        try {
+          parsed = JSON.parse(jsonText.substring(0, lastComma + 1) + ']')
+          console.warn(`⚠️ Salvaged ${parsed.length} items from truncated JSON`)
+        } catch {
+          throw new Error('AI response JSON is too malformed to recover')
+        }
+      } else {
+        throw new Error('AI response was not valid JSON')
       }
-    } else {
-      throw new Error('AI response was not valid JSON')
     }
   }
-  if (!Array.isArray(parsed)) throw new Error('AI response was not a JSON array')
+  
+  // Handle new format: { invoiceNumber, medicines: [...] }
+  let itemArray: any[]
+  if (parsed && !Array.isArray(parsed) && typeof parsed === 'object' && Array.isArray(parsed.medicines)) {
+    // Extract metadata and log it
+    if (parsed.invoiceNumber) console.log(`📋 Invoice #: ${parsed.invoiceNumber}`);
+    if (parsed.invoiceDate) console.log(`📅 Invoice Date: ${parsed.invoiceDate}`);
+    if (parsed.supplierName) console.log(`🏢 Supplier: ${parsed.supplierName}`);
+    itemArray = parsed.medicines
+  } else if (Array.isArray(parsed)) {
+    itemArray = parsed
+  } else {
+    throw new Error('AI response was not a JSON array or {medicines: [...]} object')
+  }
+  
   const medicines: ParsedMedicine[] = []
-  for (const raw of parsed) {
+  for (const raw of itemArray) {
     const normalized = normalizeMedicine(raw)
     if (normalized) medicines.push(normalized)
   }
@@ -434,44 +468,61 @@ async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
 
 // ─── Gemini Vision: Parse images directly ─────────────────────────────────────
 const INVOICE_IMAGE_PROMPT = `You are a world-class OCR expert for Indian Pharmacy Invoices.
-The image might be tilted. Correct your orientation mentally.
+The image might be tilted or photographed at an angle. Mentally correct the orientation.
 
-### 1. VERTICAL COLUMN GUIDE (CRITICAL):
-- Column 1 (Far Left): Sr. No (1, 2, 3...)
-- Column 2: Medicine Name (Description)
-- Column 3: Packing (GM/Tab/ML)
-- Column 6: Batch No (MUST READ THIS: e.g. "CH0087", "TA8647")
-- Column 8: Expiry (e.g. "Sep-28")
-- Column 10: QTY (This is around 80% across the page horizontally. Look for "72", "48", "144").
+### 1. COLUMN MAPPING (Read headers carefully):
+You MUST map the following columns. Look at the TABLE HEADER ROW to identify each column:
+- "Sr." or "S.No" → srNo (integer)
+- "Description of Goods" or "Particulars" → name (FULL medicine name)
+- "Packing" → packing (e.g. "100 GM", "30 TAB", "40 TAB", "80 TAB", "10 GM")
+- "Batch No" → batchNo (alphanumeric code like "CH0087", "TA8647", "NL1610")
+- "Exp Dt" or "Expiry" → expiryDate (format: "MMM-YY", e.g. "Sep-26", "Nov-25", "Jan-28")
+- "MRP" → mrp (Maximum Retail Price)
+- "PTS" → purchaseRate (Price to Stockist — this is YOUR purchase price)
+- "PTR" → ptr (Price to Retailer — reference selling price)
+- "Qty" → quantity (integer — number of units ordered)
+- "Disc%" → discount (trade discount percentage)
+- "CD%" → cashDiscount (cash discount percentage)
+- "Mfg By" or Company header → company
 
-### 2. SPECIFIC ROW AUDIT (AYUKALP BILL):
-Row 1: NATURALLY CHURNA | Qty: 72
-Row 2: NATURALLY CHURNA | Qty: 48 (or 144 according to user - CHECK CAREFULLY).
-Row 3: MAKARKALP | Qty: 144 (Usually Row 3 is 144).
-Row 4: JAMRUWIN | Qty: 48.
-Row 5: NAVAYAS LOHA | Qty: 36.
-Row 6: SHWASAKUTHAR RAS | Qty: 48.
-Row 7: SARVAJWARHAR LOHA | Qty: 36.
+### 2. EXTRACTION RULES:
+- Extract each row that has a numeric Sr. No (1, 2, 3...).
+- STOP at the "Total" or "Taxable Amount" row.
+- DO NOT extract footer text (bank details, GSTIN, terms, etc.).
+- Packing must be SEPARATE from Name. Example: Name="NATURALLY CHURNA", Packing="100 gm".
+- If two rows have the same medicine name, extract BOTH as separate JSON objects.
+- Use null for any value you truly cannot read. DO NOT invent values.
 
-### 3. EXTRACTION RULES:
-- If a row says "JAMRUWIN", look strictly to its RIGHT for its Batch (usually AA... or JA...) and its Qty (48).
-- DO NOT mix up Row 3 and Row 4 quantities.
-- Extract exactly 7 rows. STOP at "Total".
-- Use null for values you truly cannot read. DO NOT hallucinate "NA" or "CHOC".
+### 3. INVOICE METADATA:
+Also extract these from the invoice header (outside the table):
+- invoiceNumber (e.g. "AIU25G6408")
+- invoiceDate (e.g. "27-Feb-26")
+- supplierName (e.g. "AYUKALP UAP PHARMA PVT LTD")
 
-Return ONLY a valid JSON array of objects.
-[
-  {
-    "srNo": 1,
-    "name": "NATURALLY CHURNA",
-    "packing": "100 gm",
-    "batchNo": "CH0087",
-    "expiryDate": "Sep-28",
-    "mrp": 112.50,
-    "purchaseRate": 88.16,
-    "quantity": 72
-  }
-]`;
+Return a JSON object with this structure:
+{
+  "invoiceNumber": "AIU25G6408",
+  "invoiceDate": "27-Feb-26",
+  "supplierName": "AYUKALP UAP PHARMA PVT LTD",
+  "medicines": [
+    {
+      "srNo": 1,
+      "name": "NATURALLY CHURNA",
+      "packing": "100 gm",
+      "batchNo": "CH0087",
+      "expiryDate": "Sep-26",
+      "mrp": 112.50,
+      "purchaseRate": 88.16,
+      "ptr": 93.75,
+      "quantity": 72,
+      "discount": 5,
+      "cashDiscount": 2,
+      "company": "AYUKALP"
+    }
+  ]
+}
+
+Return ONLY valid JSON. NO explanation. NO markdown.`;
 
 export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: string): Promise<ParseResult> {
   const base64Image = imageBuffer.toString('base64');
@@ -571,6 +622,53 @@ function normalizePacking(raw?: string): string {
 }
 
 /**
+ * Normalize expiry date from AI output formats to YYYY-MM-DD (last day of month).
+ * Pharmacy standard: expiry = last day of the month.
+ * Handles: "Sep-26", "Sep-2026", "09/26", "09-26", "Sep 26", "September-26"
+ */
+function normalizeExpiryDate(raw: string): string {
+  if (!raw) return raw;
+  const s = raw.trim();
+
+  const monthMap: Record<string, number> = {
+    jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3,
+    apr: 4, april: 4, may: 5, jun: 6, june: 6,
+    jul: 7, july: 7, aug: 8, august: 8, sep: 9, september: 9,
+    oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12,
+  };
+
+  let month: number | undefined;
+  let year: number | undefined;
+
+  // Try "MMM-YY" or "MMM YY" or "MMM-YYYY" (e.g. "Sep-26", "Jan-28", "Sep-2026")
+  const mmmYY = s.match(/^([a-zA-Z]+)[- /](\d{2,4})$/);
+  if (mmmYY) {
+    month = monthMap[mmmYY[1].toLowerCase()];
+    year = parseInt(mmmYY[2]);
+    if (year < 100) year += 2000; // 26 → 2026
+  }
+
+  // Try "MM/YY" or "MM-YY" (e.g. "09/26", "01-28")
+  if (!month) {
+    const mmYY = s.match(/^(\d{1,2})[/-](\d{2,4})$/);
+    if (mmYY) {
+      month = parseInt(mmYY[1]);
+      year = parseInt(mmYY[2]);
+      if (year < 100) year += 2000;
+    }
+  }
+
+  if (!month || !year || month < 1 || month > 12) return s; // Can't parse, return as-is
+
+  // Get last day of the month
+  const lastDay = new Date(year, month, 0).getDate();
+  const mm = String(month).padStart(2, '0');
+  const dd = String(lastDay).padStart(2, '0');
+
+  return `${year}-${mm}-${dd}`;
+}
+
+/**
  * Apply packing normalization to all extracted medicines.
  */
 function normalizeMedicines(medicines: ParsedMedicine[]): ParsedMedicine[] {
@@ -578,6 +676,7 @@ function normalizeMedicines(medicines: ParsedMedicine[]): ParsedMedicine[] {
     ...m,
     name: m.name?.trim() || '',
     packing: normalizePacking(m.packing),
+    expiryDate: m.expiryDate ? normalizeExpiryDate(m.expiryDate) : undefined,
   }));
 }
 
