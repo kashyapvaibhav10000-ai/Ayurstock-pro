@@ -648,23 +648,22 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
               </div>
             )}
 
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Packing</TableHead>
-                    <TableHead>HSN</TableHead>
-                    <TableHead>Batch No</TableHead>
-                    <TableHead>Expiry</TableHead>
-                    <TableHead>MRP</TableHead>
-                    <TableHead>Purchase Rate</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Issues</TableHead>
-                    <TableHead>Actions</TableHead>
+            <div className="border rounded-xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+              <Table className="min-w-[1100px]">
+                <TableHeader className="bg-slate-100 sticky top-0 z-10">
+                  <TableRow className="border-b-2 border-slate-200">
+                    <TableHead className="w-8 text-center text-xs font-bold uppercase tracking-wider text-slate-500">#</TableHead>
+                    <TableHead className="min-w-[220px] text-xs font-bold uppercase tracking-wider text-slate-500">Medicine Name</TableHead>
+                    <TableHead className="min-w-[130px] text-xs font-bold uppercase tracking-wider text-slate-500">Company</TableHead>
+                    <TableHead className="min-w-[110px] text-xs font-bold uppercase tracking-wider text-slate-500">Category</TableHead>
+                    <TableHead className="min-w-[100px] text-xs font-bold uppercase tracking-wider text-slate-500">Packing</TableHead>
+                    <TableHead className="min-w-[80px] text-xs font-bold uppercase tracking-wider text-slate-500">Batch</TableHead>
+                    <TableHead className="min-w-[70px] text-xs font-bold uppercase tracking-wider text-slate-500">Expiry</TableHead>
+                    <TableHead className="min-w-[75px] text-xs font-bold uppercase tracking-wider text-slate-500 text-right">MRP</TableHead>
+                    <TableHead className="min-w-[75px] text-xs font-bold uppercase tracking-wider text-slate-500 text-right">PTS</TableHead>
+                    <TableHead className="min-w-[65px] text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Qty</TableHead>
+                    <TableHead className="w-[80px] text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -673,28 +672,64 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                     const duplicate = isDuplicate(medicine)
                     const category = medicine.category || detectCategory(medicine.packing || medicine.name)
                     const packagingOptions = PACKAGING_OPTIONS[category] || []
+                    const hasIssues = issues.length > 0
                     return (
-                    <TableRow key={index} className={issues.length > 0 ? "bg-red-50" : undefined}>
-                      <TableCell className="font-medium">{medicine.code || "-"}</TableCell>
-                      <TableCell className="font-medium">
+                    <TableRow
+                      key={index}
+                      className={`group transition-colors ${hasIssues ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-slate-50/80"} ${duplicate ? "opacity-60" : ""}`}
+                    >
+                      {/* Row number */}
+                      <TableCell className="text-center text-xs text-slate-400 font-mono">{index + 1}</TableCell>
+
+                      {/* Medicine Name — prominent */}
+                      <TableCell>
                         <Input
                           value={medicine.name}
                           onChange={(event) => updateMedicine(index, "name", event.target.value)}
-                          className="h-8"
+                          className="h-8 text-sm font-semibold border-slate-200 focus:border-primary focus:ring-primary/20"
+                          title={medicine.name}
                         />
+                        {hasIssues && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {issues.map((issue) => (
+                              <span key={issue} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
+                                {issue}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </TableCell>
+
+                      {/* Company */}
                       <TableCell>
                         <Input
                           value={medicine.company}
                           onChange={(event) => updateMedicine(index, "company", event.target.value)}
-                          className="h-8"
+                          className="h-8 text-xs border-slate-200"
                         />
                       </TableCell>
+
+                      {/* Category */}
+                      <TableCell>
+                        <select
+                          value={category}
+                          onChange={(event) => handleCategoryChange(index, event.target.value)}
+                          className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:border-primary focus:ring-1 focus:ring-primary/20"
+                        >
+                          {CATEGORY_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </TableCell>
+
+                      {/* Packing */}
                       <TableCell>
                         <select
                           value={medicine.packing || ""}
                           onChange={(event) => updateMedicine(index, "packing", event.target.value)}
-                          className="h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-sm"
+                          className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs focus:border-primary focus:ring-1 focus:ring-primary/20"
                         >
                           <option value="">Select</option>
                           {packagingOptions.map((option) => (
@@ -704,71 +739,63 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                           ))}
                         </select>
                       </TableCell>
-                      <TableCell>{medicine.hsn || "-"}</TableCell>
-                      <TableCell className="font-mono text-xs">{medicine.batchNo || "-"}</TableCell>
-                      <TableCell className="text-xs">{medicine.expiryDate || "-"}</TableCell>
-                      <TableCell>{medicine.mrp ? `₹${medicine.mrp}` : "-"}</TableCell>
-                      <TableCell>{medicine.purchaseRate ? `₹${medicine.purchaseRate}` : (medicine.tradePrice ? `₹${medicine.tradePrice}` : "-")}</TableCell>
-                      <TableCell>
+
+                      {/* Batch No */}
+                      <TableCell className="font-mono text-xs text-slate-600">{medicine.batchNo || "—"}</TableCell>
+
+                      {/* Expiry */}
+                      <TableCell className="text-xs text-slate-600">{medicine.expiryDate || "—"}</TableCell>
+
+                      {/* MRP */}
+                      <TableCell className="text-right font-mono text-xs font-medium text-slate-700">
+                        {medicine.mrp ? `₹${Number(medicine.mrp).toFixed(2)}` : "—"}
+                      </TableCell>
+
+                      {/* Purchase Rate */}
+                      <TableCell className="text-right font-mono text-xs font-medium text-slate-700">
+                        {medicine.purchaseRate ? `₹${Number(medicine.purchaseRate).toFixed(2)}` : (medicine.tradePrice ? `₹${Number(medicine.tradePrice).toFixed(2)}` : "—")}
+                      </TableCell>
+
+                      {/* Qty */}
+                      <TableCell className="text-center">
                         <Input
                           type="number"
                           value={medicine.quantity || ""}
                           onChange={(event) => updateMedicine(index, "quantity", Number(event.target.value))}
-                          className="h-8 w-20"
+                          className="h-8 w-16 mx-auto text-xs text-center border-slate-200"
                         />
                       </TableCell>
-                      <TableCell>
-                        <select
-                          value={category}
-                          onChange={(event) => handleCategoryChange(index, event.target.value)}
-                          className="h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-sm"
-                        >
-                          {CATEGORY_OPTIONS.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </TableCell>
-                      <TableCell>
-                        {issues.length > 0 ? (
-                          <div className="space-y-1 text-xs text-red-700">
-                            {issues.map((issue) => (
-                              <div key={issue}>{issue}</div>
-                            ))}
-                          </div>
+
+                      {/* Action */}
+                      <TableCell className="text-center">
+                        {duplicate ? (
+                          <select
+                            value={medicine.action || "skip"}
+                            onChange={(event) =>
+                              updateMedicine(index, "action", event.target.value)
+                            }
+                            className="h-7 w-full rounded border border-amber-300 bg-amber-50 px-1 text-[10px] font-medium text-amber-800"
+                          >
+                            <option value="skip">Skip</option>
+                            <option value="update">Update</option>
+                          </select>
                         ) : (
-                          <span className="text-xs text-slate-500">OK</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-2">
-                          {duplicate ? (
-                            <select
-                              value={medicine.action || "skip"}
-                              onChange={(event) =>
-                                updateMedicine(index, "action", event.target.value)
-                              }
-                              className="h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-xs"
-                            >
-                              <option value="skip">Skip</option>
-                              <option value="update">Update</option>
-                            </select>
-                          ) : null}
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={() => removeMedicine(index)}
-                            className="text-red-600 hover:text-red-700"
+                            className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                            title="Remove"
                           >
-                            Remove
+                            ✕
                           </Button>
-                        </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   )})}
                 </TableBody>
               </Table>
+              </div>
             </div>
           </div>
         )}
