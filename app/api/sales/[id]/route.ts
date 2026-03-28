@@ -5,8 +5,9 @@ import { getSaleDetails } from '@/services/billing';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     // Authenticate
     const auth = await authenticateRequest(request);
@@ -14,7 +15,7 @@ export async function GET(
       return createErrorResponse('Unauthorized', 401);
     }
 
-    const saleDetails = await getSaleDetails(params.id, auth.user.shopId);
+    const saleDetails = await getSaleDetails(id, auth.user.shopId);
 
     if (!saleDetails) {
       return createErrorResponse('Sale not found', 404);

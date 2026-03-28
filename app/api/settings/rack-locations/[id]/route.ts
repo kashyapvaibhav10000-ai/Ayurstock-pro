@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const auth = await authenticateRequest(req);
     if (!auth) {
@@ -24,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       where: {
         shopId: auth.user.shopId,
         name,
-        id: { not: params.id }
+        id: { not: id }
       }
     });
 
@@ -33,7 +34,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     const updated = await prisma.rackLocation.update({
-      where: { id: params.id, shopId: auth.user.shopId },
+      where: { id: id, shopId: auth.user.shopId },
       data: { name, description }
     });
 
@@ -44,7 +45,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const auth = await authenticateRequest(req);
     if (!auth) {
@@ -56,7 +58,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     }
 
     const rack = await prisma.rackLocation.findUnique({
-      where: { id: params.id, shopId: auth.user.shopId }
+      where: { id: id, shopId: auth.user.shopId }
     });
 
     if (!rack) {
@@ -78,10 +80,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     }
 
     await prisma.rackLocation.delete({
-      where: { id: params.id }
+      where: { id: id }
     });
 
-    return createApiResponse(true, { deletedId: params.id });
+    return createApiResponse(true, { deletedId: id });
   } catch (error: any) {
     console.error('Delete Rack Location Error:', error);
     return createErrorResponse(error.message, 500);

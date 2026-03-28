@@ -8,7 +8,8 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const token = cookies().get('auth-token')?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth-token')?.value;
 
   if (!token) {
     redirect('/login');

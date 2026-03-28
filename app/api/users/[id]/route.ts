@@ -4,8 +4,9 @@ import { prisma } from '@/lib/db';
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: userId } = await params;
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
@@ -17,7 +18,6 @@ export async function PUT(
     }
 
     const { name, email, role, isActive } = await req.json();
-    const userId = params.id;
 
     if (!userId) {
       return NextResponse.json({ success: false, message: 'User ID is required' }, { status: 400 });
@@ -99,8 +99,9 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: userId } = await params;
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
@@ -111,8 +112,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, message: 'Forbidden: Admins only' }, { status: 403 });
     }
 
-    const userId = params.id;
-    
+
     // Self-delete protection
     if (userId === auth.user.id) {
       return NextResponse.json({ success: false, message: 'You cannot delete your own account' }, { status: 400 });

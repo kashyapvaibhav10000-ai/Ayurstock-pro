@@ -4,8 +4,9 @@ import { verifyAuth } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
@@ -14,7 +15,7 @@ export async function GET(
 
     const purchase = await prisma.purchase.findFirst({
       where: {
-        id: params.id,
+        id,
         shopId: auth.user.shopId,
       },
       include: {
