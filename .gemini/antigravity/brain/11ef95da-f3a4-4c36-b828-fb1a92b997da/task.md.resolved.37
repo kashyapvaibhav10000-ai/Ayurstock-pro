@@ -1,0 +1,26 @@
+# Refactor Add Inventory Flow & Rack Locations
+
+## Phase 1: Database Architecture
+- [ ] Inject `RackLocation` mapping model into [prisma/schema.prisma](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/prisma/schema.prisma)
+- [ ] Add relationship `rackLocations RackLocation[]` to [Shop](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/shop-settings.tsx#8-151) model
+- [ ] Execute `npx prisma db push` (User requested migration, but bypassing local SQLite lockfile constraint)
+
+## Phase 2: Core API Routes
+- [ ] Create `GET /api/settings/rack-locations` endpoint
+- [ ] Create `POST /api/settings/rack-locations` endpoint (with UPSERT auto-seeding logic for H1-H5)
+- [ ] Create `PUT /api/settings/rack-locations/[id]` endpoint
+- [ ] Create `DELETE /api/settings/rack-locations/[id]` endpoint (with protective collision checking)
+- [ ] Add >= 2 character length API throttle block on `/api/medicines/search` endpoint
+
+## Phase 3: Settings Dashboard UI
+- [ ] Add `Rack Locations` section into the primary Settings layout ([app/dashboard/settings/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx) or new route depending on structure)
+- [ ] Build tabular CRUD view for rack locations
+- [ ] Build `Add/Edit Rack Location` Modal
+
+## Phase 4: Core Inventory UI
+- [ ] Upgrade `AddInventoryModal` to support cascading Company-to-Medicine lookups
+- [ ] Mount `/api/medicines/search?company={id}&q={term}` logic
+- [ ] Transform static `rackLocation` inputs into dynamic database-mapped HTML `<select>` elements
+- [ ] Implement pre-submission hooks locking inputs `> 0` and enforcing blank default initializations (`''`)
+- [ ] Ensure non-reloading table fetch block remains mounted exactly as specified
+- [ ] Push to repository

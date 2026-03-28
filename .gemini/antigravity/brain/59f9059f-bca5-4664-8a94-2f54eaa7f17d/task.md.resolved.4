@@ -1,0 +1,17 @@
+# Task: Fix AI Medicine Import + Auto-Create Inventory
+
+## AI Vision Model Fixes
+- [x] Update Groq vision model (llama-4-scout)
+- [x] Update OpenRouter vision models (gemma-3, mistral-small)
+- [x] Improve INVOICE_IMAGE_PROMPT for better accuracy
+- [x] Add packing normalization (normalizeMedicines)
+
+## Review Table Redesign
+- [x] Redesign review table with wider columns, row numbers, inline issue badges
+
+## Auto-Create Inventory on Bill Import
+- [/] Trace the current `/api/medicine/bulk-import` endpoint
+- [ ] Modify bulk-import to also create inventory batches for new medicines
+- [ ] Ensure batch number, expiry, qty, MRP, purchase rate are saved to inventory
+- [ ] Test the flow end-to-end
+- [ ] Commit and push

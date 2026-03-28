@@ -1,0 +1,6 @@
+# Footer Implementation
+
+- [x] Reset previous unapproved UI rewrite
+- [x] Inject `Developed with ❤️ by Vaibhav` footer into existing card
+- [x] Fix JSX syntax issues
+- [x] Push to GitHub

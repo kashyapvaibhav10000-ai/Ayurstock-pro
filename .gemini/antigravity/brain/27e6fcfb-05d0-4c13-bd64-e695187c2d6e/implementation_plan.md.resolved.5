@@ -1,0 +1,50 @@
+# Settings Restructure & Dark Mode Implementation (Updated)
+
+Restructure the Settings page organization and implement a functional, eye-friendly "Soft Black and Golden" dark mode.
+
+## User Review Required
+> [!IMPORTANT]
+> - **Dark Mode Colors**: Background `#0A0A0A`, Surface/Cards `#1A1A1A`, Gold Accent `#D4AF37`.
+> - **Print Safety**: Invoices will always print in light mode regardless of the UI theme.
+> - **Full Scope**: Dark mode will apply to Login, Sidebar, Modals, Tables, and Mobile overlays.
+
+## Proposed Changes
+
+### Settings Organization ([app/dashboard/settings/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx))
+- [x] Move **Invoices** (`invoice`) from the **General** group to the **Billing** group.
+- [x] Move **Preferences** (`system`) from the **Advanced** group to the **General** group.
+
+### Dark Mode Infrastructure
+- [x] Install `next-themes` dependency (Completed).
+- [ ] Update [tailwind.config.js](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/tailwind.config.js):
+    - Enable `darkMode: 'class'`.
+    - Map theme colors to CSS variables.
+- [ ] Update [app/providers.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/providers.tsx):
+    - Wrap with `<ThemeProvider attribute="class" defaultTheme="system" enableSystem />`.
+- [ ] Update [app/globals.css](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/globals.css):
+    - Add `.dark` variables:
+        - `--background`: `#0A0A0A`
+        - `--surface`: `#1A1A1A`
+        - `--surface-muted`: `#111111`
+        - `--primary`: `#D4AF37` (Gold)
+        - `--foreground`: `#E5E5E5` (Off-white for readability)
+    - Add `@media print { * { color-scheme: light !important; } }`.
+
+### Settings UI ([components/settings/system-settings.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/system-settings.tsx))
+- [ ] Make the "Dark Mode" switch functional using `useTheme()`.
+- [ ] Remove manual `localStorage` logic (let `next-themes` handle it).
+
+### Verification & Polishing
+- [ ] Verify Login page ([app/login/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/login/page.tsx)) dark mode compatibility.
+- [ ] Verify sidebar and mobile hamburger menu.
+- [ ] Verify toasts (Sonner) dark mode style.
+
+## Verification Plan
+### Automated Tests
+- [ ] N/A
+
+### Manual Verification
+1.  **Tab Movement**: Confirm new Tab positions in Sidebar.
+2.  **Theme Toggle**: Test switching between light and dark modes.
+3.  **Print Test**: Use Ctrl+P on an invoice and ensure it shows as standard white/black.
+4.  **Mobile Test**: Inspect on mobile breakpoints and check the menu overlay.

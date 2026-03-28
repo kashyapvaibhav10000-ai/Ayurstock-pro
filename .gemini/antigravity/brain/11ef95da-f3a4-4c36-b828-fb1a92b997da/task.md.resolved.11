@@ -1,0 +1,8 @@
+# Invoice & Billing Print Consolidation
+
+- [x] Audit [app/dashboard/billing/invoice/[id]/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/billing/invoice/%5Bid%5D/page.tsx)
+- [x] Audit the POS Billing output/receipt process
+- [x] Create unified [InvoiceTemplate](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/InvoiceTemplate.tsx#80-293) component in `components/`
+- [x] Add `@media print` CSS for exact matching formats
+- [ ] Replace both existing outputs with the new unified template
+- [ ] Push to GitHub

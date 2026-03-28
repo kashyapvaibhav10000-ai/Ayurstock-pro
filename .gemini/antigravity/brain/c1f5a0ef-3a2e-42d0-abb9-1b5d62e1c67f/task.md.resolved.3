@@ -1,0 +1,16 @@
+# PDF Import Improvements — Task Checklist
+
+## High Impact ✅
+
+- [x] Client-Side OCR Utility ([lib/pdfOcrClient.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/pdfOcrClient.ts))
+- [x] Structured Backend Error Handling ([aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) → [ParseResult](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#18-24) type)
+- [x] API routes accept `extractedText` + return `errorCode`/`pdfType`
+- [x] Smart UI with OCR flow, progress bar, error banners (both modals)
+- [x] Build verification passed
+
+## Medium Impact ✅
+
+- [x] Batch Processing API (`/api/medicines/import/batch` + `batch/[id]`)
+- [x] AI Parsing Optimization (3-line chunk overlap)
+- [x] Lint fixes in [import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx)
+- [x] Final build verification passed

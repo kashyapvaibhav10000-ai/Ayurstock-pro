@@ -1,0 +1,38 @@
+# [Aesthetic Overhaul] Premium Soft Black & Gold Theme
+
+Ensure the application has a cohesive, high-end "Soft Black & Gold" theme that applies consistently to all pages (Dashboard, Billing, Inventory, etc.) and eliminates all "white patches" or "ugly" high-contrast elements.
+
+## Proposed Changes
+
+### 1. Global Styles [globals.css](file:///c:/Users/vaibh/Documents/Ayur-stock pro/app/globals.css)
+- Refine the `.dark` color palette:
+  - `--background`: Use a slightly deeper, ultra-modern black (`#050505`).
+  - `--surface`: Use a sophisticated dark gray (`#0D0D10`).
+  - `--surface-muted`: `#131316`.
+  - `--border`: Subtler `#1F1F23`.
+  - `--foreground`: Off-white `#E0E0E0` for readability.
+- Add utility classes for "Gold" gradients and effects.
+
+### 2. Core Components
+#### [DashboardClientWrapper.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/DashboardClientWrapper.tsx)
+- Ensure the main background and mobile nav use the new variables.
+
+#### [DashboardHeader.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/DashboardHeader.tsx)
+- Update profile panel and search input to be fully theme-aware.
+
+### 3. Feature Pages
+#### [DashboardPage.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/page.tsx)
+- Fix the "Critical Low" card background (`bg-[#fff7f6]`).
+- Soften the "Daily Verification" notice gradient.
+- Update the Revenue Chart colors to match the Gold/Black theme.
+
+#### [BillingPage.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/billing/page.tsx)
+- Perform a massive sweep to replace `bg-white`, `bg-slate-50`, and other hardcoded colors with `bg-surface`, `bg-background`, etc.
+- Update the checkout summary card to use dark surfaces with golden accents.
+
+## Verification Plan
+### Manual Verification
+- Toggle dark mode and verify every section of the **Billing** page is dark.
+- Check the **Dashboard** for any remaining white cards or jarring contrasts.
+- Verify the **Settings** page still looks professional in both themes.
+- Test the **Mobile View** hamburger menu and bottom navigation overlays.

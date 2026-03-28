@@ -1,0 +1,71 @@
+# PDF Import Improvements — Walkthrough
+
+## Summary
+
+Implemented **5 major improvements** to the PDF import system — all high-impact and medium-impact items from the plan. Everything builds successfully.
+
+---
+
+## What Changed
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| [pdfOcrClient.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/pdfOcrClient.ts) | Client-side OCR using PDF.js + Tesseract.js in the browser |
+| [batch/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/batch/route.ts) | Batch job API: POST (create) + GET (list) |
+| [batch/[id]/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/batch/%5Bid%5D/route.ts) | Batch job detail: GET (status) + PATCH (re-process) |
+
+### Modified Files
+
+| File | Changes |
+|------|---------|
+| [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) | Added `ParseResult` type with `errorCode`/`pdfType`, `parseTextWithAI()` function, 3-line chunk overlap, page cap raised to 100 |
+| [medicines/import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/route.ts) | Accepts `extractedText` from client OCR, returns `errorCode`/`pdfType`, file limit raised to 10MB |
+| [medicine/import-price-list/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/import-price-list/route.ts) | Rewrote: added proper POST handler using shared `aiParser.ts`, accepts `extractedText` |
+| [ImportMedicinesModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx) | Added OCR flow with progress bar, smart error banners per error code, PDF type badge |
+| [import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx) | Same OCR + error improvements, fixed TypeScript lint errors |
+
+---
+
+## Key Features
+
+### 🔍 Client-Side OCR (Free, No API Costs)
+- **PDF.js** renders PDF pages to canvas → **Tesseract.js** OCRs each page image → text sent to server for AI parsing
+- Runs entirely in browser — no Vercel timeouts, no external OCR APIs
+- Progress bar shows phase, page count, and percentage
+
+### 📊 Smart Error Handling
+Error codes returned by backend, with per-code UI guidance:
+
+| Code | UI Message |
+|------|-----------|
+| `NO_TEXT` | "Scanned PDF detected — click Run OCR" |
+| `EMPTY_AFTER_CLEAN` | "No medicine data recognized" |
+| `AI_FAILED` | "AI parsing failed — try again" |
+| `NO_API_KEY` | "API key not configured — contact admin" |
+
+### 📦 Batch Processing API
+- `POST /api/medicines/import/batch` — save a job for later processing
+- `GET /api/medicines/import/batch` — list recent jobs
+- `GET /api/medicines/import/batch/[id]` — fetch job status
+- `PATCH /api/medicines/import/batch/[id]` — re-process a failed job
+
+### 🧠 AI Parsing Optimization
+- **3-line overlap** between chunks prevents cutting medicine records at boundaries
+- Deduplication still handles any overlap-caused duplicates
+
+---
+
+## Verification
+
+- ✅ `npx next build` — exit code 0, all routes compiled
+- ✅ No TypeScript lint errors remaining
+- ✅ Both import modals build correctly with OCR integration
+
+## Next Steps
+
+1. **Deploy to Vercel** — `git add . && git commit -m "PDF import improvements" && git push`
+2. **Test with a searchable PDF** — normal flow should work identically
+3. **Test with a scanned PDF** — should see "Run OCR" button → progress bar → results
+4. **Optional**: Wire batch processing into the import modal UI (API is ready, UI queuing not yet added)

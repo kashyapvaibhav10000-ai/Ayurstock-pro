@@ -1,0 +1,18 @@
+# Task: Fix AI Vision Extraction Hallucinations
+
+## Research & Analysis
+- [ ] Review `INVOICE_IMAGE_PROMPT` for flaws that allow hallucination
+- [ ] Analyze the provided invoice image to identify column offsets and headers
+
+## Prompt Engineering
+- [ ] Add "ANTI-HALLUCINATION" rules (No guessing Batch/Exp)
+- [ ] Define column relationships explicitly (Batch is near Mfg, MRP is before Qty)
+- [ ] Stricter JSON schema enforcement
+
+## Code Fixes
+- [ ] Update [lib/aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) with the new prompt
+- [ ] Add more validation in [normalizeMedicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#150-183) (e.g., if Batch looks like a placeholder, null it)
+- [ ] Ensure [dedup](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#184-222) isn't masking extraction errors
+
+## Verification
+- [ ] Request user to test with the same invoice

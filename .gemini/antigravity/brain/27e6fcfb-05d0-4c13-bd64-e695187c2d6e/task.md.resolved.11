@@ -1,0 +1,19 @@
+# Task Track
+
+- [x] Analyze schema and validation for purchase rates
+- [x] Update Prisma schema to make purchaseRate optional
+- [x] Update Zod schemas in lib/schemas.ts
+- [x] Update Medicine Master Import (isolated from bill import)
+- [x] Update AI parsing prompt (support Batch, Expiry, Qty)
+- [x] Update ImportPriceList UI (show Qty)
+- [x] Update bulk-import API:
+  - [x] Handle Batch Number, Expiry Date, and Quantity
+  - [x] Implement refined pricing (MRP default to 1.2x Purchase Rate)
+  - [x] Track total stock added for the final summary
+- [x] Implement Gemini Vision direct image parsing
+- [x] Implement Multi-tier vision relay (Gemini -> Groq -> OpenRouter)
+- [x] Implement Date parsing for extracted expiry dates
+- [x] Final verification of "Import Bill" flow
+- [ ] Restructure Settings Page Tabs
+- [ ] Implement Multi-tier Vision Fallback (Done)
+- [ ] Implement Functional Dark Mode (Black & Golden)

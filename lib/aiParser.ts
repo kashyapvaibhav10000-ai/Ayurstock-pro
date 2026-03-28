@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
-const pdfParse = require('pdf-parse') as (buffer: Buffer, options?: any) => Promise<{ text: string; numpages: number }>;
+// pdf-parse will be loaded locally to avoid build-time ReferenceErrors (DOMMatrix is not defined)
+
 
 export type FieldConfidence = 'high' | 'medium' | 'low';
 
@@ -986,6 +987,7 @@ async function parseWithGroq(pdfBuffer: Buffer): Promise<ParseResult> {
 
   let text = '';
   try {
+    const pdfParse = require('pdf-parse');
     const pdfData = await pdfParse(pdfBuffer, { max: 100 });
     text = pdfData.text;
   } catch (e) {
@@ -1283,6 +1285,7 @@ async function parseWithOpenRouter(text: string, pdfType: PdfType = 'scanned'): 
 async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
   // Try pdf-parse first
   try {
+    const pdfParse = require('pdf-parse');
     const pdfData = await pdfParse(pdfBuffer, { max: 100 });
     if (pdfData.text && pdfData.text.trim().length > 50) {
       return pdfData.text;

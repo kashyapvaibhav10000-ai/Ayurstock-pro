@@ -1,0 +1,67 @@
+# Walkthrough: AI Import Bill Pipeline — Complete Overhaul
+
+## Summary of All Changes
+
+### 1. Expiry Date Normalization ✅
+Added [normalizeExpiryDate()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#624-670) in [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock pro/lib/aiParser.ts)
+
+| Input | Output |
+|-------|--------|
+| `Sep-26` | `2026-09-30` |
+| `Feb-28` | `2028-02-28` |
+| `Nov-25` | `2025-11-30` |
+| `01-28` | `2028-01-31` |
+
+Uses **last day of month** (pharmacy standard).
+
+---
+
+### 2. PTR vs PTS Distinction ✅
+The AI prompt now explicitly maps:
+- **PTS** → `purchaseRate` (what you paid)
+- **PTR** → `ptr` → stored as `tradePrice` (retailer reference price)
+- **MRP** → `mrp` (maximum retail price)
+- **Disc%** → `discount` (trade discount)
+- **CD%** → `cashDiscount` (cash discount)
+
+---
+
+### 3. Invoice Metadata Extraction ✅
+The AI now extracts header metadata:
+- `invoiceNumber` (e.g. `AIU25G6408`)
+- `invoiceDate` (e.g. `27-Feb-26`)
+- `supplierName` (e.g. `AYUKALP UAP PHARMA PVT LTD`)
+
+Logged to server console for audit trails.
+
+---
+
+### 4. Generalized Vision Prompt ✅
+Removed Ayukalp-specific hardcoding. The prompt now works with **any** Indian pharmacy invoice by:
+- Reading the table header row to identify columns
+- Extracting packing **separately** from medicine name
+- Stopping at "Total" or "Taxable Amount" row
+
+---
+
+### 5. Smart Deduplication ✅
+[dedup()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#196-234) merges duplicate medicines (same name + company + packing) by summing quantities.
+
+---
+
+### 6. Quality-Based Fallback ✅
+If Groq returns >40% missing batch/qty fields, it automatically falls back to Gemini 2.0 Flash or Claude 3.5 Sonnet.
+
+---
+
+### 7. Full-Screen Review UI ✅
+- Modal expanded to **98vw** (nearly full screen)
+- Font sizes increased to `text-sm` with bold financial values
+- Quantity inputs highlighted with `bg-primary/5` styling
+
+---
+
+## Deploy
+```bash
+cd ~/Ayurstock-pro && git pull && npm run build && systemctl restart ayurstock
+```

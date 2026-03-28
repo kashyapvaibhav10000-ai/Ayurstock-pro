@@ -1,0 +1,35 @@
+# Implementation Plan - Fix shopId Mismatch
+
+Resolving the critical bug where medicines are saved with an incorrect or hardcoded `shopId`, making them invisible in the dashboard.
+
+## Proposed Changes
+
+### [API] Bulk Insertion
+Ensure `shopId` is correctly pulled from the authenticated user and logged.
+
+#### [MODIFY] [bulk-insert/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/bulk-insert/route.ts)
+- Add logging for `auth.user.shopId` and the `shopId` used in Prisma calls.
+- Verify that every [create](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/middleware/auth.ts#79-90), [update](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/MoveToInventoryModal.tsx#74-79), and `findFirst` call uses `user.shopId`.
+
+### [API] Medicines Search
+Ensure the search API uses the same `shopId` as the bulk-insert.
+
+#### [MODIFY] [search/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/search/route.ts)
+- Add logging for the `shopId` used during the search query.
+- Confirm it resolves correctly from the auth context.
+
+### [API] Clear All
+Ensure the clear-all logic is scoped correctly to the user's `shopId`.
+
+#### [MODIFY] [clear-all/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/clear-all/route.ts)
+- Verify and add logging for the `shopId` used in deletion operations.
+
+## Verification Plan
+
+### Automated Tests
+- Run `npm run lint` and `npm run build`.
+
+### Manual Verification
+- Perform a bulk import and check server logs for the saved `shopId`.
+- Load the medicines page and check logs for the fetch `shopId`.
+- Confirm they match and the newly imported medicines are visible.

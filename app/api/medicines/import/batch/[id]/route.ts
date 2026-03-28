@@ -9,8 +9,9 @@ import { parseTextWithAI } from '@/lib/aiParser';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: jobId } = await params;
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
@@ -19,7 +20,7 @@ export async function GET(
 
     const job = await prisma.pdfImportJob.findFirst({
       where: {
-        id: params.id,
+        id: jobId,
         shopId: auth.user.shopId,
       },
     });
@@ -53,8 +54,9 @@ export async function GET(
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: jobId } = await params;
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
@@ -63,7 +65,7 @@ export async function PATCH(
 
     const job = await prisma.pdfImportJob.findFirst({
       where: {
-        id: params.id,
+        id: jobId,
         shopId: auth.user.shopId,
       },
     });

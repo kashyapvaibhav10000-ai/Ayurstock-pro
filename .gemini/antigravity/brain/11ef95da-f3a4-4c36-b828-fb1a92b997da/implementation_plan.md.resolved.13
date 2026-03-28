@@ -1,0 +1,30 @@
+# Implementation Plan - Pagination and Clear All Fixes
+
+Fixing two bugs: pagination on the medicines page to show all records (700+) and resolving foreign key errors in the clear-all API endpoint.
+
+## Proposed Changes
+
+### [API] Clear All Medicines
+Modify the deletion order to ensure child records (SaleItem, PurchaseItem, etc.) are deleted before their parents (InventoryBatch, Medicine).
+
+#### [MODIFY] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/clear-all/route.ts)
+- Reorder deletions: `saleItem`, `purchaseItem`, `return`, `medicineReturn`, `stockLedger`, `inventoryBatch`, `medicine`.
+- Ensure `shopId` filter is used consistently.
+
+### [Frontend] Medicines Dashboard Pagination
+Implement pagination in the medicines list to handle large datasets.
+
+#### [MODIFY] [page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/medicines/page.tsx)
+- Add `currentPage` and `pageSize` state.
+- Update [loadMedicines](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/medicines/page.tsx#182-198) to pass `offset` and `limit` to the API.
+- Update API response handling to extract `total` count.
+- Add pagination controls (Next/Previous, "Showing X-Y of Z").
+
+## Verification Plan
+
+### Automated Tests
+- Run `npm run lint` and `npm run build`.
+
+### Manual Verification
+- Test "Clear All" as Admin and verify database is wiped without errors.
+- Verify medicines list shows 50 items and pagination works across 700+ records.

@@ -1,0 +1,33 @@
+# Pharmacy Invoice Import Enhancements
+
+Enhance the "Import Bill" feature to accurately extract batch numbers, expiry dates, and quantities from phone photos of pharmacy invoices, with robust multi-tier AI fallback.
+
+## User Review Required
+> [!IMPORTANT]
+> The "Import Bill" (Inventory) path is now strictly isolated from "Medicine Master" import to prevent data contamination.
+> Multi-tier vision support ensures parsing works even if Gemini is rate limited.
+
+## Proposed Changes
+
+### AI Parsing Pipeline ([lib/aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts))
+- [x] **Gemini Vision Support**: Added direct image parsing for phone photos.
+- [x] **Multi-Tier Fallback**: Added relay (Gemini → Groq Vision → OpenRouter Vision).
+- [x] **Pharmacy-Specific Prompt**: Detailed instructions for Indian pharmacy invoices.
+- [x] **Extraction Fields**: Name, Packing, HSN, Batch No, Expiry, Qty, MRP, PTS.
+
+### Backend API ([app/api/medicine/bulk-import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/bulk-import/route.ts))
+- [x] **Inventory Batch Creation**: Automatically creates/updates batches.
+- [x] **Smart Pricing**: Defaults MRP to 1.2x Purchase Rate if missing.
+- [x] **Date Normalization**: Parses various expiry date formats.
+- [x] **Import Summary**: Returns counts of medicines, batches, and total stock.
+
+### Frontend UI ([components/medicine/import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx))
+- [x] **Direct Image Upload**: Bypasses client-side OCR for Gemini Vision.
+- [x] **Qty Column**: Shows extracted quantities in the preview table.
+
+## Verification Plan
+### Automated Tests
+- [ ] Verify multi-tier fallback via mock API failures (if dev environment allows).
+### Manual Verification
+- [x] Test with AYUKALP invoice image (sideways/phone photo).
+- [ ] Verify that Medicine Master PDF import remains unaffected.

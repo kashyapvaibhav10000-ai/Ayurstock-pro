@@ -1,0 +1,154 @@
+# Import Bill Feature — Complete History Report
+
+> **Scope:** Only the "Import Bill" (Image/Vision) feature in the Inventory page.  
+> **Not included:** PDF import in Medicine Master.
+
+---
+
+## Phase 1: Foundation (14–15 Mar 2026)
+
+### First Commit — `1cd871b`
+- Created the entire Import Bill pipeline from scratch
+- **Files created:**
+  - [components/medicine/import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx) — Upload → Process → Review modal
+  - [lib/aiParser.ts](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) — Multi-tier AI extraction engine
+  - [app/api/medicine/import-price-list/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/import-price-list/route.ts) — API endpoint for image upload
+  - [app/api/medicine/bulk-import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/bulk-import/route.ts) — Backend bulk insert with DB upsert
+
+### Initial Architecture:
+- **3-step wizard:** Upload → Processing → Review
+- **AI Tiers:** Gemini → Groq → OpenRouter (fallback chain)
+- Supported formats: PDF, Excel (.xlsx), Images (.png, .jpg)
+- Basic `SYSTEM_PROMPT` for parsing price lists and invoices
+
+### Type Fixes — `74a1306`
+- Fixed [ParsedMedicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx#48-65) type errors across aiParser.ts
+
+---
+
+## Phase 2: AI Model & Stability Upgrades (15–21 Mar 2026)
+
+### Model Updates — `a5b255d`, `b23f866`
+- Updated deprecated AI models (older Groq/OpenRouter models removed)
+- Fixed Groq API delay issues and Cloudflare chunk size limits
+- Added model-specific timeout handling
+
+### Syntax & Parser Fixes — `b9de755`
+- Fixed syntax errors in aiParser that caused 500 errors
+- Improved JSON extraction from AI responses ([extractJsonArray()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#138-149))
+
+### AI Fallback Chain Upgrade — `9a61a3a`
+- Added Cerebras as Tier 2 fallback
+- Added `gemini-flash-lite`, `gemma2-9b-it` to OpenRouter models
+- Improved error handling across all tiers
+
+---
+
+## Phase 3: Chunking & Truncation Bug Fix (24 Mar 2026)
+
+### Invoice Import Optimization — `1993952`
+- **Critical bug fix:** Text chunks were accumulating infinitely, causing timeouts
+- Added batch and quantity field support to the parser
+- Optimized connection pooling for Vercel/serverless deployment
+
+---
+
+## Phase 4: Vision Hallucination War (26 Mar 2026 — This Session)
+
+This was the major overhaul session where we battled AI hallucinations across 8+ iterations.
+
+### Iteration 1 — Anti-Hallucination Rules
+- Added explicit "DO NOT GUESS" rules to `INVOICE_IMAGE_PROMPT`
+- Instructed AI to use `null` instead of inventing batch numbers like `AC-N007`
+- **Result:** Row 1 (Naturally Churna) became 100% accurate ✅
+
+### Iteration 2 — Top-to-Bottom Scanning
+- Fixed the "reverse jump" bug where AI read from bottom to top
+- Added serial number anchoring (1, 2, 3... in order)
+- **Result:** Rows extracted in correct order ✅
+
+### Iteration 3 — Sr.No JSON Anchoring
+- Added `srNo` field to the JSON output as a positional anchor
+- Instructed AI to look "straight down" from column headers
+- **Result:** Batch numbers for Row 1 now correct (CH0087) ✅
+
+### Iteration 4 — Duplicate Medicine Merging ([dedup()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#196-234))
+- Created [dedup()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#196-234) function that merges rows with same name + company + packing
+- Sums quantities: Row 1 (72) + Row 2 (48) = **120**
+- Keeps best available data from each row
+- **Result:** Two "Naturally Churna" rows merged into one ✅
+
+### Iteration 5 — Quality-Based Model Fallback
+- Added quality checker: if >40% of rows have missing batch/qty → reject and try next tier
+- Forces fallback to Gemini 2.0 Flash or Claude 3.5 Sonnet for better accuracy
+- **Result:** System now auto-recovers from poor Groq extractions ✅
+
+### Iteration 6 — Model Tier Upgrades
+- **Groq:** Prioritized `llama-3.3-70b-versatile` over smaller 17B model
+- **OpenRouter:** Added `gemini-2.0-flash-001`, `gemini-2.0-flash-lite-001`, `claude-3.5-sonnet:beta`
+- Removed low-quality free models (`nvidia-nemotron-nano-12b`, `gemma-3-4b`)
+
+### Iteration 7 — Packing Normalization ([normalizePacking()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#593-623))
+- Created function to standardize AI output to UI dropdown values
+- `100GM` → `100 gm`, `30TAB` → `30 Tab`, `200ML` → `200 ml`
+
+### Iteration 8 — Full-Screen Review UI Redesign
+- Expanded modal from `max-w-6xl` to **`98vw`** (nearly full screen)
+- Increased all font sizes from `text-xs` to `text-sm`
+- Bolded MRP/PTS/Qty values for quick visual scanning
+- Added dedicated "Review & Validate Bill" header with inline Import button
+- Hidden step indicator during review to maximize table space
+
+### Iteration 9 — Expiry Date Normalization ([normalizeExpiryDate()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#624-670))
+- Converts `Sep-26` → `2026-09-30` (last day of month, pharmacy standard)
+- Handles formats: `MMM-YY`, `MMM-YYYY`, `MM/YY`, `MM-YY`
+
+### Iteration 10 — PTR/PTS/CD% Price Distinction
+- **PTS** → `purchaseRate` (what you paid)
+- **PTR** → `tradePrice` (retailer reference)
+- **MRP** → `mrp` (maximum retail)
+- **Disc%** → `discount` (trade discount)
+- **CD%** → `cashDiscount` (cash discount)
+
+### Iteration 11 — Invoice Metadata Extraction
+- AI now extracts from the invoice header:
+  - `invoiceNumber` (e.g. `AIU25G6408`)
+  - `invoiceDate` (e.g. `27-Feb-26`)
+  - `supplierName` (e.g. `AYUKALP UAP PHARMA PVT LTD`)
+- Updated [parseJsonSafely()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#235-284) to handle `{medicines: [...]}` object format
+
+### Iteration 12 — Generalized Prompt
+- Removed all Ayukalp-specific hardcoding (specific row hints, medicine names)
+- Prompt now works with ANY Indian pharmacy invoice by reading column headers dynamically
+
+---
+
+## Files Modified (Complete List)
+
+| File | Changes |
+|------|---------|
+| [lib/aiParser.ts](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) | Vision prompt (12 rewrites), [normalizeExpiryDate()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#624-670), [normalizePacking()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#593-623), [dedup()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#196-234), quality fallback, PTR/PTS/CD% support, [parseJsonSafely()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#235-284) update |
+| [components/medicine/import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx) | Full-screen modal (98vw), typography scaling, professional review header, comprehensive import toast |
+| [app/api/medicine/bulk-import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/bulk-import/route.ts) | Inventory batch auto-creation with batch number, expiry, quantity, pricing |
+| [app/api/medicine/import-price-list/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/import-price-list/route.ts) | Image upload endpoint with vision pipeline |
+
+---
+
+## Current Architecture
+
+```
+User uploads photo → API route → parseImageWithGeminiVision()
+  ├── Tier 1: Gemini 2.0 Flash (direct API)
+  ├── Tier 2: Groq (Llama 3.3 70B) ← Quality Check
+  └── Tier 3: OpenRouter (Gemini Flash / Claude 3.5 / Gemma 27B)
+       ↓
+  parseJsonSafely() → handles [...] or {medicines: [...]}
+       ↓
+  normalizeMedicines() → normalizePacking() + normalizeExpiryDate()
+       ↓
+  dedup() → merge duplicate rows, sum quantities
+       ↓
+  Review UI (98vw full-screen) → User validates → bulk-import API
+       ↓
+  Upsert Medicine Master + Create Inventory Batches
+```

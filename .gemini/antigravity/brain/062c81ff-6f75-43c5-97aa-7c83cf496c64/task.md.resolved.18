@@ -1,0 +1,20 @@
+# Task: Fix All Audit Issues
+
+## Security Hardening
+- [ ] Remove hardcoded JWT secret fallback in [lib/auth.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/auth.ts)
+- [ ] Remove all debug `console.log` from [lib/auth.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/auth.ts) and [api/auth/login/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/auth/login/route.ts)
+- [ ] Verify JWT in [middleware.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/middleware.ts), not just cookie existence
+- [ ] Add `shopId` filter to [getSaleDetails](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/services/billing.ts#323-347) (cross-tenant leak)
+
+## Functional Bugs
+- [ ] Connect Dashboard metrics to real `/api/dashboard/metrics` endpoint
+- [ ] Fix Reports page `hasData` hardcoded to `false`
+- [ ] Add stock quantity validation on Billing cart
+
+## Architecture Cleanup
+- [ ] Move `@prisma/client` from `devDependencies` to `dependencies`
+- [ ] Add `.eslintrc.json` so `npm run lint` works
+- [ ] Remove unused `socket.io` packages and dead [socket-client.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/socket-client.ts)
+
+## Deployment
+- [ ] Commit and push all fixes

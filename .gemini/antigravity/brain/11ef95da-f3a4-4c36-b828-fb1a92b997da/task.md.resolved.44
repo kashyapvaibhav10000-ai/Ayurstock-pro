@@ -1,0 +1,23 @@
+# Bulk Data Management Architecture
+
+## Phase 1: Storage and Config
+- [x] Remove transient `@ts-ignore` pragmas.
+- [x] Run `npx prisma generate` to force TS alignment.
+- [ ] Install `papaparse` for rigorous string-splitting security.
+
+## Phase 2: Secure Import Engine
+- [ ] Build mapping handler (`POST /api/settings/import-csv`) utilizing `papaparse`.
+- [ ] Construct the React Settings UI (`components/settings/data-import-settings.tsx`).
+- [ ] Implement "Download Template" CSV engine with 1 mocked row: `BRAHMI VATI,Ayukalp,BT001,2026-12-31,100,45.00,60.00,H1`.
+- [ ] Inject `5000` row blocks, Atomic rollback failures, string sanitizers, and `ADMIN` locks.
+- [ ] Track distinct `added`, `updated`, and `skipped` ingestion variables passing to the generic summary UI.
+- [ ] Configure [app/dashboard/settings/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx) pulling in the `import` tab natively.
+
+## Phase 3: Reporting Suite
+- [ ] Construct utility `lib/exportUtils.ts` formatting standard structures to `Blob`.
+- [ ] Add `Download Report` button to [app/dashboard/inventory/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx).
+- [ ] Map Inventory outputs precisely: `Medicine Name`, [Company](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/AddInventoryModal.tsx#133-139), `Category`, `Batch Number`, `Expiry Date`, `Stock Quantity`, `Purchase Rate`, `MRP`, `Rack Location`, `Days Until Expiry`.
+- [ ] Apply specific formatting to `Days Until Expiry` (<= 30 is `EXPIRING SOON`, <=0 is `EXPIRED`, else digits).
+- [ ] Inject strict temporal `expiry (ascending)` sorting override onto the CSV compiler.
+- [ ] Add `Download Report` execution `<Button>` inside [app/dashboard/returns/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/returns/page.tsx) tracking ledger metadata.
+- [ ] Push codebase updates gracefully to Github remote.

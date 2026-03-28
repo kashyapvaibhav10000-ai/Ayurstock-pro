@@ -1,0 +1,19 @@
+# Implement Returns Management System
+
+## Phase 1: Database & Backend
+- [x] Add `MedicineReturn` model to [prisma/schema.prisma](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/prisma/schema.prisma) (with `type` field)
+- [x] Run `npx prisma db push` (bypassing SQLite migration footprint)
+- [x] Create `GET /api/returns` route (Secured, shop filter, pagination/search)
+- [x] Create `POST /api/returns` route (Secured, validation, directional upsert logic, ActivityLog)
+
+## Phase 2: User Interface Core
+- [x] Update [components/Sidebar.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/Sidebar.tsx) to include the `Returns` navigation link below Inventory
+- [x] Create `app/dashboard/returns/page.tsx` structural layout (Header, Search, Table)
+- [ ] Implement Returns Table component with all requested columns
+
+## Phase 3: Add Return Modal & Logic
+- [ ] Create `components/AddReturnModal.tsx`
+- [ ] Wire up Medicine/Company selection dropdowns with live search
+- [ ] Implement strict input validation (MRP > 0, required fields, etc.)
+- [ ] Integrate API submission, toast notifications, and table reload mechanism
+- [ ] Push to GitHub

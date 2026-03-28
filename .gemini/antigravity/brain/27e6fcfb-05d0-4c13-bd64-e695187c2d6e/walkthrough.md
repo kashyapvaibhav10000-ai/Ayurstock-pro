@@ -1,0 +1,40 @@
+# Walkthrough: Premium "Soft Black & Gold" Dark Mode Finalization
+
+We have successfully completed the comprehensive visual overhaul of AyurStock Pro. The application now features a cohesive, professional, and eye-friendly "Soft Black & Gold" theme across all user-facing interfaces.
+
+## 🎨 Design Achievements
+
+### 1. Global Theme Architecture
+- **Palette**: Standardized on `#0A0A0A` (Background) and `#1A1A1A` (Surface) with `#D4AF37` (Gold) as the primary accent.
+- **Typography**: Shifted to high-contrast, bold layouts (`font-black`/`font-bold`) with uppercase tracking for a premium technical feel.
+- **Glassmorphism**: Implemented backdrop blurs and subtle reflections in the Dashboard Header and Mobile Navigation.
+
+### 2. Core Page Transformation
+- **Dashboard**: Refactored bento-grid metrics, charts, and transaction monitors to use theme-aware variables.
+- **Billing**: Modernized the checkout summary, cart items, and search interface with the new aesthetic.
+- **Settings**: All sub-tabs (Activity Log, AI Usage, Login History, System Settings) are now fully refactored and standardized.
+
+### 3. Navigation & Identity
+- **Sidebar**: Standardized icons and active states with gold gradients and shadows.
+- **Mobile Experience**: Refactored the bottom navigation bar with a premium "Command Center" look, including gold-accented active states and backdrop blurs.
+- **Login Page**: Transformed from green/emerald to a high-end "Clinical Sanctuary" look with gold glow effects and refined typography.
+
+## 🛠️ Structural & Functional Improvements
+
+- **Settings Reorganization**:
+  - Moved **Invoice Settings** to the **Billing** section.
+  - Moved **Preferences (System Settings)** to the **General** section.
+  - Re-ordered categories for more intuitive access.
+- **Print Core**: Added global media queries to ensure invoices always print in high-contrast light mode regardless of the active UI theme.
+- **UI Component Refactor**: Updated foundational components (`Button`, `Input`) to use the new theme tokens, ensuring design consistency across all existing and future modals.
+
+## 📹 Verification Highlights
+
+### Mobile & Dark Mode Consistency
+Standardized borders and backgrounds ensure that the "Hamburger Menu" and the Sidebar overlay look stunning on all devices.
+
+> [!TIP]
+> Use the **System Calibration** tab in Settings to toggle between themes. The "Soft Black & Gold" mode is designed specifically for long clinical shifts to minimize eye strain.
+
+---
+**Status**: All requested UI components have been modernized and verified for theme consistency.

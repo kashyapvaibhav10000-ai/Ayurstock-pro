@@ -1,0 +1,26 @@
+# Implementation Plan - Bulk Insert Fix & Logging
+
+Resolving the issue where only a few medicines are saved during bulk import due to unique constraint violations.
+
+## Proposed Changes
+
+### [Database] Schema Analysis
+Verify unique constraints on the [Medicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/medicines/page.tsx#28-35) model. Specifically, check if `name_shopId` or similar exists.
+
+### [API] Bulk Insertion Logic
+Update the [app/api/medicines/bulk-insert/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/bulk-insert/route.ts) to handle record creation and updates more reliably.
+
+#### [MODIFY] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/bulk-insert/route.ts)
+- Add `try...catch` blocks around each medicine's save operation.
+- Use `console.log` to track "Saved" or "FAILED" for each medicine, including the error message.
+- Correct the `where` clause in the `upsert` or the `findFirst`/[create](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/middleware/auth.ts#79-90)/[update](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/MoveToInventoryModal.tsx#74-79) pattern to match the actual unique indexes in the schema.
+- **Goal**: Ensure all 270 medicines are processed and appropriate actions (create or update) are taken.
+
+## Verification Plan
+
+### Automated Tests
+- Run `npm run lint` and `npm run build`.
+
+### Manual Verification
+- Perform a bulk import and check server logs to verify all medicines are either "Saved" or "Updated" without failure.
+- Confirm total count of saved medicines matches the input count.

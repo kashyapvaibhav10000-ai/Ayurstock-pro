@@ -1,0 +1,62 @@
+# Debian Server Setup & Migration Guide
+
+Since you're moving from Vercel to a local Debian laptop with Docker and Cloudflare Tunneling, here's the recommended workflow.
+
+## 1. Install Docker on Debian
+Run these commands on your Debian laptop to install Docker and Docker Compose:
+
+```bash
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates cursor-utils curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+# Install Docker packages:
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+## 2. Prepare Environment Variables
+On the laptop, create a `.env` file in the project root. You'll need to define your secrets (like OpenRouter keys, Auth secrets, etc.).
+
+> [!IMPORTANT]
+> In `docker-compose.yml`, the `DATABASE_URL` is already pre-configured to point to the `db` container.
+> `DATABASE_URL=postgres://postgres:password@db:5432/ayurstock?schema=public`
+
+## 3. Cloudflare Tunnel Setup
+1.  Go to the [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/).
+2.  Navigate to **Networks** > **Tunnels**.
+3.  Create a new Tunnel (select **Cloudflared**).
+4.  Copy the **Tunnel Token** provided in the "Choose your environment" section.
+5.  Add this token to your environment or replace `${CLOUDFLARE_TUNNEL_TOKEN}` in `docker-compose.yml`.
+
+## 4. Deploy the Application
+Once you have your files on the laptop, run:
+
+```bash
+# Build and start all services in the background
+docker compose up -d --build
+```
+
+## 5. Initialize the Database
+After the containers are running, you need to sync your database schema:
+
+```bash
+# Run Prisma migrations inside the app container
+docker exec -it ayurstock-app npx prisma migrate deploy
+```
+
+---
+
+### Why this approach?
+- **Isolation**: Each component (Next.js, Postgres, Cloudflare) runs in its own container.
+- **Standalone Mode**: The Next.js build is optimized to exclude unnecessary files, making the image very small (~100MB instead of ~1GB).
+- **Security**: Cloudflare Tunneling means you don't need to open any ports (like 80 or 443) on your router. No static IP or dynamic DNS required.

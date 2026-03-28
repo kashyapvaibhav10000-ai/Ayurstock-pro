@@ -1,0 +1,28 @@
+# Fix: AI Vision Extraction Hallucinations
+
+The current vision extraction for "Ayukalp" bills is failing significantly, with the AI hallucinating placeholder batch numbers, expiries, and prices (e.g. inventing `AC-N007` from `Naturally Churna`).
+
+## Proposed Changes
+
+### [Component] AI Parser ([lib/aiParser.ts](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts))
+
+#### [MODIFY] [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+- **Strengthen `INVOICE_IMAGE_PROMPT`:**
+    - Add a "Visual Mapping" guide: Explain that Sr.No is Column 1, Description is Column 2, Batch is Column 6, MRP is Column 9, Qty is Column 10, PTS is Column 13.
+    - Explicitly forbid "Placeholder" guessing. If an expiry or batch is not clearly readable, it MUST be `null`.
+    - Tell the AI that Batch numbers are alphanumeric codes (e.g., `CH0087`), not prefixed versions of the medicine name.
+    - Instruct the AI to look at the **Footer** to verify the total count of medicines.
+- **Adjust Model Priority:**
+    - Increase Gemini usage priority.
+    - If using Groq, suggest higher-tier models if available (currently using 17b which is small).
+
+## Verification Plan
+
+### Manual Verification
+1. Ask the user to re-upload the **same Ayukalp bill**.
+2. Verify that:
+    - All 7 medicines are listed.
+    - Batch numbers match the bill (e.g., `CH0087`).
+    - Quantities match (72, 48, etc.).
+    - MRP and PTS match (e.g., MRP 112.50).
+    - No `AC-N007` or `MA-004` hallucinations occur.

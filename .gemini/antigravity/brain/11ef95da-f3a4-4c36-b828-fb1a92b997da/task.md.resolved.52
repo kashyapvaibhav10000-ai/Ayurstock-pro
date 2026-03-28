@@ -1,0 +1,12 @@
+# Task Management
+
+- [x] Clear All Fixes
+    - [x] Reorder deletions in [clear-all/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/clear-all/route.ts)
+    - [x] Verify foreign key constraints are handled
+- [x] Medicines Pagination
+    - [x] Add pagination state to [MedicinesPage](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/medicines/page.tsx#98-745)
+    - [x] Update [loadMedicines](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx#89-102) for offset/limit
+    - [x] Implement pagination UI controls
+- [ ] Final Verification
+    - [/] `npm run lint`
+    - [ ] `npm run build`

@@ -1,0 +1,17 @@
+# 3-Tier AI Fallback Implementation Checklist
+
+## Phase 1: Engine Preparation & Memory Setup
+- [ ] Initialize persistent `dailyUsage` memory logic inside [lib/aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts).
+- [ ] Implement `checkAndResetDailyUsage()` invoked conditionally at the top of the AI export chain.
+
+## Phase 2: Tier Integrations ([lib/aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts))
+- [ ] Implement natively required [ParseResult](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#18-24) type extensions mapping `provider?: 'gemini' | 'groq' | 'openrouter'`.
+- [ ] **Tier 1 (Gemini)**: Build `parseWithGemini(buffer)` evaluating base64 payloads to `gemini-2.0-flash`. Mount HTTP `429` catch blocks cascading to Tier 2.
+- [ ] **Tier 2 (Groq)**: Build `parseWithGroq(buffer)` extracting native text strictly utilizing `pdf-parse`, routing through `llama-3.3-70b-versatile`. Configure HTTP `429` boundary cascading to Tier 3.
+- [ ] **Tier 3 (OpenRouter Slow)**: Refactor existing [parseChunkWithAI](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#349-389) loops to explicitly delay `15000ms`, removing internal concurrency races.
+- [ ] Wire the encompassing [parsePDFWithAI(buffer)](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#497-615) generic entrypoint to automatically sequentially cascade down through the Tiers based precisely on the HTTP status payloads.
+
+## Phase 3: Consumer Hooks & UI Formatting
+- [ ] Edit [app/api/medicines/import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/route.ts) and [app/api/medicine/import-price-list/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/import-price-list/route.ts) to securely extract the `provider` property.
+- [ ] Embed the exact `X-AI-Provider` string map into the terminating `NextResponse` JSON.
+- [ ] Extract the UI components triggering `/api/medicines/import` and securely map the localized React states to display: `Processed by {Provider} (slow mode)? ✓`.

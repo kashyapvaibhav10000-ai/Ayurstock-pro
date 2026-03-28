@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Implementation plan for all 7 Import Bill upgrades: duplicate invoice check, rule-based validation, partial row accept/reject, expiry warning, restock detection, confidence UI, and OCR split.",
+  "updatedAt": "2026-03-26T11:11:20.290921500Z",
+  "version": "3"
+}

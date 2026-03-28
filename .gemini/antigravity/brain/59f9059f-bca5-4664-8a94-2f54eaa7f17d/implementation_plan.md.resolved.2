@@ -1,0 +1,48 @@
+# Precision Fixes for Import Bill Pipeline
+
+These changes improve the accuracy and data completeness of the AI-powered Import Bill feature.
+
+## Proposed Changes
+
+### AI Parser Core
+
+#### [MODIFY] [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock pro/lib/aiParser.ts)
+
+**1. Add `normalizeExpiryDate()` function** (after [normalizePacking](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#542-572))
+- Converts `MMM-YY` → `YYYY-MM-DD` (last day of month, pharmacy standard)
+- Examples: `Sep-26` → `2026-09-30`, `Feb-28` → `2028-02-28`, `Nov-25` → `2025-11-30`
+
+**2. Add `ptr` and `cashDiscount` to [ParsedMedicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx#48-65) interface**
+- `ptr`: Price to Retailer (reference price)
+- `cashDiscount`: CD% column value
+
+**3. Update [normalizeMedicine()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#150-183) to handle new fields**
+- Parse `ptr`, `cashDiscount` from AI output
+- Call `normalizeExpiryDate()` on `expiryDate`
+
+**4. Rewrite `INVOICE_IMAGE_PROMPT`** (remove Ayukalp-specific hardcoding)
+- Generalize for ANY Indian Ayurvedic invoice
+- Explicitly map: `purchaseRate = PTS`, `ptr = PTR`, `mrp = MRP`
+- Add CD% extraction
+- Add invoice metadata extraction (invoiceNumber, invoiceDate, supplierName)
+
+**5. Update [normalizeMedicines()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#573-583) to apply expiry normalization**
+
+---
+
+### Frontend Review Screen
+
+#### [MODIFY] [import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock pro/components/medicine/import-price-list.tsx)
+
+**1. Add `ptr` and `cashDiscount` to [ParsedMedicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx#48-65) interface**
+
+**2. Add invoice metadata display** at top of review screen
+
+---
+
+## Verification Plan
+
+### Manual Verification
+- Deploy to server with `git pull && npm run build && systemctl restart ayurstock`
+- Re-test with the same Ayukalp invoice photo
+- Verify all 7 medicines extracted correctly with proper expiry dates, batch numbers, and quantities

@@ -1,0 +1,11 @@
+# Task Management
+
+- [x] Schema Verification
+    - [x] Check unique indexes for [Medicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/medicines/page.tsx#28-35) in [schema.prisma](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/prisma/schema.prisma)
+- [x] Bulk-Insert Fixes
+    - [x] Add per-medicine `try...catch` and `console.log`
+    - [x] Update uniqueness check logic to match schema indexes
+    - [x] Ensure `packing` is handled in a way that respects constraints
+- [/] Final Verification
+    - [/] `npm run lint`
+    - [ ] `npm run build`

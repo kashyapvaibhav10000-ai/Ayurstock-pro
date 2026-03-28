@@ -1,0 +1,12 @@
+# Task: Test PDF Import Functionality
+
+## Checklist
+- [x] Check login status (Already logged in)
+- [ ] Navigate to Medicines/Inventory page
+- [ ] Open Import Medicines modal
+- [ ] Verify OCR-related UI elements
+- [ ] Take screenshots at each step
+
+## Progress
+- Currently on Dashboard.
+- Need to find navigation to Medicines.

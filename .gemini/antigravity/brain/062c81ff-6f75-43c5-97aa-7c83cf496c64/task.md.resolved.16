@@ -1,0 +1,8 @@
+# Task: Comprehensive Software Audit
+
+- [/] **Full Codebase Review**
+    - [/] Scan all pages, components, API routes, and config
+    - [ ] Identify strengths (Pros)
+    - [ ] Identify weaknesses (Cons)
+    - [ ] Identify remaining bugs
+    - [ ] Document findings in audit report

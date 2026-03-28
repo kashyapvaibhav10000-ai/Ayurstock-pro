@@ -1,0 +1,5 @@
+# Browser Task Checklist
+
+- [ ] Open `file:///c:/Users/vaibh/p2/index.html` in the browser <!-- id: 0 -->
+- [ ] Wait for 2 seconds for animations <!-- id: 1 -->
+- [ ] Conclude the task <!-- id: 2 -->

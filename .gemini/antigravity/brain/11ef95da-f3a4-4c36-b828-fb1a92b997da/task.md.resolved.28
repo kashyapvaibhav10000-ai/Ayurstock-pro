@@ -1,0 +1,7 @@
+# Debian Auto-Deployment Cron
+
+- [x] Write [scripts/deploy.sh](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/scripts/deploy.sh)
+- [x] Implement Git HEAD diff checking to prevent continuous rebuild crashes
+- [x] Auto-inject npm install, build, and systemctl restart inside the script
+- [x] Push script to GitHub
+- [x] Provide user the exact `crontab` one-liner to initialize it on their server

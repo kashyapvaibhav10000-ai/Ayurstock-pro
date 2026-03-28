@@ -1,0 +1,36 @@
+# Implementation Plan - Import Logic Fixes (Packing & Dedup)
+
+Fixing issues with medicine import where packing sizes are not correctly mapped to categories and different packings of the same medicine are incorrectly merged.
+
+## Proposed Changes
+
+### [Core] AI Parser Logic
+Ensure deduplication is strictly based on Name + Packing.
+
+#### [MODIFY] [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+- Verify [dedup](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#136-144) logic uses `name` and `packing`.
+- Ensure `name` and `packing` are consistently cleaned/normalized.
+
+### [Frontend] Import Preview Mapping
+Auto-map AI-extracted packing strings to categories and ensure the packing field is pre-filled.
+
+#### [MODIFY] [ImportMedicinesModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx)
+- Update [detectCategory](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx#524-539) to map "ML" -> "Syrup", "TAB" -> "Tablet", "CAP" -> "Capsule", "GM/KG" -> "Powder".
+- Update the packing dropdown rendering to ensure it displays the AI-extracted packing text even if not in the predefined `PACKAGING_OPTIONS` list.
+
+### [API] Bulk Insertion
+Ensure different packing sizes create distinct database rows.
+
+#### [MODIFY] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/bulk-insert/route.ts)
+- Update the `findFirst` check to include `packing` in the filter. This prevents a medicine with a different packing from overwriting an existing one with the same name/company.
+- Ensure `packing` is correctly trimmed and persisted.
+
+## Verification Plan
+
+### Automated Tests
+- Run `npm run lint` and `npm run build`.
+
+### Manual Verification
+- Import a PDF with medicines having different packings (e.g., 200ML, 400ML) and verify they appear as separate rows.
+- Verify the "Category" dropdown is correctly pre-selected based on the packing suffix (ML/TAB/CAP/GM).
+- Verify the final save to the database preserves the packing string.

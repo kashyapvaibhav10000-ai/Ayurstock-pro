@@ -1,0 +1,26 @@
+# Make Purchase Rate Optional
+
+Make `purchaseRate` an optional field in the database and validation schemas to allow users to add medicines to inventory without immediate pricing data.
+
+## Proposed Changes
+
+### Database (Prisma)
+- [ ] Modify [prisma/schema.prisma](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/prisma/schema.prisma) to make `purchaseRate` optional in [InventoryBatch](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx#23-35) and `PurchaseItem`.
+- [ ] Run `npx prisma generate` (and ideally a migration if possible, but I'll focus on the schema first).
+
+### Validation (Zod)
+- [ ] Update [lib/schemas.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/schemas.ts) to make `purchaseRate` optional in `CreateBatchSchema` and `CreatePurchaseSchema`.
+- [x] Update AI parsing prompt and support fields in lib/aiParser.ts
+- [x] Update ImportPriceList UI to show extracted quantities
+- [ ] Update bulk-import API to handle Batch Number, Expiry Date, and Quantity
+- [ ] Implement Date parsing for extracted expiry dates (e.g. "Jan-28")
+
+### API & Logic
+- [ ] Review [app/api/inventory/batches/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/inventory/batches/route.ts) to ensure it handles null `purchaseRate`.
+- [ ] Review medicine import logic (likely in [app/api/medicines/import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/route.ts) or similar).
+
+## Verification Plan
+### Automated Tests
+- [ ] Verify that a batch can be created without a `purchaseRate` via a test script.
+### Manual Verification
+- [ ] Visual check of the medicine master and inventory add forms (if available).

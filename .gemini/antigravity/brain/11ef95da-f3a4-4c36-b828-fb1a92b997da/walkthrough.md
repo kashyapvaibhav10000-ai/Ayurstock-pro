@@ -1,0 +1,35 @@
+# Walkthrough - System Enhancements & Security Fixes
+
+I have completed a major set of enhancements to AyurStock Pro, focusing on security, administrative observability, and procurement management.
+
+## 1. Database & Security Hardening
+- **Medicine Pricing**: The `Medicine` model now includes `mrp` and `tradePrice` fields. This allows for master-level price tracking while maintaining support for batch-specific pricing.
+- **Import Job Security**: Added `shopId` to the `ImportJob` model. Background medicine imports are now strictly isolated between shops, preventing data leaks in status tracking.
+
+## 2. Administrative Control Panels (Settings)
+Three new tabs have been added to the Settings page (Visible to ADMINs):
+
+### Activity Log
+A real-time, paginated audit trail of all significant actions taken within the shop. Shows date, user, action type, and technical metadata.
+
+### AI Usage Analytics
+Observability into the platform's AI provider usage.
+- **Providers**: Track volume across Gemini, Groq, Mistral, Workers AI, and OpenRouter.
+- **Visuals**: Includes a responsive bar chart showing daily distribution (Last 30 days).
+- **Optimization**: Helps monitor fallback sequences and resource efficiency.
+
+### Login History
+Security-focused monitoring of user access.
+- **Audit**: Tracks all login attempts with timestamps, users, IP addresses, and success/failure status.
+
+## 3. Procurement Management (Suppliers)
+The Suppliers module has transitioned from a placeholder to a full management suite:
+- **Directory**: Paginated list of all distributors with contact details.
+- **CRUD Operations**: Securely add, edit, or remove suppliers with `ADMIN/MANAGER` roles.
+- **Contextual History**: View the most recent purchase invoices associated with each supplier directly from their contact card.
+
+## Verification Results
+- **Prisma Schema**: Synchronized with `db push` and client regenerated.
+- **Build Quality**: `npm run build` and `npm run lint` passed successfully.
+- **Repo Sync**: All files committed and pushed to the repository.
+- **Multi-tenancy**: All new APIs and filters enforce `shopId` scoping.

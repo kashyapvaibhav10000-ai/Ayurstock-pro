@@ -1,0 +1,27 @@
+# Admin User Management Integration
+
+## Security & Architecture Upgrades 🛡️
+
+Based on the feedback, the architecture follows strict SaaS patterns:
+1. **Shop Isolation:** All queries aggressively filter by `where: { shopId: auth.user.shopId }`.
+2. **Password Security:** Passwords are hashed heavily on [POST](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/bulk-import/route.ts#34-205). `PUT` completely ignores password fields.
+3. **Role Guards:** `ADMIN` cannot delete or demote another `ADMIN` to prevent lockouts.
+4. **Data Sanitization:** The `GET` request explicitly excludes `passwordHash` from the return object.
+5. **Soft Deletes:** `DELETE` requests update `isActive: false` instead of destroying database records, preserving historical sales logs linked to that user.
+
+## Proposed Changes
+
+### Backend APIs
+#### [NEW] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/users/route.ts)
+- `GET`: Fetch all users for the current shop (Admin only).
+- [POST](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/bulk-import/route.ts#34-205): Create a new user with hashed password (Admin only).
+#### [NEW] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/users/[id]/route.ts)
+- `PUT`: Update existing user details (Name, Email, Role, Status) (Admin only). Prevent changing Admin roles.
+- `DELETE`: Update `isActive: false` (Admin only). Prevent deleting Admins.
+
+### Frontend UI
+#### [MODIFY] [user-settings.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/user-settings.tsx)
+- Add optimistic UI state updates so the UI flashes instantly.
+- Add Loading and Error states for seamless UX.
+- Include deep form validation (Zod + React Hook Form).
+- Connect to the secure backend endpoints.

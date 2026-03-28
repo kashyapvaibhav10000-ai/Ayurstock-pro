@@ -1,0 +1,6 @@
+# Debugting Login Page Error
+
+## Plan
+- [ ] Add `app/error.tsx` to catch the underlying Next.js error.
+- [ ] Investigate the real error.
+- [ ] Fix the underlying error.

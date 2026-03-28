@@ -4,8 +4,9 @@ import { verifyAuth } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: supplierId } = await params;
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
@@ -14,7 +15,7 @@ export async function GET(
 
     const supplier = await prisma.supplier.findFirst({
       where: {
-        id: params.id,
+        id: supplierId,
         shopId: auth.user.shopId,
       },
       select: {

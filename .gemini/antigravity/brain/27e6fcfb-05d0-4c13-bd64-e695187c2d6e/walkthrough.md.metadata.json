@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary": "Finalized the Premium 'Soft Black & Gold' dark mode overhaul for AyurStock Pro.\n- Refactored Dashboard, Billing, and Settings pages for theme consistency.\n- Standardized Sidebar, Header, and Mobile Navigation with gold accents.\n- Modernized Login page with a clinical sanctuary aesthetic.\n- Reorganized Settings categories for improved UX.\n- Ensured print safety for invoices.\n- Standardized core UI components (Button, Input) to the new theme.",
+  "updatedAt": "2026-03-25T20:16:09.600576400Z",
+  "version": "5"
+}

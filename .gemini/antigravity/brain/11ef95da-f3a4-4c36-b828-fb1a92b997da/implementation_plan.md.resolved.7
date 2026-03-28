@@ -1,0 +1,22 @@
+# Medicine Returns System Implementation Plan
+
+## Overview
+We will build a comprehensive, full-stack "Returns" feature allowing `ADMIN` and `MANAGER` roles to log and cleanly re-integrate returned medicines back into the live inventory.
+
+## 1. Database Schema ([prisma/schema.prisma](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/prisma/schema.prisma))
+We will append the requested `MedicineReturn` model exactly as specified, creating secure foreign key constraints linking to the [Shop](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/InvoiceTemplate.tsx#9-17), [Medicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/MoveToInventoryModal.tsx#10-16), and [User](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/user-settings.tsx#21-29) models. We will execute `npx prisma migrate dev --name add_medicine_returns` using PM2 to safely migrate the live database.
+
+## 2. API Architecture (`app/api/returns/route.ts`)
+- **GET**: Will fetch historical returns, joining the [Medicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/MoveToInventoryModal.tsx#10-16), `Company`, and `createdBy` relations. It will strict-filter by the authenticated user's `shopId`.
+- **POST**: Will handle the complex transaction of logging the return *and* injecting the stock back into the inventory. It will automatically check if the specific `batchNumber` and `expiryDate` already exist in the inventory. If it does, it will increment the stock. If it doesn't, it will gracefully construct a new inventory batch. It will also fire an `ActivityLog` event.
+
+## 3. Frontend Architecture
+- **Sidebar Integration**: The `RotateCcw` icon will instantly appear below the Inventory tab for authorized roles.
+- **`app/dashboard/returns/page.tsx`**: A dashboard providing a sweeping view of all past returns, complete with dynamic search and empty states.
+- **`components/AddReturnModal.tsx`**: A heavy-duty form component. It will feature:
+  - Strict mandatory field validation (Company, Medicine, Expiry, MRP, Quantity > 0)
+  - Interactive disabled states to prevent premature submission
+  - Real-time Axios integration to trigger the `POST /api/returns` endpoint and force a table re-render.
+
+## User Action Required
+Please approve this architectural breakdown so I can immediately execute the Prisma Migration and begin coding the API endpoints!

@@ -1,0 +1,19 @@
+# Task: Fix PDF AI Parsing Timeout
+
+## Research
+- [x] Analyze [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) for AI timeout causes
+- [x] Investigate OpenRouter's free model response times and JSON capabilities
+- [x] Test active free models for speed and reliability
+- [x] Test OpenRouter free tier burst/concurrency limits via load scripts
+
+## Implementation
+- [x] Reduce AI chunk size from 10,000 to 5,000 characters to keep response sizes small
+- [x] Increase individual chunk timeout from 25s to 45s for slow free models
+- [x] Shrink `max_tokens` from 9000 to 3500 to prevent AI context exhaustion cutoffs
+- [x] Prioritize the fastest known Free AI model (`gemini-2.0-flash-lite`, `openrouter/free`)
+- [x] Rewrite loop to process 4 chunks in parallel to bypass Vercel's global 5-minute timeout
+- [x] **Add robust Exponential Backoff wait system to elegantly catch HTTP 429 OpenRouter rate limits and auto-retry without failing the whole upload**
+- [x] Verify Next.js build is clean
+
+## Deploy
+- [x] Commit and push fix to Vercel

@@ -1,0 +1,31 @@
+# Settings Restructure & Dark Mode Implementation
+
+Restructure the Settings page organization and implement a functional theme switching system with a premium "Black and Golden" dark mode aesthetic.
+
+## Proposed Changes
+
+### Settings Organization ([app/dashboard/settings/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx))
+- [ ] Move **Invoices** (`invoice`) from the **General** group to the **Billing** group.
+- [ ] Move **Preferences** (`system`) from the **Advanced** group to the **General** group.
+
+### Dark Mode Infrastructure
+- [ ] Install `next-themes` dependency.
+- [ ] Update [tailwind.config.js](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/tailwind.config.js) to support class-based dark mode (`darkMode: 'class'`).
+- [ ] Wrap the application in `ThemeProvider` within [app/providers.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/providers.tsx).
+- [ ] Update [app/globals.css](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/globals.css) with `.dark` mode variables:
+    - Background/Surface: Pure Black (#000000).
+    - Primary/Accents: Classic Gold (#D4AF37).
+    - Text: Crisp White/Light Gray.
+
+### Settings UI ([components/settings/system-settings.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/system-settings.tsx))
+- [ ] Integrate `useTheme` from `next-themes` to make the Dark Mode switch functional.
+- [ ] Ensure the switch state persists across page reloads.
+
+## Verification Plan
+### Automated Tests
+- [ ] N/A
+
+### Manual Verification
+1.  **Tab Movement**: Open Settings and verify "Invoices" is under Billing and "Preferences" is under General.
+2.  **Theme Toggle**: Toggle Dark Mode in the Preferences tab and verify the UI transforms into the Black and Gold theme.
+3.  **Persistence**: Refresh the page and ensure the selected theme remains active.

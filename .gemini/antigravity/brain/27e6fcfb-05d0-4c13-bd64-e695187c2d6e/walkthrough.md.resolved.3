@@ -1,0 +1,30 @@
+# Optimized Pharmacy Invoice Import
+
+The AyurStock Pro "Import Bill" feature has been refined to handle pharmacy invoices with precision and automated intelligence.
+
+## Refined Import Logic
+
+### 1. Smart Pricing
+- **Purchase Rate**: Automatically saved from the invoice **PTS** (Price to Store).
+- **Automated MRP**: If the MRP is missing from the invoice, the system now automatically calculates an estimated MRP with a **20% markup** (`Purchase Rate * 1.2`).
+
+### 2. Seamless Master Data Integration
+- The system now ensures that any medicine not already in your **Medicine Master** is created first.
+- Once the master record is secured, it proceeds to create or update the corresponding **Inventory Batch**.
+- This ensures no data is lost and prevents silent failures.
+
+### 3. Clear Post-Import Summary
+After every import, you will see a clear breakdown of the work done:
+> "7 medicines imported  
+> 7 inventory batches created  
+> Total stock added: 245 units"
+
+### 4. Integrity of Medicine Master
+> [!IMPORTANT]
+> These advanced inventory-focused changes are completely isolated from the standard **"Import Medicines"** (Medicine Master) feature, ensuring your existing catalog management remains stable.
+
+---
+### Technical Changes Summary
+- **API**: Updated [bulk-import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/bulk-import/route.ts) with pricing logic and summary tracking.
+- **UI**: Enhanced [import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx) to handle quantity display.
+- **Parser**: Refined [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) for medical invoice extraction.

@@ -1,0 +1,16 @@
+# Task Management
+
+- [x] API Implementation
+    - [x] Create [app/api/admin/db-stats/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/admin/db-stats/route.ts) (ADMIN only)
+    - [x] Create [app/api/medicines/export/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/export/route.ts) (CSV export)
+- [x] Frontend Implementation
+    - [x] Create [components/settings/database-admin.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/database-admin.tsx)
+    - [x] Update [app/dashboard/settings/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx) with the new tab
+- [x] UI Refinement
+    - [x] Add table counts cards
+    - [x] Add raw data preview table
+    - [x] Integrate Clear All button
+- [/] Final Verification
+    - [/] `npm run lint`
+    - [ ] `npm run build`
+    - [ ] Git commit and push

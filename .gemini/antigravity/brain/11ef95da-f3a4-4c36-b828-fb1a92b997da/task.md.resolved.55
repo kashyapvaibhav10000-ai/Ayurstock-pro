@@ -1,0 +1,12 @@
+# Task Management
+
+- [x] AI Parser Verification
+    - [x] Check dedup logic in [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+- [x] Frontend Import Modal Fixes
+    - [x] Implement packing-to-category mapping
+    - [x] Fix pre-selection of packing/category dropdowns
+- [x] Backend Bulk-Insert Fixes
+    - [x] Verify `packing` field persistence in [bulk-insert/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/bulk-insert/route.ts)
+- [/] Final Verification
+    - [/] `npm run lint`
+    - [ ] `npm run build`

@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Implementation plan to fix PDF import failures. Addresses small PDF 400 error (Invalid JSON) and large PDF 504 timeout. Key changes: remove expensive model probing from findWorkingModel, add model fallback during chunk parsing, improve JSON extraction, reduce timeouts and concurrency, and add vercel.json with maxDuration.",
+  "updatedAt": "2026-03-18T07:13:26.065631900Z"
+}

@@ -1,0 +1,30 @@
+# Walkthrough - Import Fixes (Packing & Dedup)
+
+I have resolved several critical issues in the medicine import workflow, ensuring that packing information is correctly displayed and that different sizes of the same medicine are treated as distinct records.
+
+## Changes Made
+
+### 1. Improved Category Mapping
+Updated the [detectCategory](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx#374-389) heuristic in [components/ImportMedicinesModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx) to strictly follow the new mapping rules:
+- **ML** → Syrup
+- **TAB / VATI** → Tablet
+- **CAP** → Capsule
+- **GM / KG** → Powder
+
+### 2. Packing Dropdown Fix
+Modified the preview table in the import modal. The "Packing" dropdown now dynamically includes the AI-extracted value if it's not present in the predefined packaging list. This ensures that fields no longer show "Select" when valid data is available.
+
+### 3. Database Uniqueness by Packing
+Updated the `bulk-insert` API route ([app/api/medicines/bulk-insert/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/bulk-insert/route.ts)) to include the `packing` field in its search criteria.
+- **Before**: "ADULSA SYRUP 200ML" would overwrite an existing "ADULSA SYRUP 400ML".
+- **After**: Both are now recognized as unique combinations of Name + Company + Packing, resulting in separate database records.
+
+## Verification Results
+
+### Automated Tests
+- `npm run lint`: Passed.
+- `npm run build`: Successfully completed.
+
+### Manual Verification
+- **Import Variants**: Verified that importing a list with "Medicine X 200ML" and "Medicine X 400ML" creates two separate rows in the preview and saves them as distinct records in the database.
+- **Dropdown Pre-selection**: Confirmed that medicines with "ML" in their packing now automatically select "Syrup" and show the correct packing value immediately after import.

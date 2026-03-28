@@ -1,0 +1,58 @@
+# AI Medicine Import Pipeline: 7 Enterprise Upgrades
+
+We have successfully overhauled the AyurStock Pro medicine import pipeline. It is now a robust, rule-based system designed for high-volume pharmacy operations.
+
+## Key Upgrades Implemented
+
+### 1. Duplicate Invoice Detection (Upgrade 1)
+- **Backend:** The `bulk-import` API now checks the `ImportedInvoice` model for a unique key: `supplierName + invoiceNumber + shopId`.
+- **Frontend:** A clear warning banner appears if a duplicate is detected, offering a "Yes, Import Anyway" override.
+
+### 2. Rule-Based Data Validation (Upgrade 2)
+- Implemented row-level sanity checks in both backend and frontend:
+  - **Expiry:** Warns on expired or near-expiry (6 months) items.
+  - **Quantity/MRP:** Ensures these are valid positive numbers.
+  - **Sanity:** Flags rows where medicine names look like long descriptions or AI noise.
+
+### 3. Partial Import Selection (Upgrade 3)
+- Added checkboxes to every row.
+- Pharmacists can now bulk-select or individually pick which medicines to import, skipping noise rows or errors.
+
+### 4. Expiry Warnings & Smart Sorting (Upgrade 4)
+- Automated high-visibility badges for "Expired" and "Near Expiry".
+- **Sort Problems First:** A new button bubbles up invalid, expired, or low-confidence rows to the top for immediate attention.
+
+### 5. Restock & New Medicine Detection (Upgrade 5)
+- Real-time inventory lookup via `/api/medicine/check-restock`.
+- **RESTOCK Badge:** Shows if the item exists in inventory (with current stock and last price tooltips).
+- **NEW Badge:** Highlights items that will be created as new master entries.
+
+### 6. Confidence-Based Heuristics (Upgrade 6)
+- **AI Vision Pipeline:** Now returns field-level confidence scores (High, Medium, Low).
+- **Heuristic Engine:** [computeConfidence()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#227-269) estimates quality for older OCR models.
+- **UI Highlights:** Cells are colored based on confidence (Green = High, Yellow = Medium, Red = Low).
+
+### 7. OCR-First Performance Optimization (Upgrade 7)
+- **Client-Side OCR:** Tesseract.js processes images locally to extract text.
+- **Multi-Tier Parsing:** Uses local text extraction first, falling back to Vision LLMs only when necessary.
+- Significantly reduces AI costs and improves extraction speed for scanned documents.
+
+## Deployment Instructions
+
+To apply the schema changes and build the new features on your server, run:
+
+```bash
+cd ~/Ayurstock-pro
+git pull
+npx prisma db push
+npx prisma generate
+npm run build
+systemctl restart ayurstock
+```
+
+## Verification Result
+- ✅ Schema updated for invoice tracking.
+- ✅ Vision prompt upgraded with anti-hallucination rules.
+- ✅ OCR pipeline optimized for speed/cost.
+- ✅ UI modernised with full-screen validation dashboard.
+- ✅ Duplicate and validation logic verified.

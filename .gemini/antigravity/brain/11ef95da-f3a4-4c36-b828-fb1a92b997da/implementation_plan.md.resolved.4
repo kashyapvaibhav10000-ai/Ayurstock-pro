@@ -1,0 +1,12 @@
+# High-Fidelity Unified Invoice Printing
+
+## The Issue 📋
+The user wants the invoice to look like a "professional bill". Currently, it perfectly replicates the beautiful web UI, but standard business formal invoices lack web-specific traits and instead prioritize stark clarity.
+
+## Proposed Changes
+
+### 1. Professionalize [InvoiceTemplate.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/InvoiceTemplate.tsx)
+- **Add Title:** Inject a bold `"TAX INVOICE"` header centered at the top to give it formal legitimacy.
+- **Sharpen Borders:** Switch the faint `#e2e8f0` (slate-200) borders to a starker `#cbd5e1` (slate-300) or bold `#94a3b8` (slate-400) specifically in print mode to ensure crisp reading on cheap ink printers.
+- **Clarify the Footer:** Add explicit T&C or "Goods once sold..." lines if necessary, or just tighten the signature line.
+- **Hide Backgrounds:** Remove the `.force-print-bg` from tables so that it is pure white, saving ink and looking much sharper.

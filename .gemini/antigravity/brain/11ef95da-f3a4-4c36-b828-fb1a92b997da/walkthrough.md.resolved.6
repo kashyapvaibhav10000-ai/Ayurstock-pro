@@ -1,0 +1,35 @@
+# Walkthrough - Pagination and Clear All Fixes
+
+I have implemented server-side pagination for the medicines master page and fixed the clear-all API endpoint to handle foreign key constraints correctly.
+
+## Changes Made
+
+### 1. Clear All Medicines Fix
+Modified [app/api/medicines/clear-all/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/clear-all/route.ts) to delete records in the correct order:
+- **Child Records First**: [SaleItem](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/InvoiceTemplate.tsx#18-35), `PurchaseItem`, [Return](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/returns/page.tsx#11-179), `MedicineReturn`, and `StockLedger`.
+- **Intermediate Parent**: [InventoryBatch](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx#22-34).
+- **Root Record**: [Medicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/MoveToInventoryModal.tsx#10-16).
+- **Jobs**: `ImportJob` and `PdfImportJob`.
+
+### 2. Search API Enhancements
+Updated [app/api/medicines/search/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/search/route.ts) to support:
+- `category`: Filtering by specific medicine category or "Imported Today".
+- `limit` and `offset`: Enabling server-side pagination.
+
+### 3. Medicines Dashboard Pagination
+Overhauled [app/dashboard/medicines/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/medicines/page.tsx):
+- **Server-Side Filtering**: Moved search and category filtering to the backend.
+- **Pagination Logic**: Added state for `currentPage` and `totalCount`, with a fixed `PAGE_SIZE` of 50.
+- **Controls**: Added "Next" and "Previous" buttons with range indicator ("Showing 1 to 50 of 742 medicines").
+- **Performance**: Implemented debouncing for the search input to minimize API calls.
+
+## Verification Results
+
+### Automated Tests
+- `npm run lint`: Passed with no errors.
+- `npm run build`: Successfully generated production build.
+
+### Manual Verification
+- **Clear All**: Successfully wiped the medicine master without Prisma foreign key errors.
+- **Pagination**: Medicines list now shows 50 items per page. Navigation between pages updates the list and range text correctly.
+- **Search**: Typing in the search bar triggers a debounced server-side query and resets the page to 1.

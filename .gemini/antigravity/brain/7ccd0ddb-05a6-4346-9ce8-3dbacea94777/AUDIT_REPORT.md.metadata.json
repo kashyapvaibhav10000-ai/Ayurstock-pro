@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_OTHER",
+  "summary": "A 360-degree audit of the Ayurstock-pro medical billing and stock management project. This report covers the current technical stack (Next.js, Prisma, OpenRouter/Gemini), core functionalities (OCR, Billing, Inventory), pros/cons of the no-code/automation approach, active bugs, and critical blind spots (privacy, compliance, scalability).",
+  "updatedAt": "2026-03-18T17:39:47.850538600Z"
+}

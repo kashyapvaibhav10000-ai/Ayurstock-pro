@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     }
 
     const supplier = await prisma.supplier.findFirst({
-      where: { id: params.id, shopId: auth.user.shopId },
+      where: { id: id, shopId: auth.user.shopId },
       include: {
         purchases: {
           orderBy: { createdAt: 'desc' },
@@ -29,7 +30,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user || !['ADMIN', 'MANAGER'].includes(auth.user.role)) {
@@ -38,7 +40,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const data = await req.json();
     const supplier = await prisma.supplier.update({
-      where: { id: params.id, shopId: auth.user.shopId },
+      where: { id: id, shopId: auth.user.shopId },
       data
     });
 
@@ -48,7 +50,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user || auth.user.role !== 'ADMIN') {
@@ -56,7 +59,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     }
 
     await prisma.supplier.delete({
-      where: { id: params.id, shopId: auth.user.shopId }
+      where: { id: id, shopId: auth.user.shopId }
     });
 
     return NextResponse.json({ success: true, message: 'Supplier deleted' });

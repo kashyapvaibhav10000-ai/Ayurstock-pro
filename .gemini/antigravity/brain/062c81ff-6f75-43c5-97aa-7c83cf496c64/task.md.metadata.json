@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_TASK",
+  "summary": "Updated the PDF AI Parsing task checklist to mark the final Rate Limit retry fix as complete.",
+  "updatedAt": "2026-03-17T19:32:28.169054500Z",
+  "version": "25"
+}

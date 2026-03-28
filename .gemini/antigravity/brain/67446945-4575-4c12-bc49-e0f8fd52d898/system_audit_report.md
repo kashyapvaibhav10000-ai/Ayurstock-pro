@@ -1,0 +1,90 @@
+# AyurStock Pro - Comprehensive System Audit
+
+## 1. PROJECT OVERVIEW
+**What is this software?** 
+AyurStock Pro is a multi-tenant Point-of-Sale (POS) and Pharmacy Management SaaS designed strictly for Ayurvedic and general pharmacies. 
+
+**Core Purpose & Problem Solved:** 
+It solves the complex inventory management of medicines, which involves tracking batches, expiry dates, HSN codes, and rack locations. Most critically, it solves the problem of manual data entry from supplier invoices through a heavy, AI-powered PDF/OCR extraction pipeline built specifically for extracting drug names, companies, and stock counts.
+
+**Target Users:** 
+Pharmacy store owners (Admins), Store Managers, and Cashiers.
+
+---
+
+## 2. ARCHITECTURE ANALYSIS
+**Tech Stack:**
+- **Frontend:** Next.js 14 (App Router), React 18, TailwindCSS, Radix UI components (shadcn-like).
+- **Backend:** Next.js Serverless API Routes (Monolithic approach).
+- **Database:** PostgreSQL managed via Prisma ORM.
+- **Integrations:** Heavy reliance on external free AI models via OpenRouter (Mistral, Groq, Cerebras) for OCR/PDF parsing. `pdf-parse` and `tesseract.js` for document reading.
+- **Architectural Pattern:** Multi-tenant Monolith. Every database model includes a `shopId` to separate tenant data.
+
+**Advanced Decisions:**
+- **AI Relay System:** Implements a cascading fallback sequence mapping (`lib/aiParser.ts`) that falls back from one free AI inference provider to another when hit with rate limits. 
+
+---
+
+## 3. FEATURE RECONSTRUCTION
+- **Auth Module:** JWT-based HttpOnly cookie authentication via `middleware.ts`. Includes role-based checks (Admin/Manager/Cashier).
+- **Billing/POS Module:** (`app/dashboard/billing`) Keyboard-optimized checkout flow, cart state management, automated customer linking, and dynamic tax (GST) calculations.
+- **Inventory & Import Module:** (`app/dashboard/medicines` & `lib/aiParser.ts`) Upload PDFs and extract thousands of medicine rows into DB. Deduplication mechanism checks `name + company + packing`.
+- **Sales & Purchases Ledger:** Tracks individual stock movements per batch using the `StockLedger` table. Tracks supplier payments.
+- **Tenant Management:** `Shop`, `ShopSettings`, and `InvoiceSettings` models for global store configurations.
+
+---
+
+## 4. CURRENT STATE OF DEVELOPMENT
+**Estimated Completion: 75% - 85%**
+- **Working:** Core POS billing, inventory fetching, Prisma schema, token-based Auth, OCR medicine extraction (mostly stabilized), Multi-tenant architecture.
+- **Partially Implemented/Stubbed:** The schema holds models for `Return` (Supplier/Customer) and `Purchase`, but thorough testing/UI flows for reverse-logistics aren't as polished as the POS. Background queueing for `ImportJob` is brittle.
+
+---
+
+## 5. BUG & ISSUE DETECTION (BRUTALLY HONEST)
+- **AI Parsing Truncation (Logical Flaw):** Free AI models have strict maximum output tokens. When you pass 5000 characters of OCR text, the model might truncate the JSON array mid-way. The `Salvaged XX items` logic is a band-aid. Data loss is highly probable on huge PDFs.
+- **Next.js API Timeout on Import (API Failure):** Standard Next.js API routes timeout after 15s-60s depending on hosting. Parsing a 10-page OCR PDF takes minutes. If this is synchronous, the HTTP connection will drop yielding 504 Gateway Timeouts.
+- **Concurrency / Race Conditions (Database Flaw):** In `services/billing.ts`, `createSale` reserves stock but does not lock rows. If two cashiers bill the last remaining unit of "Ashwagandha" simultaneously, both read `stockQty > 0`, both sell it, driving stock into negatives. Requires Prisma pessimistic locking.
+- **Missing Front-End Validation:** Zod schemas are strict in the backend but frontend error handling frequently relies on raw `catch` blocks generating toast messages, sometimes blinding users to *why* a submission failed.
+
+---
+
+## 6. SECURITY AUDIT
+**Risk Level: Medium-High**
+- **JWT Secret Fallback (Vulnerability):** `const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || '');` - If the `.env` fails to load, the secret is an empty string, meaning anyone can forge a JWT.
+- **Tenant Leakage Risk (Logical):** Multi-tenant DBs require developers to MANUALLY add `.where({ shopId: auth.shopId })` to every single query. There is no Row-Level Security (RLS) enabled in Postgres. One missed `shopId` filter exposes another pharmacy's data.
+- **Missing Ratelimits:** No generic rate-limiting on login or API routes. Susceptible to brute-force on the POS `pin` or `password`.
+
+---
+
+## 7. PERFORMANCE & SCALABILITY
+- **Bottleneck 1 - Massive Client Components:** `app/dashboard/billing/page.tsx` and `ImportMedicinesModal.tsx` are monolithic React chunks. Every keystroke in the POS search bar triggers full re-renders of the cart unless memoized perfectly.
+- **Bottleneck 2 - Heavy DB Grouping:** `getTopSellingMedicines` uses `prisma.saleItem.groupBy`. On a database with millions of rows, this will severely slow down the dashboard without indexed materialized views.
+- **Improvement:** Introduce a queueing system (RabbitMQ / Redis BullMQ / Trigger.dev) for AI PDF processing instead of forcing it through stateless API requests. 
+
+---
+
+## 8. CODE QUALITY REVIEW
+- **Bad Practice - Megafiles:** `aiParser.ts` (1000+ lines) and `ImportMedicinesModal.tsx` (1100+ lines). These violate the Single Responsibility Principle. They are unmaintainable and a nightmare to debug.
+- **Good Practice:** Strong, centralized TS types and Zod schemas (`lib/schemas.ts`). Consistent use of Lucide icons and modern UI hooks.
+- **Tech Debt:** Error handling in API routes is highly repetitive. E.g., repeating auth checks, try-catch blocks, and response formatting in every single `route.ts`. Can be abstracted via an API handler wrapper.
+
+---
+
+## 9. DEPLOYMENT & INFRASTRUCTURE
+- **Current Setup:** Deployed on a Linux VPS / Debian environment using Docker & Cloudflare Tunnels (based on `.devserver.err.log` and past config requests). Managed via `systemd` (`systemctl restart ayurstock`).
+- **Issues:** Running heavy Node.js OCR processes (`tesseract.js`) directly on the web server thread will spike CPU usage to 100%, causing the POS endpoints to stall for cashiers.
+
+---
+
+## 10. FINAL DIAGNOSIS
+- **Project Stage:** Advanced Production-Ready Prototype / Early MVP.
+- **Level:** Intermediate-Advanced implementation (due to the AI and tenant complexity).
+- **Core Blocker:** The monolithic nature of the heavy AI/OCR processes choking the Next.js runtime, coupled with megacomponents that freeze the developer experience.
+
+### Top 5 Priorities to Fix Immediately:
+1. **Fix JWT Secret Fallback:** Throw a hard error (`throw new Error("JWT_SECRET missing")`) instead of falling back to an empty string in `middleware.ts`.
+2. **Implement Async Task Queuing:** Move PDF OCR + AI Extraction entirely out of API routes and into a background queue. 
+3. **Database Concurrency:** Implement atomic decrements for `stockQty` (`decrement: quantity`) or use native DB locking during checkout, not sequential read-then-write logic.
+4. **Refactor Megafiles:** Break down `ImportMedicinesModal.tsx` and `aiParser.ts` before they become completely unmanageable.
+5. **Secure Tenant Queries:** Abstract Prisma queries into a repository pattern that implicitly injects `shopId` to prevent catastrophic cross-tenant data leaks.

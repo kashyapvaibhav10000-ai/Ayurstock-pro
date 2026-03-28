@@ -4,8 +4,9 @@ import { verifyAuth } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: supplierId } = await params;
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
@@ -15,7 +16,7 @@ export async function GET(
     const purchases = await prisma.purchase.findMany({
       where: {
         shopId: auth.user.shopId,
-        supplierId: params.id,
+        supplierId: supplierId,
       },
       include: {
         purchaseItems: {

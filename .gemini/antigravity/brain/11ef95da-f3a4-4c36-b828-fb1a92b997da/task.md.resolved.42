@@ -1,0 +1,12 @@
+# Bulk Data Management Architecture
+
+## Phase 1: Storage and Import Routing (Core Systems)
+- [ ] Build mapping handler (`POST /api/settings/import-csv`) integrating `papaparse` or raw delimiter decoding.
+- [ ] Construct the React Settings UI (`components/settings/data-import-settings.tsx`) allowing CSV mappings ([Company](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/AddInventoryModal.tsx#133-139), [Medicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/MoveToInventoryModal.tsx#10-16), `Category`, `Rack Locations`).
+- [ ] Configure [app/dashboard/settings/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx) importing the new `Data Management` active tab securely.
+
+## Phase 2: Excel / CSV Exporters
+- [ ] Construct utility `lib/exportUtils.ts` formatting object structures to robust HTML5 `<a download>` blobs.
+- [ ] Add `Download Report` execution `<Button>` inside [app/dashboard/inventory/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx) pulling active stock.
+- [ ] Add `Download Report` execution `<Button>` inside [app/dashboard/returns/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/returns/page.tsx) tracking ledger metadata.
+- [ ] Push codebase updates gracefully to Github remote.

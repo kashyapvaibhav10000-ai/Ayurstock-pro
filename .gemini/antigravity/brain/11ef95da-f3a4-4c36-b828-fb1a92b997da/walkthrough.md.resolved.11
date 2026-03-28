@@ -1,0 +1,38 @@
+# Walkthrough - Database Admin Panel
+
+I have implemented a comprehensive Database Admin dashboard within the Settings page, providing ADMIN users with high-level visibility and bulk control over the system's data.
+
+## Features Added
+
+### 1. Database Statistics
+A new grid of statistics cards shows the live count of records in the database:
+- **Medicines**: Total master entries.
+- **Inventory Batches**: Number of active stock rows.
+- **Sales & Purchases**: Transaction counts.
+- **Suppliers & Customers**: Total contacts.
+This provides a quick pulse check of the shop's data volume.
+
+### 2. CSV Data Export
+Added a "Export Medicines as CSV" feature.
+- **Functionality**: Fetches all medicines for the current shop and generates a standard CSV file.
+- **Usage**: Useful for backups, inventory audits, or external reporting.
+
+### 3. Raw Data Preview
+A "Raw Data" table allows admins to inspect the underlying medicine records.
+- **Search**: Support for searching within the raw preview.
+- **Scope**: Limited to the last 10 records by default for performance and security.
+- **Visibility**: Shows internal IDs, barcodes, and creation timestamps.
+
+### 4. Centralized Danger Zone
+The "Clear All Medicines" action has been moved from System Preferences to this dedicated Database Admin section.
+- **Safety**: Maintains the same multi-step confirmation dialog with explicit deletion summaries.
+
+## Verification Results
+
+### Automated Tests
+- `npm run lint`: Passed.
+- `npm run build`: Successfully completed production build.
+
+### Security Check
+- **Role-Based Access**: The "Database Admin" tab is strictly hidden from non-ADMIN users in the sidebar and dashboard.
+- **API Security**: Both `/api/admin/db-stats` and `/api/medicines/export` verify the `ADMIN` role server-side.

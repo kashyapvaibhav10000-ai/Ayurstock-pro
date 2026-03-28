@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary": "Walkthrough documenting all PDF import improvements: client-side OCR, structured error handling, smart UI, batch processing API, and AI parsing optimization. Includes list of all files changed, what was tested, and next steps.",
+  "updatedAt": "2026-03-16T18:58:03.678722700Z"
+}

@@ -1,0 +1,42 @@
+# Settings Restructure & Dark Mode Walkthrough
+
+I have modernized the AyurStock Pro settings interface and implemented a premium **"Soft Black & Gold"** dark mode theme. This theme is designed for eye comfort during long shifts while maintaining the application's professional aesthetic.
+
+## Key Changes
+
+### 1. Settings Navigation Revamp
+The settings tabs have been restructured for better logical grouping:
+- **Invoices**: Now located under the **Billing** section.
+- **Preferences**: Now located under the **General** section for easier access.
+
+### 2. Premium Dark Mode Theme
+A new functional dark mode has been implemented with the following characteristics:
+- **Background**: Soft Black (`#0A0A0A`) for reduced eye strain.
+- **Surfaces**: Subtle dark gray (`#1A1A1A`) for cards and panels.
+- **Accents**: Elegant Gold (`#D4AF37`) for primary buttons and active indicators.
+
+### 3. Full Component Compatibility
+Dark mode has been applied across the entire application:
+- **Login Page**: Beautifully balanced with the brand green and soft black.
+- **Sidebar**: Fully theme-aware with gold active indicators.
+- **Header & Profile**: Slide-over profile panel now matches the dark aesthetic.
+- **Toasts**: Notifications now correctly follow the system/selected theme.
+
+### 4. Print Safety
+- Added specialized print styles to ensure that **invoices always print in light mode**, regardless of the user's interface settings.
+
+---
+
+## Verification Results
+
+### Automated Tests
+- Verified `next-themes` configuration and class-based toggle functionality.
+- Checked Tailwind custom variables mapping for `stitch` and core design tokens.
+
+### Manual Verification
+- Tested Dark Mode toggle in the **Settings > Preferences** tab.
+- Verified persistence across page reloads and different sessions.
+- Confirmed mobile view (hamburger menu and bottom navigation) works flawlessly in both themes.
+
+> [!TIP]
+> You can switch between Light, Dark, and System themes from the **Settings > General > Preferences** menu.

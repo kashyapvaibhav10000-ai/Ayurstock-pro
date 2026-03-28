@@ -1,0 +1,28 @@
+# PDF Import Improvements — Task Checklist
+
+## High Impact
+
+### 1. Client-Side OCR Utility
+- [x] Create [lib/pdfOcrClient.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/pdfOcrClient.ts) with PDF.js rendering + Tesseract.js OCR
+- [x] Add progress reporting via callback
+- [x] Add [extractTextFromPdf()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/pdfOcrClient.ts#167-204) lightweight text extraction
+
+### 2. Structured Backend Error Handling
+- [/] Update [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) → add `ParseResult` type with error codes
+- [ ] Update [/api/medicines/import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/route.ts) to accept `extractedText` and return error codes
+- [ ] Update [/api/medicine/import-price-list/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/import-price-list/route.ts) similarly
+
+### 3. Smart UI Error Messages & OCR Integration
+- [ ] Update [ImportMedicinesModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx) with OCR flow and smart error banners
+- [ ] Update [import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx) with same improvements
+
+## Medium Impact
+
+### 4. Batch Processing UI
+- [ ] Create `/api/medicines/import/batch` route
+- [ ] Create `/api/medicines/import/batch/[id]` route
+- [ ] Add batch UI to import modal
+
+### 5. AI Parsing Optimization
+- [ ] Add chunk overlap to prevent data loss
+- [ ] Improve chunk boundary detection

@@ -1,0 +1,21 @@
+# Task: Fix All Audit Issues
+
+## Security Hardening
+- [x] Remove hardcoded JWT secret fallback in [lib/auth.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/auth.ts)
+- [x] Remove all debug `console.log` from [lib/auth.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/auth.ts) and [api/auth/login/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/auth/login/route.ts)
+- [x] Verify JWT in [middleware.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/middleware.ts), not just cookie existence
+- [x] Add `shopId` filter to [getSaleDetails](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/services/billing.ts#323-347) (cross-tenant leak)
+
+## Functional Bugs
+- [x] Connect Dashboard metrics to real `/api/sales` endpoint
+- [x] Fix Reports page — now fetches real data on Generate click
+- [x] Extended JWT token expiry from 15min to 7 days
+
+## Architecture Cleanup
+- [x] Move `@prisma/client` from `devDependencies` to `dependencies`
+- [x] Add [.eslintrc.json](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/.eslintrc.json) so `npm run lint` works
+- [x] Remove unused `socket.io` packages
+- [x] Clean up dead [socket-client.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/socket-client.ts)
+
+## Deployment
+- [x] Commit and push all fixes

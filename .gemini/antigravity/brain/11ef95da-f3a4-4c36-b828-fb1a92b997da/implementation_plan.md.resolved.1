@@ -1,0 +1,23 @@
+# Admin User Management Integration
+
+## Proposed Changes
+
+### Backend APIs
+We will create secure Database endpoints to manage users.
+#### [NEW] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/users/route.ts)
+- `GET`: Fetch all users for the current shop (Admin only).
+- [POST](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/route.ts#5-109): Create a new user with hashed password (Admin only).
+#### [NEW] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/users/[id]/route.ts)
+- `PUT`: Update existing user details (Name, Email, Role, Status) (Admin only).
+- `DELETE`: Permanently delete a user (Admin only).
+
+### Frontend UI
+We will convert the existing static "Team" page into a dynamic React Client Component.
+#### [MODIFY] [user-settings.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/user-settings.tsx)
+- Rebuild the file as a `"use client"` component to manage state.
+- Add `useEffect` to fetch real users from `/api/users`.
+- Build a Pop-up Dialog form for "Add User" and "Edit User".
+- Wire up the "Delete" button to a confirmation dialog.
+
+## Security & Verification
+Only accounts with `auth.user.role === 'ADMIN'` will be permitted to access these backend routes. The UI will gracefully show access errors if non-admins attempt to bypass it. You will be able to verify this by logging in to your dashboard and testing the Add/Edit/Delete flows directly from the UI.

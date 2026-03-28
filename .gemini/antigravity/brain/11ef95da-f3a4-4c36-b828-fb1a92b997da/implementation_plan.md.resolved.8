@@ -1,0 +1,22 @@
+# Add Inventory & Rack Location Restructure Plan
+
+## Overview
+We will comprehensively upgrade the manual `Add Inventory` system. The core feature allows pharmacists to dynamically link inventory batches to specific, database-controlled `RackLocation` records rather than relying on unbound text strings. Additionally, the inventory ingestion form will enforce a strict topological Company -> Medicine hierarchy to streamline batch entry.
+
+## 1. Database Schema ([prisma/schema.prisma](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/prisma/schema.prisma))
+We will append the `RackLocation` model completely identical to your specification, mapping it uniquely to the [Shop](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/shop-settings.tsx#8-151) tenant. We will use `npx prisma db push` to instantly and safely force the relational data structure into the local Postgres database.
+
+## 2. Dynamic API Scaffolding
+- **Settings Architecture**: Four CRUD endpoints under `/api/settings/rack-locations` enabling `ADMIN` roles to physically map out their pharmacy aisles. 
+- **Safe Deletions**: The [DELETE](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/users/%5Bid%5D/route.ts#100-174) endpoint will robustly query the [InventoryBatch](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx#22-34) model. If any active batches possess the target rack location string/ID, it will throw an explicit rejection barrier preventing physical inventory ghosting.
+- **Cascading Lookup**: Utilize the existing `/api/medicines` parameters or inject a `/api/medicines/search` endpoint specifically engineered to accept `?companyId=` filters for the nested lookup.
+
+## 3. UI Infrastructure Restructure
+- **Settings Dashboard Layout**: A new module on the global settings page dynamically listing all created Rack Locations with quick-action `Edit / Delete` buttons.
+- **Add Inventory Component Rebuild**:
+  - We will clear out the static defaulting integer hooks (`1`, `0`) precisely as we did in the Returns module.
+  - The Form will be rebuilt into a two-lane process: First selecting Company from a pre-fetched pool, unlocking a filtered type-ahead Medicine menu.
+  - The `Rack Location` input field will universally swap from an `<Input>` string field to a live HTML `<select>` matching the `/api/settings/rack-locations` fetch payload.
+
+## User Action Required
+Please approve this architectural breakdown so I can immediately execute the Prisma Migration and begin drafting the API endpoints!

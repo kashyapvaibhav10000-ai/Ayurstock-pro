@@ -1,0 +1,52 @@
+# 360-Degree Project Audit: Ayurstock-pro
+
+This audit provides an honest "State of the Union" for your medical billing and stock management software, based on the current codebase and our conversation history.
+
+---
+
+## 1. Current Technical Stack
+Your project is built as a **Hybrid Architecture**, combining high-performance custom code with flexible automation tools.
+
+- **Frontend & Core Logic**: **Next.js 14 (App Router)**. This is a robust framework for production dashboards.
+- **Database Layer**: **PostgreSQL** with **Prisma ORM**. This ensures data integrity and high-performance queries for large inventory logs.
+- **Automation & Integration**: **n8n** (mentioned as the workflow engine) and **Bubble** (likely as a high-level UI or auxiliary frontend).
+- **AI Intelligence**: **Google Gemini 2.0/2.5 Flash** (via **OpenRouter**). You've implemented an intelligent "auto-probing" fallback system to avoid rate limits by rotating between Gemini, Llama 3.3, and Mistral.
+- **OCR Engine**: **Tesseract.js** (for client-side/local OCR) and **pdf2json** (for direct PDF text extraction).
+
+## 2. Core Functionalities
+The project focuses on solving the "Manual Data Entry" bottleneck in pharmacies.
+
+- **Intelligent Medicine Import**: Parsing PDFs (searchable or scanned) and images to extract medicine names, packing sizes, MRPs, and trade prices.
+- **Inventory/Batch Tracking**: Multi-role support for tracking stock across diverse suppliers with expiry date monitoring.
+- **Flexible Billing**: A sales system supporting retail/wholesale, various payment modes (CASH, UPI, etc.), and GST calculations.
+- **Activity Logging**: Granular tracking of user actions (Audit Trail) for shop management.
+
+## 3. The Pros
+- **Cost-Efficiency**: By targeting **Gemini Flash (Free)** and other free models via OpenRouter, you've kept AI costs to nearly zero.
+- **Resilience**: Your `findWorkingModel` logic is a major strength; the app automatically "finds a way" to parse data even if one provider's API is down.
+- **Deployment Flexibility**: The recent move to **Docker + Cloudflare Tunneling** means you can host the entire system on a local laptop with enterprise-grade security (no open ports).
+- **Speed**: Standalone Docker mode and multi-threaded AI chunking (concurrency: 3) ensure the system is snappy.
+
+## 4. The Cons & Risks
+- **AI Hallucinations**: No-code/AI extraction is never 100% accurate. A typo in a medicine price or packing size could impact profits.
+- **Rate Limit Vulnerability**: Relying on "Free Tier" models is fine for development, but in a busy pharmacy store, hitting a "429 Rate Limit" during a peak rush could stall operations.
+- **Complexity Debt**: Managing n8n workflows + Bubble + Next.js + Docker adds "moving parts." If n8n fails, does the whole inventory sync break?
+- **Data Consistency**: Syncing data between Bubble (if used for UI) and the Next.js/PostgreSQL backend requires very precise synchronization logic to avoid "ghost stock" or duplicate invoices.
+
+## 5. Active Bugs & Technical Hurdles
+- **PDF Timeout (504)**: Large PDFs (100+ pages) are currently hitting Vercel/Server timeouts. Your "chunking" logic helps, but extremely large files need a "background job" approach.
+- **AI Response Formatting**: Sometimes models return markdown instead of pure JSON, causing parsing errors (though your `extractJsonArray` helper mitigates this).
+- **OCR Noise**: Scanned images with low quality or handwritten notes still cause noise that the AI sometimes struggles to "clean."
+
+## 6. Critical 'Blind Spots'
+- **HIPAA/Data Privacy**: As medical software, are you storing patient/customer data securely? You need encrypted fields and clear data deletion policies.
+- **Regulatory Compliance (GST/Pharmacy Laws)**: Does your tax calculation logic cover all edge cases (e.g., composite schemes, interstate HSN rules)?
+- **Backup & Disaster Recovery**: Since you are moving to a local laptop, what happens if the hard drive fails? You need an automated **Off-site Backup** (e.g., S3 or Cloudflare R2) for your SQL database.
+- **Multi-Tenant Isolation**: You have a `Shop` (Tenant) model, but you must ensure that a user in "Shop A" can NEVER query data from "Shop B" via a direct API call.
+
+---
+
+## Goal: What to fix next?
+1.  **Harden Database Isolation**: Verify every single API route checks for `shopId`.
+2.  **Background Processing**: Move the PDF import from a "Wait-for-Response" API to a "Background Job" (using `ImportJob` table) to handle large files without timeouts.
+3.  **Automated Backups**: Setup a daily cron job to backup the PostgreSQL database to a secure cloud location.

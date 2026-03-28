@@ -1,0 +1,35 @@
+# PDF Import Improvements — Task Checklist
+
+## High Impact
+
+### 1. Better UI Error Handling & PDF Type Detection
+- [ ] Update [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) → [parsePDFWithAI()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#334-436) to return structured results with error codes (e.g., `SCANNED_PDF`, `EMPTY_PDF`, `PARSE_ERROR`)
+- [ ] Update [/api/medicines/import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/route.ts) to return granular error messages based on error codes
+- [ ] Update [/api/medicine/import-price-list/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/import-price-list/route.ts) similarly
+- [ ] Update [ImportMedicinesModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx) to show smart error banners with guidance
+- [ ] Update [import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx) to show smart error banners with guidance
+
+### 2. Scanned PDF Support via External OCR API
+- [ ] Add OCR.space API integration in [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) (free tier, no server deps)
+- [ ] Add `OCR_SPACE_API_KEY` to [.env.example](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/.env.example)
+- [ ] Implement fallback: try pdf2json text extraction first → if empty, call OCR.space → then AI parse
+- [ ] Handle OCR.space rate limits and errors gracefully
+- [ ] Update UI to show "OCR processing" state during scanning
+
+## Medium Impact
+
+### 3. Batch Processing UI for PdfImportJob
+- [ ] Create API route `/api/medicines/import/batch` for submitting scanned PDF jobs
+- [ ] Create API route `/api/medicines/import/batch/[id]` for fetching job status
+- [ ] Add batch import tab/section in the import modal
+- [ ] Show job history and status in the UI
+
+### 4. Large PDF Handling
+- [ ] Add page-by-page processing with progress tracking in [parsePDFWithAI()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#334-436)
+- [ ] Implement streaming response or progress polling for large PDFs
+- [ ] Add progress bar in the UI during processing
+
+### 5. AI Parsing Optimization
+- [ ] Improve chunk boundary detection (avoid splitting mid-medicine)
+- [ ] Add overlap between chunks to prevent data loss
+- [ ] Better deduplication logic across chunks

@@ -1,0 +1,36 @@
+# Redesign Import Bill Review UI
+
+The current review table in the Import Bill modal is unreadable — 13 columns crammed into a fixed-width modal dialog. Medicine names are invisible, data is clipped, and the UX is poor.
+
+## Proposed Changes
+
+### [MODIFY] [import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx)
+
+Replace the cramped 13-column table (lines 651–772) with a **responsive card-row layout** that:
+
+1. **Medicine name is the hero** — full-width bold text, never truncated
+2. **Two-row layout per medicine** — top row shows Name + Company + Pricing, bottom row shows Batch/Expiry/Pack/Category as compact pills
+3. **Reduce columns** — remove "Code" (rarely used), merge "Issues" into inline badges, collapse "Actions" into a compact button
+4. **Use horizontal scroll on the table** with minimum column widths so text is readable
+5. **Sticky header** for easy navigation
+6. **Better visual distinction** between OK rows and rows with issues
+
+**Key layout changes:**
+- Table uses `table-fixed` with explicit column width allocations
+- Name column gets `min-w-[200px]` so it's always readable
+- Code column removed (it's almost always empty/useless)
+- HSN column hidden on smaller viewports
+- Issues shown as small colored badges next to the name instead of a separate column
+- MRP and Purchase Rate columns merged into a "Pricing" super-header
+
+## Verification Plan
+
+### Manual Verification
+1. Deploy changes to server, open the Inventory page
+2. Click "Import Bill" → upload a JPEG/PDF invoice
+3. On the Review step, confirm:
+   - Medicine names are fully visible and readable
+   - All data columns (batch, expiry, MRP, qty) are accessible
+   - Category/packing dropdowns work correctly
+   - Remove button works
+   - Import button imports successfully

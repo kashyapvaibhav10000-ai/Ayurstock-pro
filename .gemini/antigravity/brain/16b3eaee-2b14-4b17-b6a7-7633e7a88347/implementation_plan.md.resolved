@@ -1,0 +1,81 @@
+# AyurStock Pro: Bento Grid & Minimalist UI Overhaul
+
+This plan outlines a complete top-to-bottom UI upgrade to transform AyurStock Pro into a highly professional, modern, and minimalist application using a Bento Grid design aesthetic.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Design Direction Approval**: Please review the proposed aesthetic changes below. 
+> 
+> **Key Decisions to make**:
+> 1. **Color Palette**: I suggest moving to a highly premium "Zinc/Slate" base with a crisp, vibrant primary accent (like a deep Indigo or a refined Emerald Green) to replace the current standard blue/green mix. Does this sound good?
+> 2. **Bento Grid**: The Dashboard and POS (Billing) screens will be heavily restructured into a modern "Bento Box" layout (tiles of varying dimensions). 
+> 
+> Let me know if you have specific preferences for colors or if you approve of my suggestions!
+
+## Proposed Changes
+
+### Global Theme & Design System
+
+#### [MODIFY] [tailwind.config.js](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/tailwind.config.js)
+- Overhaul the color palette to introduce sleek, minimalist variables (surface, muted, deep space).
+- Add new `boxShadow` definitions for soft, premium elevations.
+- Add specific `borderRadius` tokens (e.g., `3xl` for Bento cards).
+
+#### [MODIFY] [app/globals.css](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/globals.css)
+- Update the base background to a clean, professional off-white (`#FAFAFA`) or a subtle mesh gradient.
+- Refine typography rules for tighter, modern tracking and line heights.
+- Update structural CSS classes (like `.pos-container`) to match the new grid systems.
+
+---
+
+### Core Layout Components
+
+#### [MODIFY] [components/Sidebar.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/Sidebar.tsx)
+- Redesign from a standard blocky sidebar to a minimalist, modern navigation panel (floating or cleanly integrated).
+- Use subtle active states (e.g., a small vertical pill indicator or soft background) instead of heavy highlights.
+- Simplify typography and icon weights.
+
+#### [MODIFY] [components/DashboardHeader.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/DashboardHeader.tsx)
+- Streamline the header to be a clean, semi-transparent top bar.
+- Add a unified, minimalist search input design.
+
+---
+
+### Key Page Redesigns (Bento Grid Application)
+
+#### [MODIFY] [app/dashboard/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/page.tsx) (Main Dashboard)
+- **Bento Overhaul**: Rebuild the statistics and charts into a dynamic, asymmetric grid layout.
+- Use varying card sizes (e.g., large span for main sales chart, smaller squares for total medicines and alerts).
+- Apply heavy `border-radius` and soft shadows.
+
+#### [MODIFY] [app/dashboard/billing/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/billing/page.tsx) (POS Screen)
+- Redesign the split layout to maximize efficiency while remaining visually clean.
+- Bento-style layout for the cart, item grid, and action buttons.
+- Modernize the receipt preview.
+
+#### [MODIFY] [app/dashboard/medicines/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/medicines/page.tsx) & [app/dashboard/inventory/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx)
+- Overhaul data tables to be edge-to-edge inside crisp, borderless cards.
+- Update action buttons (Add Medicine, Import) to match the new minimalist button components.
+- Modernize all status badges (e.g., low stock, expired) to smooth pill shapes.
+
+---
+
+### UI Component Polish
+
+#### [MODIFY] `components/ui/*` (Button, Input, Card, Dialog, etc.)
+- Refine the Shadcn UI base components to fit the new specific theme.
+- E.g., slightly rounder inputs, removing harsh borders in favor of soft fills (`bg-slate-100`), standardizing primary button gradients or flat solid colors.
+
+#### [MODIFY] [components/ImportMedicinesModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx) & other Modals
+- Update all dialogs to use the new minimalist overlay and container styles.
+
+## Verification Plan
+
+### Automated/Dev Testing
+1. Use `npm run dev` and the internal browser agent to navigate through the application.
+2. Visually inspect the newly added Tailwind classes and Bento Grid layouts across breakpoints (Desktop vs Mobile widths).
+
+### Manual Verification
+1. Click through all core flows (Login -> Dashboard -> Medicines -> Billing) to ensure all interactive elements (buttons, dropdowns, modals) remain fully functional post-styling.
+2. Verify that the POS scaling and layout responsiveness did not break functional usability during the redesign.

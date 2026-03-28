@@ -1,0 +1,26 @@
+# Task: Precision Fixes for Import Bill Pipeline [COMPLETE]
+
+## 1. Expiry Date Format Conversion
+- [x] Add [normalizeExpiryDate()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#624-670) function in [aiParser.ts](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+- [x] Convert MMM-YY → YYYY-MM-DD (last day of month)
+- [x] Handle: "Sep-26" → "2026-09-30", "Feb-28" → "2028-02-28"
+
+## 2. PTR vs PTS Column Distinction
+- [x] Update `INVOICE_IMAGE_PROMPT` to distinguish PTR from PTS
+- [x] Map: purchaseRate = PTS, ptr (→ tradePrice) = PTR, mrp = MRP
+
+## 3. CD% (Cash Discount) Capture
+- [x] Add `cashDiscount` + `discount` fields via normalizeMedicine()
+- [x] Updated prompt to extract both CD% and Disc% columns
+
+## 4. Invoice Metadata Capture
+- [x] Updated prompt to extract invoiceNumber, invoiceDate, supplierName
+- [x] Updated [parseJsonSafely](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#235-284) to handle {medicines: [...]} format
+- [x] Logs metadata to server console
+
+## 5. Medicine Name & Packing Separation
+- [x] Prompt explicitly instructs: Name="NATURALLY CHURNA", Packing="100 gm" (separate)
+
+## 6. Verification
+- [x] Pushed to git
+- [ ] User to deploy and re-test

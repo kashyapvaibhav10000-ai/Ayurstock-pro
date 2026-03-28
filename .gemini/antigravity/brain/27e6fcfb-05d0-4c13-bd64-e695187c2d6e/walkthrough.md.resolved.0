@@ -1,0 +1,31 @@
+# Optional Purchase Rate Implementation
+
+I have made the `purchaseRate` field optional throughout the application, allowing medicines to be added to the master list and moved to inventory without immediate pricing data.
+
+## Changes Made
+
+### 1. Database Schema
+- [prisma/schema.prisma](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/prisma/schema.prisma)
+    - Updated `InventoryBatch.purchaseRate` to `Decimal?` (optional).
+    - Updated `PurchaseItem.purchaseRate` to `Decimal?` (optional).
+- Regenerated the Prisma client with `npx prisma generate`.
+
+### 2. Validation Schemas
+- [lib/schemas.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/schemas.ts)
+    - Updated `CreateBatchSchema` to allow `purchaseRate` to be `optional()` and `nullable()`.
+    - Updated `CreatePurchaseSchema` items to allow `purchaseRate` to be `optional()` and `nullable()`.
+
+### 3. UI Components
+- [components/MoveToInventoryModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/MoveToInventoryModal.tsx)
+    - Removed the mandatory asterisk `*` from the "Purchase Rate" label.
+    - Updated the submission logic to send `undefined` if the field is empty, instead of forcing a zero or error.
+
+### 4. API & AI Extraction
+- Verified that [app/api/inventory/move/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/inventory/move/route.ts) correctly handles optional rates.
+- Confirmed that the AI system prompt already treats `purchaseRate` as an optional field during extraction.
+
+## Verification Results
+
+- **Database**: Schema successfully modified and client regenerated.
+- **Validation**: API tests (manual check) confirm that batches can now be created with empty purchase rates.
+- **UI**: The "Move to Inventory" form now allows proceeding without entering a purchase rate.

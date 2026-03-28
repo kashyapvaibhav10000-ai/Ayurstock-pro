@@ -4,14 +4,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-export async function GET(req: NextRequest, { params }: { params: { jobId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { jobId } = params;
+    const { jobId } = await params;
     if (!jobId) {
       return NextResponse.json({ success: false, message: 'Missing jobId' }, { status: 400 });
     }

@@ -1,0 +1,37 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+AyurStock Pro
+Pharmacy Workspace
+[0] (131,70)<button class='flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50' />
+AD
+Admin
+ADMIN
+[1] (75,278)<a class='flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition text-slate-600 hover:bg-slate-50 hover:text-slate-900' href='/dashboard' title='Dashboard' />
+	[2] (49,278)<span >Dashboard />
+[3] (75,329)<a class='flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition text-slate-600 hover:bg-slate-50 hover:text-slate-900' href='/dashboard/billing' title='Billing' />
+	[4] (42,329)<span >Billing />
+[5] (75,380)<a class='flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition bg-emerald-50 text-emerald-700 shadow-sm' href='/dashboard/medicines' title='Medicines' />
+	[6] (48,380)<span >Medicines />
+[7] (75,431)<a class='flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition text-slate-600 hover:bg-slate-50 hover:text-slate-900' href='/dashboard/inventory' title='Inventory' />
+	[8] (47,431)<span >Inventory />
+[9] (75,481)<a class='flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition text-slate-600 hover:bg-slate-50 hover:text-slate-900' href='/dashboard/purchases' title='Purchases' />
+	[10] (47,481)<span >Purchases />
+[11] (75,532)<a class='flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition text-slate-600 hover:bg-slate-50 hover:text-slate-900' href='/dashboard/suppliers' title='Suppliers' />
+	[12] (46,532)<span >Suppliers />
+[13] (75,583)<a class='flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition text-slate-600 hover:bg-slate-50 hover:text-slate-900' href='/dashboard/reports' title='Reports' />
+	[14] (44,583)<span >Reports />
+[15] (75,634)<a class='flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition text-slate-600 hover:bg-slate-50 hover:text-slate-900' href='/dashboard/settings' title='Settings' />
+	[16] (45,634)<span >Settings />
+Medicines
+[17] (824,55)<input class='flex h-10 w-full border px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 rounded-xl border-slate-200 bg-white pl-9' placeholder='Search modules, medicines, batches...' />
+[18] (909,55)<button class='inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border hover:bg-accent hover:text-accent-foreground h-10 w-10 rounded-xl border-slate-200 bg-white' />
+[19] (957,55)<button class='flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm transition hover:bg-slate-50' />
+	[20] (943,55)<div >AD />
+	[21] (970,55)<div  />
+		[22] (970,46)<div >Admin />
+		[23] (970,65)<div >ADMIN />
+Loading medicines...
+
+</current_dom>

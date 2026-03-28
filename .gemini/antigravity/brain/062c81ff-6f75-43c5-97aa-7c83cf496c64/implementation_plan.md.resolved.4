@@ -1,0 +1,133 @@
+# AyurStock Pro UI/UX Overhaul Plan
+
+This plan aims to dramatically improve the UI/UX by converting the existing design to a modern SaaS-style interface. We will focus on the color palette, typography, removing dummy data, fixing non-functional buttons, and redesigning the Dashboard and Settings pages. 
+
+**Critical Rule:** Refactor UI only. Do not modify existing business logic unless explicitly required to connect a UI component.
+
+## User Review Required
+
+> [!CAUTION]
+> The Dashboard and Settings pages will undergo significant structural changes. We will be adhering strictly to the data contracts defined below to ensure the UI does not rely on hardcoded data, but rather on standard schemas.
+
+## Core Data Schema Contracts
+
+Before building UI, we must adhere to these data contracts to ensure our components are reliable:
+
+```ts
+type Medicine = {
+  id: string
+  name: string
+  category: string
+  stock: number
+  batchNo?: string
+  expiryDate?: string
+}
+
+type SaleItem = {
+  id: string
+  medicineId: string
+  quantity: number
+  price: number
+}
+
+type SaleDate = {
+  date: string // ISO string
+  totalAmount: number
+}
+```
+
+## Design Refinements (User Feedback)
+
+### 🎨 Premium "Non-Glass" Aesthetic
+- **Remove Glassmorphism**: Eliminate `backdrop-blur` and semi-transparent backgrounds (`bg-white/80`, `bg-surface-muted`) from dashboard components.
+- **Maintain Premium Feel**: Replace transparency with solid surfaces, refined shadows (`shadow-sm`, `shadow-md`), and subtle 1px borders using `var(--border)`.
+- **Contrast Optimization**: Ensure high legibility with solid backgrounds.
+
+### 📱 Mobile-Friendly Settings Sidebar
+- **Responsive Layout**: On mobile (`< md`), the Settings sidebar will transform from a vertical list into a horizontal scrollable chip-bar or a high-quality dropdown to save vertical space.
+- **Improved Touch Targets**: Ensure all category chips/buttons are easily tappable.
+
+### ✨ Encouraging Dashboard Empty States
+- **Action-Oriented Copy**: Replace generic empty messages with encouraging ones like "Welcome to AyurStock! Let's get your first medicine added to start tracking sales."
+- **Quick-Start Actions**: Provide a "Quick Start" checklist or prominent buttons to guide new users through the initial setup (Add Medicine, Configure Invoice, etc.).
+
+## Proposed Changes
+
+### 1. Global Design System & Layout
+- **Colors & Typography:** We will update [tailwind.config.js](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/tailwind.config.js) to utilize a clean white, soft shadow, minimal gradient approach suitable for medical software. We will enforce a consistent 4px/8px spacing system.
+- **Global Layout:** We will implement a collapsible drawer for the sidebar on mobile and ensure tables use scrollable/card views on smaller screens. 
+
+#### [MODIFY] [tailwind.config.js](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/tailwind.config.js)
+- Define clean standard colors, spacing scales, and subtle shadow variables.
+#### [MODIFY] [layout.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/layout.tsx)
+- Add standard font and apply global clean layout structure.
+
+---
+
+### 2. Component Architecture
+To prevent spaghetti code, all new UI elements MUST follow this directory structure:
+```
+/components
+  /ui (buttons, inputs, cards, loaders, empty-states)
+  /dashboard
+  /inventory
+  /settings
+  /profile (NEW: Dedicated profile panel)
+```
+We will introduce standard loading states (Skeleton loaders) and Error states (Toasts/Snackbars) into `/components/ui`.
+
+---
+
+### 3. Dashboard Enhancement
+- **Data Source:** Replace `mockSalesData` with dynamic calculations (e.g., Sales Today = sum(bills where date = today), Low Stock = stock < threshold).
+- **Empty States:** If no data exists, we will display proper empty states: "No sales recorded yet" or "Start by adding your first product" with a clear CTA. 
+- **Action Buttons:** Change "Add Inventory" to "Add Medicine" which opens a flow: Choose Import (OCR) or Manual Entry.
+#### [MODIFY] [page.tsx (Dashboard)](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/page.tsx)
+
+---
+
+### 3b. Import Flow Redesign (CRITICAL)
+- **Problem:** The current OCR import feels like a debug screen and directly inserts data.
+- **Solution:** Implement a 3-step flow:
+  1. **Upload:** File preview -> "Start Import"
+  2. **Processing:** Show filename, page count, estimated time, and a working Cancel/Retry mechanism.
+  3. **Review & Edit (Crucial):** Show extracted data in a data table (Name, Quantity, Price, Batch, Expiry). Allow editing, deleting, and adding rows BEFORE saving.
+  - **Rule:** Never automatically save OCR data to the database without user confirmation.
+
+### 4. Settings & Profile Restructure & Persistence
+- We will redesign `app/dashboard/settings/page.tsx` into a modern layout with clear sections based on our new component architecture.
+- **Persistence Layer:** All settings must persist across sessions. We will ensure forms submit to the database (or `localStorage` as a fallback) and values reload successfully. No dummy toggles allowed.
+- **Admin Info Modal:** The current shop/admin modal feels like a debug popup. We will replace this with a structured Profile Panel or dedicated page with clear hierarchy (Shop Name, Location, Contact Info, License Details) and clean actions (Edit, Settings, Logout).
+#### [MODIFY] [page.tsx (Settings)](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx)
+#### [MODIFY] [DashboardHeader.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/DashboardHeader.tsx)
+
+---
+
+### 5. Button Audit & Dummy Data Removal
+- **Audit Strategy:** We will scan all buttons. 
+  1. Functional → keep
+  2. Missing logic → implement standard empty state or connect to existing flow
+  3. Useless → remove
+- **Dummy Data:** Remove all hardcoded seed data logic from UI components and instead show proper modern empty states.
+
+### 5. ADDITIONAL PRODUCTION REQUIREMENTS
+1. **Error Handling:** All async operations must handle failure states. Show retry options and user-friendly error messages.
+2. **Loading States:** Implement skeleton loaders and button loading indicators. Disable actions during processing.
+3. **User Feedback System:** Add toast notifications for success, error, and warnings. Ensure every action gives visible feedback.
+4. **Navigation Flow:** Define clear post-action navigation (e.g., after saving medicine -> redirect to inventory or update UI instantly).
+5. **Form Validation:** All forms must include validation (required fields, correct formats, constraints).
+6. **State Management:** Use React Query for server data and centralized state (Context/Zustand) for UI state.
+7. **Role-Based Access:** Restrict features based on user roles (Admin, Manager, Cashier).
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. **Build Check:** Run `npm run build` to ensure the Next.js build passes without TypeScript or linting errors.
+
+### Manual Verification
+1. Please start the development server using `npm run dev`.
+2. Visually inspect the Dashboard for the new clean aesthetic, checking that no dummy text is visible and empty states are displayed where appropriate.
+3. Test layout responsiveness on mobile (using browser DevTools) to verify collapsible sidebar and thumb-friendly buttons.
+4. Navigate to the Settings page, modify a setting, refresh the page, and ensure the setting persisted.

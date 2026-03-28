@@ -1,0 +1,15 @@
+# Task: Apply Stitch UI Design to Dashboard
+
+- [x] Create [implementation_plan.md](file:///c:/Users/vaibh/.gemini/antigravity/brain/aacdc2ef-85c4-4aeb-bba0-4998fea172de/implementation_plan.md) for user approval
+- [x] Understand the color palette and typography from Stitch project metadata (e.g. #006d4f primary, #f7faf6 surface)
+- [x] Update [tailwind.config.js](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/tailwind.config.js) or `globals.css` with the new design tokens if missing
+- [ ] Refactor [app/dashboard/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/page.tsx)
+  - [ ] Apply the new 'Clinical Sanctuary' aesthetic (glassmorphism, no borders, ambient shadows, etc.)
+  - [ ] Implement the 'Financial Pulse' section using real `totalSalesToday`
+  - [ ] Implement 'Transaction Monitor' using recent sales data (will need to fetch `/api/sales?limit=5` or similar)
+  - [ ] Implement 'Stock Vitality' using `lowStockCount` and `expiryCount`
+  - [ ] Implement 'Commander Actions' standard action buttons
+  - [ ] Implement 'Intraday Performance' using `salesByDate` chart data
+  - [ ] Structure layout for Desktop and Mobile (Responsive Grid)
+- [ ] Integrate actual User shop name / Application name ("AyurStock Pro")
+- [ ] Verify functionality (Chart renders, metrics load, responsive design works)

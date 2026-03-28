@@ -1,0 +1,9 @@
+# Fix MoveToInventory Modal
+
+- [ ] Inspect [components/MoveToInventoryModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/MoveToInventoryModal.tsx)
+- [ ] Convert `quantity`, `purchaseRate`, `mrp` state hooks to string format (`''`)
+- [ ] Implement robust reset logic on modal open to clear fields
+- [ ] Update `onChange` handlers to accept strings instead of forcing `parseInt` immediately
+- [ ] Add Form validation hook (`parseFloat` > 0) to [handleSubmit](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/MoveToInventoryModal.tsx#80-123)
+- [ ] Add requested placeholders to the `<Input>` fields
+- [ ] Push to GitHub

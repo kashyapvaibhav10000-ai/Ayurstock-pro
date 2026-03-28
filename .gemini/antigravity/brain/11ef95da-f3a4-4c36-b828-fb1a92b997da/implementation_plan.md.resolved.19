@@ -1,0 +1,43 @@
+# Implementation Plan - Database Admin Panel
+
+Providing administrative visibility and bulk actions for the AyurStock Pro database via a secure dashboard section.
+
+## Proposed Changes
+
+### [API] Database Statistics
+Create a new endpoint to fetch record counts for key models.
+
+#### [NEW] [db-stats/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/admin/db-stats/route.ts)
+- Fetch counts for [Medicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/medicines/page.tsx#28-35), [InventoryBatch](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx#22-34), [Sale](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/page.tsx#14-18), `Purchase`, and `Supplier`.
+- Enforce `ADMIN` role check.
+
+### [API] Medicine Export
+Create a new endpoint to export all medicines as a CSV file.
+
+#### [NEW] [export/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/export/route.ts)
+- Fetch all medicines for the authenticated `shopId`.
+- Format data as CSV and return with appropriate headers for download.
+
+### [Frontend] Database Admin UI
+Implement the new dashboard section.
+
+#### [NEW] [database-admin.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/database-admin.tsx)
+- Display table counts in a grid of cards.
+- Integrate the "Clear All Medicines" action (with confirmation).
+- Add an "Export as CSV" button.
+- Provide a paginated table to view raw medicine data.
+
+#### [MODIFY] [page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx)
+- Add "Database Admin" to `SETTINGS_CATEGORIES` (Advanced group).
+- Add the `database` tab to [renderContent](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx#65-80).
+
+## Verification Plan
+
+### Automated Tests
+- Run `npm run lint` and `npm run build`.
+
+### Manual Verification
+- Verify the "Database Admin" tab is only visible to `ADMIN` users.
+- Confirm table counts update correctly after imports or deletions.
+- Test the "Export as CSV" functionality.
+- Verify the raw data table displays correctly.

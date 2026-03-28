@@ -1,0 +1,30 @@
+# Walkthrough - Clear All Medicines Feature
+
+I have added a powerful administrative feature to AyurStock Pro that allows ADMIN users to wipe all medicine-related data for fresh testing or system reset.
+
+## Changes Made
+
+### 1. Settings Page "Danger Zone"
+Added a new section to the **System Preferences** tab in the Settings dashboard.
+- **UI**: A distinct red-bordered "Danger Zone" highlights high-risk actions.
+- **Button**: A "Clear All Medicines" button with a trash icon.
+- **Security**: The button is only rendered for users with the `ADMIN` role.
+
+### 2. Confirmation Dialog
+Implemented a multi-step confirmation process using a Shadcn UI Dialog to prevent accidental data loss.
+- **Alert**: Displays an "Extremely Dangerous Action" warning.
+- **Summary**: Explicitly lists what will be deleted (Medicines, Batches, Sales, Ledger).
+- **Final Warning**: Requires user confirmation before triggering the API.
+
+### 3. API Integration
+- **Endpoint**: Connects to `DELETE /api/medicines/clear-all`.
+- **Response Handling**: Shows success/error toasts. Upon success, all medicine and inventory data for the current shop is permanently removed.
+
+## Verification Results
+
+### Automated Tests
+- `npm run lint`: Passed with minor unrelated warnings.
+- `npm run build`: Successfully completed production build.
+
+### Security Check
+- Verified that the [SettingsPage](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx#35-165) components correctly utilize `useAuth().isAdmin` to restrict access to these controls.

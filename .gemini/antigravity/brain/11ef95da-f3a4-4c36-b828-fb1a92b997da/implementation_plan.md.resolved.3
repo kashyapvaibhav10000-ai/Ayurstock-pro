@@ -1,0 +1,28 @@
+# High-Fidelity Unified Invoice Printing
+
+## The Issue 📋
+Currently, the beautiful UI invoice in `/dashboard/billing/invoice/[id]` changes drastically when `window.print()` is invoked. Tailwind's `print:border-0`, `print:shadow-none`, and aggressively un-styled `@media print` classes completely strip the borders, layout structure, and backgrounds, resulting in a broken paper receipt.
+
+## User Review Required ⚠️
+> [!IMPORTANT]  
+> Before I proceed, I need to know your target paper size so I can write the exact CSS for it. Do you want the invoice to be designed for standard **A4 paper sheets**, or a small **80mm Thermal Receipt Printer**? I will design the unified template to perfectly fit your choice.
+
+## Proposed Changes
+
+### 1. Extract a Unified Template
+#### [NEW] [InvoiceTemplate.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/InvoiceTemplate.tsx)
+- Extract the complex JSX currently trapped inside the billing page into a reusable Server/Client agnostic component.
+- Pass `sale`, `shopSettings`, and `invoiceSettings` as typed React Props.
+
+### 2. Overhaul the Print CSS (`@media print`)
+#### [MODIFY] [globals.css](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/globals.css) and component classes
+- **Preserve Borders:** Remove all `print:border-0` classes so the crisp "Bill To" cards and tables remain visible on paper.
+- **Color Preservation:** Force browsers to print exact colors using `-webkit-print-color-adjust: exact;` and `print-color-adjust: exact;`.
+- **Formatting:** Ensure font sizes scale down properly to fit the paper dimensions, and disable printing for the Sidebar/Navbar entirely.
+- **Watermark:** Center the watermark cleanly on the page without disrupting text flow.
+
+### 3. Replace the Page Logic
+#### [MODIFY] [page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/billing/invoice/[id]/page.tsx)
+- Rip out the enormous 367 lines of raw UI code.
+- Import and render `<InvoiceTemplate sale={sale} shopSettings={...} settings={...} />`.
+- Retain the clean `window.print()` header buttons (hidden natively during printing).

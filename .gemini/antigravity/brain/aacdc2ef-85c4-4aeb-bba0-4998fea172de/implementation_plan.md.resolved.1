@@ -1,0 +1,34 @@
+# Settings Compartment Upgrades & Backup System
+
+The goal is to apply "Clinical Sanctuary" UI upgrades to the Settings compartments and build a fully functional Database Backup and Restore pipeline.
+
+## Proposed Changes
+
+### 1. Database Admin: Backup & Restore
+- **API `GET /api/database/backup`**: Fetches all core data (Medicines, InventoryBatches, Sales, SaleItems, Customers, Suppliers, Purchases, PurchaseItems, Shop Settings, RackLocations, Users) and returns it as a downloadable `.json` file.
+- **API `POST /api/database/restore`**: Accepts a `.json` backup file, clears the current database in a transaction, and inserts the uploaded records.
+- **UI Upgrade**: Build the "Red Zone" Danger UI in [components/settings/database-admin.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/database-admin.tsx). Downloading a backup is a prominent reliable action, restoring requires typing the word `RESTORE` to prevent accidental wipes.
+
+### 2. General Settings Upgrades
+- **Shop Details**: Add a "Live Receipt Preview" side-panel so the user sees exactly how their bill will print as they type.
+- **Invoices**: Restructure inputs into a premium "Bento Grid" medical form style.
+- **Inventory Thresholds**: Replace standard number inputs with visual Color-Coded Sliders (Green/Yellow/Red).
+- **Rack Locations**: Improve the list UI to feel more like a visual rack manager.
+
+### 3. Account Settings Upgrades
+- **My Profile**: Add the sleek avatar card with the Stitch drop-shadow and gradient styling.
+- **Team**: Use clinical pill-shaped badges for user roles (`CASHIER`, `ADMIN`) and upgrade the "Add Employee" modal to use Glassmorphism effects.
+
+### 4. Advanced Settings Upgrades
+- **AI Usage**: Implement a sleek circular gauge or speedometer to track API calls against the daily free limit.
+
+## Verification Plan
+### Automated Tests
+- Verify that `GET /api/database/backup` successfully produces a valid JSON structure.
+- Verify `POST /api/database/restore` correctly rebuilds the Prisma tables.
+
+### Manual Verification
+1. Open the Settings panel.
+2. Check the Live Preview on Shop Details.
+3. Test downloading a `.json` backup file.
+4. Verify the Red Zone requires explicit typing before allowing a restore.

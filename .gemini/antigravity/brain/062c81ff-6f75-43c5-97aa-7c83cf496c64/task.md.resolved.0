@@ -1,0 +1,41 @@
+# UI/UX Overhaul Task List
+
+## 1. Initial Architecture & Analysis
+- [ ] Analyze existing layout, dashboard, and settings components.
+- [ ] Identify dummy data locations (e.g., seed scripts, hardcoded data in components/API).
+- [ ] Review current color scheme and typography in Tailwind config / CSS.
+
+## 2. Global Design System Update
+- [ ] Update [tailwind.config.js](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/tailwind.config.js) and global CSS with a modern, medical-friendly color palette (blues, teals, clean whites, and slate grays).
+- [ ] Establish consistent typography (e.g., standardizing `Inter` or similar clean font).
+- [ ] Update or create base UI components (Buttons, Inputs, Cards, Modals) for a polished, cohesive look.
+
+## 3. Empty States & Dummy Data Removal
+- [ ] Remove hardcoded dummy data from API routes or components.
+- [ ] Update database seeding scripts (if applicable) to avoid preloading unwanted data, or just ensure default view is clean.
+- [ ] Add empty state illustrations/text for Dashboard, Inventory, Sales, etc., when no data exists.
+
+## 4. Dashboard Enhancements
+- [ ] Restructure Dashboard layout for better hierarchical display.
+- [ ] Implement responsive cards/widgets (e.g., Total Sales, Low Stock Alerts, Recent Activity).
+- [ ] Add visual data insights (charts) utilizing Recharts.
+- [ ] Ensure real-time/dynamic data connection (replacing any fake data).
+
+## 5. Settings Page Redesign
+- [ ] Create logical grouping for Settings (Profile, Shop Info, Preferences).
+- [ ] Implement clean form validation (using existing `react-hook-form` and `zod`).
+- [ ] Ensure settings actions are functional and persistently save data.
+
+## 6. Fixing Dummy/Non-Functional Buttons
+- [ ] Audit all pages for non-functional buttons or placeholders.
+- [ ] Hook them up to actual functionality (e.g., modals, API calls, or routing).
+- [ ] Remove irrelevant or unnecessary buttons.
+
+## 7. UX Flow & Mobile Responsiveness
+- [ ] Ensure seamless navigation on mobile/tablet (hamburger menus, collapsible sidebars).
+- [ ] Review loading states for asynchronous operations.
+- [ ] Add error summaries/toast notifications for failures.
+
+## 8. Final Review
+- [ ] Verify no core functionality is broken.
+- [ ] Code cleanliness and structure review.

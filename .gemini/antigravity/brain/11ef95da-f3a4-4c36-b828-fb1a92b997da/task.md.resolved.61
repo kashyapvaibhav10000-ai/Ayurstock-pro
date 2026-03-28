@@ -1,0 +1,13 @@
+# Task Management
+
+- [x] Diagnostic Logging
+    - [x] Add `shopId` logging to [bulk-insert/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/bulk-insert/route.ts)
+    - [x] Add `shopId` logging to [search/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/search/route.ts)
+    - [x] Add `shopId` logging to [clear-all/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/clear-all/route.ts)
+- [x] Bug Fixes
+    - [x] Correct any hardcoded or mismatched `shopId` values in API routes
+    - [x] Ensure consistent use of `shopId` from auth context
+- [/] Final Verification
+    - [/] `npm run lint`
+    - [ ] `npm run build`
+    - [ ] Git commit and push

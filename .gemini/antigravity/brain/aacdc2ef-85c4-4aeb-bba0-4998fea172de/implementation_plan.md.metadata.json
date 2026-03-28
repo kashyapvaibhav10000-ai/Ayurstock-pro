@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Added strict safety measures to Database Restore (UPSERT, dry-run, financial data protection) and refined UI requirements.",
+  "updatedAt": "2026-03-25T09:24:58.660409300Z",
+  "version": "2"
+}

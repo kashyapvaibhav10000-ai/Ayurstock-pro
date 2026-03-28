@@ -1,0 +1,141 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+AyurGrid
+System: Optimal
+Command Center v4.2
+[0] (854,34)<span >notifications />
+[1] (883,34)<span >settings />
+Dr. Ananya Iyer
+Chief Pharmacist
+Organic Curator
+Management Portal
+[2] (71,148)<a class='bg-white dark:bg-stone-900 text-green-700 dark:text-green-400 rounded-l-full ml-4 pl-4 py-3 shadow-sm flex items-center gap-4 transition-all scale-102' href='#' />
+	[3] (23,148)<span >dashboard />
+	[4] (57,148)<span >Dashboard />
+[5] (67,203)<a class='text-stone-600 dark:text-stone-400 px-8 py-3 flex items-center gap-4 hover:text-green-600 transition-all' href='#' />
+	[6] (23,203)<span >inventory_2 />
+	[7] (54,203)<span >Inventory />
+[8] (67,258)<a class='text-stone-600 dark:text-stone-400 px-8 py-3 flex items-center gap-4 hover:text-green-600 transition-all' href='#' />
+	[9] (23,258)<span >local_shipping />
+	[10] (60,258)<span >Supply Chain />
+[11] (67,313)<a class='text-stone-600 dark:text-stone-400 px-8 py-3 flex items-center gap-4 hover:text-green-600 transition-all' href='#' />
+	[12] (23,313)<span >analytics />
+	[13] (55,313)<span >Reporting />
+[14] (67,368)<a class='text-stone-600 dark:text-stone-400 px-8 py-3 flex items-center gap-4 hover:text-green-600 transition-all' href='#' />
+	[15] (23,368)<span >group />
+	[16] (59,368)<span >User Access />
+[17] (67,797)<button class='w-full bg-gradient-to-r from-primary to-primary-container text-white py-4 rounded-full font-bold shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity'>New Order />
+	[18] (42,797)<span >add_circle />
+[19] (67,886)<a class='text-stone-600 dark:text-stone-400 px-8 py-3 flex items-center gap-4 hover:text-green-600 transition-all' href='#' />
+	[20] (23,886)<span >help />
+	[21] (52,886)<span >Support />
+[22] (67,941)<a class='text-stone-600 dark:text-stone-400 px-8 py-3 flex items-center gap-4 hover:text-green-600 transition-all' href='#' />
+	[23] (23,941)<span >logout />
+	[24] (50,941)<span >Logout />
+Operational Command
+Live processing active across 3 nodes • Next sync in 12s
+System Health
+[25] (954,127)<button class='bg-surface-container-highest px-6 py-2 rounded-full text-sm font-bold text-on-surface hover:bg-surface-variant transition-colors'>Export Logs />
+Financial Pulse
+account_balance_wallet
+Total Sales (Today)
+₹ 1,42,850
+trending_up
++12.4%
+GST Collected
+₹ 25,713
+Stability Index
+98.2%
+Active Staff
+badge
+Admin-Main
+Since 08:00 (5h 22m)
+98% Accuracy
+Lead-Pharma
+Since 09:15 (4h 07m)
+42 Trans.
+Cashier-01
+Since 12:30 (0h 52m)
+94% Accuracy
+[26] (202,790)<button class='flex-1 text-[10px] font-bold py-2 bg-surface-container-low rounded-lg hover:bg-primary/10 hover:text-primary transition-colors'>VIEW LOGS />
+[27] (291,790)<button class='flex-1 text-[10px] font-bold py-2 bg-surface-container-low rounded-lg hover:bg-primary/10 hover:text-primary transition-colors'>MANAGE />
+Herb of the Day
+Ashwagandha
+Transaction Monitor
+Real-time prescription processing
+[28] (726,232)<span >search />
+[29] (751,232)<span >filter_list />
+ID / Time
+Customer
+Items
+Amount
+Status
+#RX-9012
+14:22:10
+Rajesh Kumar
+Brahmi Gold (x2), Neem Cap...
+₹ 1,240
+COMPLETED
+#RX-9013
+14:23:45
+Sita Devi
+Tulsi Drops, Shilajit Res...
+₹ 850
+PROCESSING
+#RX-9014
+14:25:01
+Amit Shah
+Custom Kashayam (Batch B2)
+₹ 3,400
+HOLD
+#RX-9015
+14:28:12
+Laxmi V.
+Chyawanprash Special
+₹ 450
+COMPLETED
+Supply Chain Pulse
+Incoming freight & vendor status
+[30] (749,711)<button class='text-primary text-xs font-bold hover:underline'>Track All />
+local_shipping
+Batch AH-42 (Shatavari)
+In Transit
+Expected: Today, 18:00 • Route: Mysore Hub
+inventory
+Organic Amla (Refill)
+Warehouse
+Status: Quality Check in progress
+priority_high
+Guggulu Resin Extractions
+Delayed
+Alert: Climate impact at source (Kerala)
+Stock Vitality
+Critical Low
+4 SKU
+Triphala Churna (All sizes), Haritaki Tablets
+Optimal Stock
+128 SKU
+Standard herbs and liquid formulations
+Commander Actions
+[31] (841,553)<button class='flex flex-col items-center justify-center p-4 bg-surface-container-low rounded-[20px] hover:bg-primary/5 transition-colors group' />
+	[32] (841,541)<span >receipt_long />
+	[33] (841,576)<span >New Prescription />
+[34] (933,553)<button class='flex flex-col items-center justify-center p-4 bg-surface-container-low rounded-[20px] hover:bg-primary/5 transition-colors group' />
+	[35] (933,541)<span >person_add />
+	[36] (933,576)<span >Add Customer />
+[37] (841,662)<button class='flex flex-col items-center justify-center p-4 bg-surface-container-low rounded-[20px] hover:bg-primary/5 transition-colors group' />
+	[38] (841,650)<span >inventory />
+	[39] (841,685)<span >Quick Stock />
+[40] (933,662)<button class='flex flex-col items-center justify-center p-4 bg-surface-container-low rounded-[20px] hover:bg-primary/5 transition-colors group' />
+	[41] (933,650)<span >description />
+	[42] (933,685)<span >Batch Report />
+[43] (887,750)<button class='w-full mt-4 py-3 border-2 border-dashed border-outline-variant text-outline rounded-2xl text-[10px] font-bold hover:border-primary hover:text-primary transition-colors'>CUSTOMIZE ACTIONS + />
+Intraday Performance
+insights
+09:00
+Sales Volume
+21:00
+
+</current_dom>

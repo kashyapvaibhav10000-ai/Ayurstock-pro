@@ -1,0 +1,33 @@
+# Task: Import Bill — 7 Upgrades
+
+## Phase 0: Setup
+- [x] Read all 4 files completely
+- [x] Read prisma schema
+- [x] Create implementation plan
+
+## Phase 1: Database Schema
+- [ ] Add `ImportedInvoice` model to schema.prisma
+- [ ] Run `npx prisma db push && npx prisma generate`
+
+## Phase 2: Backend — Upgrades 1 & 2
+- [ ] Upgrade 1: Duplicate invoice check in bulk-import/route.ts
+- [ ] Upgrade 2: Row-level validation in bulk-import/route.ts
+- [ ] Add check-restock API endpoint (Upgrade 5 backend)
+
+## Phase 3: Frontend — Upgrades 3, 4, 5, 6
+- [ ] Upgrade 3: Checkboxes + partial accept/reject
+- [ ] Upgrade 4: Expiry warning highlights + sorting
+- [ ] Upgrade 5: Restock/New badges with tooltips
+- [ ] Upgrade 6: Confidence UI (cell-level colors)
+
+## Phase 4: AI Parser — Upgrade 6 backend
+- [ ] Add confidence field to ParsedMedicine
+- [ ] Update vision prompt for confidence scoring
+
+## Phase 5: OCR Split — Upgrade 7
+- [ ] Install tesseract.js
+- [ ] Add OCR-first flow in import-price-list/route.ts
+
+## Phase 6: Verification
+- [ ] npm run build passes
+- [ ] Git commit & push

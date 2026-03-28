@@ -1,0 +1,15 @@
+# Task: Fix PDF Import (Client-Side OCR)
+
+## Research
+- [ ] Read current import modal UI
+- [ ] Read current API import route
+- [ ] Read current AI parsing logic
+
+## Implementation
+- [ ] Create client-side PDF-to-text utility (pdfjs-dist + tesseract.js)
+- [ ] Update ImportMedicinesModal to use client-side OCR
+- [ ] Update API route to accept text instead of file
+- [ ] Test and verify build
+
+## Deploy
+- [ ] Commit and push to Vercel

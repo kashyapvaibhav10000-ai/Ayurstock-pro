@@ -1,0 +1,37 @@
+# Fix Frozen Login & 401 Interceptors
+
+## The Issue 📋
+When a user's session expires in the background (15m JWT timeout), the frontend continues to use the dead JWT. Because many files import `axios` directly (bypassing the [useApi](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/hooks/index.ts#5-42) hook), `401 Unauthorized` errors aren't caught, causing components to stall in infinite loading states. Furthermore, attempting to log in again fails because old dead tokens continuously clutter the client state.
+
+## Proposed Changes
+
+### 1. Fix [app/login/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/login/page.tsx)
+- **Pre-flight wipe:** Before `axios.post('/api/auth/login')`, we will aggressively call:
+  ```typescript
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  await axios.post('/api/auth/logout').catch(() => {});
+  ```
+- This ensures an absolutely cleanly reset state for incoming new credentials without old tokens causing auth mismatches.
+
+### 2. Create Global Interceptor `lib/axios.ts`
+- Create a new file `lib/axios.ts` that safely mutates the global Axios singleton on the client:
+  ```typescript
+  import axios from 'axios';
+  // Intercept all 401 errors application-wide
+  axios.interceptors.response.use(
+    (res) => res,
+    (err) => {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+      return Promise.reject(err);
+    }
+  );
+  ```
+
+### 3. Attach Interceptor Globally
+- Import `import '@/lib/axios';` directly into [app/providers.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/providers.tsx) (which wraps [app/layout.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/layout.tsx)).
+- This guarantees the singleton behavior is activated the exact millisecond the React app boots, automatically catching and blocking any rogue `401`s from any of the 18 direct Axios imports scattered across the application.

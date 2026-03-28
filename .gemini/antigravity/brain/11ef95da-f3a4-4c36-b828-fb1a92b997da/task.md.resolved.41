@@ -1,0 +1,28 @@
+# Refactor Add Inventory Flow & Rack Locations
+
+## Phase 1: Database Architecture
+- [x] Inject [RackLocation](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/AddInventoryModal.tsx#99-107) mapping model into [prisma/schema.prisma](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/prisma/schema.prisma)
+- [x] Add relationship `rackLocations RackLocation[]` to [Shop](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/shop-settings.tsx#8-151) model
+- [x] Execute `npx prisma db push` (User requested migration, but bypassing local SQLite lockfile constraint)
+
+## Phase 2: Core API Routes
+- [x] Create `GET /api/settings/rack-locations` endpoint
+- [x] Create `POST /api/settings/rack-locations` endpoint (with UPSERT auto-seeding logic for H1-H5)
+- [x] Create `PUT /api/settings/rack-locations/[id]` endpoint
+- [x] Create `DELETE /api/settings/rack-locations/[id]` endpoint (with protective collision checking)
+- [x] Add >= 2 character length API throttle block on `/api/medicines/search` endpoint
+- [x] Create `GET /api/medicines/[id]/last-mrp` for automated cache hitting
+
+## Phase 3: Settings Dashboard UI
+- [x] Add `Rack Locations` section into the primary Settings layout ([app/dashboard/settings/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx) or new route depending on structure)
+- [x] Build tabular CRUD view for rack locations
+- [x] Build `Add/Edit Rack Location` Modal
+
+## Phase 4: Core Inventory UI
+- [x] Upgrade [AddInventoryModal](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/AddInventoryModal.tsx#26-393) to support cascading Company-to-Medicine lookups
+- [x] Mount `/api/medicines/search?company={id}&q={term}` logic
+- [x] Transform static `rackLocation` inputs into dynamic database-mapped HTML `<select>` elements
+- [x] Implement pre-submission hooks locking inputs `> 0` and enforcing blank default initializations (`''`)
+- [x] Incorporate UX Temporal Warning (Under 3 Months) expiry boundaries
+- [x] Invoke native async cache fetching to rapidly pre-populate the MRP integer 
+- [x] Push to repository

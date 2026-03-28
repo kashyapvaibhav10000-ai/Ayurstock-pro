@@ -1,0 +1,14 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+AyurStock Pro
+Ayurvedic Pharmacy Management System
+Login to your workspace
+[0] (358,489)<label class='text-sm font-medium text-white/80'>Email / Username />
+[1] (500,536)<input class='flex w-full border px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 h-12 rounded-xl border-white/15 bg-white/10 pl-11 text-white placeholder:text-white/35 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-0' placeholder='admin@pharmacy.com' />
+[2] (330,593)<label class='text-sm font-medium text-white/80'>Password />
+[3] (500,641)<input class='flex w-full border px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 h-12 rounded-xl border-white/15 bg-white/10 pl-11 text-white placeholder:text-white/35 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-0' placeholder='Enter your password' />
+[4] (500,710)<button class='flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 font-medium text-white shadow-lg transition-all duration-300 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60'>Login to Dashboard />
+
+</current_dom>

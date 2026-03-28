@@ -1,0 +1,54 @@
+# Fix AI Parser Fallback Chain (Gemini / Cerebras / Groq)
+
+After the last Claude change, PDF import is broken. The server logs show:
+1. **Gemini** — completely skipped (no log at all)
+2. **Cerebras** — `status 404` (model not found)
+3. **Groq** — `status 400` (bad request)
+4. **Mistral** — works fine (fallback succeeds here)
+
+## Root Cause Analysis
+
+| Provider | Error | Current Model | Root Cause |
+|----------|-------|--------------|------------|
+| Gemini | Skipped | `gemini-2.0-flash-lite` | `GEMINI_API_KEY` is in `.env` on your Windows machine but likely **not set on the Debian production server**. The code correctly skips when the key is missing. |
+| Cerebras | 404 | `llama3.1-8b` | Model name `llama3.1-8b` is correct per docs, but Cerebras may have retired this model. The `CEREBRAS_API_KEY` env var is also **missing from `.env`** — so even if we fix the model, it won't run without a key. |
+| Groq | 400 | `llama-3.1-8b-instant` | Model name is valid per Groq docs. The 400 error likely means the chunk is too large for the `max_tokens: 8192` setting, or the total request exceeds the model's context window. The `GROQ_CHUNK_SIZE` of 7000 chars combined with the system prompt may be overflowing. |
+
+> [!IMPORTANT]
+> **Cerebras has NO API key** in your `.env` file. You need to add `CEREBRAS_API_KEY=your_key_here` to both your local `.env` and your production server's environment.
+
+## Proposed Changes
+
+### Billing Layout Redesign (`app/dashboard/billing/page.tsx`)
+1. **Overall Structure**: Enhance the 3-column Bento grid. Improve internal padding and add subtle gradients to the panels.
+2. **POS Digital Display**: Make the Grand Total in the Payment Summary massive (using `text-4xl` or `text-5xl`), with a distinct high-contrast background to look like a modern cash register display.
+3. **Typography & Visual Hierarchy**: Use clearer, bolder fonts for quantities, prices, and totals. Tone down the secondary text (e.g., rack locations, batch numbers) using crisp badges.
+4. **Cart Controls**: Replace the standard quantity (+ / -) buttons with a sleeker, joined toggle component.
+5. **Keyboard Shortcuts**: Add visual keyboard key indicators (like `<kbd>F12</kbd>`) alongside buttons so the cashier instantly knows the shortcuts.
+6. **"Complete Sale" Action**: Enlarge the checkout button, add an icon, and apply an active pulse animation when the cart is non-empty to draw the eye.
+7. **Empty States**: Improve the empty cart view with a larger, more friendly illustration/icon and clearer typography.
+
+
+### AI Parser
+
+#### [MODIFY] [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+
+1. **Cerebras model**: Change from `llama3.1-8b` → `llama-3.3-70b` (newer, confirmed available model with hyphens)
+2. **Groq model**: Change from `llama-3.1-8b-instant` → `llama-3.3-70b-versatile` (higher quality, confirmed production model on Groq)
+3. **Groq chunk size**: Reduce from `7000` → `6000` to give more headroom and avoid 400 errors from context overflow
+4. **Add better error logging**: Log the response body on non-ok responses so we can see the actual error message from the API, not just the status code
+
+## User Action Required
+
+Before I can proceed with the code changes, you will also need to:
+1. **Add `CEREBRAS_API_KEY`** to your `.env` and to your production server's environment
+2. **Verify `GEMINI_API_KEY`** is set on your Debian production server (it exists locally but may not be on the server)
+
+## Verification Plan
+
+### Manual Verification (on your Debian server)
+1. After deploying the fix, run `systemctl restart ayurstock` on your Debian server
+2. Upload the same PDF that was failing (the Ashtang Harbal price list)
+3. Check the server logs: `journalctl -u ayurstock -f`
+4. Verify the fallback chain now shows Gemini (if key exists) → Cerebras (if key exists) → Groq attempting with `llama-3.3-70b-versatile` → no more 400/404 errors
+5. Confirm medicines are extracted successfully

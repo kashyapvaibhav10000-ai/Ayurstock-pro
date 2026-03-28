@@ -1,0 +1,21 @@
+# Task Management
+
+- [x] Schema & Database
+    - [x] Update [Medicine](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/medicines/page.tsx#28-35) model with `mrp` and `tradePrice`
+    - [x] Update `ImportJob` with `shopId`
+    - [x] Run `npx prisma db push` and `npx prisma generate`
+- [x] API Security & Scoping
+    - [x] Update `ImportJob` creation with `shopId`
+    - [x] Update `ImportJob` status check with `shopId` filter
+- [x] Administrative Settings (ADMIN only)
+    - [x] Create `/api/admin/activity-log` and component
+    - [x] Create `/api/admin/ai-usage` and component
+    - [x] Create `/api/admin/login-history` and component
+    - [x] Integrate tabs into [settings/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx)
+- [x] Supplier Management
+    - [x] Create/Update `/api/suppliers` CRUD endpoints
+    - [x] Implement [app/dashboard/suppliers/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/suppliers/page.tsx) UI
+- [/] Final Verification
+    - [/] `npm run lint`
+    - [ ] `npm run build`
+    - [ ] Git commit and push

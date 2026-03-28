@@ -1,0 +1,20 @@
+# Bulk Data Management Architecture
+
+## Phase 1: Storage and Config
+- [ ] Remove transient `@ts-ignore` pragmas.
+- [ ] Run `npx prisma generate` to force TS alignment.
+
+## Phase 2: Secure Import Engine
+- [ ] Build mapping handler (`POST /api/settings/import-csv`) utilizing `csv-parse` or internal split routines.
+- [ ] Construct the React Settings UI (`components/settings/data-import-settings.tsx`).
+- [ ] Implement "Download Template" CSV engine.
+- [ ] Inject `5000` row blocks, Atomic rollback failures, string sanitizers, and `ADMIN` locks.
+- [ ] Configure [app/dashboard/settings/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx) pulling in the `import` tab natively.
+
+## Phase 3: Reporting Suite
+- [ ] Construct utility `lib/exportUtils.ts` formatting standard structures to `Blob`.
+- [ ] Add `Download Report` button to [app/dashboard/inventory/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx).
+- [ ] Map Inventory outputs precisely: `Name`, [Company](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/AddInventoryModal.tsx#133-139), `Category`, [Batch](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx#22-34), [Expiry](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/InvoiceTemplate.tsx#72-79), `Stock`, `Purchase Rate`, `MRP`, [Rack](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/AddInventoryModal.tsx#99-107), `Days Until Expiry`.
+- [ ] Inject strict temporal `expiry (ascending)` sorting override onto the CSV compiler.
+- [ ] Add `Download Report` execution `<Button>` inside [app/dashboard/returns/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/returns/page.tsx) tracking ledger metadata.
+- [ ] Push codebase updates gracefully to Github remote.

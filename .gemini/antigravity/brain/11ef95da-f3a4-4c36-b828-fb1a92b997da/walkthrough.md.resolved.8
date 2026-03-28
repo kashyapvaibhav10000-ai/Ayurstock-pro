@@ -1,0 +1,28 @@
+# Walkthrough - Bulk Insert Stability & Logging
+
+I have overhauled the bulk medicine insertion process to ensure that all records are saved correctly and any failures are individually logged and skipped without affecting the rest of the batch.
+
+## Changes Made
+
+### 1. Resilient Bulk Insertion
+Refactored [app/api/medicines/bulk-insert/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/bulk-insert/route.ts):
+- **Removed Global Transaction**: Switched from a single `prisma.$transaction` to individual record processing. This prevents one bad record from rolling back all 270+ medicines.
+- **Individual Error Handling**: Wrapped every medicine save operation in a `try...catch` block.
+- **Improved Finding Logic**: Strengthened the check for existing medicines by matching on `shopId`, `name`, `company`, AND `packing`.
+
+### 2. Comprehensive Logging
+Added detailed server-side console logs for every medicine in the batch:
+- **`Saved (NEW)`**: Logged when a new medicine record is created.
+- **`Saved (UPDATED)`**: Logged when an existing record is updated with new data (HSN, category, etc.).
+- **`Skipped (EXISTS)`**: Logged when the medicine already exists and no updates are needed.
+- **`FAILED`**: Logged with the specific error message (e.g., unique constraint violation on barcode) for debugging.
+
+## Verification Results
+
+### Automated Tests
+- `npm run lint`: Passed.
+- `npm run build`: Successfully completed production build.
+
+### Performance & Durability
+- The API now returns a summary including `errorCount`, allowing you to see exactly how many records failed if any.
+- By removing the global transaction, the system can now handle very large imports (270+ items) without the risk of an all-or-nothing failure.

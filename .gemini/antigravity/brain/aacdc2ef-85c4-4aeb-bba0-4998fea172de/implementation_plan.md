@@ -1,0 +1,37 @@
+# Settings Compartment Upgrades & Backup System
+
+The goal is to apply "Clinical Sanctuary" UI upgrades to the Settings compartments and build a fully functional Database Backup and Restore pipeline with strict safety measures.
+
+## Proposed Changes
+
+### 1. Database Admin: Backup & Restore
+- **API `GET /api/database/backup`**: Fetches non-financial core data (Medicines, Suppliers, RackLocations) and returns it as a downloadable `.json` file, enforcing `shopId`.
+- **API `POST /api/database/restore`**: 
+  - *Safety Rule 1 (UPSERT)*: Never use `deleteMany()`. Iterate through the JSON and strictly use `prisma.*.upsert()` for each record based on primary keys/unique identifiers.
+  - *Safety Rule 2 (Dry-Run)*: Support `?dryRun=true` to validate the JSON structure, count the records, and return a preview message (e.g., "This will add/update 450 medicines, 5 suppliers. Proceed?").
+  - *Safety Rule 3 (Auto-Backup)*: Automatically generate a backup of the current state before completing a restore.
+  - *Safety Rule 4 (Financial Protection)*: Completely ignore Sales, Purchases, or Billing history in the restore payload. These are permanent records.
+  - *Safety Rule 5 (Shop Isolation)*: Validate `shopId` to ensure the uploaded IDs belong to the current authenticated shop.
+- **UI Upgrade**: Build the "Red Zone" Danger UI in `components/settings/database-admin.tsx`. Handle the dry-run summary popup, auto-backup, and the `RESTORE` confirmation input before submitting.
+
+### 2. General Settings Upgrades
+- **Shop Details**: Add a "Live Receipt Preview" side-panel so the user sees exactly how their bill will print as they type.
+- **Invoices**: Restructure inputs into a premium "Bento Grid" medical form style. **Ensure the form is fully mobile responsive.**
+- **Inventory Thresholds**: Replace standard number inputs with visual Color-Coded Sliders (Green/Yellow/Red).
+- **Rack Locations**: Improve the list UI to feel more like a visual rack manager.
+
+### 3. Account Settings Upgrades
+- **My Profile**: Add the sleek avatar card with the Stitch drop-shadow and gradient styling.
+- **Team**: Use clinical pill-shaped badges for user roles (`CASHIER`, `ADMIN`) and upgrade the "Add Employee" modal to use Glassmorphism effects.
+
+### 4. Advanced Settings Upgrades
+- **AI Usage**: Implement 3 separate sleek gauges in `ai-usage-tab.tsx`:
+  - Gemini (X/1400 daily limit)
+  - Groq (X/14000 daily limit)
+  - OpenRouter (Total calls)
+  - Add a countdown: "Resets in X hours"
+
+## Verification Plan
+1. Test `GET /api/database/backup` and inspect the `.json` structure.
+2. Test `POST /api/database/restore?dryRun=true` and confirm the summary output is accurate without modifying the database.
+3. Test `POST /api/database/restore` and verify `upsert` logic correctly updates records without deletion, and that sales history remains perfectly intact.

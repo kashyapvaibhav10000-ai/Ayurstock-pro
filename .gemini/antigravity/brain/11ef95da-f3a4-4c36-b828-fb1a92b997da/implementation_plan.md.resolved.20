@@ -1,0 +1,55 @@
+# Implementation Plan - System Enhancements & Security Fixes
+
+Addressing critical schema gaps, security risks in bulk imports, and missing administrative/management features.
+
+## Proposed Changes
+
+### [Database] Schema Migrations
+Update the Prisma schema to support better data tracking and security.
+
+#### [MODIFY] [schema.prisma](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/prisma/schema.prisma)
+- **Medicine**: Add `mrp` and `tradePrice` (Decimal, default 0).
+- **ImportJob**: Add `shopId` (String, default "").
+- **Relation Verification**: Ensure all new fields have appropriate defaults to prevent migration issues.
+
+### [API] Security & Tracking
+Update existing APIs to respect the new schema fields and security constraints.
+
+#### [MODIFY] [Import Routes]
+- Update [app/api/medicines/import/batch/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/batch/route.ts) (or relevant import creation route) to include `shopId`.
+- Update [app/api/medicines/import/status/[jobId]/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/status/%5BjobId%5D/route.ts) to filter by `shopId`.
+
+#### [NEW] [Admin APIs]
+- **Activity Log**: `/api/admin/activity-log` (Paginated, filtered by shop).
+- **AI Usage**: `/api/admin/ai-usage` (Aggregated statistics from `ApiUsageCounter`).
+- **Login History**: `/api/admin/login-history` (Filtered by shop).
+
+### [Frontend] Settings Enhancements
+Add the requested administrative tabs.
+
+#### [NEW] [Tabs Components]
+- `components/settings/activity-log-tab.tsx`
+- `components/settings/ai-usage-tab.tsx`
+- `components/settings/login-history-tab.tsx`
+
+#### [MODIFY] [Settings Page](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx)
+- Integrate the new tabs for `ADMIN` users.
+
+### [Frontend] Supplier Management
+Replace the placeholder with a full CRUD implementation.
+
+#### [NEW] [Suppliers Page](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/suppliers/page.tsx)
+- Implementation of Supplier list, create, edit, and delete.
+- Integration with Purchases to show supplier-specific history.
+
+## Verification Plan
+
+### Automated Tests
+- `npx prisma db push` & `npx prisma generate`.
+- `npm run lint` & `npm run build`.
+
+### Manual Verification
+- Verify medicine pricing fields appear in the UI and DB.
+- Confirm `ImportJob` records are correctly scoped to shops.
+- Test all three new settings tabs with mock data.
+- Perform full CRUD on a Supplier and check purchase history.

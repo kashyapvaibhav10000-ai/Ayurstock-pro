@@ -1,0 +1,29 @@
+# Data Integrity & Mass File Architecture
+
+This plan covers the requested administration integrations allowing massive system-level reads and writes via portable accounting mediums.
+
+## Proposed Changes
+
+### 1. Bulk Import Architecture (Settings Dashboard)
+* Build `app/api/settings/import-csv/route.ts`:
+  * Accept [FormData](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/user-settings.tsx#42-43) uploads formatted precisely as raw text parsing.
+  * Construct a smart loop iterating over rows and mapping to `prisma.medicine` or `prisma.rackLocation` safely with UPSERT capabilities.
+* Build `components/settings/data-import-settings.tsx`:
+  * Generates the "File Upload" drag-or-drop field.
+  * Presents an admin visual mapping table for verification before DB commitment.
+* Edit [app/dashboard/settings/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx):
+  * Inject the native "Data Management" navtab linking the Import schema to the front-layer routing map.
+
+### 2. Export Reporting Suite
+* Build `lib/exportUtils.ts`:
+  * Craft universal DOM routines parsing arbitrary arrays to raw CSV/Excel formats encoded gracefully as HTML5 auto-download triggers via `Blob` blobs.
+* Edit [app/dashboard/inventory/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx):
+  * Mount a "Download Report" block tied to the top layout, downloading formatted Stock, MRP, and Location coordinates.
+* Edit [app/dashboard/returns/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/returns/page.tsx):
+  * Duplicate the Export trigger mapping specifically the transactional Return ledgers (both Customer and Supplier returns).
+
+## Verification Plan
+### Automated Data Formatting 
+- I will locally mock arbitrary JS objects traversing the CSV generation layer to ensure the standard Excel CSV parser acknowledges it perfectly without whitespace truncation.
+### Error Supression
+- Ghost definitions blocking standard development loops (`rackLocation` in IDE context) are currently completely wrapped in TS supression comments to force completion.

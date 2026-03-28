@@ -1,0 +1,15 @@
+# Task: Test PDF Import Functionality
+
+## Plan
+1. [ ] Login to AyurStock Pro
+   - [ ] Clear email field
+   - [ ] Type `admin@demo.com`
+   - [ ] Type `Demo@123`
+   - [ ] Click login
+2. [ ] Navigate to Medicines page
+3. [ ] Click Import button
+4. [ ] Verify OCR UI elements in Modal
+5. [ ] Take screenshots at each major step
+
+## Findings
+- 

@@ -1,0 +1,81 @@
+# UI/UX Overhaul Task List
+
+## 1. Initial Architecture & Analysis
+- [x] Analyze existing layout, dashboard, and settings components.
+- [x] Identify dummy data locations (e.g., seed scripts, hardcoded data in components/API).
+- [x] Review current color scheme and typography in Tailwind config / CSS.
+- [x] Create git backup (`git commit -m "before UI overhaul"`).
+
+## 2. Global Design System Update
+- [x] Update [tailwind.config.js](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/tailwind.config.js) with clean whites, soft shadows, and 4px/8px scalable spacing. Avoid glassmorphism; favor readable medical UI.
+- [x] Establish consistent typography (`Inter` or similar clean font).
+- [x] Create base UI components in `/components/ui/` (Buttons, Inputs, Cards).
+- [x] Create specialized UI components: Skeletons (Loaders) and Error Toasts.
+
+## 3. Data Contracts & Empty States
+- [ ] Ensure strict adherence to predefined TS schemas (Medicine, SaleItem) across all views.
+- [ ] Remove hardcoded dummy data from API routes or components.
+- [ ] Add explicit empty state UI (e.g. "Start by adding your first product") with CTA buttons across Dashboard and Inventory.
+
+## 4. Dashboard Enhancements
+- [x] Restructure Dashboard layout using `/components/dashboard/` architecture.
+- [x] Implement responsive cards/widgets fetching REAL calculated data (Sales Today, Low Stock based on strict thresholds).
+- [x] Add visual data insights (charts) utilizing Recharts driven by real endpoints.
+
+## 5. Settings Page Redesign
+- [x] Refactor Settings into `/components/settings/` logical groups.
+- [x] Implement clean form validation (using existing `react-hook-form` and `zod`).
+- [x] Ensure settings actions are functional and persistently save data (DB or localStorage).
+
+## 6. Button Audit Strategy
+- [x] Scan all pages for buttons.
+- [x] Categorize each: Keep if functional, Implement if missing logic, Remove if useless.
+- [x] Add loading/disabled states on submit to all forms.
+
+## 7. UX Flow & Mobile Responsiveness
+- [x] Implement collapsible drawer for sidebar on mobile.
+- [x] Ensure tables use scrollable/card views on smaller screens.
+- [x] Make all critical action buttons thumb-friendly size.
+
+## 8. Final Review
+- [x] Verify absolutely NO business logic was broken or altered unnecessarily.
+- [x] Code cleanliness and structure review.
+
+---
+
+## 🔥 PHASE 2: CRITICAL UX FLOW FIXES 🔥
+
+## 9. Admin Profile UX
+- [x] Refactor the Shop Info modal triggered from the Dashboard Header into a clean, hierarchical Profile Panel or dedicated route.
+- [x] Ensure all shop details (Shop Name, Location, Contact, License) are structured cleanly.
+- [x] Update Header profile trigger to open the new panel instead of a generic modal.
+
+## 10. Dashboard Actions & Modals
+- [x] Update Dashboard "Add Inventory" button to "Add Medicine".
+- [x] Connect the button to a flow modal requesting the user to choose: "Import via OCR" or "Manual Entry".
+- [x] Ensure Manual Entry form contains necessary inputs (Name, Category, Qty, Batch, Expiry, Price).
+
+## 11. Settings Functionality
+- [ ] Audit the Settings page toggles (Dark Mode, Notifications, Cloud Backup).
+- [ ] Implement `localStorage` or DB persistence for toggles so they retain state on refresh.
+- [ ] Ensure toggles actually visually reflect their state (or trigger placeholder console logs/toasts indicating the backend constraint).
+
+## 12. 3-Step Import/OCR UX Redesign
+- [ ] **Step 1:** Build Upload state (Drag & Drop, View file name, "Start Import" CTA).
+- [ ] **Step 2:** Refine Processing state (File Name, Page count, estimated time, functional Cancel).
+- [ ] **Step 3:** Build Review & Edit state. Create an editable data table populated by OCR results BEFORE saving to the database. Include "Confirm & Save" functionality.
+
+---
+
+## 🛡️ PHASE 3: PRODUCTION REQUIREMENTS 🛡️
+
+## 13. System Resiliency & Feedback
+- [ ] Implement robust error handling (try/catch blocks, retry mechanisms) across all async operations.
+- [ ] Add toast notification system (Success, Error, Warning) to trigger after every key action.
+- [ ] Define proper loading states (button spinners, disabled states) during processing to prevent duplicate actions.
+
+## 14. Architecture & Validation
+- [ ] Enforce form validation rules (e.g., expiry dates, required fields, price format).
+- [ ] Standardize navigation flows post-action (e.g., redirecting to Inventory after adding a medicine).
+- [ ] Audit Role-Based Access Control hooks (Admin vs Manager vs Cashier views).
+- [ ] Plan State Management refactor (e.g., evaluating React Query for Dashboard data).

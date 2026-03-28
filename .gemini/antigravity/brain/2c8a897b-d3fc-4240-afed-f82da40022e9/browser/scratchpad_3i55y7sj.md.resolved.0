@@ -1,0 +1,9 @@
+# Task: Verify Medicine Import Functionality
+
+## Plan
+1. [ ] Navigate to http://localhost:3000/dashboard/medicines
+2. [ ] Login if required (admin@demo.com / admin123)
+3. [ ] Click "Import Price List" button
+4. [ ] Verify modal opens and "Drag & Drop File" area is visible
+5. [ ] Take screenshot of the modal
+6. [ ] Report findings

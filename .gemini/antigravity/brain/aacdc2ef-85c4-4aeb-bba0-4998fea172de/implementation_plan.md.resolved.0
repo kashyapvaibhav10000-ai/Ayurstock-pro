@@ -1,0 +1,32 @@
+# Implement Stitch UI Dashboard Design
+
+The goal is to apply the "Clinical Sanctuary" high-end editorial approach (from Stitch project `9038647661266775168`) to the [app/dashboard/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/page.tsx) dashboard and ensure real backend data is wired up correctly.
+
+## User Review Required
+Please review the proposed mapping between the Stitch design elements and your real data. No backend routes will be broken.
+
+## Proposed Changes
+
+### Dashboard Layout & Aesthetics
+We will overhaul [app/dashboard/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/page.tsx) to match the Stitch layout:
+- **Financial Pulse**: Will use your real `totalSalesToday`. We will calculate 'GST Collected' based on the sales data if available, or use a standard percentage.
+- **Transaction Monitor**: We will add a new table showing the most recent 5 sales (fetching from `/api/sales?limit=5`). It will show ID, Customer, Items, Amount, and Status.
+- **Stock Vitality**: Will use your real `lowStockCount` and `expiryCount` to show "Critical Low" and "Optimal Stock" metrics, matching the sleek red/green cards from Stitch.
+- **Supply Chain Pulse**: Will be adapted to show recent purchases or incoming stock.
+- **Commander Actions**: Quick action buttons for "New Order", "Add Customer", "Quick Stock", and "Daily Report".
+- **Intraday Performance**: The revenue chart will be updated to a sleek bar chart that visually matches the Stitch design.
+
+#### [MODIFY] app/dashboard/page.tsx
+- Rewrite the JSX to match the grid layout of the Stitch design (Desktop + Mobile responsive).
+- Apply the Stitch design tokens (e.g., `#006d4f` for primary, `#f7faf6` for surfaces, and glassmorphism utilities like `backdrop-blur`).
+- Update the `useEffect` fetch logic to grab recent transactions for the "Transaction Monitor".
+
+#### [MODIFY] tailwind.config.js
+- Inject Stitch specific colors into the theme (e.g., `stitch-primary`, `stitch-surface`) to be cleanly used in the dashboard without breaking the colors of other existing pages like Settings or Inventory.
+
+## Verification Plan
+### Manual Verification
+1. I will ask you to open the Dashboard page in your browser.
+2. Verify that the new layout matches the clean "Organic Curator" vibe from the screenshot.
+3. Verify that the "Financial Pulse" and "Stock Vitality" numbers match your actual inventory data.
+4. Verify that the "Transaction Monitor" table populates with your real recent sales history.

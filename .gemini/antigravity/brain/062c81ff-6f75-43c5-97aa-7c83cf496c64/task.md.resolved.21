@@ -1,0 +1,16 @@
+# Task: Fix PDF Import (Client-Side OCR)
+
+## Research
+- [x] Read current import modal UI
+- [x] Read current API import route
+- [x] Read current AI parsing logic
+
+## Implementation
+- [x] Create client-side PDF-to-text utility (pdfjs-dist + tesseract.js)
+- [x] Update ImportMedicinesModal to use client-side OCR ([extractTextFromPdf](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/pdfOcrClient.ts#186-223))
+- [x] Clean up [pdfOcrClient.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/pdfOcrClient.ts) to seamlessly handle both PDFs and generic Images (PNG/JPG)
+- [x] Ensure API route successfully accepts text payloads instead of files
+- [x] Test and verify build (Success! Zero errors)
+
+## Deploy
+- [ ] Commit and push to Vercel

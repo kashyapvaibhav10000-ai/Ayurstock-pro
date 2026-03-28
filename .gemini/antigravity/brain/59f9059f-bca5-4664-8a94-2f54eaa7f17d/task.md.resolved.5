@@ -1,0 +1,21 @@
+# Task: Fix AI Medicine Import + Auto-Create Inventory
+
+## AI Vision Model Fixes
+- [x] Update Groq vision model (llama-4-scout)
+- [x] Update OpenRouter vision models (gemma-3, mistral-small)
+- [x] Improve INVOICE_IMAGE_PROMPT for better accuracy
+- [x] Add packing normalization (normalizeMedicines)
+
+## Review Table Redesign
+- [x] Redesign review table with wider columns, row numbers, inline issue badges
+
+## Auto-Create Inventory on Bill Import
+- [x] Trace the current `/api/medicine/bulk-import` endpoint
+- [x] Modify bulk-import to also create inventory batches for new medicines
+- [x] Ensure batch number, expiry, qty, MRP, purchase rate are saved to inventory
+
+## Data Processing Improvements
+- [x] Implement duplicate merging in [dedup](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#184-222) function
+- [x] Add quantity summing for merged rows
+- [x] Fix lint errors and improve [normalizeMedicine](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#150-183) leniency
+- [x] Commit and push

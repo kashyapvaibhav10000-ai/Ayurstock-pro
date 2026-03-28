@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Refined implementation plan with strict backend/data contracts, empty state emphasis, component architectural structure, and strict rules against breaking business logic.",
+  "updatedAt": "2026-03-17T14:25:30.482275200Z",
+  "version": "1"
+}

@@ -1,0 +1,28 @@
+# Task: Precision Fixes for Import Bill Pipeline
+
+## 1. Expiry Date Format Conversion
+- [ ] Add `normalizeExpiryDate()` function in [aiParser.ts](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+- [ ] Convert MMM-YY → YYYY-MM-DD (last day of month)
+- [ ] Handle edge cases: "Sep-26" → "2026-09-30", "Feb-28" → "2028-02-29"
+
+## 2. PTR vs PTS Column Distinction
+- [ ] Update `INVOICE_IMAGE_PROMPT` to distinguish PTR (retailer) from PTS (stockist)
+- [ ] Add `ptr` field to [ParsedMedicine](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#4-18) interface
+- [ ] Map: purchaseRate = PTS, ptr = PTR, mrp = MRP
+
+## 3. CD% (Cash Discount) Capture
+- [ ] Add `cashDiscount` field to [ParsedMedicine](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#4-18)
+- [ ] Update prompt to extract CD% column
+- [ ] Display in review UI (optional)
+
+## 4. Invoice Metadata Capture
+- [ ] Add `invoiceNumber`, `invoiceDate`, `supplierName`, `totalAmount` to parse result
+- [ ] Update prompt to extract header metadata
+- [ ] Display metadata summary in review screen
+
+## 5. Medicine Name & Packing Separation
+- [ ] Ensure packing is extracted as separate field, not embedded in name
+- [ ] Update normalization to strip packing suffixes from name
+
+## 6. Verification
+- [ ] Push to server and test with Ayukalp invoice

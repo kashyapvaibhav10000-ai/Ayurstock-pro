@@ -1,0 +1,27 @@
+# Fix Frozen Login & 401 Interceptors
+
+## The Issue 📋
+When a user's session expires in the background (15m JWT timeout), the frontend continues to use the dead JWT. Because `401 Unauthorized` errors aren't caught globally, components stall out in infinite loading states trying over and over to fetch data, totally freezing the UI. Furthermore, attempting to log in again fails because old tokens clutter the state.
+
+## Proposed Changes
+
+### 1. Fix [app/login/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/login/page.tsx)
+- **Pre-flight wipe:** Before `axios.post('/api/auth/login')`, we will aggressively call:
+  ```typescript
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  await axios.post('/api/auth/logout').catch(() => {});
+  ```
+- This ensures an absolutely perfectly clean slate for the incoming new credentials.
+
+### 2. Create Global Interceptor `lib/axios.ts`
+- Create a new file `lib/axios.ts` that configures a custom Axios instance or mutates the global singleton.
+- Add an interceptor that listens for `401` errors and instantly executes:
+  ```typescript
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
+  ```
+
+### 3. Attach Interceptor Globally
+- Import this new config into [app/layout.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/layout.tsx) or the Auth Provider so it is guaranteed to wrap the entire React tree and intercept all rogue 401s instantly.

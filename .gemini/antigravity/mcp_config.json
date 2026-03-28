@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "StitchMCP": {
+      "$typeName": "exa.cascade_plugins_pb.CascadePluginCommandTemplate",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://stitch.googleapis.com/mcp",
+        "--header",
+        "X-Goog-Api-Key: AQ.Ab8RN6KolzOxBkzFSQStahVpsFuiI3pWhtPZSSEM9TeK1fj5dg"
+      ],
+      "env": {}
+    }
+  }
+}

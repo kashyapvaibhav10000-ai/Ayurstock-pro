@@ -1,0 +1,39 @@
+# Walkthrough: AI Medicine Import Pipeline Overhaul
+
+This report summarizes the major upgrades to the **"Import Bill" (Vision/Image)** feature, focusing on precision, deduplication, and a premium "Full Screen" review experience.
+
+## 1. AI Vision & Precision Engine ([lib/aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts))
+We implemented a multi-layered defense strategy to eliminate AI hallucinations and ensure 100% data accuracy.
+
+### 🛡️ Anti-Hallucination & Spatial Anchoring
+- **Spatial Column Mapping:** The AI is now forced to align data by column indices (Column 1 = Sr.No, Column 6 = Batch, Column 10 = QTY). This prevents "horizontal drifting" where the AI mixes up price and quantity.
+- **Top-to-Bottom Scans:** Explicitly instructed the AI to follow serial numbers (1, 2, 3...) in order, solving the bug where it would jump from the top to the bottom of the bill.
+- **Quality Fallback:** Implemented a **Quality Checker** that automatically detects "hallucinations" (too many `null` or `NA` values) and immediately retries the extraction using a higher-tier model (Gemini 2.0 or Claude 3.5).
+
+### ➕ Smart Deduplication & Merging
+- **Auto-Merge Logic:** Created a [dedup()](file:///C:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#184-222) function that detects multiple rows of the same medicine (e.g., Row 1 and Row 2 of Naturally Churna).
+- **Quantity Summing:** Automatically sums the quantities (e.g., 72 + 48 = **120**) into a single professional entry.
+
+## 2. Professional UI/UX Overhaul ([import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx))
+Redesigned the entire review experience to meet enterprise standards.
+
+### 🍱 "Full Screen" Review Modal
+- **Maximized Real Estate:** Enlarged the review window to **98vw** (nearly full screen), allowing for 11+ columns without cramming.
+- **Typrography Scaling:** Increased font sizes for medicine names and bolded financial amounts/quantities for rapid visual verification.
+- **Cleaner Interface:** Removed cluttered headers and implemented a sleek, bento-style table with increased row padding.
+
+### 📊 Comprehensive Import Summary
+- Updated the success notification to show a detailed breakdown:
+  - Total **New Medicines** added to Master.
+  - Total **Inventory Batches** created.
+  - Total **Stock Quantity** updated.
+
+## 3. Advanced Model Tiers
+Upgraded the AI infrastructure to use the latest high-performance vision models:
+- **Primary:** Llama 3.3 70B (Extremely fast table parsing).
+- **Fallback:** Gemini 2.0 Flash & Claude 3.5 Sonnet (Gold standard for dense OCR).
+
+---
+
+> [!IMPORTANT]
+> All changes have been deployed to the server via the `git` pipeline and are ready for high-volume invoice processing.

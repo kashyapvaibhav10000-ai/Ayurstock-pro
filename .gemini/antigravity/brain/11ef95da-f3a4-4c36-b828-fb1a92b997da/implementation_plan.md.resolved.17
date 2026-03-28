@@ -1,0 +1,29 @@
+# Implementation Plan - Add Clear All Button to Settings
+
+Adding a "Danger Zone" section to the Settings page for administrative tasks, specifically for clearing all medicine data.
+
+## Proposed Changes
+
+### [Frontend] Settings Page UI
+Add a new section to the settings dashboard for administrative actions.
+
+#### [MODIFY] [data-import-settings.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/data-import-settings.tsx) or [page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/settings/page.tsx)
+- Add a "Danger Zone" card containing the "Clear All Medicines" button.
+- Ensure the section is only visible or enabled for users with the `ADMIN` role.
+- Implement a confirmation dialog (e.g., using a Shadcn Dialog or a simple `window.confirm`) to prevent accidental deletions.
+- On confirmation, call `DELETE /api/medicines/clear-all`.
+- Show success/error toasts.
+
+### [API] Access Control Verification
+Verify that the `DELETE /api/medicines/clear-all` endpoint itself correctly enforces the `ADMIN` role. (Already implemented in previous steps, but will double-check).
+
+## Verification Plan
+
+### Automated Tests
+- Run `npm run lint` and `npm run build`.
+
+### Manual Verification
+- Log in as a `MANAGER` or `CASHIER` and verify the button is hidden or disabled.
+- Log in as an `ADMIN` and verify the button is visible.
+- Click the button and ensure the confirmation dialog appears.
+- Confirm the deletion and verify the medicines list is emptied.

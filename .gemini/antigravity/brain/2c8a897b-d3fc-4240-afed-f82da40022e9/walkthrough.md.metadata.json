@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary": "Updated walkthrough to include documentation of the two hotfixes applied today: fixing the OCR ESM crash in Next.js and updating the OpenRouter AI models list to resolve parsing failures.",
+  "updatedAt": "2026-03-17T12:55:11.532090600Z",
+  "version": "1"
+}

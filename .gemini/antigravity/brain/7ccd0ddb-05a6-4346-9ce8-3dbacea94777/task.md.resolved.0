@@ -1,0 +1,9 @@
+# Migration to Docker and Cloudflare Tunneling
+
+- [ ] Analyze project structure and dependencies [/]
+- [ ] Create Dockerfile for Next.js application [ ]
+- [ ] Create docker-compose.yml for orchestration [ ]
+- [ ] Setup Environment Variables for Docker [ ]
+- [ ] Provide Debian installation instructions for Docker [ ]
+- [ ] Provide Cloudflare Tunneling setup instructions [ ]
+- [ ] Verify Docker build and local execution [ ]

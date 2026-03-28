@@ -1,0 +1,30 @@
+# Background AI Parsing Queue Architecture
+
+The App requires complete transformation of synchronous `/api/medicines/import` operations into an asynchronous `JobQueue` mapping to prevent Cloudflare HTTP 524 timeouts occurring during massive PDF processing delays.
+
+## Proposed Changes
+
+### 1. The Route Entrypoint ([app/api/medicines/import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/route.ts))
+* Intercept PDF file buffer validations conventionally.
+* Insert synchronous `prisma.importJob.create({ status: 'processing', message: 'Starting AI parsing...' })` strictly generating a `jobId`.
+* Eject `NextResponse.json({ jobId }, { status: 202 })` instantly to release the active HTTP request.
+* Spin off a Fire-and-Forget background Node loop (`processJobInBackground(jobId, file, extractedText)`) traversing through [parsePDFWithAI](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#595-680)/[parseTextWithAI](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#681-758).
+
+### 2. The Worker Resolver ([app/api/medicines/import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/route.ts))
+* Upon completing the parsing blocks natively, mutate the `ImportJob` DB model dynamically:
+  * On success: `status: 'done'`, `medicines: JSON.stringify(result.medicines)`
+  * On error: `status: 'failed'`, `error: 'Error message'`
+
+### 3. The Polling Route (`app/api/medicines/import/status/[jobId]/route.ts`)
+* Instantiate a new dynamic Segment [GET](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/settings/shop/route.ts#20-66) endpoint querying the Prisma API.
+* Extract `status`, `error`, and `medicines`. Re-hydrate the `medicines` scalar via `JSON.parse` cleanly into standard Array returns matching Frontend types.
+
+### 4. The React Client Modifications ([components/ImportMedicinesModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx))
+* Replace the `await axios.post()` blocking hooks inside [handleUpload](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/data-import-settings.tsx#44-84) and [handleRunOcr](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx#261-324).
+* Mount the intercepted `202` response yielding `jobId` cleanly into `setStep('processing')`.
+* Rewrite [startPolling(jobId)](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx#403-441) structurally to target `/api/medicines/import/status/${jobId}` mapped to `setInterval(..., 3000)` explicitly checking `done` or `failed` bounding arrays natively directly onto `setPreview(normalized)`.
+
+## Verification Plan
+
+### Polling Verifications
+We will trace Network events simulating a native 3000ms loop yielding empty `pending` resolutions concluding abruptly as `medicines[]` successfully. The `npm run build` CLI explicitly validates Type strictness natively prior to push.

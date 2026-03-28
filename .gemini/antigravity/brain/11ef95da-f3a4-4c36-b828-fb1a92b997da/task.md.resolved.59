@@ -1,0 +1,14 @@
+# Task Management
+
+- [x] Settings UI Implementation
+    - [x] Locate the main Settings dashboard/component
+    - [x] Add "Danger Zone" section with "Clear All Medicines" button
+    - [x] Implement confirmation modal/dialog
+    - [x] Add role check (ADMIN only)
+- [x] API Integration
+    - [x] Connect button to `DELETE /api/medicines/clear-all`
+    - [x] Handle success/error states with toasts
+- [/] Final Verification
+    - [/] `npm run lint`
+    - [ ] `npm run build`
+    - [ ] Git commit and push

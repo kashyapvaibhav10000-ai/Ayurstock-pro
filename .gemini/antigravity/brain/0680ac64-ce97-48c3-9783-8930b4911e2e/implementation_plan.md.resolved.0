@@ -1,0 +1,64 @@
+# Fix PDF Import Failures (400 & 504 Errors)
+
+Both PDFs fail during the AI parsing step in [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts). The small PDF gets a 400 (Invalid JSON after 5 retries) and the large PDF gets a 504 (Vercel 300s timeout). The root causes are:
+
+1. **[findWorkingModel()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#201-279) wastes 10-80 seconds** probing up to 10 models before parsing even starts
+2. **No model fallback during actual parsing** — if the chosen model becomes rate-limited mid-parse, all 5 retries use the same failing model
+3. **Chunk processing is too aggressive** — 3 concurrent requests × 5 retries each = potential for 15 sequential API calls per chunk group
+4. **No `maxDuration` configured** — Vercel defaults to 10s or 60s depending on plan, not 300s
+
+## Proposed Changes
+
+### AI Parser Core
+
+#### [MODIFY] [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+
+1. **Replace [findWorkingModel()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#201-279) with a lean hardcoded priority list** — skip the expensive live probe entirely. Free models change rarely; we already maintain a `MODELS` array. Instead of probing, just use the first model and fall back on failure during actual parsing.
+
+2. **Add model fallback in [parseChunkWithAI()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#349-375)** — when a model fails (rate limit, error, invalid JSON), try the next model in the `MODELS` list instead of retrying the same one 5 times.
+
+3. **Improve JSON extraction** — handle more AI response edge cases (markdown fences with spaces, trailing commas, truncated arrays).
+
+4. **Reduce `max_tokens` from 3500 to 2500** — free models respond faster with lower token limits. Our chunks are already small (5K chars), so 2500 tokens is more than enough.
+
+5. **Reduce `REQUEST_TIMEOUT_MS` from 45s to 30s** — fail fast and move to fallback model rather than waiting.
+
+6. **Reduce `MAX_CONCURRENT_REQUESTS` from 3 to 2** — fewer concurrent requests = less rate limiting.
+
+7. **Reduce retries from 5 to 3** — with model fallback, we don't need as many retries per model.
+
+8. **Tighten `GLOBAL_DEADLINE` from 240s to 200s** — leave more buffer before Vercel's 300s limit.
+
+---
+
+### Vercel Configuration
+
+#### [NEW] [vercel.json](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/vercel.json)
+
+Set `maxDuration: 300` for the import API route to ensure Vercel gives the function the full timeout window (if on Pro plan). On the free/Hobby plan, max is 60s — this ensures it's configured correctly.
+
+```json
+{
+  "functions": {
+    "app/api/medicines/import/route.ts": {
+      "maxDuration": 300
+    }
+  }
+}
+```
+
+## Verification Plan
+
+### Manual Verification
+Since there are no automated tests in the project:
+
+1. **Deploy to Vercel** after changes
+2. **Test with the small PDF** (price_list_compressed-1.pdf, 7 pages) — should succeed without 400 error
+3. **Test with the large PDF** (ASHTANG HASBAL NEW PR CE LIST 2025-5-1.pdf) — should either succeed or fail gracefully within timeout
+4. **Check Vercel logs** to confirm:
+   - No [findWorkingModel](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#201-279) probe overhead (removed)
+   - Model fallback happening on failures
+   - Chunks processing within reasonable time
+
+> [!IMPORTANT]
+> If you're on Vercel's **free/Hobby plan**, the max function duration is 60 seconds, which is likely **too short** for large PDFs. The large PDF (49K chars, ~10 chunks) will always timeout on the free plan. Consider upgrading to Vercel Pro ($20/month) for 300s limit, or we can implement a **streaming/batched approach** where the frontend sends chunks one at a time.

@@ -1,0 +1,7 @@
+# Debian Auto-Deployment Cron
+
+- [ ] Write `scripts/deploy.sh`
+- [ ] Implement Git HEAD diff checking to prevent continuous rebuild crashes
+- [ ] Auto-inject npm install, build, and systemctl restart inside the script
+- [ ] Push script to GitHub
+- [ ] Provide user the exact `crontab` one-liner to initialize it on their server

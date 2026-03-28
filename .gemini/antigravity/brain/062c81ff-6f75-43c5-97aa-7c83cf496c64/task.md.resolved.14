@@ -1,0 +1,12 @@
+# Task: UI/UX Refinement & RBAC Implementation
+
+- [x] Refactor Import Medicines flow to 3-step stepper
+- [x] Implement global [AuthProvider](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/providers/AuthProvider.tsx#16-45) and [useAuth](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/providers/AuthProvider.tsx#46-53) hook
+- [x] Apply Page-level RBAC to all Dashboard routes
+- [x] Replace all `alert()` and local messages with `sonner` toasts
+- [x] Standardize Dashboard Home, Suppliers, and Reports UI
+- [x] Fix JSX syntax and linting errors in modified components
+- [/] **User Feedback Refinements**
+    - [ ] Remove glassmorphism completely (except Login) while maintaining premium feel
+    - [ ] Redesign Settings sidebar for mobile responsiveness
+    - [ ] Refine Dashboard empty states to be encouraging for new users

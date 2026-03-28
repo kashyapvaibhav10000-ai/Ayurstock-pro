@@ -1,0 +1,6 @@
+# Deploy & Test PDF Import Improvements
+
+- [/] Verify build still passes
+- [ ] Check git status & commit changes
+- [ ] Push to deploy on Vercel
+- [ ] Test the deployed app in browser

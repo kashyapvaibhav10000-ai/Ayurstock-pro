@@ -1,0 +1,78 @@
+# System Audit Report: AyurStock Pro
+
+## 1. PROJECT OVERVIEW
+**What it is:** AyurStock Pro is a multi-tenant SaaS application designed for Ayurvedic pharmacy management. It handles invoicing, inventory tracking, supplier management, and CRM.
+**Core Purpose:** To digitize pharmacy operations, specifically smoothing out the friction of bulk medicine importing through OCR (Optical Character Recognition) and AI parsing of PDF invoices.
+**Problem Solved:** Manual entry of hundreds of medicines from distributor invoices is error-prone and time-consuming. This app automates invoice ingestion while providing a complete point-of-sale (POS) and inventory system.
+**Target Users:** Ayurvedic pharmacy owners, managers, and cashiers. The system explicitly supports multi-tenancy (`Shop` model) and role-based access control (`ADMIN`, `MANAGER`, `CASHIER`).
+
+## 2. ARCHITECTURE ANALYSIS
+**Tech Stack:**
+- **Frontend:** Next.js 14 (App Router), React 18, Tailwind CSS, shadcn/ui.
+- **Backend:** Next.js API Routes (Serverless), Prisma ORM.
+- **Database:** PostgreSQL.
+- **AI/OCR Integrations:** Heavy reliance on external AI models (Gemini, Groq, Mistral, Cerebras, OpenRouter) and OCR tools (`pdf-parse`, `tesseract.js`) for processing PDF invoices.
+- **Auth:** Custom JWT-based authentication using `jose` and `bcryptjs`.
+
+**Folder Structure → Functionality:**
+- `/app/dashboard/*`: Frontend UI and routing for all core modules (billing, inventory, sales, medicines, reports).
+- `/app/api/*`: Backend API routes handling CRUD operations and business logic.
+- `/components/*`: Reusable UI components.
+- `/lib/*`: Core utilities, including the massive [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) (36KB) and [auth.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/auth.ts).
+- `/prisma/`: Database schema definitions.
+
+**Architectural Pattern:** Monolithic Serverless application. The frontend and backend are tightly coupled within the Next.js framework.
+**Unusual/Advanced Design Decisions:**
+- The AI parsing system acts as a sophisticated fallback waterfall, routing prompts to different LLM providers (Gemini -> Groq -> Mistral etc.) based on daily usage limits tracked in the database (`ApiUsageCounter`).
+
+## 3. FEATURE RECONSTRUCTION
+Based on the actual codebase and schema, the following modules are implemented:
+*   **Authentication & Multi-Tenancy:** Custom JWT sliding-session auth. Users belong to a specific `Shop`.
+*   **Inventory & Medicine Master:** `Medicine` (catalog) and `InventoryBatch` (physical stock with expiry and rack locations).
+*   **Billing & Sales (POS):** Retail and wholesale invoicing (`Sale`, `SaleItem`), tracking payment modes, GST, and discounts.
+*   **Purchases & Suppliers:** Manual PO creation and an advanced AI-driven PDF invoice importer that extracts line items into `PurchaseItem` and `InventoryBatch`.
+*   **Returns Management:** Handles both `MedicineReturn` (to suppliers) and customer returns.
+*   **Reports & Dashboard:** Real-time stock ledgers, low stock alerts, and expiry tracking.
+*   **Admin Logs:** `ActivityLog` and `LoginHistory` for auditing user actions.
+
+## 4. CURRENT STATE OF DEVELOPMENT
+**Completion Status:** ~85% (Late Beta / Production Candidate).
+**Fully Working:** Database schema is highly mature. Authentication, basic CRUD for medicines, suppliers, inventory, and sales are all fully wired up via API routes.
+**Partially Implemented / Complex:** The AI PDF parsing (`aiParser.ts`) is highly complex and likely brittle due to its size, synchronous execution, and external dependencies.
+**Missing / Stubbed:** No explicit payment gateway integration code was found (relies on manual status marking like "CASH", "UPI").
+
+## 5. BUG & ISSUE DETECTION
+*   **Logical Flaw (High Risk):** The AI parser executing synchronous, long-running LLM calls inside Next.js API routes. On serverless platforms like Vercel, this will frequently hit the 10-15 second timeout limit, leading to 504 Gateway Timeouts for large PDFs.
+*   **State Management / Performance:** The app frequently calls `prisma.[model].findMany()` without pagination constraints (e.g., in `/api/billing/search` and `/api/medicines/search`). This will cause severe memory and rendering issues as the database grows.
+
+## 6. SECURITY AUDIT
+**Risk Level: HIGH**
+*   **Hardcoded Secrets Vulnerability:** In `middleware.ts` and `lib/auth.ts`, the JWT secret is defined with a fallback to an empty string (`process.env.JWT_SECRET || ''`). If the environment variable is accidentally missing in production, the app silently uses an empty string as the secret. This allows any attacker to easily forge admin tokens.
+*   **Missing Validation Flow:** Custom auth relies on manual role checks (`if (auth.user.role !== 'ADMIN')`) copy-pasted in multiple API routes. This is highly prone to developer oversight.
+
+## 7. PERFORMANCE & SCALABILITY
+*   **Bottlenecks:** The monolithic `aiParser.ts` is a massive liability. Synchronous OCR and LLM processing will choke the serverless functions.
+*   **Database Queries:** Lack of `take` and `skip` in critical `findMany` endpoints means the application fetches entire tables into server memory for searching.
+*   **Recommendations:** Move PDF parsing and AI processing to a dedicated background worker (e.g., Inngest, BullMQ) or a separate un-timed containerized microservice. Implement cursor-based or offset pagination for all list APIs.
+
+## 8. CODE QUALITY REVIEW
+*   **Bad Practices:** `next.config.js` completely disables TypeScript and ESLint checks during builds (`ignoreBuildErrors: true`, `ignoreDuringBuilds: true`). This allows broken code to be silently deployed.
+*   **Maintainability:** `lib/aiParser.ts` is a 1000+ line behemoth that violates the Single Responsibility Principle and is incredibly hard to test.
+*   **Technical Debt:** Foregoing NextAuth/Auth.js for a custom JWT implementation introduces unnecessary maintenance burden and security risks.
+
+## 9. DEPLOYMENT & INFRASTRUCTURE
+*   **Current Setup:** Configured primarily for Vercel Serverless deployment.
+*   **Missing Configs:** No Dockerfile found in the root directory for standardized containerized deployment, despite some previous user requests around Cloudflare Tunneling and Docker.
+*   **CI/CD:** With TS and ESLint disabled in `next.config.js`, any CI/CD pipeline is effectively blind to syntax and structural errors.
+
+## 10. FINAL DIAGNOSIS
+**Stage:** Late Beta / Early Production.
+**Level:** Advanced. The schema and AI fallback routing logic are highly sophisticated.
+**What is holding it back:** A brittle serverless AI parsing architecture, severe performance anti-patterns (missing pagination), and critical configuration-based security flaws.
+
+**Top 5 Priorities to Fix Immediately:**
+1.  **Fix JWT Secret Fallback:** Immediately rewrite `auth.ts` and `middleware.ts` to throw a fatal error if `process.env.JWT_SECRET` is undefined in production.
+2.  **Enable Build Checks:** Remove `ignoreBuildErrors` and `ignoreDuringBuilds` from `next.config.js` and fix the underlying TypeScript/ESLint errors.
+3.  **Implement Pagination:** Add `take` and `skip` limits to all `prisma.findMany()` calls, especially in search and billing routes.
+4.  **Decouple AI Parsing:** Move the PDF OCR and AI extraction logic out of serverless API routes and into a background queue system to prevent 504 timeouts.
+5.  **Refactor Auth Middleware:** Centralize role-based access control checking logic rather than manually re-implementing `auth.user.role === 'ADMIN'` in every single API endpoint.

@@ -1,0 +1,42 @@
+# UI/UX Overhaul Task List
+
+## 1. Initial Architecture & Analysis
+- [x] Analyze existing layout, dashboard, and settings components.
+- [x] Identify dummy data locations (e.g., seed scripts, hardcoded data in components/API).
+- [x] Review current color scheme and typography in Tailwind config / CSS.
+- [x] Create git backup (`git commit -m "before UI overhaul"`).
+
+## 2. Global Design System Update
+- [x] Update [tailwind.config.js](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/tailwind.config.js) with clean whites, soft shadows, and 4px/8px scalable spacing. Avoid glassmorphism; favor readable medical UI.
+- [x] Establish consistent typography (`Inter` or similar clean font).
+- [x] Create base UI components in `/components/ui/` (Buttons, Inputs, Cards).
+- [x] Create specialized UI components: Skeletons (Loaders) and Error Toasts.
+
+## 3. Data Contracts & Empty States
+- [ ] Ensure strict adherence to predefined TS schemas (Medicine, SaleItem) across all views.
+- [ ] Remove hardcoded dummy data from API routes or components.
+- [ ] Add explicit empty state UI (e.g. "Start by adding your first product") with CTA buttons across Dashboard and Inventory.
+
+## 4. Dashboard Enhancements
+- [x] Restructure Dashboard layout using `/components/dashboard/` architecture.
+- [x] Implement responsive cards/widgets fetching REAL calculated data (Sales Today, Low Stock based on strict thresholds).
+- [x] Add visual data insights (charts) utilizing Recharts driven by real endpoints.
+
+## 5. Settings Page Redesign
+- [x] Refactor Settings into `/components/settings/` logical groups.
+- [x] Implement clean form validation (using existing `react-hook-form` and `zod`).
+- [x] Ensure settings actions are functional and persistently save data (DB or localStorage).
+
+## 6. Button Audit Strategy
+- [ ] Scan all pages for buttons.
+- [ ] Categorize each: Keep if functional, Implement if missing logic, Remove if useless.
+- [ ] Add loading/disabled states on submit to all forms.
+
+## 7. UX Flow & Mobile Responsiveness
+- [ ] Implement collapsible drawer for sidebar on mobile.
+- [ ] Ensure tables use scrollable/card views on smaller screens.
+- [ ] Make all critical action buttons thumb-friendly size.
+
+## 8. Final Review
+- [ ] Verify absolutely NO business logic was broken or altered unnecessarily.
+- [ ] Code cleanliness and structure review.

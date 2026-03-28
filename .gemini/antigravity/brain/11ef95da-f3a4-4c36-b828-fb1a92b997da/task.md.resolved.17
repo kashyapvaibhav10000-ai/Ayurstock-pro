@@ -1,0 +1,8 @@
+# Fix Frozen Login & 401 Interceptors
+
+- [ ] Audit [app/login/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/login/page.tsx) to clear state forcefully
+- [ ] Implement `logout` call before login attempt
+- [ ] Create/Update global `axios` interceptor (`lib/axios.ts` or similar)
+- [ ] Configure interceptor to instantly nuke state on `401`
+- [ ] Replace local component `axios` imports with the configured instance (where applicable)
+- [ ] Push to GitHub

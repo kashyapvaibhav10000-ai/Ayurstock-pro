@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,35 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Shop - Tenant
 model Shop {
-  id    String     @id @default(cuid())
-  name  String
-  gstin String     @unique
-  address String
-  phone String
-  email String
-
-  // Relations
-  users            User[]
-  medicines        Medicine[]
-  companies        Company[]
-  inventoryBatches InventoryBatch[]
-  purchases        Purchase[]
-  sales            Sale[]
-  suppliers        Supplier[]
-  customers        Customer[]
-  returns          Return[]
+  id               String            @id @default(cuid())
+  name             String
+  gstin            String            @unique
+  address          String
+  phone            String
+  email            String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   activityLogs     ActivityLog[]
+  companies        Company[]
+  customers        Customer[]
+  importedInvoices ImportedInvoice[]
+  inventoryBatches InventoryBatch[]
   invoiceSettings  InvoiceSettings?
+  medicines        Medicine[]
+  medicineReturns  MedicineReturn[]
+  purchases        Purchase[]
+  rackLocations    RackLocation[]
+  returns          Return[]
+  sales            Sale[]
   shopSettings     ShopSettings?
   stockLedgers     StockLedger[]
-  medicineReturns  MedicineReturn[]
-  rackLocations    RackLocation[]
-  importedInvoices ImportedInvoice[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  suppliers        Supplier[]
+  users            User[]
 
   @@index([name])
 }
@@ -46,64 +39,58 @@ model Shop {
 model ShopSettings {
   id           String   @id @default(cuid())
   shopId       String   @unique
-  shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   shopName     String   @default("")
   addressLine1 String   @default("")
   addressLine2 String?
   phone        String   @default("")
   email        String   @default("")
   gstin        String   @default("")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId])
 }
 
 model InvoiceSettings {
-  id                 String   @id @default(cuid())
-  shopId             String   @unique
-  shop               Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  shopName           String
-  addressLine1       String
-  addressLine2       String?
-  phone              String
-  email              String
-  gstin              String
-  invoicePrefix      String   @default("INV-")
-  nextInvoiceNumber  Int      @default(1)
-  watermarkText      String   @default("")
-  watermarkEnabled   Boolean  @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(cuid())
+  shopId            String   @unique
+  shopName          String
+  addressLine1      String
+  addressLine2      String?
+  phone             String
+  email             String
+  gstin             String
+  invoicePrefix     String   @default("INV-")
+  nextInvoiceNumber Int      @default(1)
+  watermarkText     String   @default("")
+  watermarkEnabled  Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId])
 }
 
-// User - Multi-role
 model User {
-  id          String   @id @default(cuid())
-  shopId      String
-  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  name        String
-  email       String
-  phone       String?
-  avatarUrl   String?
-  passwordHash String
-  role        String   @default("CASHIER") // ADMIN, MANAGER, CASHIER
-  pin         String?  // 4-digit POS PIN
-  isActive    Boolean  @default(false)
-  
-  loginHistory  LoginHistory[]
-  sales         Sale[]
-  returns       Return[]
+  id              String           @id @default(cuid())
+  shopId          String
+  name            String
+  email           String
+  phone           String?
+  avatarUrl       String?
+  passwordHash    String
+  role            String           @default("CASHIER")
+  pin             String?
+  isActive        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  activityLogs    ActivityLog[]
+  loginHistory    LoginHistory[]
   medicineReturns MedicineReturn[]
-  activityLogs  ActivityLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  returns         Return[]
+  sales           Sale[]
+  shop            Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, email])
   @@index([shopId])
@@ -113,36 +100,30 @@ model User {
 model LoginHistory {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
   ipAddress String?
   userAgent String?
   status    String   @default("success")
-  
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
 
-// Supplier
 model Supplier {
-  id      String @id @default(cuid())
-  shopId  String
-  shop    Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  name    String
+  id            String     @id @default(cuid())
+  shopId        String
+  name          String
   contactPerson String?
-  phone   String
-  email   String
-  address String
-  city    String?
-  state   String?
-  gstin   String?
-
-  purchases Purchase[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  phone         String
+  email         String
+  address       String
+  city          String?
+  state         String?
+  gstin         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  purchases     Purchase[]
+  shop          Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, name])
   @@index([shopId])
@@ -150,66 +131,56 @@ model Supplier {
 
 model Company {
   id          String   @id @default(cuid())
-  shopId       String
-  shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  name         String
-  description  String?
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  shopId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, name])
   @@index([shopId])
 }
 
-// Customer
 model Customer {
-  id      String @id @default(cuid())
-  shopId  String
-  shop    Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  name    String
-  phone   String
-  address String
-
-  sales Sale[]
-
+  id        String   @id @default(cuid())
+  shopId    String
+  name      String
+  phone     String
+  address   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  sales     Sale[]
 
   @@index([shopId, phone])
   @@index([shopId])
 }
 
-// Medicine Master
 model Medicine {
-  id          String @id @default(cuid())
-  shopId      String
-  shop        Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  name        String
-  company     String
-  category    String
-  barcode     String?
-  hsn         String
-  packing     String?
-  unit        String @default("strip")
-  mrp         Decimal? @default(0)
-  tradePrice  Decimal? @default(0)
-  lowStockThreshold Int    @default(0)
-  gstPercent  Int     @default(0)
-  isActive    Boolean @default(true)
-
-  batches     InventoryBatch[]
-  saleItems   SaleItem[]
-  purchaseItems PurchaseItem[]
-  returns     Return[]
-  medicineReturns MedicineReturn[]
-  stockLedgers StockLedger[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String           @id @default(cuid())
+  shopId            String
+  name              String
+  company           String
+  category          String
+  barcode           String?
+  hsn               String
+  packing           String?
+  unit              String           @default("strip")
+  lowStockThreshold Int              @default(0)
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  mrp               Decimal?         @default(0)
+  tradePrice        Decimal?         @default(0)
+  gstPercent        Int              @default(0)
+  batches           InventoryBatch[]
+  shop              Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  medicineReturns   MedicineReturn[]
+  purchaseItems     PurchaseItem[]
+  returns           Return[]
+  saleItems         SaleItem[]
+  stockLedgers      StockLedger[]
 
   @@unique([shopId, barcode])
   @@index([shopId, name])
@@ -217,30 +188,25 @@ model Medicine {
   @@index([shopId, barcode])
 }
 
-// Inventory Batch - Batch-wise tracking
 model InventoryBatch {
-  id          String @id @default(cuid())
-  shopId      String
-  shop        Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  medicineId  String
-  medicine    Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
-  
-  batchNumber String
-  expiryDate  DateTime
-  stockQty    Int     @default(0)
-  mrp         Decimal
-  purchaseRate Decimal?
-  sellingRate Decimal
-  rackLocation String?
-
-  saleItems   SaleItem[]
+  id            String         @id @default(cuid())
+  shopId        String
+  medicineId    String
+  batchNumber   String
+  expiryDate    DateTime
+  stockQty      Int            @default(0)
+  mrp           Decimal
+  purchaseRate  Decimal?
+  sellingRate   Decimal
+  rackLocation  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  medicine      Medicine       @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  shop          Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
   purchaseItems PurchaseItem[]
-  returns     Return[]
-  stockLedgers StockLedger[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  returns       Return[]
+  saleItems     SaleItem[]
+  stockLedgers  StockLedger[]
 
   @@unique([shopId, medicineId, batchNumber])
   @@index([shopId, medicineId, expiryDate])
@@ -249,86 +215,71 @@ model InventoryBatch {
   @@index([medicineId])
 }
 
-// Purchase Order
 model Purchase {
-  id            String @id @default(cuid())
+  id            String         @id @default(cuid())
   shopId        String
-  shop          Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
   supplierId    String
-  supplier      Supplier @relation(fields: [supplierId], references: [id])
-  
   invoiceNumber String
   invoiceDate   DateTime
-  gstType       String   @default("GST")
-  paymentType   String   @default("CASH")
-  status        String   @default("PAID")
-  subtotal      Decimal  @default(0)
-  discountTotal Decimal  @default(0)
-  gstTotal      Decimal  @default(0)
+  gstType       String         @default("GST")
+  paymentType   String         @default("CASH")
+  status        String         @default("PAID")
+  subtotal      Decimal        @default(0)
+  discountTotal Decimal        @default(0)
+  gstTotal      Decimal        @default(0)
   totalAmount   Decimal
   notes         String?
-
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  shop          Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  supplier      Supplier       @relation(fields: [supplierId], references: [id])
   purchaseItems PurchaseItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@unique([shopId, invoiceNumber])
   @@index([shopId, supplierId])
   @@index([shopId])
 }
 
-// Purchase Item
 model PurchaseItem {
-  id            String @id @default(cuid())
-  purchaseId    String
-  purchase      Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  
-  medicineId    String
-  medicine      Medicine @relation(fields: [medicineId], references: [id])
-  
-  batchId       String
-  batch         InventoryBatch @relation(fields: [batchId], references: [id])
-  
-  quantity      Int
-  freeQty       Int      @default(0)
-  scheme        String?
-  purchaseRate  Decimal?
-  mrp           Decimal
-  discount      Decimal  @default(0)
-  gst           Decimal  @default(0)
-  expiryDate    DateTime
+  id           String         @id @default(cuid())
+  purchaseId   String
+  medicineId   String
+  batchId      String
+  quantity     Int
+  freeQty      Int            @default(0)
+  scheme       String?
+  purchaseRate Decimal?
+  mrp          Decimal
+  discount     Decimal        @default(0)
+  gst          Decimal        @default(0)
+  expiryDate   DateTime
+  batch        InventoryBatch @relation(fields: [batchId], references: [id])
+  medicine     Medicine       @relation(fields: [medicineId], references: [id])
+  purchase     Purchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
   @@index([purchaseId])
   @@index([batchId])
 }
 
-// Sale - Retail & Wholesale
 model Sale {
-  id              String   @id @default(cuid())
+  id              String     @id @default(cuid())
   shopId          String
-  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
   customerId      String?
-  customer        Customer? @relation(fields: [customerId], references: [id])
-  
-  saleType        String   @default("RETAIL") // RETAIL, WHOLESALE
+  saleType        String     @default("RETAIL")
   invoiceNumber   String
   subtotal        Decimal
-  discountTotal   Decimal  @default(0)
+  discountTotal   Decimal    @default(0)
   gstTotal        Decimal
   grandTotal      Decimal
-  paymentMode     String   // CASH, CARD, UPI, CHEQUE, CREDIT
-  creditDue       Decimal? @default(0)
-  
+  paymentMode     String
+  creditDue       Decimal?   @default(0)
   createdByUserId String
-  createdByUser   User     @relation(fields: [createdByUserId], references: [id])
-
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  createdByUser   User       @relation(fields: [createdByUserId], references: [id])
+  customer        Customer?  @relation(fields: [customerId], references: [id])
+  shop            Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
   saleItems       SaleItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@unique([shopId, invoiceNumber])
   @@index([shopId, createdAt])
@@ -336,122 +287,104 @@ model Sale {
   @@index([customerId])
 }
 
-// Sale Item
 model SaleItem {
-  id          String @id @default(cuid())
-  saleId      String
-  sale        Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  
-  medicineId  String
-  medicine    Medicine @relation(fields: [medicineId], references: [id])
-  
-  batchId     String
-  batch       InventoryBatch @relation(fields: [batchId], references: [id])
-  
-  quantity    Int
-  mrp         Decimal
-  rate        Decimal
-  discount    Decimal  @default(0)
-  gst         Decimal
-  amount      Decimal
+  id         String         @id @default(cuid())
+  saleId     String
+  medicineId String
+  batchId    String
+  quantity   Int
+  mrp        Decimal
+  rate       Decimal
+  discount   Decimal        @default(0)
+  gst        Decimal
+  amount     Decimal
+  batch      InventoryBatch @relation(fields: [batchId], references: [id])
+  medicine   Medicine       @relation(fields: [medicineId], references: [id])
+  sale       Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@index([saleId])
   @@index([batchId])
 }
 
 model StockLedger {
-  id         String   @id @default(cuid())
-  shopId     String
-  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  medicineId String
-  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
-  batchId    String
-  batch      InventoryBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  type       String
-  qty        Int
+  id          String         @id @default(cuid())
+  shopId      String
+  medicineId  String
+  batchId     String
+  type        String
+  qty         Int
   referenceId String
-
-  createdAt  DateTime @default(now())
+  createdAt   DateTime       @default(now())
+  batch       InventoryBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  medicine    Medicine       @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  shop        Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId, createdAt])
   @@index([medicineId])
   @@index([batchId])
 }
 
-// Return - Customer & Supplier
 model Return {
-  id            String @id @default(cuid())
-  shopId        String
-  shop          Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  type          String  // CUSTOMER_RETURN, SUPPLIER_RETURN
-  referenceId   String  // Sale ID or Purchase ID
-  
-  medicineId    String
-  medicine      Medicine @relation(fields: [medicineId], references: [id])
-  
-  batchId       String
-  batch         InventoryBatch @relation(fields: [batchId], references: [id])
-  
-  quantity      Int
-  reason        String
-
+  id              String         @id @default(cuid())
+  shopId          String
+  type            String
+  referenceId     String
+  medicineId      String
+  batchId         String
+  quantity        Int
+  reason          String
   createdByUserId String
-  createdByUser   User @relation(fields: [createdByUserId], references: [id])
-
-  createdAt DateTime @default(now())
+  createdAt       DateTime       @default(now())
+  batch           InventoryBatch @relation(fields: [batchId], references: [id])
+  createdByUser   User           @relation(fields: [createdByUserId], references: [id])
+  medicine        Medicine       @relation(fields: [medicineId], references: [id])
+  shop            Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId])
   @@index([type])
 }
 
-// Activity Log
 model ActivityLog {
-  id      String @id @default(cuid())
-  shopId  String
-  shop    Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  userId  String?
-  user    User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
-  action  String
-  meta    String? // JSON string for additional metadata
-
+  id        String   @id @default(cuid())
+  shopId    String
+  userId    String?
+  action    String
+  meta      String?
   createdAt DateTime @default(now())
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@index([shopId, createdAt])
   @@index([userId])
 }
 
-// Import Job - Background PDF processing status
 model ImportJob {
   id          String   @id @default(cuid())
-  shopId      String   @default("")
   status      String   @default("processing")
   currentPage Int      @default(0)
   totalPages  Int      @default(0)
   message     String?
   error       String?
-  medicines   String?  // JSON string of parsed medicines
+  medicines   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  shopId      String   @default("")
 
   @@index([createdAt])
 }
 
-// PDF Import Jobs - Store PDFs for batch processing
 model PdfImportJob {
-  id            String   @id @default(cuid())
-  shopId        String
-  userId        String
-  fileName      String
-  pdfText       String   @db.Text // Extracted text from PDF
-  status        String   @default("pending") // pending, processing, completed, failed
-  medicinesCount Int     @default(0)
-  medicines     String?  @db.Text // JSON string of parsed medicines
-  error         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  shopId         String
+  userId         String
+  fileName       String
+  pdfText        String
+  status         String   @default("pending")
+  medicinesCount Int      @default(0)
+  medicines      String?
+  error          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([shopId])
   @@index([userId])
@@ -459,7 +392,6 @@ model PdfImportJob {
   @@index([createdAt])
 }
 
-// Medicine Returns - Flexible return logging bridging unbound returns to the inventory
 model MedicineReturn {
   id              String   @id @default(cuid())
   shopId          String
@@ -472,61 +404,54 @@ model MedicineReturn {
   reason          String
   notes           String?
   status          String   @default("PROCESSED")
-  type            String   @default("CUSTOMER") // CUSTOMER, SUPPLIER
+  type            String   @default("CUSTOMER")
   createdByUserId String
   createdAt       DateTime @default(now())
-  
-  shop            Shop     @relation(fields: [shopId], references: [id])
-  medicine        Medicine @relation(fields: [medicineId], references: [id])
   createdBy       User     @relation(fields: [createdByUserId], references: [id])
-  
+  medicine        Medicine @relation(fields: [medicineId], references: [id])
+  shop            Shop     @relation(fields: [shopId], references: [id])
+
   @@index([shopId])
   @@index([medicineId])
   @@index([type])
   @@index([createdAt])
 }
 
-// Custom Shelf / Rack Locations for Inventory
 model RackLocation {
   id          String   @id @default(cuid())
   shopId      String
   name        String
   description String?
   createdAt   DateTime @default(now())
-  
   shop        Shop     @relation(fields: [shopId], references: [id])
-  
+
   @@unique([shopId, name])
   @@index([shopId])
 }
 
-// AI Usage Tracking for Fallback Tiers
 model ApiUsageCounter {
   id         String   @id @default(cuid())
   date       String   @unique
   gemini     Int      @default(0)
   groq       Int      @default(0)
   openrouter Int      @default(0)
+  updatedAt  DateTime @updatedAt
   cloudflare Int      @default(0)
   mistral    Int      @default(0)
   cerebras   Int      @default(0)
-  updatedAt  DateTime @updatedAt
 }
 
-// Imported Invoice — Track previously imported invoices for duplicate detection
 model ImportedInvoice {
-  id              String   @id @default(cuid())
-  shopId          String
-  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  invoiceNumber   String
-  supplierName    String
-  invoiceDate     String?
-  medicineCount   Int      @default(0)
-  totalStock      Int      @default(0)
+  id               String   @id @default(cuid())
+  shopId           String
+  invoiceNumber    String
+  supplierName     String
+  invoiceDate      String?
+  medicineCount    Int      @default(0)
+  totalStock       Int      @default(0)
   importedByUserId String?
-
-  createdAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, invoiceNumber, supplierName])
   @@index([shopId])

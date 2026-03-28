@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Force dark mode and apply 'Soft Black & Gold' theme to the login page.\n- Wrap login page content in a div with the 'dark' class.\n- Update background colors to #0A0A0A and #111111.\n- Standardize all accents and icons to the primary gold color.\n- Refine typography and accessibility.",
+  "updatedAt": "2026-03-25T20:23:22.738781400Z",
+  "version": "7"
+}

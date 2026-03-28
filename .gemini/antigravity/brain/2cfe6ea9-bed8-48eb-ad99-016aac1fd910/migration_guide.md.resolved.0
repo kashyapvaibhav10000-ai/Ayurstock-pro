@@ -1,0 +1,54 @@
+# AyurStock Pro: Migration Guide
+
+This guide explains how to move your entire project and the **Antigravity AI context** to a new laptop so you can continue working without losing any "detail" or history.
+
+## 1. Project Files (Source Code)
+
+**Path:** `c:\Users\vaibh\Documents\Ayur-stock pro`
+
+- **Do NOT copy `node_modules`**: It's better to reinstall them on the new laptop.
+- **DO copy everything else**: Including hidden files like `.git`, `.gitignore`, and especially your `.env` file.
+- **On the new laptop**:
+  1. Install [Node.js](https://nodejs.org/) (matching your current version).
+  2. Open the terminal in the project folder and run:
+     ```powershell
+     npm install
+     ```
+
+## 2. Database (PostgreSQL)
+
+According to your `schema.prisma`, you are using **PostgreSQL**.
+
+- **If using a Cloud Database (e.g., Neon, Supabase)**: 
+  - Just ensure the `DATABASE_URL` in your `.env` file is correct on the new laptop. No migration needed.
+- **If using a Local Database (Docker or local Postgres)**:
+  - You need to "Dump" the data on this laptop and "Restore" it on the new one.
+  - **Export command**: `pg_dump -U postgres ayur_stock > backup.sql`
+  - **Import command**: `psql -U postgres ayur_stock < backup.sql`
+  - (Check your `.env` for the database name and credentials).
+
+## 3. Antigravity AI Context (The "Brain")
+
+To keep "antigravity" as smart as it is now and preserve all conversation history/artifacts, you must copy these folders to the same relative path on the new laptop.
+
+**Folders to Copy:**
+1. **The Brain (Conversations & Artifacts):**
+   `C:\Users\vaibh\.gemini\antigravity\brain`
+2. **The Knowledge (Distilled Insights):**
+   `C:\Users\vaibh\.gemini\antigravity\knowledge`
+
+**Steps for AI Migration:**
+1. Install Antigravity on the new laptop.
+2. Locate the `.gemini\antigravity` folder on the new laptop.
+3. Replace the `brain` and `knowledge` folders with the ones from your current laptop.
+
+---
+
+### Migration Checklist Summary
+- [ ] Copy `Ayur-stock pro` folder (minus `node_modules`).
+- [ ] Verify `.env` file contents.
+- [ ] Sync/Restore PostgreSQL database.
+- [ ] Copy `C:\Users\vaibh\.gemini\antigravity\brain`
+- [ ] Copy `C:\Users\vaibh\.gemini\antigravity\knowledge`
+- [ ] Run `npm install` on the new laptop.
+- [ ] Run `npx prisma generate` (to rebuild the client).

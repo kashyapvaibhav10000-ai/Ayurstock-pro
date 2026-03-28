@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary": "Final walkthrough of the 7 enterprise upgrades to the medicine import pipeline, including duplicate detection, confidence scoring, and OCR-first processing.",
+  "updatedAt": "2026-03-26T11:40:20.068334100Z",
+  "version": "3"
+}

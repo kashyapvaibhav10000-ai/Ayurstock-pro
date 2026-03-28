@@ -1,0 +1,8 @@
+# Fix Frozen Login & 401 Interceptors
+
+- [x] Audit [app/login/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/login/page.tsx) to clear state forcefully
+- [x] Implement `logout` call before login attempt in [app/login/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/login/page.tsx)
+- [x] Create global `axios` interceptor [lib/axios.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/axios.ts)
+- [x] Add 100ms race-condition timeouts and loop-prevention to 401 redirects
+- [x] Inject [lib/axios.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/axios.ts) uniformly into [app/providers.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/providers.tsx)
+- [ ] Push to GitHub

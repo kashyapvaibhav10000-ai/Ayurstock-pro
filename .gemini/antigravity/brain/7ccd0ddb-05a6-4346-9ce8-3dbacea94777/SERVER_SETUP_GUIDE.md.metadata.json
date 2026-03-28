@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_OTHER",
+  "summary": "A comprehensive setup guide for hosting the Ayurstock-pro application on a Debian server using Docker and Cloudflare Tunneling. It covers Docker installation, environment variable configuration, Cloudflare Tunnel setup, and database management.",
+  "updatedAt": "2026-03-18T17:28:50.636361200Z"
+}

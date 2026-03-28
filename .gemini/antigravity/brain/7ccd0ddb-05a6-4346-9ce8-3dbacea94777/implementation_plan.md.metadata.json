@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "This plan outlines the migration of the Ayurstock-pro application from Vercel to a local Debian-based Docker environment. It includes configuring Next.js for standalone output, creating a multi-stage Dockerfile, setting up a docker-compose.yml with PostgreSQL and Cloudflare Tunneling, and providing a step-by-step setup guide for the target Debian laptop.",
+  "updatedAt": "2026-03-18T17:27:51.320832800Z"
+}

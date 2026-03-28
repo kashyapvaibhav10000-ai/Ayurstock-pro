@@ -1,0 +1,19 @@
+# System Audit Task Plan
+
+- [ ] 1. Define Project Overview & Architecture
+  - [ ] Inspect `package.json` and config files
+  - [ ] Identify tech stack and database schema
+  - [ ] Map folder structure
+- [ ] 2. Reconstruct Features & State of Development
+  - [ ] Analyze routing (`app/` directory)
+  - [ ] Inspect components and modules
+  - [ ] Determine completion percentage
+- [ ] 3. Analyze Bugs, Security, Performance & Code Quality
+  - [ ] Check authentication and authorization
+  - [ ] Review error handling and API routes
+  - [ ] Search for hardcoded secrets and inefficient queries
+  - [ ] Assess code maintainability
+- [ ] 4. Assess Deployment & Infrastructure
+  - [ ] Look for Docker, CI/CD, and hosting configs
+- [ ] 5. Generate Final Report
+  - [ ] Write `system_audit_report.md` artifact with all findings

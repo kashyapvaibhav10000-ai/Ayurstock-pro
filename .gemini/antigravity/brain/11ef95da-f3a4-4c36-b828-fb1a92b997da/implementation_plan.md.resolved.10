@@ -1,0 +1,29 @@
+# Data Integrity & Mass File Architecture
+
+This plan covers the requested administration integrations allowing massive system-level reads and writes via portable accounting mediums.
+
+## Proposed Changes
+
+### 1. Zero-Tolerance Bulk Import Architecture (Settings Dashboard)
+* Build `app/api/settings/import-csv/route.ts`:
+  * **Strict Role Limits**: Enforce `ADMIN` only authorization wrapper.
+  * **Memory Constraints**: Implement a strict `5000` maximum row limit block.
+  * **Atomic Transactions**: Map all incoming payload strings through a sanitizer routine trimming empty chars and normalizing casings. Construct a row-by-row validation engine (parsing required inputs `Medicine Name`, [Batch](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx#22-34), [Quantity](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/billing/page.tsx#157-177), etc). If a **SINGLE** row fails validation, the entire transaction is rejected and an error payload indicating exactly **which** row failed is returned.
+* Build `components/settings/data-import-settings.tsx`:
+  * Add a specific "Upload CSV" component for rapid data ingestion.
+  * Construct a **"Download Template"** automated button downloading a `.csv` with exact matching columns guaranteeing user compliance.
+
+### 2. Formatted Export Reporting Suite
+* Build `lib/exportUtils.ts`:
+  * Craft universal DOM routines parsing arbitrary arrays to raw CSV logic encoded gracefully as HTML5 auto-download triggers via `Blob` blobs.
+* Edit [app/dashboard/inventory/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx):
+  * Add "Download Report" block generating CSVs mapped precisely to: `Medicine Name`, [Company](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/AddInventoryModal.tsx#133-139), `Category`, `Batch Number`, `Expiry Date`, `Stock Quantity`, `Purchase Rate`, `MRP`, `Rack Location`, `Days Until Expiry`.
+  * **Temporal Sorting Engine**: Enforce a strict programmatic sort matching against parsed `new Date(Expiry)` timestamps ensuring `ascending` outputs (nearest expiry drops dynamically to the very top).
+* Edit [app/dashboard/returns/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/returns/page.tsx):
+  * Duplicate the Export trigger mapping specifically the transactional Return ledgers.
+
+## Verification Plan
+### Automated Data Formatting 
+- I will locally mock arbitrary JS objects traversing the CSV generation layer to ensure the standard Excel CSV parser acknowledges it perfectly without whitespace truncation.
+### Strict Typing
+- I will abandon `@ts-ignore` pragmas to resolve Typescript inconsistencies, relying solely on `npx prisma generate` structural type matching for the database.

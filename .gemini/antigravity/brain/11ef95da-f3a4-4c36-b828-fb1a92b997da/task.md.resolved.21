@@ -1,0 +1,8 @@
+# Login Page Redesign
+
+- [ ] Analyze provided screenshot for Layout, Typography, and Colors
+- [ ] Rewrite [app/login/page.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/login/page.tsx) JSX to match the pristine white-theme card
+- [ ] Implement dark navy standard buttons and outline buttons for 'other portals'
+- [ ] Add the customized `Developed with ❤️ by Vaibhav` footer
+- [ ] Preserve the recently built Axios pre-flight purge logic
+- [ ] Push to GitHub

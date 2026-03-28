@@ -1,0 +1,32 @@
+# Optimized Pharmacy Invoice Import
+
+We have successfully enhanced the AyurStock Pro "Import Bill" feature to automatically handle purchase invoices with batch numbers, expiry dates, and quantities.
+
+## Key Enhancements
+
+### 1. Robust AI Parsing
+We updated the `SYSTEM_PROMPT` in [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) to explicitly recognize the structure of pharmacy invoices. The AI now extracts:
+- **Batch Numbers**
+- **Expiry Dates** (e.g., "Jan-28")
+- **Quantities** (as requested for your 7-medicine invoice)
+- **Purchase Rates** (PTS)
+
+### 2. Enhanced Preview UI
+The "Import Bill" preview table in [import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx) now includes a **Qty** column, allowing you to review and adjust the extracted quantities before they are added to your stock.
+
+### 3. Smart Inventory Integration
+The backend import API in [bulk-import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/bulk-import/route.ts) has been significantly upgraded. Instead of just adding medicines to your "Master" list, it now:
+- **Automatically creates Inventory Batches** for each medicine if batch and quantity data is available.
+- **Parses Expiry Dates** accurately (handling formats like "MMM-YY").
+- **Accumulates Stock** if the same batch is imported multiple times.
+
+### 4. Safety & Isolated Changes
+> [!IMPORTANT]
+> As per your request, these changes are isolated to the **"Import Bill"** (Inventory) flow. The regular **"Import Medicines"** (Medicine Master PDF) feature remains unchanged and will continue to work exactly as it did before.
+
+## Verification
+- Checked that [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts) correctly normalizes the new `quantity` field.
+- Verified that [bulk-import/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/bulk-import/route.ts) correctly maps quantity and batch data to the [InventoryBatch](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/dashboard/inventory/page.tsx#23-35) model.
+- Ensured that [bulk-insert/route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/bulk-insert/route.ts) (used by the Medicine Master) was LEFT UNTOUCHED.
+
+You can now test the "Import Bill" button in the Inventory section with your pharmacy invoice!

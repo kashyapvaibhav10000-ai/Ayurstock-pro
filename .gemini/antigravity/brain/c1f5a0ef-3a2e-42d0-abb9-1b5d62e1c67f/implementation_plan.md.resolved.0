@@ -1,0 +1,112 @@
+# PDF Import Improvements — Implementation Plan
+
+Improve the PDF import system with better error handling, scanned PDF support via OCR.space API, batch processing UI, large PDF chunking, and AI parsing optimization.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **OCR.space API Key Required**: You'll need a free API key from [ocr.space/ocrapi](https://ocr.space/ocrapi). Free tier: 500 requests/day, 1MB max file size, 3 pages max per PDF. This is sufficient for most Ayurvedic distributor price lists. If you need larger capacity, paid plans start at $30/month.
+
+> [!WARNING]
+> **Two Import Modals Exist**: The codebase has two separate import UIs — [ImportMedicinesModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx) and [import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx). Both will be updated with the same improvements for consistency.
+
+---
+
+## Proposed Changes
+
+### Component 1: Structured Error Handling in Backend
+
+#### [MODIFY] [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+
+- Add a new `ParseResult` type that returns `{ medicines: ParsedMedicine[], pdfType: 'searchable' | 'scanned' | 'unknown', error?: string, errorCode?: string }`
+- Add OCR.space integration: when pdf2json returns no text, call OCR.space API to extract text from scanned PDFs
+- The fallback flow: `pdf2json → OCR.space → AI parse`
+- Add `detectPdfType()` helper that checks if extracted text is empty/minimal
+- Export [parsePDFWithAI()](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#334-436) to return `ParseResult` instead of raw array
+
+#### [MODIFY] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/route.ts)
+
+- Return structured error responses with `errorCode` field (e.g., `SCANNED_PDF_NO_OCR_KEY`, `SCANNED_PDF_TOO_LARGE`, `NO_TEXT_FOUND`, `PARSE_FAILED`, `OCR_FAILED`)
+- Return `pdfType` in success response for UI display
+
+#### [MODIFY] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicine/import-price-list/route.ts)
+
+- This file contains its own inline parser. Add the same OCR.space fallback and structured errors here.
+
+---
+
+### Component 2: OCR.space Integration
+
+#### [MODIFY] [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+
+New function `ocrWithOcrSpace(pdfBuffer: Buffer)`:
+- Sends PDF as base64 to `https://api.ocr.space/parse/image`
+- Uses `OCR_SPACE_API_KEY` from env
+- Handles multi-page PDFs (up to 3 pages on free tier)
+- Returns extracted text string
+- Graceful error handling: returns empty string on failure
+
+#### [MODIFY] [.env.example](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/.env.example)
+
+- Add `OCR_SPACE_API_KEY=""` with comment
+
+---
+
+### Component 3: Smart UI Error Messages
+
+#### [MODIFY] [ImportMedicinesModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx)
+
+- Add smart error banner with icons and guidance based on `errorCode`:
+  - `SCANNED_PDF_NO_OCR_KEY` → "This is a scanned PDF. OCR is not configured. Contact admin."
+  - `SCANNED_PDF_TOO_LARGE` → "Scanned PDF too large for OCR. Try a smaller file or searchable PDF."
+  - `NO_TEXT_FOUND` → "Could not extract any text. Ensure the PDF contains medicine data."
+  - `OCR_FAILED` → "OCR processing failed. Try again or use a searchable PDF."
+  - Generic fallback for unknown errors
+- Add a PDF type indicator after successful parse ("✅ Searchable PDF" or "🔍 Scanned PDF — processed via OCR")
+- Show processing phase: "Extracting text..." → "Running OCR..." → "AI parsing..."
+
+#### [MODIFY] [import-price-list.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/medicine/import-price-list.tsx)
+
+- Same error handling improvements as ImportMedicinesModal
+
+---
+
+### Component 4: Batch Processing UI (Medium Impact)
+
+#### [NEW] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/batch/route.ts)
+
+- POST: Submit a PDF for batch processing → creates `PdfImportJob` record with status `pending`
+- GET: List all batch jobs for the current shop
+
+#### [NEW] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/batch/[id]/route.ts)
+
+- GET: Fetch status and results of a specific batch job
+- PATCH: Process a pending batch job (triggered manually or by cron)
+
+#### [MODIFY] [ImportMedicinesModal.tsx](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/ImportMedicinesModal.tsx)
+
+- Add "Save for Batch Processing" button when OCR fails or PDF is too large
+- Add batch job history panel showing past jobs and their status
+
+---
+
+### Component 5: Large PDF Handling & AI Parsing Optimization (Medium Impact)
+
+#### [MODIFY] [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+
+- Process PDFs page-by-page instead of all at once
+- Add 2-line overlap between text chunks to prevent splitting medicines
+- Cap at 100 pages with clear error for larger documents
+- Better chunk boundary detection: split on blank lines between medicine groups rather than at fixed character counts
+
+---
+
+## Verification Plan
+
+### Manual Verification
+1. **Searchable PDF Test**: Upload a searchable PDF → should parse correctly with "✅ Searchable PDF" indicator, same as today
+2. **Scanned PDF Test (no OCR key)**: Remove `OCR_SPACE_API_KEY` from env → upload a scanned PDF → should show clear "OCR not configured" message with guidance
+3. **Scanned PDF Test (with OCR key)**: Set `OCR_SPACE_API_KEY` → upload a scanned/image PDF → should show "Running OCR..." then parse results
+4. **Large file test**: Upload a PDF > 1MB → should show appropriate error with guidance
+5. **Batch processing**: Submit a scanned PDF for batch processing → should appear in job list with status tracking
+6. **Build verification**: Run `npm run build` to ensure no TypeScript/compilation errors

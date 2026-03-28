@@ -1,0 +1,39 @@
+# 3-Tier AI Fallback Architecture
+
+This plan covers the enterprise integration of a massive 3-platform cascading AI failure-avoidance engine parsing physical supplier PDFs.
+
+## Proposed Changes
+
+### 1. Persistent Counter & Limits ([lib/aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts))
+* Initialize a global memory object surviving Node process cycles (because the App runs persistently on Debian):
+  ```typescript
+  let dailyUsage = { date: new Date().toDateString(), gemini: 0, groq: 0 };
+  ```
+* Intercept PDF requests to `checkAndResetDailyUsage()` at midnight.
+* Skip Tier 1 (Gemini) completely if `dailyUsage.gemini >= 1400`.
+* Skip Tier 2 (Groq) completely if `dailyUsage.groq >= 14000`.
+
+### 2. The 3-Tier Parsing Chain ([lib/aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts))
+* **TIER 1 (Google Gemini Primary):**
+  * Map to `generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`.
+  * Convert incoming PDF stream to raw `base64` and inject directly into the visual parsing array.
+  * If hit succeeds: return `result`, add `provider: 'gemini'`, increment `gemini` counter.
+  * If `HTTP 429` Rate Limit caught: auto-execute Tier 2 sequence.
+* **TIER 2 (Groq Primary Fallback):**
+  * Use the existing server-side text extraction (or `pdf-parse` if installed) bounding extraction limits up to 100 pages.
+  * Map the string to `api.groq.com/openai/v1/chat/completions` using native `llama-3.3-70b-versatile`.
+  * If hit succeeds: return `result`, add `provider: 'groq'`, increment `groq` counter.
+  * If `HTTP 429` Rate Limit caught: auto-execute Tier 3 sequence.
+* **TIER 3 (OpenRouter Slow-Mode Final Guard):**
+  * Modify existing string chunker looping mechanism inside [parseChunkWithAI](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts#349-389).
+  * Break loop via explicitly injecting `await new Promise(r => setTimeout(r, 15000))` (15 seconds) inside iterating slices.
+  * Emits `provider: 'openrouter'`.
+
+### 3. DOM & Output Headers (`app/api/medicines/parse-pdf/route.ts` & Frontend UI)
+* Expose `X-AI-Provider` headers actively streaming from API backend.
+* Inject `Processed by Google Gemini ✓`, `Processed by Groq ✓`, or `Processed by OpenRouter (slow mode) ✓` dynamically into the generic Import Success UI DOM response logic.
+
+## Verification Plan
+### Functional Flow Hooks
+- Simulate specific `HTTP 429` cascade boundaries mocking Node native [fetch](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/components/settings/user-settings.tsx#74-100) intercepts to verify Fallback traversal paths.
+- Evaluate standard output mappings inside exact component state trees.

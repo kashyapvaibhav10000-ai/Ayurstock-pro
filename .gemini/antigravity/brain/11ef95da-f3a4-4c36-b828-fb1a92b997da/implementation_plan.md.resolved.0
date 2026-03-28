@@ -1,0 +1,42 @@
+# Fix PDF Import & Remove Vercel Limitations
+
+Your PDF import fails because all 40 chunks hit OpenRouter's free-model RATE_LIMIT, and the 240-second Vercel-era global deadline kills the rest. Since you now run on your own Debian server, we can remove all Vercel workarounds and make the import dramatically more reliable.
+
+## Root Cause
+
+From your server logs:
+- Chunks 1-7: `RATE_LIMIT` or `invalid JSON` (free models got hammered)
+- Chunks 8-40: `Global request timeout reached` (240s Vercel deadline killed them all)
+
+## Proposed Changes
+
+### AI Parser
+
+#### [MODIFY] [aiParser.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/lib/aiParser.ts)
+
+**Remove Vercel-era restrictions:**
+- `GLOBAL_DEADLINE`: Increase from 240s → **600s** (10 minutes). Your server has no timeout limit now!
+- `REQUEST_TIMEOUT_MS`: Increase from 45s → **90s** per chunk
+- `CHUNK_SIZE_CHARS`: Increase from 5000 → **12000** chars. Bigger chunks = fewer API calls = fewer rate limits
+- `MAX_CONCURRENT_REQUESTS`: Reduce from 3 → **1**. Sequential processing avoids rate limits entirely on free models
+- `REQUEST_INTERVAL_MS`: Increase from 500ms → **2000ms**. Gives OpenRouter breathing room between requests
+
+**Smarter retry with model rotation:**
+- When a model returns RATE_LIMIT, automatically switch to the next model in the MODELS list instead of retrying the same rate-limited model
+
+---
+
+### Import Route
+
+#### [MODIFY] [route.ts](file:///c:/Users/vaibh/Documents/Ayur-stock%20pro/app/api/medicines/import/route.ts)
+
+- Remove the 10MB file size limit (your server can handle any size now)
+
+## Verification Plan
+
+### Manual Verification
+1. After I make the changes, commit and push to GitHub
+2. On your Debian terminal, run: `systemctl restart ayurstock`
+3. Go to `https://app.vaibhavn8n.dpdns.org/dashboard/medicines`
+4. Click Import, upload your PDF, and click "Start Import"
+5. Check if the medicines are successfully parsed (it may take 2-5 minutes for large PDFs now, which is fine since there's no timeout!)
