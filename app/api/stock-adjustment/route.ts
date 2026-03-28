@@ -175,14 +175,14 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Fetch medicine names for the results
-    const uniqueMedicineIds = [...new Set(adjustments.map((a) => a.medicineId))];
+    const uniqueMedicineIds = Array.from(new Set(adjustments.map((a: any) => a.medicineId))) as string[];
     const medicines = await prisma.medicine.findMany({
       where: { id: { in: uniqueMedicineIds } },
       select: { id: true, name: true },
     });
     const medicineMap = new Map(medicines.map((m) => [m.id, m.name]));
 
-    const enriched = adjustments.map((a) => ({
+    const enriched = adjustments.map((a: any) => ({
       ...a,
       medicineName: medicineMap.get(a.medicineId) || 'Unknown',
     }));
