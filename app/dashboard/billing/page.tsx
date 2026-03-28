@@ -40,10 +40,50 @@ export default function BillingPage() {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const receivedAmountRef = useRef<HTMLInputElement>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setOrderId(`#POS-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`);
   }, []);
+
+  // Load from local storage on mount
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const savedCart = localStorage.getItem('pos_cart');
+      if (savedCart) {
+        setCart(JSON.parse(savedCart).map((item: any) => ({
+          ...item,
+          expiryDate: new Date(item.expiryDate)
+        })));
+      }
+      
+      const savedSaleType = localStorage.getItem('pos_saleType');
+      if (savedSaleType) setSaleType(savedSaleType as 'RETAIL' | 'WHOLESALE');
+      
+      const savedCustomerName = localStorage.getItem('pos_customerName');
+      if (savedCustomerName) setCustomerName(savedCustomerName);
+
+      const savedCustomerPhone = localStorage.getItem('pos_customerPhone');
+      if (savedCustomerPhone) setCustomerPhone(savedCustomerPhone);
+
+      const savedCustomerAddress = localStorage.getItem('pos_customerAddress');
+      if (savedCustomerAddress) setCustomerAddress(savedCustomerAddress);
+    } catch (error) {
+      console.error('Failed to parse POS local storage', error);
+    }
+  }, []);
+
+  // Save to local storage when state changes
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem('pos_cart', JSON.stringify(cart));
+      localStorage.setItem('pos_saleType', saleType);
+      localStorage.setItem('pos_customerName', customerName);
+      localStorage.setItem('pos_customerPhone', customerPhone);
+      localStorage.setItem('pos_customerAddress', customerAddress);
+    }
+  }, [mounted, cart, saleType, customerName, customerPhone, customerAddress]);
 
   useEffect(() => {
     if (searchTimeoutRef.current) {
@@ -197,6 +237,12 @@ export default function BillingPage() {
     setCustomerName('Walk-in Customer');
     setCustomerPhone('');
     setCustomerAddress('');
+    
+    // Clear localStorage
+    localStorage.removeItem('pos_cart');
+    localStorage.removeItem('pos_customerName');
+    localStorage.removeItem('pos_customerPhone');
+    localStorage.removeItem('pos_customerAddress');
   }, []);
 
   const handleCheckout = useCallback(async () => {
