@@ -17,7 +17,7 @@ import {
 
 const mobileNav = [
   { href: '/dashboard',            label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN','MANAGER','CASHIER'] },
-  { href: '/dashboard/billing',    label: 'Billing',   icon: ReceiptText,     roles: ['ADMIN','MANAGER','CASHIER'] },
+  { href: '/dashboard/billing',    label: 'New Sales', icon: ReceiptText,     roles: ['ADMIN','MANAGER','CASHIER'] },
   { href: '/dashboard/inventory',  label: 'Inventory', icon: Boxes,           roles: ['ADMIN','MANAGER'] },
   { href: '/dashboard/reports',    label: 'Reports',   icon: ClipboardList,   roles: ['ADMIN','MANAGER'] },
   { href: '/dashboard/settings',   label: 'Settings',  icon: Settings,        roles: ['ADMIN'] },

@@ -456,3 +456,22 @@ model ImportedInvoice {
   @@unique([shopId, invoiceNumber, supplierName])
   @@index([shopId])
 }
+
+model StockAdjustment {
+  id          String   @id @default(cuid())
+  shopId      String
+  medicineId  String
+  batchId     String
+  userId      String
+  type        String   // "ADD" or "REMOVE"
+  quantity    Int
+  stockBefore Int
+  stockAfter  Int
+  reason      String
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([shopId, createdAt])
+  @@index([batchId])
+  @@index([medicineId])
+}
