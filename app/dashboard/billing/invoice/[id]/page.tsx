@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import InvoiceTemplate, { InvoiceSettings, ShopSettings, SaleDetails } from '@/components/InvoiceTemplate';
+import { MessageCircle, X } from 'lucide-react';
 
 export default function InvoicePreviewPage() {
   const params = useParams();
@@ -13,6 +14,8 @@ export default function InvoicePreviewPage() {
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
   const [sale, setSale] = useState<SaleDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showWaPrompt, setShowWaPrompt] = useState(false);
+  const [waPhone, setWaPhone] = useState('');
 
   useEffect(() => {
     const fetchInvoiceData = async () => {
@@ -65,10 +68,32 @@ export default function InvoicePreviewPage() {
       }
     };
 
-    if (saleId) {
-      fetchInvoiceData();
-    }
+    if (saleId) fetchInvoiceData();
   }, [saleId]);
+
+  const buildWaText = (phone: string) => {
+    if (!sale) return;
+    const text = encodeURIComponent(
+      `Hello! Here is your invoice summary from ${shopSettings?.shopName || 'our pharmacy'}:\n` +
+      `Invoice: ${sale.invoiceNumber}\n` +
+      `Amount: ₹${Number(sale.grandTotal).toLocaleString('en-IN')}\n` +
+      `Payment: ${sale.paymentMode}\n` +
+      `Thank you for your purchase! 🌿`
+    );
+    const cleanPhone = phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
+    setShowWaPrompt(false);
+    setWaPhone('');
+  };
+
+  const handleWhatsApp = () => {
+    const phone = sale?.customer?.phone;
+    if (phone && phone !== '') {
+      buildWaText(phone);
+    } else {
+      setShowWaPrompt(true);
+    }
+  };
 
   if (loading) {
     return (
@@ -102,22 +127,67 @@ export default function InvoicePreviewPage() {
           </div>
           <div className="flex gap-2">
             <button
+              onClick={handleWhatsApp}
+              className="flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1ebe5d] shadow-sm"
+            >
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp
+            </button>
+            <button
               onClick={() => window.print()}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 shadow-sm"
             >
               Print Invoice
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 shadow-sm"
-            >
-              Download PDF
             </button>
           </div>
         </div>
 
         <InvoiceTemplate sale={sale} settings={settings} shopSettings={shopSettings} />
       </div>
+
+      {/* WhatsApp phone prompt modal */}
+      {showWaPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#25D366]/10">
+                  <MessageCircle className="h-5 w-5 text-[#25D366]" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900">Send via WhatsApp</h2>
+              </div>
+              <button onClick={() => setShowWaPrompt(false)} className="rounded-lg p-1.5 hover:bg-slate-100 transition">
+                <X className="h-4 w-4 text-slate-500" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">Enter the customer&apos;s WhatsApp number (with country code, e.g. 91XXXXXXXXXX)</p>
+            <input
+              type="tel"
+              value={waPhone}
+              onChange={(e) => setWaPhone(e.target.value)}
+              placeholder="91XXXXXXXXXX"
+              autoFocus
+              className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-[#25D366] focus:ring-4 focus:ring-[#25D366]/10"
+              onKeyDown={(e) => e.key === 'Enter' && waPhone.length >= 10 && buildWaText(waPhone)}
+            />
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setShowWaPrompt(false)}
+                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => buildWaText(waPhone)}
+                disabled={waPhone.length < 10}
+                className="flex-1 rounded-xl bg-[#25D366] py-2.5 text-sm font-semibold text-white hover:bg-[#1ebe5d] disabled:opacity-50 transition"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

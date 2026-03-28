@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { TrendingUp, TrendingDown, ShoppingCart, RotateCcw, IndianRupee } from 'lucide-react';
+import { TrendingUp, TrendingDown, ShoppingCart, RotateCcw, IndianRupee, Eye, CornerUpLeft } from 'lucide-react';
+import Link from 'next/link';
 
 type DatePreset = 'today' | 'week' | 'month' | 'custom';
 
@@ -279,6 +280,7 @@ export default function SalesHistoryPage() {
                     <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Payment</TableHead>
                     <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Type</TableHead>
                     <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Total</TableHead>
+                    <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -304,6 +306,22 @@ export default function SalesHistoryPage() {
                       </TableCell>
                       <TableCell className="text-right text-lg font-extrabold text-primary">
                         {fmt(row.total)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/dashboard/billing/invoice/${row.id}`}
+                            className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
+                          >
+                            <Eye className="h-3 w-3" /> View
+                          </Link>
+                          <Link
+                            href={`/dashboard/returns?saleId=${row.id}`}
+                            className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-orange-600 hover:bg-orange-100 transition-all"
+                          >
+                            <CornerUpLeft className="h-3 w-3" /> Return
+                          </Link>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

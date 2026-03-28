@@ -17,6 +17,9 @@ npm install
 echo "Generating Prisma client..."
 npx prisma generate
 
+echo "Applying schema changes to database..."
+npx prisma db push --accept-data-loss=false
+
 echo "Building..."
 npm run build
 
