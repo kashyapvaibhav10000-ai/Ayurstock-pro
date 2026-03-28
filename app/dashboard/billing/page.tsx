@@ -41,6 +41,10 @@ export default function BillingPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const receivedAmountRef = useRef<HTMLInputElement>(null);
   const [mounted, setMounted] = useState(false);
+  // Barcode scanner detection
+  const barcodeBufferRef = useRef<string>('');
+  const barcodeLastKeyTimeRef = useRef<number>(0);
+  const [scannerActive, setScannerActive] = useState(false);
 
   useEffect(() => {
     setOrderId(`#POS-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`);
@@ -304,16 +308,66 @@ export default function BillingPage() {
     resetBill,
   ]);
 
+  // Barcode scanner: auto-add when scanner fires rapid keystrokes ending with Enter
+  const handleBarcodeInput = useCallback(async (barcode: string) => {
+    setScannerActive(true);
+    setTimeout(() => setScannerActive(false), 800);
+    try {
+      const response = await axios.get('/api/billing/search', {
+        params: { q: barcode.trim(), limit: 5 },
+      });
+      if (response.data.success) {
+        const results: BillingSuggestion[] = response.data.data || [];
+        const exact = results.find(
+          (r) => r.barcode === barcode.trim() || r.batchNumber === barcode.trim()
+        ) || (results.length === 1 ? results[0] : null);
+        if (exact) {
+          addSuggestionToCart(exact);
+          toast.success(`✓ Scanned: ${exact.name}`);
+        } else if (results.length > 1) {
+          setSearchQuery(barcode.trim());
+          setSuggestions(results);
+          searchInputRef.current?.focus();
+        } else {
+          toast.error(`No match found for barcode: ${barcode.trim()}`);
+        }
+      }
+    } catch {
+      toast.error('Barcode scan failed');
+    }
+  }, [addSuggestionToCart]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const tag = (event.target as HTMLElement)?.tagName;
       const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
+      // ── Barcode scanner detection ───────────────────────────────
+      // Scanners send chars very fast (<80ms apart) then Enter
+      const now = Date.now();
+      const timeSinceLast = now - barcodeLastKeyTimeRef.current;
+      barcodeLastKeyTimeRef.current = now;
+
+      if (event.key === 'Enter' && barcodeBufferRef.current.length >= 4 && timeSinceLast < 100) {
+        // This looks like a scanner — process the buffer
+        const scanned = barcodeBufferRef.current;
+        barcodeBufferRef.current = '';
+        event.preventDefault();
+        handleBarcodeInput(scanned);
+        return;
+      }
+
+      if (event.key.length === 1 && timeSinceLast < 80) {
+        barcodeBufferRef.current += event.key;
+      } else if (event.key !== 'Enter') {
+        // Gap too long — reset buffer (human typing)
+        barcodeBufferRef.current = event.key.length === 1 ? event.key : '';
+      }
+      // ────────────────────────────────────────────────────────────
+
       if (event.key === 'F12') {
         event.preventDefault();
-        if (!loading) {
-          handleCheckout();
-        }
+        if (!loading) handleCheckout();
         return;
       }
 
@@ -344,7 +398,7 @@ export default function BillingPage() {
         return;
       }
 
-      // Auto-focus search on any alphanumeric key press when not in an input
+      // Auto-focus search on alphanumeric when not in an input
       if (!isInput && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.length === 1 && /[a-zA-Z0-9]/.test(event.key)) {
         searchInputRef.current?.focus();
       }
@@ -352,7 +406,7 @@ export default function BillingPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCheckout, loading, resetBill]);
+  }, [handleCheckout, handleBarcodeInput, loading, resetBill]);
 
   return (
     <div className="grid grid-cols-1 gap-4 p-4 md:gap-6 md:p-6 xl:grid-cols-[1.1fr_1fr_400px] xl:min-h-[calc(100vh-96px)] bg-background">
@@ -382,7 +436,7 @@ export default function BillingPage() {
             className="peer w-full rounded-[20px] border-2 border-border bg-background px-14 py-4 md:py-[18px] text-base outline-none transition-all placeholder:text-muted-foreground/30 focus:border-primary focus:bg-surface/50 focus:ring-4 focus:ring-primary/10 font-bold text-foreground shadow-sm hover:border-primary/40"
             autoFocus
           />
-          <ScanLine className="absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 text-primary/40 transition-colors peer-focus:text-primary/80" />
+          <ScanLine className={`absolute right-5 top-1/2 h-5 w-5 -translate-y-1/2 transition-all duration-200 ${scannerActive ? 'text-primary scale-125 animate-pulse' : 'text-primary/40 peer-focus:text-primary/80'}`} />
           
           {suggestions.length > 0 && (
             <div className="absolute left-0 right-0 top-[calc(100%+12px)] z-40 mt-1 overflow-hidden rounded-[20px] border border-border bg-surface shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150">

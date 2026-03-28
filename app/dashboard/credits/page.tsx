@@ -5,9 +5,31 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { IndianRupee, Phone, User, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { IndianRupee, Phone, User, CheckCircle2, ChevronDown, ChevronUp, Clock, AlertTriangle, AlertOctagon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+
+function getDaysOverdue(createdAt: string): number {
+  return Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function OverdueBadge({ days }: { days: number }) {
+  if (days < 7) return (
+    <span className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-green-600">
+      <Clock className="h-3 w-3" />{days}d
+    </span>
+  );
+  if (days < 30) return (
+    <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-600">
+      <AlertTriangle className="h-3 w-3" />{days}d overdue
+    </span>
+  );
+  return (
+    <span className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-600">
+      <AlertOctagon className="h-3 w-3" />{days}d overdue
+    </span>
+  );
+}
 
 interface CreditSale {
   id: string;
@@ -34,6 +56,7 @@ export default function CreditsPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [paying, setPaying] = useState<string | null>(null);
+  const [overdueFilter, setOverdueFilter] = useState<'all' | 'overdue'>('all');
 
   useEffect(() => {
     if (!isAuthorized) router.replace('/dashboard');
@@ -80,6 +103,17 @@ export default function CreditsPage() {
   };
 
   const totalOutstanding = credits.reduce((sum, c) => sum + c.totalDue, 0);
+  const overdueCount = credits.filter((c) =>
+    c.sales.some((s) => getDaysOverdue(s.createdAt) >= 7)
+  ).length;
+
+  const displayCredits = [...credits]
+    .filter((c) => overdueFilter === 'all' || c.sales.some((s) => getDaysOverdue(s.createdAt) >= 7))
+    .sort((a, b) => {
+      const maxA = Math.max(...a.sales.map((s) => getDaysOverdue(s.createdAt)));
+      const maxB = Math.max(...b.sales.map((s) => getDaysOverdue(s.createdAt)));
+      return maxB - maxA;
+    });
 
   if (!isAuthorized) return null;
 
@@ -94,6 +128,23 @@ export default function CreditsPage() {
         <p className="mt-1 text-sm font-medium text-muted-foreground">
           Customers with outstanding credit balances.
         </p>
+      </div>
+
+      {/* Overdue filter */}
+      <div className="flex gap-2">
+        {(['all', 'overdue'] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setOverdueFilter(f)}
+            className={`rounded-xl border px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+              overdueFilter === f
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border bg-background text-muted-foreground hover:border-primary/30'
+            }`}
+          >
+            {f === 'all' ? `All (${credits.length})` : `Overdue (${overdueCount})`}
+          </button>
+        ))}
       </div>
 
       {/* Summary */}
@@ -133,16 +184,21 @@ export default function CreditsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {credits.map((customer) => (
+      <div className="space-y-3">
+          {displayCredits.map((customer) => {
+            const maxDays = Math.max(...customer.sales.map((s) => getDaysOverdue(s.createdAt)));
+            const isOverdue = maxDays >= 7;
+            return (
             <Card key={customer.customerId} className="overflow-hidden rounded-[24px] border-border bg-surface shadow-soft">
               <CardHeader
                 className="cursor-pointer select-none py-4 px-5 hover:bg-primary/5 transition-colors"
                 onClick={() => toggleExpand(customer.customerId)}
               >
                 <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                      isOverdue ? 'bg-red-100 text-red-600' : 'bg-primary/10 text-primary'
+                    }`}>
                       {customer.customerName.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -156,6 +212,7 @@ export default function CreditsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
+                    {isOverdue && <OverdueBadge days={maxDays} />}
                     <div className="text-right">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Due</p>
                       <p className="text-lg font-extrabold text-primary">
@@ -186,6 +243,7 @@ export default function CreditsPage() {
                             })}
                             {' · '}Bill: ₹{sale.grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                           </p>
+                          <OverdueBadge days={getDaysOverdue(sale.createdAt)} />
                         </div>
                         <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                           <span className="text-sm font-extrabold text-primary">
@@ -207,7 +265,8 @@ export default function CreditsPage() {
                 </CardContent>
               )}
             </Card>
-          ))}
+          );
+          })}
         </div>
       )}
     </div>

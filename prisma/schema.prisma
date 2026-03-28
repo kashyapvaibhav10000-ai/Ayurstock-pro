@@ -399,7 +399,7 @@ model MedicineReturn {
   companyId       String?
   batchNumber     String?
   expiryDate      DateTime
-  mrp             Float
+  mrp             Decimal
   quantity        Int
   reason          String
   notes           String?
