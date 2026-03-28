@@ -6,7 +6,7 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || '');
 const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;
 const SEVEN_DAYS_SECONDS = 60 * 60 * 24 * 7;
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
     const token = request.cookies.get('auth-token')?.value;
 
