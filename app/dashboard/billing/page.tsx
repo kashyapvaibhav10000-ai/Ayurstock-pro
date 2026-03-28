@@ -37,7 +37,7 @@ export default function BillingPage() {
   const [customerPhone, setCustomerPhone] = useState<string>('');
   const [customerAddress, setCustomerAddress] = useState<string>('');
   const [orderId, setOrderId] = useState<string>('');
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const receivedAmountRef = useRef<HTMLInputElement>(null);
 
@@ -260,6 +260,9 @@ export default function BillingPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const tag = (event.target as HTMLElement)?.tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
       if (event.key === 'F12') {
         event.preventDefault();
         if (!loading) {
@@ -289,7 +292,14 @@ export default function BillingPage() {
 
       if (event.key === 'Escape') {
         event.preventDefault();
-        resetBill();
+        setSearchQuery('');
+        setSuggestions([]);
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      // Auto-focus search on any alphanumeric key press when not in an input
+      if (!isInput && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.length === 1 && /[a-zA-Z0-9]/.test(event.key)) {
         searchInputRef.current?.focus();
       }
     };
@@ -381,8 +391,20 @@ export default function BillingPage() {
               <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">• {cart.length} items</span>
             </div>
           </div>
-          <div className="rounded-xl bg-primary/10 px-5 pt-1.5 pb-2 text-[10px] font-black tracking-[0.2em] text-primary uppercase shadow-inner border border-primary/10">
-            {saleType}
+          <div className="flex items-center rounded-xl border border-border overflow-hidden bg-surface shadow-sm">
+            {(['RETAIL', 'WHOLESALE'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setSaleType(mode)}
+                className={`px-4 py-2.5 text-[10px] font-black tracking-[0.2em] uppercase transition-all ${
+                  saleType === mode
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-muted-foreground hover:bg-surface-muted hover:text-foreground'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -525,33 +547,35 @@ export default function BillingPage() {
             </div>
           </div>
 
-          <div className="space-y-3 pt-5 border-t border-border">
-            <label className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1">
-              <span>Cash Received</span>
-              <kbd className="rounded-[4px] bg-surface-muted/50 border border-border px-1.5 pt-0.5 pb-1 text-[9px] shadow-sm text-foreground">F7</kbd>
-            </label>
-            <div className="relative">
-              <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-muted-foreground/40 text-xl">₹</span>
-              <input
-                type="number"
-                value={receivedAmount || ''}
-                onChange={(e) => setReceivedAmount(parseFloat(e.target.value) || 0)}
-                ref={receivedAmountRef}
-                placeholder="0.00"
-                className="w-full rounded-[20px] border-2 border-border bg-background pl-10 pr-5 py-4 text-left text-2xl font-black shadow-inner focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-muted-foreground/20 text-foreground"
-              />
+          {paymentMode === 'CASH' && (
+            <div className="space-y-3 pt-5 border-t border-border">
+              <label className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground px-1">
+                <span>Cash Received</span>
+                <kbd className="rounded-[4px] bg-surface-muted/50 border border-border px-1.5 pt-0.5 pb-1 text-[9px] shadow-sm text-foreground">F7</kbd>
+              </label>
+              <div className="relative">
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-muted-foreground/40 text-xl">₹</span>
+                <input
+                  type="number"
+                  value={receivedAmount || ''}
+                  onChange={(e) => setReceivedAmount(parseFloat(e.target.value) || 0)}
+                  ref={receivedAmountRef}
+                  placeholder="0.00"
+                  className="w-full rounded-[20px] border-2 border-border bg-background pl-10 pr-5 py-4 text-left text-2xl font-black shadow-inner focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all placeholder:text-muted-foreground/20 text-foreground"
+                />
+              </div>
+              <div
+                className={`rounded-[16px] px-5 py-4 text-center transition-all shadow-sm border ${
+                  balance >= 0 
+                    ? 'bg-primary/10 text-primary border-primary/20 shadow-primary/5' 
+                    : 'bg-danger/10 text-danger border-danger/20 shadow-danger/5'
+                }`}
+              >
+                <div className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Change to Return</div>
+                <div className="text-xl font-black tracking-tight">₹{balance.toFixed(2)}</div>
+              </div>
             </div>
-            <div
-              className={`rounded-[16px] px-5 py-4 text-center transition-all shadow-sm border ${
-                balance >= 0 
-                  ? 'bg-primary/10 text-primary border-primary/20 shadow-primary/5' 
-                  : 'bg-danger/10 text-danger border-danger/20 shadow-danger/5'
-              }`}
-            >
-              <div className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-0.5">Change to Return</div>
-              <div className="text-xl font-black tracking-tight">₹{balance.toFixed(2)}</div>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="p-6 bg-surface-muted/30 border-t border-border mt-auto">
@@ -574,7 +598,7 @@ export default function BillingPage() {
                 <>PROCESSING...</>
               ) : (
                 <>
-                  COMPLETE SALE <kbd className="hidden sm:inline-block ml-1 rounded-[6px] bg-black/20 border border-black/10 px-2 pt-1 pb-1.5 text-[10px] text-background shadow-sm leading-none opacity-90">F12</kbd>
+                  GENERATE INVOICE <kbd className="hidden sm:inline-block ml-1 rounded-[6px] bg-black/20 border border-black/10 px-2 pt-1 pb-1.5 text-[10px] text-background shadow-sm leading-none opacity-90">F12</kbd>
                 </>
               )}
             </span>

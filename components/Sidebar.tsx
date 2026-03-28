@@ -12,6 +12,7 @@ import {
   ReceiptText,
   Settings,
   ShoppingCart,
+  SlidersHorizontal,
   X,
   RotateCcw,
   History,
@@ -39,7 +40,7 @@ const menuGroups = [
   {
     label: 'Sales',
     items: [
-      { href: '/dashboard/billing', label: 'Billing', icon: ReceiptText, roles: ['ADMIN', 'MANAGER', 'CASHIER'] },
+      { href: '/dashboard/billing', label: 'New Sales', icon: ReceiptText, roles: ['ADMIN', 'MANAGER', 'CASHIER'] },
       { href: '/dashboard/sales-history', label: 'Sales History', icon: History, roles: ['ADMIN', 'MANAGER'] },
       { href: '/dashboard/credits', label: 'Credits', icon: IndianRupee, roles: ['ADMIN', 'MANAGER'] },
       { href: '/dashboard/reports', label: 'Reports', icon: ClipboardList, roles: ['ADMIN', 'MANAGER'] },
@@ -49,10 +50,11 @@ const menuGroups = [
   {
     label: 'Logistics',
     items: [
-      { href: '/dashboard/medicines', label: 'Medicines', icon: Pill, roles: ['ADMIN', 'MANAGER'] },
+      { href: '/dashboard/medicines', label: 'Database', icon: Pill, roles: ['ADMIN', 'MANAGER'] },
       { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes, roles: ['ADMIN', 'MANAGER'] },
       { href: '/dashboard/returns', label: 'Returns', icon: RotateCcw, roles: ['ADMIN', 'MANAGER'] },
       { href: '/dashboard/purchases', label: 'Purchases', icon: ShoppingCart, roles: ['ADMIN', 'MANAGER'] },
+      { href: '/dashboard/stock-adjustment', label: 'Stock Adjust', icon: SlidersHorizontal, roles: ['ADMIN', 'MANAGER'] },
     ]
   },
   {
