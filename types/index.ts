@@ -75,6 +75,7 @@ export interface CartItem {
   mrp: number;
   rate: number;
   discount: number;
+  discountPercent?: number;
   gstPercent: number;
   gst: number;
   amount: number;
