@@ -7,6 +7,12 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { CartItem } from '@/types';
 
+const GST_OPTIONS = [
+  { value: 5, label: '5%', category: 'Standard' },
+  { value: 12, label: '12%', category: 'Proprietary' },
+  { value: 18, label: '18%', category: 'Cosmetic' },
+];
+
 interface BillingSuggestion {
   id: string;
   batchId: string;
@@ -639,15 +645,21 @@ export default function BillingPage() {
                         className="w-12 border-none bg-transparent p-0 text-right text-[15px] font-black text-foreground focus:outline-none focus:ring-0"
                       />
                     </div>
-                    <div className="flex items-center overflow-hidden rounded-[14px] border border-border bg-surface-muted/50 shadow-inner px-2.5 py-1.5 h-11">
-                      <span className="text-[10px] font-black uppercase text-muted-foreground mr-1.5 whitespace-nowrap">GST %</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.gstPercent}
-                        onChange={(e) => updateCartItemGst(index, parseFloat(e.target.value) || 0)}
-                        className="w-10 border-none bg-transparent p-0 text-right text-[15px] font-black text-foreground focus:outline-none focus:ring-0"
-                      />
+                    <div className="flex items-center gap-1 h-11">
+                      {GST_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => updateCartItemGst(index, opt.value)}
+                          className={`flex h-full flex-col items-center justify-center rounded-[10px] border px-2 min-w-[48px] transition-all ${
+                            item.gstPercent === opt.value
+                              ? 'bg-primary border-primary text-white shadow-sm'
+                              : 'border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground'
+                          }`}
+                        >
+                          <span className="text-[12px] font-black leading-none mb-1">{opt.label}</span>
+                          <span className="text-[8px] font-bold uppercase leading-none opacity-80 tracking-widest">{opt.category}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                   <div className="text-right">
