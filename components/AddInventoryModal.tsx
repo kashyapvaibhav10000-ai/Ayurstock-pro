@@ -14,7 +14,14 @@ interface MedicineOption {
   category: string;
   barcode?: string;
   hsn: string;
+  gstPercent?: number;
 }
+
+const GST_OPTIONS = [
+  { value: 5, label: '5%', category: 'Standard' },
+  { value: 12, label: '12%', category: 'Proprietary' },
+  { value: 18, label: '18%', category: 'Cosmetic' },
+];
 
 interface AddInventoryModalProps {
   isOpen: boolean;
@@ -48,6 +55,7 @@ export default function AddInventoryModal({
     purchaseRate: '' as number | string,
     mrp: '' as number | string,
     rackLocation: '',
+    gstPercent: 5,
   });
 
   const [loading, setLoading] = useState(false);
@@ -67,6 +75,7 @@ export default function AddInventoryModal({
       purchaseRate: '',
       mrp: '',
       rackLocation: '',
+      gstPercent: 5,
     });
     setError({});
     setShowMedicineDropdown(false);
@@ -138,7 +147,7 @@ export default function AddInventoryModal({
   };
 
   const handleSelectMedicine = async (med: MedicineOption) => {
-    setFormData(c => ({ ...c, medicineId: med.id, mrp: '' }));
+    setFormData(c => ({ ...c, medicineId: med.id, mrp: '', gstPercent: med.gstPercent || 5 }));
     setMedicineSearch(med.name);
     setShowMedicineDropdown(false);
     setError(e => ({ ...e, medicineId: '' }));
@@ -191,6 +200,7 @@ export default function AddInventoryModal({
         purchaseRate: formData.purchaseRate === '' ? null : Number(formData.purchaseRate),
         sellingRate: Number(formData.mrp),
         rackLocation: formData.rackLocation,
+        gstPercent: formData.gstPercent,
       });
 
       await onSaved(); // Specifically relying on the UI framework to re-trigger parent loadInventory()
@@ -373,6 +383,29 @@ export default function AddInventoryModal({
                 ))}
               </select>
               {error.rackLocation && <span className="text-xs text-red-600 font-medium">{error.rackLocation}</span>}
+            </div>
+            
+            <div className="grid gap-2 sm:col-span-2">
+              <Label>GST Rate *</Label>
+              <div className="flex gap-2">
+                {GST_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setFormData((c) => ({ ...c, gstPercent: opt.value }))
+                    }
+                    className={`flex-1 flex flex-col items-center justify-center rounded-md border p-2 py-3 transition-all ${
+                      formData.gstPercent === opt.value
+                        ? 'bg-emerald-600 border-emerald-600 text-white'
+                        : 'border-input bg-background text-muted-foreground hover:bg-emerald-50'
+                    }`}
+                  >
+                    <span className="text-sm font-bold">{opt.label}</span>
+                    <span className="text-[10px] opacity-80 font-normal">{opt.category}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

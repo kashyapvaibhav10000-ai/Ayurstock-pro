@@ -13,7 +13,14 @@ export interface EditableMedicine {
   company: string;
   category: string;
   barcode?: string;
+  gstPercent?: number;
 }
+
+const GST_OPTIONS = [
+  { value: 5, label: '5%', category: 'Standard' },
+  { value: 12, label: '12%', category: 'Proprietary' },
+  { value: 18, label: '18%', category: 'Cosmetic' },
+];
 
 interface CompanyOption {
   id: string;
@@ -135,6 +142,30 @@ export default function MedicineEditModal({
                 )
               }
             />
+          </div>
+          <div className="grid gap-2">
+            <Label>GST Rate *</Label>
+            <div className="flex gap-2">
+              {GST_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() =>
+                    setFormData((current) =>
+                      current ? { ...current, gstPercent: opt.value } : current
+                    )
+                  }
+                  className={`flex-1 flex flex-col items-center justify-center rounded-md border p-2 transition-all ${
+                    (formData?.gstPercent || 5) === opt.value
+                      ? 'bg-primary border-primary text-white'
+                      : 'border-input bg-background text-muted-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  <span className="text-sm font-bold">{opt.label}</span>
+                  <span className="text-[10px] opacity-80 font-normal">{opt.category}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

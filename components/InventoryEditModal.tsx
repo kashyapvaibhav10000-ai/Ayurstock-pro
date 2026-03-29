@@ -15,10 +15,17 @@ export interface EditableInventoryBatch {
   purchaseRate: number;
   mrp: number;
   rackLocation?: string | null;
+  gstPercent: number;
   medicine: {
     name: string;
   };
 }
+
+const GST_OPTIONS = [
+  { value: 5, label: '5%', category: 'Standard' },
+  { value: 12, label: '12%', category: 'Proprietary' },
+  { value: 18, label: '18%', category: 'Cosmetic' },
+];
 
 interface InventoryEditModalProps {
   isOpen: boolean;
@@ -41,6 +48,7 @@ export default function InventoryEditModal({
     purchaseRate: 0,
     mrp: 0,
     rackLocation: '',
+    gstPercent: 5,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -58,6 +66,7 @@ export default function InventoryEditModal({
       purchaseRate: Number(batch.purchaseRate),
       mrp: Number(batch.mrp),
       rackLocation: batch.rackLocation || '',
+      gstPercent: batch.gstPercent || 5,
     });
     setError('');
   }, [batch]);
@@ -70,6 +79,7 @@ export default function InventoryEditModal({
       await axios.put('/api/inventory/update', {
         ...formData,
         purchaseRate: formData.purchaseRate || null,
+        gstPercent: formData.gstPercent,
       });
       await onSaved();
       onClose();
@@ -176,6 +186,28 @@ export default function InventoryEditModal({
                   }))
                 }
               />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>GST Rate *</Label>
+            <div className="flex gap-2">
+              {GST_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() =>
+                    setFormData((current) => ({ ...current, gstPercent: opt.value }))
+                  }
+                  className={`flex-1 flex flex-col items-center justify-center rounded-md border p-2 transition-all ${
+                    formData.gstPercent === opt.value
+                      ? 'bg-primary border-primary text-white'
+                      : 'border-input bg-background text-muted-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  <span className="text-sm font-bold">{opt.label}</span>
+                  <span className="text-[10px] opacity-80 font-normal">{opt.category}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
