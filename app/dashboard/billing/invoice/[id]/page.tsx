@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import InvoiceTemplate, { InvoiceSettings, ShopSettings, SaleDetails } from '@/components/InvoiceTemplate';
 import { MessageCircle, X } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 export default function InvoicePreviewPage() {
   const params = useParams();
@@ -71,25 +72,35 @@ export default function InvoicePreviewPage() {
     if (saleId) fetchInvoiceData();
   }, [saleId]);
 
-  const buildWaText = (phone: string) => {
+  const buildWaImage = async (phone: string) => {
     if (!sale) return;
-    const text = encodeURIComponent(
-      `Hello! Here is your invoice summary from ${shopSettings?.shopName || 'our pharmacy'}:\n` +
-      `Invoice: ${sale.invoiceNumber}\n` +
-      `Amount: ₹${Number(sale.grandTotal).toLocaleString('en-IN')}\n` +
-      `Payment: ${sale.paymentMode}\n` +
-      `Thank you for your purchase! 🌿`
-    );
-    const cleanPhone = phone.replace(/\D/g, '');
-    window.open(`https://wa.me/${cleanPhone}?text=${text}`, '_blank');
-    setShowWaPrompt(false);
-    setWaPhone('');
+    const element = document.getElementById('invoice-capture');
+    if (!element) return;
+    const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], `invoice-${sale.invoiceNumber}.png`, { type: 'image/png' });
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: `Invoice ${sale.invoiceNumber}` });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `invoice-${sale.invoiceNumber}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        window.open(`https://wa.me/${cleanPhone}`, '_blank');
+      }
+      setShowWaPrompt(false);
+      setWaPhone('');
+    }, 'image/png');
   };
 
   const handleWhatsApp = () => {
     const phone = sale?.customer?.phone;
     if (phone && phone !== '') {
-      buildWaText(phone);
+      buildWaImage(phone);
     } else {
       setShowWaPrompt(true);
     }
@@ -142,7 +153,7 @@ export default function InvoicePreviewPage() {
           </div>
         </div>
 
-        <InvoiceTemplate sale={sale} settings={settings} shopSettings={shopSettings} />
+        <div id="invoice-capture"><InvoiceTemplate sale={sale} settings={settings} shopSettings={shopSettings} /></div>
       </div>
 
       {/* WhatsApp phone prompt modal */}
@@ -168,7 +179,7 @@ export default function InvoicePreviewPage() {
               placeholder="91XXXXXXXXXX"
               autoFocus
               className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-[#25D366] focus:ring-4 focus:ring-[#25D366]/10"
-              onKeyDown={(e) => e.key === 'Enter' && waPhone.length >= 10 && buildWaText(waPhone)}
+              onKeyDown={(e) => e.key === 'Enter' && waPhone.length >= 10 && buildWaImage(waPhone)}
             />
             <div className="flex gap-2 mt-4">
               <button
@@ -178,7 +189,7 @@ export default function InvoicePreviewPage() {
                 Cancel
               </button>
               <button
-                onClick={() => buildWaText(waPhone)}
+                onClick={() => buildWaImage(waPhone)}
                 disabled={waPhone.length < 10}
                 className="flex-1 rounded-xl bg-[#25D366] py-2.5 text-sm font-semibold text-white hover:bg-[#1ebe5d] disabled:opacity-50 transition"
               >
