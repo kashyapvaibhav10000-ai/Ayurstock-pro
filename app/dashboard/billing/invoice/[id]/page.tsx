@@ -84,12 +84,22 @@ export default function InvoicePreviewPage() {
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: `Invoice ${sale.invoiceNumber}` });
       } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `invoice-${sale.invoiceNumber}.png`;
-        a.click();
-        URL.revokeObjectURL(url);
+        try {
+          // Attempt to copy image to clipboard
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          alert('Invoice image copied to clipboard! After WhatsApp opens, simply paste (Ctrl+V) into the chat to send the image.');
+        } catch (err) {
+          console.error('Clipboard copy failed', err);
+          // Fallback to downloading if clipboard fails
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `invoice-${sale.invoiceNumber}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+          alert('Invoice image downloaded! Please manually attach it in WhatsApp after it opens.');
+        }
         window.open(`https://wa.me/${cleanPhone}`, '_blank');
       }
       setShowWaPrompt(false);
