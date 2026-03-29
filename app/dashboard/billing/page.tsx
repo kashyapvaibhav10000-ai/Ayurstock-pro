@@ -52,6 +52,7 @@ export default function BillingPage() {
   const barcodeLastKeyTimeRef = useRef<number>(0);
   const [scannerActive, setScannerActive] = useState(false);
   const [gstMode, setGstMode] = useState<'inclusive' | 'exclusive'>('inclusive');
+  const [discountMode, setDiscountMode] = useState<'flat' | 'percent'>('flat');
 
   useEffect(() => {
     setOrderId(`#POS-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`);
@@ -147,8 +148,8 @@ export default function BillingPage() {
     let amount: number;
 
     if (gstMode === 'inclusive') {
-      rate = mrp;
-      amount = Math.round(mrp * 1 * 100) / 100;
+      rate = suggestion.mrp;
+      amount = suggestion.mrp * 1;
       const basePrice = Math.round((amount / (1 + gstPercent / 100)) * 100) / 100;
       gst = Math.round((amount - basePrice) * 100) / 100;
     } else {
@@ -248,22 +249,23 @@ export default function BillingPage() {
     );
   };
 
-  const updateCartItemDiscount = (index: number, discount: number) => {
+  const updateCartItemDiscount = (index: number, discountInput: number) => {
     setCart((current) =>
       current.map((item, i) => {
         if (i !== index) return item;
-        let gst: number;
-        let amount: number;
+        const discount = discountMode === 'percent'
+          ? Math.round((item.mrp * item.quantity * discountInput / 100) * 100) / 100
+          : discountInput;
         if (gstMode === 'inclusive') {
-          amount = Math.round((item.mrp * item.quantity - discount) * 100) / 100;
+          const amount = Math.round((item.mrp * item.quantity - discount) * 100) / 100;
           const basePrice = Math.round((amount / (1 + item.gstPercent / 100)) * 100) / 100;
-          gst = Math.round((amount - basePrice) * 100) / 100;
+          const gst = Math.round((amount - basePrice) * 100) / 100;
+          return { ...item, discount, gst, amount };
         } else {
           const afterDiscount = item.quantity * item.rate - discount;
-          gst = Math.round(((afterDiscount * item.gstPercent) / 100) * 100) / 100;
-          amount = afterDiscount + gst;
+          const gst = Math.round(((afterDiscount * item.gstPercent) / 100) * 100) / 100;
+          return { ...item, discount, gst, amount: afterDiscount + gst };
         }
-        return { ...item, discount, gst, amount };
       })
     );
   };
@@ -293,24 +295,19 @@ export default function BillingPage() {
   };
 
   const totals = useMemo(() => {
-    let subtotal = 0;
-    let discountTotal = 0;
-    let gstTotal = 0;
-    let grandTotal = 0;
-
     if (gstMode === 'inclusive') {
-      subtotal = cart.reduce((sum, item) => sum + item.amount, 0);
-      gstTotal = cart.reduce((sum, item) => sum + item.gst, 0);
-      discountTotal = cart.reduce((sum, item) => sum + item.discount, 0);
-      grandTotal = subtotal;
+      const grandTotal = Math.round(cart.reduce((sum, item) => sum + item.amount, 0) * 100) / 100;
+      const gstTotal = Math.round(cart.reduce((sum, item) => sum + item.gst, 0) * 100) / 100;
+      const discountTotal = Math.round(cart.reduce((sum, item) => sum + item.discount, 0) * 100) / 100;
+      const subtotal = Math.round((grandTotal - gstTotal) * 100) / 100;
+      return { subtotal, discountTotal, gstTotal, grandTotal };
     } else {
-      subtotal = cart.reduce((sum, item) => sum + item.quantity * item.rate, 0);
-      discountTotal = cart.reduce((sum, item) => sum + item.discount, 0);
-      gstTotal = cart.reduce((sum, item) => sum + item.gst, 0);
-      grandTotal = subtotal - discountTotal + gstTotal;
+      const subtotal = Math.round(cart.reduce((sum, item) => sum + item.quantity * item.rate, 0) * 100) / 100;
+      const discountTotal = Math.round(cart.reduce((sum, item) => sum + item.discount, 0) * 100) / 100;
+      const gstTotal = Math.round(cart.reduce((sum, item) => sum + item.gst, 0) * 100) / 100;
+      const grandTotal = Math.round((subtotal - discountTotal + gstTotal) * 100) / 100;
+      return { subtotal, discountTotal, gstTotal, grandTotal };
     }
-
-    return { subtotal, discountTotal, gstTotal, grandTotal };
   }, [cart, gstMode]);
 
   const balance = receivedAmount - totals.grandTotal;
@@ -647,10 +644,22 @@ export default function BillingPage() {
                   </div>
                   <div className="flex items-center gap-2 xl:gap-3">
                     <div className="flex items-center overflow-hidden rounded-[14px] border border-border bg-surface-muted/50 shadow-inner px-2.5 py-1.5 h-11">
-                      <span className="text-[10px] font-black uppercase text-muted-foreground mr-1.5 whitespace-nowrap">Disc ₹</span>
+                      <div className="flex items-center gap-1.5 mr-1.5">
+                        <span className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">
+                          Disc {discountMode === 'percent' ? '%' : '₹'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setDiscountMode(m => m === 'percent' ? 'flat' : 'percent')}
+                          className="bg-primary/10 text-primary hover:bg-primary/20 rounded-[4px] px-1 py-0.5 text-[8px] font-black uppercase transition-colors"
+                        >
+                          {discountMode === 'percent' ? '₹' : '%'}
+                        </button>
+                      </div>
                       <input
                         type="number"
                         min="0"
+                        max={discountMode === 'percent' ? "100" : undefined}
                         value={item.discount}
                         onChange={(e) => updateCartItemDiscount(index, parseFloat(e.target.value) || 0)}
                         className="w-12 border-none bg-transparent p-0 text-right text-[15px] font-black text-foreground focus:outline-none focus:ring-0"

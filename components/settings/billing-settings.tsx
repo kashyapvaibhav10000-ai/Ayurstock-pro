@@ -19,7 +19,6 @@ export default function BillingSettings() {
     enableBarcode: true,
     autoPrintInvoice: false,
     gstMode: "inclusive" as "inclusive" | "exclusive",
-    defaultDiscountPercent: 0,
   });
 
   const [loading, setLoading] = useState(true);
@@ -38,7 +37,6 @@ export default function BillingSettings() {
             enableBarcode: response.data.data.enableBarcode,
             autoPrintInvoice: response.data.data.autoPrintInvoice,
             gstMode: response.data.data.gstMode,
-            defaultDiscountPercent: Number(response.data.data.defaultDiscountPercent) || 0,
           });
         }
       } catch (error) {
@@ -175,19 +173,6 @@ export default function BillingSettings() {
               <p className="text-xs text-muted-foreground italic mt-2">
                 Inclusive: GST is extracted from MRP. Exclusive: GST is added on top of rate.
               </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="discountPercent" className="font-semibold">Default Discount %</Label>
-              <Input
-                id="discountPercent"
-                type="number"
-                min="0"
-                max="100"
-                value={settings.defaultDiscountPercent}
-                onChange={(e) => handleChange("defaultDiscountPercent", parseFloat(e.target.value) || 0)}
-                className="w-32"
-              />
             </div>
           </div>
         </div>
