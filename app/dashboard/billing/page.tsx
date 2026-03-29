@@ -45,6 +45,7 @@ export default function BillingPage() {
   const barcodeBufferRef = useRef<string>('');
   const barcodeLastKeyTimeRef = useRef<number>(0);
   const [scannerActive, setScannerActive] = useState(false);
+  const [gstMode, setGstMode] = useState<'inclusive' | 'exclusive'>('inclusive');
 
   useEffect(() => {
     setOrderId(`#POS-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`);
@@ -53,6 +54,12 @@ export default function BillingPage() {
   // Load from local storage on mount
   useEffect(() => {
     setMounted(true);
+    axios.get('/api/settings/billing').then(res => {
+      if (res.data.success && res.data.data?.gstMode) {
+        setGstMode(res.data.data.gstMode);
+      }
+    }).catch(console.error);
+
     try {
       const savedCart = localStorage.getItem('pos_cart');
       if (savedCart) {
@@ -126,6 +133,24 @@ export default function BillingPage() {
       return;
     }
 
+    const mrp = suggestion.mrp;
+    const gstPercent = suggestion.gstPercent ?? 0;
+
+    let rate: number;
+    let gst: number;
+    let amount: number;
+
+    if (gstMode === 'inclusive') {
+      rate = Math.round((mrp / (1 + gstPercent / 100)) * 100) / 100;
+      amount = mrp * 1;
+      gst = Math.round((amount - rate) * 100) / 100;
+    } else {
+      rate = mrp;
+      const afterDiscount = rate * 1 - 0;
+      gst = Math.round(((afterDiscount * gstPercent) / 100) * 100) / 100;
+      amount = afterDiscount + gst;
+    }
+
     const newItem: CartItem = {
       medicineId: suggestion.medicineId,
       medicineName: suggestion.name,
@@ -134,18 +159,14 @@ export default function BillingPage() {
       batchId: suggestion.batchId,
       batchNumber: suggestion.batchNumber,
       expiryDate: new Date(suggestion.expiryDate),
-      mrp: suggestion.mrp,
-      rate: suggestion.rate,
+      mrp,
+      rate,
       discount: 0,
-      gstPercent: suggestion.gstPercent ?? 0,
-      gst: 0,
-      amount: 0,
+      gstPercent,
+      gst,
+      amount,
       rackLocation: suggestion.rackLocation,
     };
-
-    const afterDiscount = newItem.quantity * newItem.rate - newItem.discount;
-    newItem.gst = Math.round(((afterDiscount * newItem.gstPercent) / 100) * 100) / 100;
-    newItem.amount = afterDiscount + newItem.gst;
 
     setCart((current) => [...current, newItem]);
     setSearchQuery('');
@@ -202,20 +223,63 @@ export default function BillingPage() {
   const updateCartItemQuantity = (index: number, nextQuantity: number) => {
     setCart((current) =>
       current.map((item, itemIndex) => {
-        if (itemIndex !== index) {
-          return item;
-        }
-
+        if (itemIndex !== index) return item;
         const quantity = Math.max(1, nextQuantity);
-        const afterDiscount = quantity * item.rate - item.discount;
-        const gst = Math.round(((afterDiscount * item.gstPercent) / 100) * 100) / 100;
+        let gst: number;
+        let amount: number;
+        if (gstMode === 'inclusive') {
+          const finalAmount = (item.mrp * quantity) - item.discount;
+          const basePrice = finalAmount / (1 + item.gstPercent / 100);
+          gst = Math.round((finalAmount - basePrice) * 100) / 100;
+          amount = finalAmount;
+        } else {
+          const afterDiscount = quantity * item.rate - item.discount;
+          gst = Math.round(((afterDiscount * item.gstPercent) / 100) * 100) / 100;
+          amount = afterDiscount + gst;
+        }
+        return { ...item, quantity, gst, amount };
+      })
+    );
+  };
 
-        return {
-          ...item,
-          quantity,
-          gst,
-          amount: afterDiscount + gst,
-        };
+  const updateCartItemDiscount = (index: number, discount: number) => {
+    setCart((current) =>
+      current.map((item, i) => {
+        if (i !== index) return item;
+        let gst: number;
+        let amount: number;
+        if (gstMode === 'inclusive') {
+          const finalAmount = (item.mrp * item.quantity) - discount;
+          const basePrice = finalAmount / (1 + item.gstPercent / 100);
+          gst = Math.round((finalAmount - basePrice) * 100) / 100;
+          amount = finalAmount;
+        } else {
+          const afterDiscount = item.quantity * item.rate - discount;
+          gst = Math.round(((afterDiscount * item.gstPercent) / 100) * 100) / 100;
+          amount = afterDiscount + gst;
+        }
+        return { ...item, discount, gst, amount };
+      })
+    );
+  };
+
+  const updateCartItemGst = (index: number, gstPercent: number) => {
+    setCart((current) =>
+      current.map((item, i) => {
+        if (i !== index) return item;
+        let gst: number;
+        let amount: number;
+        if (gstMode === 'inclusive') {
+          const finalAmount = (item.mrp * item.quantity) - item.discount;
+          const basePrice = finalAmount / (1 + gstPercent / 100);
+          gst = Math.round((finalAmount - basePrice) * 100) / 100;
+          amount = finalAmount;
+        } else {
+          const afterDiscount = item.quantity * item.rate - item.discount;
+          gst = Math.round(((afterDiscount * gstPercent) / 100) * 100) / 100;
+          amount = afterDiscount + gst;
+        }
+        return { ...item, gstPercent, gst, amount };
       })
     );
   };
@@ -563,6 +627,28 @@ export default function BillingPage() {
                     >
                       +
                     </button>
+                  </div>
+                  <div className="flex items-center gap-2 xl:gap-3">
+                    <div className="flex items-center overflow-hidden rounded-[14px] border border-border bg-surface-muted/50 shadow-inner px-2.5 py-1.5 h-11">
+                      <span className="text-[10px] font-black uppercase text-muted-foreground mr-1.5 whitespace-nowrap">Disc ₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.discount}
+                        onChange={(e) => updateCartItemDiscount(index, parseFloat(e.target.value) || 0)}
+                        className="w-12 border-none bg-transparent p-0 text-right text-[15px] font-black text-foreground focus:outline-none focus:ring-0"
+                      />
+                    </div>
+                    <div className="flex items-center overflow-hidden rounded-[14px] border border-border bg-surface-muted/50 shadow-inner px-2.5 py-1.5 h-11">
+                      <span className="text-[10px] font-black uppercase text-muted-foreground mr-1.5 whitespace-nowrap">GST %</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.gstPercent}
+                        onChange={(e) => updateCartItemGst(index, parseFloat(e.target.value) || 0)}
+                        className="w-10 border-none bg-transparent p-0 text-right text-[15px] font-black text-foreground focus:outline-none focus:ring-0"
+                      />
+                    </div>
                   </div>
                   <div className="text-right">
                     <div className="text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground mb-0.5">Item Total</div>
