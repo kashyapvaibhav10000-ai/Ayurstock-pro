@@ -170,6 +170,7 @@ export default function BillingPage() {
       mrp,
       rate,
       discount: 0,
+      discountPercent: 0,
       gstPercent,
       gst,
       amount,
@@ -253,18 +254,20 @@ export default function BillingPage() {
     setCart((current) =>
       current.map((item, i) => {
         if (i !== index) return item;
-        const discount = discountMode === 'percent'
-          ? Math.round((item.mrp * item.quantity * discountInput / 100) * 100) / 100
+        const discountRupees = discountMode === 'percent'
+          ? Math.round((item.mrp * item.quantity * (discountInput / 100)) * 100) / 100
           : discountInput;
+        const discountPercent = discountMode === 'percent' ? discountInput : 0;
+        
         if (gstMode === 'inclusive') {
-          const amount = Math.round((item.mrp * item.quantity - discount) * 100) / 100;
+          const amount = Math.round((item.mrp * item.quantity - discountRupees) * 100) / 100;
           const basePrice = Math.round((amount / (1 + item.gstPercent / 100)) * 100) / 100;
           const gst = Math.round((amount - basePrice) * 100) / 100;
-          return { ...item, discount, gst, amount };
+          return { ...item, discount: discountRupees, discountPercent, gst, amount };
         } else {
-          const afterDiscount = item.quantity * item.rate - discount;
+          const afterDiscount = item.quantity * item.rate - discountRupees;
           const gst = Math.round(((afterDiscount * item.gstPercent) / 100) * 100) / 100;
-          return { ...item, discount, gst, amount: afterDiscount + gst };
+          return { ...item, discount: discountRupees, discountPercent, gst, amount: afterDiscount + gst };
         }
       })
     );
@@ -660,7 +663,7 @@ export default function BillingPage() {
                         type="number"
                         min="0"
                         max={discountMode === 'percent' ? "100" : undefined}
-                        value={item.discount}
+                        value={discountMode === 'percent' ? (item.discountPercent || 0) : item.discount}
                         onChange={(e) => updateCartItemDiscount(index, parseFloat(e.target.value) || 0)}
                         className="w-12 border-none bg-transparent p-0 text-right text-[15px] font-black text-foreground focus:outline-none focus:ring-0"
                       />
