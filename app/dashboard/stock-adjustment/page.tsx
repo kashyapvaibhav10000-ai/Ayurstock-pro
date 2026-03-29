@@ -169,8 +169,8 @@ export default function StockAdjustmentPage() {
 
       const res = await axios.get('/api/stock-ledger', { params });
       if (res.data.success) {
-        setLedgerEntries(res.data.data);
-        setTotalLedgerEntries(res.data.pagination.total);
+        setLedgerEntries(res.data.data.data || []);
+        setTotalLedgerEntries(res.data.data.pagination?.total || 0);
       }
     } catch {
       console.error('Failed to load ledger');
