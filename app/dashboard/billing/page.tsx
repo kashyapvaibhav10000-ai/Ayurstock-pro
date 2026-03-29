@@ -498,7 +498,7 @@ export default function BillingPage() {
       `}} />
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
 
-      <main className="flex-1 p-4 grid grid-cols-12 gap-4 max-w-[1600px] mx-auto w-full overflow-hidden h-full xl:h-[calc(100vh-6rem)]">
+      <main className="flex-1 p-4 grid grid-cols-12 gap-4 w-full overflow-hidden h-full xl:h-[calc(100vh-6rem)]">
         
         {/* LEFT PANEL: INVENTORY SEARCH */}
         <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 overflow-hidden h-full">
