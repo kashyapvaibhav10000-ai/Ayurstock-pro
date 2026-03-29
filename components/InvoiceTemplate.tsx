@@ -54,6 +54,7 @@ interface InvoiceTemplateProps {
   sale: SaleDetails;
   settings: InvoiceSettings;
   shopSettings: ShopSettings;
+  gstMode?: 'inclusive' | 'exclusive';
 }
 
 const numberFormatter = new Intl.NumberFormat('en-IN', {
@@ -77,19 +78,41 @@ const formatExpiry = (dateString: string) => {
   return `${month}/${year}`;
 };
 
-export default function InvoiceTemplate({ sale, settings, shopSettings }: InvoiceTemplateProps) {
+export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode = 'inclusive' }: InvoiceTemplateProps) {
   const totals = useMemo(() => {
-    const cgst = sale.gstTotal / 2;
-    const sgst = sale.gstTotal / 2;
-    return {
-      subtotal: sale.subtotal,
-      discountTotal: sale.discountTotal,
-      gstTotal: sale.gstTotal,
-      grandTotal: sale.grandTotal,
-      cgst,
-      sgst,
-    };
-  }, [sale]);
+    if (gstMode === 'inclusive') {
+      let subtotal = 0;
+      let gstTotal = 0;
+      let grandTotal = 0;
+      
+      sale.saleItems.forEach(item => {
+        const itemAmount = (item.mrp * item.quantity) - item.discount;
+        grandTotal += itemAmount;
+        gstTotal += item.gst;
+        subtotal += (itemAmount - item.gst);
+      });
+
+      return {
+        subtotal,
+        discountTotal: sale.discountTotal,
+        gstTotal,
+        grandTotal,
+        cgst: gstTotal / 2,
+        sgst: gstTotal / 2,
+      };
+    } else {
+      const cgst = sale.gstTotal / 2;
+      const sgst = sale.gstTotal / 2;
+      return {
+        subtotal: sale.subtotal,
+        discountTotal: sale.discountTotal,
+        gstTotal: sale.gstTotal,
+        grandTotal: sale.grandTotal,
+        cgst,
+        sgst,
+      };
+    }
+  }, [sale, gstMode]);
 
   const customer = sale.customer || {
     name: 'Walk-in Customer',
@@ -228,8 +251,19 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
                 </thead>
                 <tbody>
                   {sale.saleItems.map((item, index) => {
-                    const afterDiscount = item.quantity * item.rate - item.discount;
-                    const gstPercent = afterDiscount > 0 ? (item.gst / afterDiscount) * 100 : 0;
+                    let itemAmount = item.amount;
+                    let gstPercent = 0;
+
+                    if (gstMode === 'inclusive') {
+                      itemAmount = (item.mrp * item.quantity) - item.discount;
+                      const basePrice = itemAmount - item.gst;
+                      gstPercent = basePrice > 0 ? (item.gst / basePrice) * 100 : 0;
+                    } else {
+                      const afterDiscount = item.quantity * item.rate - item.discount;
+                      gstPercent = afterDiscount > 0 ? (item.gst / afterDiscount) * 100 : 0;
+                      itemAmount = afterDiscount + item.gst;
+                    }
+
                     return (
                       <tr key={item.id} className="border-t border-slate-100 text-slate-700 text-[11px] md:text-sm">
                         <td className="px-2 md:px-3 py-2 md:py-3">{index + 1}</td>
@@ -243,7 +277,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings }: Invoic
                         <td className="px-2 md:px-3 py-2 md:py-3 text-right">{item.discount.toFixed(2)}</td>
                         <td className="px-2 md:px-3 py-2 md:py-3 text-right">{gstPercent.toFixed(1)}%</td>
                         <td className="px-2 md:px-3 py-2 md:py-3 text-right font-bold text-slate-900">
-                          {item.amount.toFixed(2)}
+                          {itemAmount.toFixed(2)}
                         </td>
                       </tr>
                     );
