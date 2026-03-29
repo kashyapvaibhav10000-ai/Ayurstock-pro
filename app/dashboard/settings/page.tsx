@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud, Database, Sparkles, ShieldCheck } from 'lucide-react';
+import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud, Database, Sparkles, ShieldCheck, BellRing } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,7 @@ import DatabaseAdmin from '@/components/settings/database-admin';
 import ActivityLogTab from '@/components/settings/activity-log-tab';
 import AiUsageTab from '@/components/settings/ai-usage-tab';
 import LoginHistoryTab from '@/components/settings/login-history-tab';
+import ExpiryAlertSettings from '@/components/settings/expiry-alert-settings';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -29,6 +30,7 @@ const SETTINGS_CATEGORIES = [
   { id: 'inventory', label: 'Inventory', icon: Package, group: 'General' },
   { id: 'racks', label: 'Rack Locations', icon: Archive, group: 'General' },
   { id: 'companies', label: 'Company', icon: Building, group: 'General' },
+  { id: 'expiry-alerts', label: 'Expiry Alerts', icon: BellRing, group: 'General' },
   { id: 'profile', label: 'My Profile', icon: User, group: 'Account' },
   { id: 'users', label: 'Team', icon: Users, group: 'Account' },
   { id: 'invoice', label: 'Invoices', icon: FileText, group: 'Billing' },
@@ -80,6 +82,7 @@ export default function SettingsPage() {
       case 'users': return <UserSettings />;
       case 'companies': return <CompanySettings />;
       case 'billing': return <BillingSettings />;
+      case 'expiry-alerts': return <ExpiryAlertSettings />;
       case 'import': return <DataImportSettings />;
       case 'database': return <DatabaseAdmin />;
       case 'activity': return <ActivityLogTab />;

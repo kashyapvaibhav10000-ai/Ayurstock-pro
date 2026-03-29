@@ -20,9 +20,11 @@ model Shop {
   companies        Company[]
   customers        Customer[]
   importedInvoices ImportedInvoice[]
-  inventoryBatches InventoryBatch[]
-  invoiceSettings  InvoiceSettings?
-  medicines        Medicine[]
+  inventoryBatches    InventoryBatch[]
+  invoiceSettings     InvoiceSettings?
+  billingSettings     BillingSettings?
+  expiryAlertSettings ExpiryAlertSettings?
+  medicines           Medicine[]
   medicineReturns  MedicineReturn[]
   purchases        Purchase[]
   rackLocations    RackLocation[]
@@ -72,6 +74,36 @@ model InvoiceSettings {
 
   @@index([shopId])
 }
+
+model BillingSettings {
+  id                     String   @id @default(cuid())
+  shopId                 String   @unique
+  enableRetail           Boolean  @default(true)
+  enableWholesale        Boolean  @default(true)
+  allowDiscounts         Boolean  @default(true)
+  enableBarcode          Boolean  @default(true)
+  autoPrintInvoice       Boolean  @default(false)
+  gstMode                String   @default("inclusive") // "inclusive" | "exclusive"
+  defaultDiscountPercent Decimal  @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  shop                   Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+}
+
+model ExpiryAlertSettings {
+  id                  String   @id @default(cuid())
+  shopId              String   @unique
+  shop                Shop     @relation(fields: [shopId], references: [id])
+  enableWhatsApp      Boolean  @default(true)
+  enableEmail         Boolean  @default(true)
+  whatsappNumber      String   @default("")
+  emailAddress        String   @default("")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
 
 model User {
   id              String           @id @default(cuid())
