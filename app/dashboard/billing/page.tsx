@@ -147,9 +147,10 @@ export default function BillingPage() {
     let amount: number;
 
     if (gstMode === 'inclusive') {
-      rate = Math.round((mrp / (1 + gstPercent / 100)) * 100) / 100;
-      amount = mrp * 1;
-      gst = Math.round((amount - rate) * 100) / 100;
+      rate = mrp;
+      amount = Math.round(mrp * 1 * 100) / 100;
+      const basePrice = Math.round((amount / (1 + gstPercent / 100)) * 100) / 100;
+      gst = Math.round((amount - basePrice) * 100) / 100;
     } else {
       rate = mrp;
       const afterDiscount = rate * 1 - 0;
@@ -234,10 +235,9 @@ export default function BillingPage() {
         let gst: number;
         let amount: number;
         if (gstMode === 'inclusive') {
-          const finalAmount = (item.mrp * quantity) - item.discount;
-          const basePrice = finalAmount / (1 + item.gstPercent / 100);
-          gst = Math.round((finalAmount - basePrice) * 100) / 100;
-          amount = finalAmount;
+          amount = Math.round((item.mrp * quantity - item.discount) * 100) / 100;
+          const basePrice = Math.round((amount / (1 + item.gstPercent / 100)) * 100) / 100;
+          gst = Math.round((amount - basePrice) * 100) / 100;
         } else {
           const afterDiscount = quantity * item.rate - item.discount;
           gst = Math.round(((afterDiscount * item.gstPercent) / 100) * 100) / 100;
@@ -255,10 +255,9 @@ export default function BillingPage() {
         let gst: number;
         let amount: number;
         if (gstMode === 'inclusive') {
-          const finalAmount = (item.mrp * item.quantity) - discount;
-          const basePrice = finalAmount / (1 + item.gstPercent / 100);
-          gst = Math.round((finalAmount - basePrice) * 100) / 100;
-          amount = finalAmount;
+          amount = Math.round((item.mrp * item.quantity - discount) * 100) / 100;
+          const basePrice = Math.round((amount / (1 + item.gstPercent / 100)) * 100) / 100;
+          gst = Math.round((amount - basePrice) * 100) / 100;
         } else {
           const afterDiscount = item.quantity * item.rate - discount;
           gst = Math.round(((afterDiscount * item.gstPercent) / 100) * 100) / 100;
@@ -276,10 +275,9 @@ export default function BillingPage() {
         let gst: number;
         let amount: number;
         if (gstMode === 'inclusive') {
-          const finalAmount = (item.mrp * item.quantity) - item.discount;
-          const basePrice = finalAmount / (1 + gstPercent / 100);
-          gst = Math.round((finalAmount - basePrice) * 100) / 100;
-          amount = finalAmount;
+          amount = Math.round((item.mrp * item.quantity - item.discount) * 100) / 100;
+          const basePrice = Math.round((amount / (1 + gstPercent / 100)) * 100) / 100;
+          gst = Math.round((amount - basePrice) * 100) / 100;
         } else {
           const afterDiscount = item.quantity * item.rate - item.discount;
           gst = Math.round(((afterDiscount * gstPercent) / 100) * 100) / 100;
@@ -295,12 +293,25 @@ export default function BillingPage() {
   };
 
   const totals = useMemo(() => {
-    const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.rate, 0);
-    const discountTotal = cart.reduce((sum, item) => sum + item.discount, 0);
-    const gstTotal = cart.reduce((sum, item) => sum + item.gst, 0);
-    const grandTotal = subtotal - discountTotal + gstTotal;
+    let subtotal = 0;
+    let discountTotal = 0;
+    let gstTotal = 0;
+    let grandTotal = 0;
+
+    if (gstMode === 'inclusive') {
+      subtotal = cart.reduce((sum, item) => sum + item.amount, 0);
+      gstTotal = cart.reduce((sum, item) => sum + item.gst, 0);
+      discountTotal = cart.reduce((sum, item) => sum + item.discount, 0);
+      grandTotal = subtotal;
+    } else {
+      subtotal = cart.reduce((sum, item) => sum + item.quantity * item.rate, 0);
+      discountTotal = cart.reduce((sum, item) => sum + item.discount, 0);
+      gstTotal = cart.reduce((sum, item) => sum + item.gst, 0);
+      grandTotal = subtotal - discountTotal + gstTotal;
+    }
+
     return { subtotal, discountTotal, gstTotal, grandTotal };
-  }, [cart]);
+  }, [cart, gstMode]);
 
   const balance = receivedAmount - totals.grandTotal;
 
@@ -645,21 +656,20 @@ export default function BillingPage() {
                         className="w-12 border-none bg-transparent p-0 text-right text-[15px] font-black text-foreground focus:outline-none focus:ring-0"
                       />
                     </div>
-                    <div className="flex items-center gap-1 h-11">
-                      {GST_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => updateCartItemGst(index, opt.value)}
-                          className={`flex h-full flex-col items-center justify-center rounded-[10px] border px-2 min-w-[48px] transition-all ${
-                            item.gstPercent === opt.value
-                              ? 'bg-primary border-primary text-white shadow-sm'
-                              : 'border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground'
-                          }`}
-                        >
-                          <span className="text-[12px] font-black leading-none mb-1">{opt.label}</span>
-                          <span className="text-[8px] font-bold uppercase leading-none opacity-80 tracking-widest">{opt.category}</span>
-                        </button>
-                      ))}
+                    <div className="flex items-center overflow-hidden rounded-[14px] border border-border bg-surface-muted/50 shadow-inner px-2.5 py-1.5 h-11">
+                      <span className="text-[10px] font-black uppercase text-muted-foreground mr-1.5 whitespace-nowrap">GST</span>
+                      <select
+                        value={item.gstPercent}
+                        onChange={(e) => updateCartItemGst(index, parseFloat(e.target.value) || 0)}
+                        className="bg-transparent border-none p-0 text-right text-[15px] font-black text-foreground focus:outline-none focus:ring-0 appearance-none cursor-pointer"
+                        style={{ textAlignLast: 'right' }}
+                      >
+                        {GST_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label} — {opt.category}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="text-right">
