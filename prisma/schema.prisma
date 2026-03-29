@@ -43,9 +43,10 @@ model ShopSettings {
   addressLine1 String   @default("")
   addressLine2 String?
   phone        String   @default("")
-  email        String   @default("")
-  gstin        String   @default("")
-  createdAt    DateTime @default(now())
+  email            String   @default("")
+  gstin            String   @default("")
+  commanderActions Json?
+  createdAt        DateTime @default(now())
   updatedAt    DateTime @updatedAt
   shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 

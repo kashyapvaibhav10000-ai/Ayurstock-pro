@@ -9,8 +9,10 @@ import { useInventoryAlerts } from "@/hooks/useInventoryAlerts";
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import AddMedicineChoiceModal from "@/components/dashboard/AddMedicineChoiceModal";
+import CommanderActionsConfig, { CommanderAction, DEFAULT_ACTIONS } from "@/components/commander-actions-config";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
+import * as Icons from "lucide-react";
 
 type SaleDate = { date: string; totalAmount: number };
 
@@ -75,6 +77,8 @@ export default function DashboardPage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [commanderActions, setCommanderActions] = useState<CommanderAction[]>(DEFAULT_ACTIONS);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -88,9 +92,10 @@ export default function DashboardPage() {
         weekAgo.setDate(weekAgo.getDate() - 6);
         weekAgo.setHours(0, 0, 0, 0);
 
-        const [todayRes, weekRes] = await Promise.all([
+        const [todayRes, weekRes, settingsRes] = await Promise.all([
           fetch(`/api/sales?startDate=${today.toISOString()}&endDate=${endOfDay.toISOString()}&limit=5`),
           fetch(`/api/sales?startDate=${weekAgo.toISOString()}&endDate=${endOfDay.toISOString()}&limit=500`),
+          fetch(`/api/settings`),
         ]);
 
         let totalSalesToday = 0;
@@ -99,6 +104,13 @@ export default function DashboardPage() {
         let newCustomers = 0;
         let recentSales: any[] = [];
         const salesByDate: SaleDate[] = [];
+
+        if (settingsRes.ok) {
+          const settingsObj = await settingsRes.json();
+          if (settingsObj.data?.commanderActions && Array.isArray(settingsObj.data.commanderActions) && settingsObj.data.commanderActions.length > 0) {
+            setCommanderActions(settingsObj.data.commanderActions);
+          }
+        }
 
         if (todayRes.ok) {
           const result = await todayRes.json();
@@ -360,13 +372,24 @@ export default function DashboardPage() {
                 Commander Actions
               </h2>
               <div className="grid grid-cols-2 gap-3">
-                <ActionButton icon={Plus} label="New Prescription" onClick={() => router.push('/dashboard/billing')} />
-                <ActionButton icon={Pill} label="Quick Stock" onClick={() => setIsChoiceModalOpen(true)} />
-                <ActionButton icon={Users} label="Add Customer" onClick={() => router.push('/dashboard/billing')} />
-                <ActionButton icon={FileText} label="Daily Report" onClick={() => router.push('/dashboard/reports')} />
+                {commanderActions.map((action, i) => (
+                  <ActionButton 
+                    key={i} 
+                    iconName={action.icon} 
+                    label={action.label} 
+                    onClick={() => {
+                      if (action.label === 'Quick Stock') {
+                        setIsChoiceModalOpen(true);
+                      } else {
+                        router.push(action.route);
+                      }
+                    }} 
+                  />
+                ))}
               </div>
               <Button 
                 variant="outline" 
+                onClick={() => setIsConfigOpen(true)}
                 className="w-full mt-3 h-11 text-[10px] font-black tracking-[0.2em] uppercase border-border/50 text-muted-foreground hover:bg-primary/5 hover:text-primary hover:border-primary/30 rounded-[12px] transition-all"
               >
                 Custom Actions
@@ -405,11 +428,21 @@ export default function DashboardPage() {
           onSelectManual={() => router.push('/dashboard/medicines?action=manual')}
         />
       )}
+
+      {isConfigOpen && (
+        <CommanderActionsConfig
+          isOpen={isConfigOpen}
+          onClose={() => setIsConfigOpen(false)}
+          currentActions={commanderActions}
+          onSave={(actions) => setCommanderActions(actions)}
+        />
+      )}
     </>
   );
 }
 
-function ActionButton({ icon: Icon, label, onClick }: { icon: any, label: string, onClick: () => void }) {
+function ActionButton({ iconName, label, onClick }: { iconName: string, label: string, onClick: () => void }) {
+  const Icon = (Icons as any)[iconName] || Icons.HelpCircle;
   return (
     <button 
       onClick={onClick}
