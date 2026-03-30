@@ -330,6 +330,7 @@ model SaleItem {
   rate       Decimal
   discount   Decimal        @default(0)
   gst        Decimal
+  gstPercent Int            @default(0)
   amount     Decimal
   batch      InventoryBatch @relation(fields: [batchId], references: [id])
   medicine   Medicine       @relation(fields: [medicineId], references: [id])

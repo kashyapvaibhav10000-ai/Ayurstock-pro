@@ -68,13 +68,13 @@ export function calculateBilling(items: BillingItem[]): BillingCalculation {
   );
 
   const grandTotal = subtotal.minus(totalDiscount).plus(totalGst);
-
+  
   return {
     subtotal,
     totalDiscount,
     totalGst,
     grandTotal,
-    items: calculatedItems,
+    items: calculatedItems as any,
   };
 }
 
@@ -280,6 +280,7 @@ export async function createSale(params: {
             rate: new Decimal(item.rate),
             discount: new Decimal(item.discount),
             gst: new Decimal(item.gst),
+            gstPercent: item.gstPercent,
             amount: item.amount,
           })),
         },
