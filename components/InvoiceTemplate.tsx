@@ -22,6 +22,7 @@ export interface SaleItem {
   rate: number;
   discount: number;
   gst: number;
+  gstPercent: number;
   amount: number;
   medicine: {
     name: string;
@@ -252,15 +253,11 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
                 <tbody>
                   {sale.saleItems.map((item, index) => {
                     let itemAmount = item.amount;
-                    let gstPercent = 0;
 
                     if (gstMode === 'inclusive') {
                       itemAmount = (item.mrp * item.quantity) - item.discount;
-                      const basePrice = itemAmount - item.gst;
-                      gstPercent = basePrice > 0 ? (item.gst / basePrice) * 100 : 0;
                     } else {
-                      const afterDiscount = item.quantity * item.rate - item.discount;
-                      gstPercent = afterDiscount > 0 ? (item.gst / afterDiscount) * 100 : 0;
+                      const afterDiscount = (item.rate * item.quantity) - item.discount;
                       itemAmount = afterDiscount + item.gst;
                     }
 
@@ -275,7 +272,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
                         <td className="px-2 md:px-3 py-2 md:py-3 text-right">{item.quantity}</td>
                         <td className="px-2 md:px-3 py-2 md:py-3 text-right">{item.rate.toFixed(2)}</td>
                         <td className="px-2 md:px-3 py-2 md:py-3 text-right">{item.discount.toFixed(2)}</td>
-                        <td className="px-2 md:px-3 py-2 md:py-3 text-right">{gstPercent.toFixed(1)}%</td>
+                        <td className="px-2 md:px-3 py-2 md:py-3 text-right">{item.gstPercent}%</td>
                         <td className="px-2 md:px-3 py-2 md:py-3 text-right font-bold text-slate-900">
                           {itemAmount.toFixed(2)}
                         </td>
