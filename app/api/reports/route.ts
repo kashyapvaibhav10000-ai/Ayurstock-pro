@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
           grandTotal: true,
           gstTotal: true,
           paymentMode: true,
-          items: {
+          saleItems: {
             select: {
               quantity: true,
               rate: true,
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         totalRevenue += Number(sale.grandTotal || 0);
         totalGst += Number(sale.gstTotal || 0);
         if (sale.paymentMode === 'CREDIT') totalCredit += Number(sale.grandTotal || 0);
-        sale.items.forEach((item: any) => {
+        sale.saleItems.forEach((item: any) => {
           const purchaseRate = Number(item.batch?.purchaseRate || 0);
           totalCogs += purchaseRate * item.quantity;
         });

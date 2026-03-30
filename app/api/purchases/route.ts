@@ -159,6 +159,9 @@ export async function POST(req: NextRequest) {
     const { supplierId, invoiceNumber, invoiceDate, gstType, paymentType, status, notes, items } =
       validation.data;
 
+    const shopId = auth.user.shopId;
+    const userId = auth.user.id;
+
     const supplier = await prisma.supplier.findFirst({
       where: {
         id: supplierId,
@@ -232,7 +235,7 @@ export async function POST(req: NextRequest) {
 
         const existingBatch = await tx.inventoryBatch.findFirst({
           where: {
-            shopId: auth.user.shopId,
+            shopId: shopId,
             medicineId: item.medicineId,
             batchNumber: item.batchNumber.trim(),
           },
@@ -256,7 +259,7 @@ export async function POST(req: NextRequest) {
         } else {
           const createdBatch = await tx.inventoryBatch.create({
             data: {
-              shopId: auth.user.shopId,
+              shopId: shopId,
               medicineId: item.medicineId,
               batchNumber: item.batchNumber.trim(),
               expiryDate: new Date(item.expiryDate),
@@ -288,7 +291,7 @@ export async function POST(req: NextRequest) {
 
       const createdPurchase = await tx.purchase.create({
         data: {
-          shopId: auth.user.shopId,
+          shopId: shopId,
           supplierId,
           invoiceNumber: invoiceNumber.trim(),
           invoiceDate: new Date(invoiceDate),
@@ -318,7 +321,7 @@ export async function POST(req: NextRequest) {
         const totalQty = payload.quantity + payload.freeQty;
         if (totalQty > 0) {
           ledgerPayloads.push({
-            shopId: auth.user.shopId,
+            shopId: shopId,
             medicineId: payload.medicineId,
             batchId: payload.batchId,
             type: 'PURCHASE',
@@ -334,8 +337,8 @@ export async function POST(req: NextRequest) {
 
       await tx.activityLog.create({
         data: {
-          shopId: auth.user.shopId,
-          userId: auth.user.id,
+          shopId: shopId,
+          userId: userId,
           action: 'CREATE_PURCHASE',
           meta: JSON.stringify({
             purchaseId: createdPurchase.id,

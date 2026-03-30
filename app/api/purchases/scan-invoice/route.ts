@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     if (file.type === 'application/pdf') {
       try {
-        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
+        const pdfjsLib = await import('pdfjs-dist');
         const loadingTask = pdfjsLib.getDocument({ data: buffer });
         const pdf = await loadingTask.promise;
         let fullText = '';
