@@ -45,9 +45,9 @@ export async function GET(req: NextRequest) {
         'Batch Number': b.batchNumber,
         'Expiry Date': b.expiryDate.toISOString().split('T')[0],
         'Stock Quantity': b.stockQty,
-        'Purchase Rate': b.purchaseRate.toFixed(2),
-        'MRP': b.mrp.toFixed(2),
-        'Rack Location': b.rackLocation,
+        'Purchase Rate': b.purchaseRate ? Number(b.purchaseRate).toFixed(2) : '0.00',
+        'MRP': Number(b.mrp).toFixed(2),
+        'Rack Location': b.rackLocation || 'N/A',
         'Days Until Expiry': expiryFlag,
       };
     });

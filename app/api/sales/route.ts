@@ -31,9 +31,9 @@ export async function POST(request: NextRequest) {
     let resolvedCustomerId = customerId || null;
 
     if (!resolvedCustomerId && customer) {
-      const normalizedPhone = customer.phone.trim();
-      const normalizedName = customer.name.trim();
-      const normalizedAddress = customer.address.trim();
+      const normalizedPhone = customer.phone?.trim() || "";
+      const normalizedName = customer.name?.trim() || "";
+      const normalizedAddress = customer.address?.trim() || "";
 
       // Only create/link a customer record when a real phone number is provided.
       // Walk-in sales (empty phone) are recorded without a customer FK.

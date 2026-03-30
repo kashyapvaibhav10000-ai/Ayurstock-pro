@@ -45,11 +45,12 @@ export async function ocrPdfInBrowser(
     if (file.type === 'application/pdf') {
       report({ phase: 'loading', message: 'Loading PDF...' });
 
-      // Use specific loading for Next.js to avoid ESM Object.defineProperty crash
-      const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
+      // Import pdfjs-dist using the standard ESM entry point
+      const pdfjsLib = await import('pdfjs-dist');
       
       if (typeof window !== 'undefined') {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+        const pdjsVersion = pdfjsLib.version;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdjsVersion}/pdf.worker.min.mjs`;
       }
 
       const arrayBuffer = await file.arrayBuffer();
@@ -190,10 +191,11 @@ export async function ocrPdfInBrowser(
  */
 export async function extractTextFromPdf(file: File): Promise<string> {
   try {
-    const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
-
+    const pdfjsLib = await import('pdfjs-dist');
+    
     if (typeof window !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+      const pdjsVersion = pdfjsLib.version;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdjsVersion}/pdf.worker.min.mjs`;
     }
 
     const arrayBuffer = await file.arrayBuffer();
