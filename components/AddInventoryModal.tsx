@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus } from 'lucide-react';
+import { Plus, Copy, Clock } from 'lucide-react';
 
 interface MedicineOption {
   id: string;
@@ -55,6 +55,45 @@ interface AddInventoryModalProps {
   onSaved: () => Promise<void> | void;
 }
 
+// Persistent across renders — survives modal close/open
+const recentMedicinesStore: MedicineOption[] = [];
+const MAX_RECENT = 5;
+
+function addToRecent(med: MedicineOption) {
+  const idx = recentMedicinesStore.findIndex(m => m.id === med.id);
+  if (idx >= 0) recentMedicinesStore.splice(idx, 1);
+  recentMedicinesStore.unshift(med);
+  if (recentMedicinesStore.length > MAX_RECENT) recentMedicinesStore.pop();
+}
+
+/**
+ * Parse expiry shorthand: "0727" → "2027-07-01", "1228" → "2028-12-01"
+ * Also handles "07/27", "07-27", "072027", "07/2027"
+ */
+function parseExpiryShorthand(input: string): string | null {
+  const cleaned = input.replace(/[\/\-\s]/g, '');
+  
+  // MMYY → 4 digits
+  if (/^\d{4}$/.test(cleaned)) {
+    const month = parseInt(cleaned.substring(0, 2));
+    const year = parseInt('20' + cleaned.substring(2, 4));
+    if (month >= 1 && month <= 12 && year >= 2024 && year <= 2099) {
+      return `${year}-${String(month).padStart(2, '0')}-01`;
+    }
+  }
+  
+  // MMYYYY → 6 digits
+  if (/^\d{6}$/.test(cleaned)) {
+    const month = parseInt(cleaned.substring(0, 2));
+    const year = parseInt(cleaned.substring(2, 6));
+    if (month >= 1 && month <= 12 && year >= 2024 && year <= 2099) {
+      return `${year}-${String(month).padStart(2, '0')}-01`;
+    }
+  }
+
+  return null;
+}
+
 export default function AddInventoryModal({
   isOpen,
   onClose,
@@ -78,8 +117,18 @@ export default function AddInventoryModal({
   const [isCreatingNewMedicine, setIsCreatingNewMedicine] = useState(false);
   const [batchesAdded, setBatchesAdded] = useState(0);
   const [lastAddedName, setLastAddedName] = useState('');
+  
+  // "Same Medicine +" mode: keeps medicine locked, only batch fields editable
+  const [sameMedicineMode, setSameMedicineMode] = useState(false);
+  const [lockedMedicine, setLockedMedicine] = useState<MedicineOption | null>(null);
+  
+  // Recent medicines
+  const [recentMedicines, setRecentMedicines] = useState<MedicineOption[]>([...recentMedicinesStore]);
 
-  // Refs for keyboard navigation (Tab flow)
+  // Expiry shorthand
+  const [expiryText, setExpiryText] = useState('');
+
+  // Refs for keyboard navigation
   const companyRef = useRef<HTMLSelectElement>(null);
   const medicineRef = useRef<HTMLInputElement>(null);
   const batchRef = useRef<HTMLInputElement>(null);
@@ -109,7 +158,6 @@ export default function AddInventoryModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    // Restore last company if available
     setSelectedCompanyId(lastCompanyRef.current || '');
     setMedicineSearch('');
     setSelectedCategory('');
@@ -117,6 +165,10 @@ export default function AddInventoryModal({
     setHighlightedIndex(-1);
     setBatchesAdded(0);
     setLastAddedName('');
+    setSameMedicineMode(false);
+    setLockedMedicine(null);
+    setExpiryText('');
+    setRecentMedicines([...recentMedicinesStore]);
     setFormData({
       medicineId: '',
       batchNumber: '',
@@ -134,7 +186,6 @@ export default function AddInventoryModal({
     fetchCompanies();
     fetchRackLocations();
 
-    // Auto-focus: if company remembered, go straight to medicine search
     setTimeout(() => {
       if (lastCompanyRef.current) {
         medicineRef.current?.focus();
@@ -174,9 +225,8 @@ export default function AddInventoryModal({
   };
 
   useEffect(() => {
-    // Don't search if medicine already selected (prevents dropdown reopening)
     if (!selectedCompanyId || medicineSearch.length < 2 || formData.medicineId) {
-      if (formData.medicineId) return; // keep existing options if selected
+      if (formData.medicineId) return;
       setMedicineOptions([]);
       return;
     }
@@ -202,13 +252,12 @@ export default function AddInventoryModal({
 
   const handleCompanyChange = (val: string) => {
     setSelectedCompanyId(val);
-    lastCompanyRef.current = val; // Remember for next modal open
+    lastCompanyRef.current = val;
     setMedicineSearch('');
     setIsCreatingNewMedicine(false);
     setSelectedCategory('');
     setFormData(c => ({ ...c, medicineId: '' }));
     setMedicineOptions([]);
-    // Auto-focus medicine search after selecting company
     setTimeout(() => medicineRef.current?.focus(), 50);
   };
 
@@ -221,10 +270,12 @@ export default function AddInventoryModal({
     setHighlightedIndex(-1);
     setError(e => ({ ...e, medicineId: '' }));
 
-    // Auto-focus batch number after selecting medicine
+    // Save to recents
+    addToRecent(med);
+    setRecentMedicines([...recentMedicinesStore]);
+
     setTimeout(() => batchRef.current?.focus(), 50);
 
-    // Auto-fill from last batch
     try {
       const res = await axios.get(`/api/medicines/${med.id}/last-mrp`);
       if (res.data.success && res.data.data) {
@@ -246,11 +297,52 @@ export default function AddInventoryModal({
     setShowMedicineDropdown(false);
     setHighlightedIndex(-1);
     setError(e => ({ ...e, medicineId: '' }));
-    // Focus batch number
     setTimeout(() => batchRef.current?.focus(), 50);
   };
 
-  // Keyboard navigation for medicine dropdown (no useCallback to avoid stale closure)
+  // "Same Medicine +" handler
+  const handleSameMedicine = () => {
+    if (!lockedMedicine) return;
+    setSameMedicineMode(true);
+    setMedicineSearch(lockedMedicine.name);
+    setFormData(c => ({
+      ...c,
+      medicineId: lockedMedicine.id,
+      batchNumber: '',
+      expiryDate: '',
+      stockQty: '',
+      // Keep: purchaseRate, mrp, packing, rackLocation, gstPercent
+    }));
+    setExpiryText('');
+    setError({});
+    setTimeout(() => batchRef.current?.focus(), 50);
+  };
+
+  // Expiry shorthand handler
+  const handleExpiryInput = (value: string) => {
+    setExpiryText(value);
+    
+    // Try parsing shorthand
+    const parsed = parseExpiryShorthand(value);
+    if (parsed) {
+      setFormData(c => ({ ...c, expiryDate: parsed }));
+      setError(er => ({ ...er, expiryDate: '' }));
+    } else if (value.length === 0) {
+      setFormData(c => ({ ...c, expiryDate: '' }));
+    }
+    // Don't clear expiryDate if user is still typing
+  };
+
+  const handleExpiryDatePicker = (value: string) => {
+    setFormData(c => ({ ...c, expiryDate: value }));
+    setError(er => ({ ...er, expiryDate: '' }));
+    // Sync text display
+    if (value) {
+      const [y, m] = value.split('-');
+      setExpiryText(`${m}/${y.slice(2)}`);
+    }
+  };
+
   const handleMedicineKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (!showMedicineDropdown) {
       if (e.key === 'Enter' && formData.medicineId) {
@@ -286,7 +378,6 @@ export default function AddInventoryModal({
     }
   };
 
-  // Generic Enter key handler — pressing Enter on any input moves to next field
   const handleFieldEnter = (e: KeyboardEvent<HTMLInputElement>, nextRef: React.RefObject<HTMLInputElement | HTMLSelectElement | HTMLButtonElement | null>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -368,19 +459,40 @@ export default function AddInventoryModal({
 
       await onSaved();
 
-      // Track success
       const addedName = medicineSearch.trim();
       setBatchesAdded(prev => prev + 1);
       setLastAddedName(addedName);
 
-      // Reset form for next entry — keep company, rack location, and GST
+      // Save the current medicine for "Same Medicine +" mode
+      if (formData.medicineId) {
+        const currentMed = medicineOptions.find(m => m.id === formData.medicineId) 
+          || recentMedicinesStore.find(m => m.id === formData.medicineId)
+          || lockedMedicine;
+        if (currentMed) {
+          setLockedMedicine(currentMed);
+        } else {
+          setLockedMedicine({
+            id: formData.medicineId,
+            name: medicineSearch.trim(),
+            company: companies.find(c => c.id === selectedCompanyId)?.name || '',
+            category: selectedCategory,
+            hsn: '',
+            packing: formData.packing,
+            gstPercent: formData.gstPercent,
+          });
+        }
+      }
+
+      // Reset for next entry — keep company, rack, GST, and all rate info
       const keepRack = formData.rackLocation;
       const keepGst = formData.gstPercent;
+      setSameMedicineMode(false);
       setMedicineSearch('');
       setSelectedCategory('');
       setIsCreatingNewMedicine(false);
       setMedicineOptions([]);
       setHighlightedIndex(-1);
+      setExpiryText('');
       setFormData({
         medicineId: '',
         batchNumber: '',
@@ -394,7 +506,6 @@ export default function AddInventoryModal({
       });
       setError({});
 
-      // Auto-focus medicine search for next entry
       setTimeout(() => medicineRef.current?.focus(), 100);
     } catch (submitError: any) {
       setError({ global: submitError.response?.data?.message || submitError.message || 'Failed to add inventory' });
@@ -413,6 +524,9 @@ export default function AddInventoryModal({
     PACKAGING_OPTIONS[selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1).toLowerCase()] || 
     []
   );
+
+  // Show recents when medicine field is focused but empty
+  const showRecents = showMedicineDropdown && medicineSearch.length < 2 && !formData.medicineId && recentMedicines.length > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -435,7 +549,7 @@ export default function AddInventoryModal({
               <select
                 ref={companyRef}
                 tabIndex={1}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
                 value={selectedCompanyId}
                 onChange={(e) => handleCompanyChange(e.target.value)}
                 onKeyDown={(e) => {
@@ -444,6 +558,7 @@ export default function AddInventoryModal({
                     medicineRef.current?.focus();
                   }
                 }}
+                disabled={sameMedicineMode}
               >
                 <option value="" disabled>Select Company</option>
                 {companies.map((c) => (
@@ -457,30 +572,72 @@ export default function AddInventoryModal({
 
             <div className="grid gap-2 relative" ref={dropdownRef}>
               <Label>Medicine Name *</Label>
-              <Input
-                ref={medicineRef}
-                tabIndex={2}
-                placeholder="Type 2 chars to search..."
-                value={medicineSearch}
-                onChange={(e) => {
-                  setMedicineSearch(e.target.value);
-                  setFormData(c => ({ ...c, medicineId: '' }));
-                  setIsCreatingNewMedicine(false);
-                  setShowMedicineDropdown(true);
-                  setHighlightedIndex(-1);
-                }}
-                onKeyDown={handleMedicineKeyDown}
-                disabled={!selectedCompanyId}
-                className={`w-full ${isCreatingNewMedicine ? 'border-blue-500 ring-1 ring-blue-200' : ''}`}
-                autoComplete="off"
-              />
+              {sameMedicineMode ? (
+                // Locked medicine display
+                <div className="flex h-10 w-full items-center rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
+                  {medicineSearch}
+                </div>
+              ) : (
+                <Input
+                  ref={medicineRef}
+                  tabIndex={2}
+                  placeholder="Type 2 chars to search..."
+                  value={medicineSearch}
+                  onChange={(e) => {
+                    setMedicineSearch(e.target.value);
+                    setFormData(c => ({ ...c, medicineId: '' }));
+                    setIsCreatingNewMedicine(false);
+                    setShowMedicineDropdown(true);
+                    setHighlightedIndex(-1);
+                  }}
+                  onFocus={() => {
+                    if (medicineSearch.length < 2 && !formData.medicineId && recentMedicines.length > 0) {
+                      setShowMedicineDropdown(true);
+                    }
+                  }}
+                  onKeyDown={handleMedicineKeyDown}
+                  disabled={!selectedCompanyId}
+                  className={`w-full ${isCreatingNewMedicine ? 'border-blue-500 ring-1 ring-blue-200' : ''}`}
+                  autoComplete="off"
+                />
+              )}
               {isSearchingMedicines && (
                 <div className="absolute right-3 top-9 h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-white" />
               )}
               {isCreatingNewMedicine && (
                 <span className="text-xs text-blue-600 font-medium">✨ New medicine will be created</span>
               )}
-              {showMedicineDropdown && medicineSearch.length >= 2 && medicineOptions.length > 0 && (
+
+              {/* Recent medicines dropdown */}
+              {showRecents && (
+                <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> Recent
+                  </div>
+                  {recentMedicines
+                    .filter(m => {
+                      // Only show recents matching current company
+                      const company = companies.find(c => c.id === selectedCompanyId);
+                      return !company || m.company === company.name;
+                    })
+                    .map((med, idx) => (
+                    <div 
+                      key={med.id} 
+                      className={`px-4 py-2 text-sm cursor-pointer border-b last:border-0 border-gray-100 transition-colors ${
+                        idx === highlightedIndex ? 'bg-emerald-100 text-emerald-900' : 'hover:bg-emerald-50'
+                      }`}
+                      onClick={() => handleSelectMedicine(med)}
+                      onMouseEnter={() => setHighlightedIndex(idx)}
+                    >
+                      <div className="font-medium text-emerald-800">{med.name}</div>
+                      <div className="text-xs text-gray-500">{med.category}{med.packing ? ` • ${med.packing}` : ''}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Search results dropdown */}
+              {showMedicineDropdown && medicineSearch.length >= 2 && medicineOptions.length > 0 && !formData.medicineId && (
                 <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden max-h-48 overflow-y-auto">
                   {medicineOptions.map((med, idx) => (
                     <div 
@@ -507,7 +664,7 @@ export default function AddInventoryModal({
                   </div>
                 </div>
               )}
-              {showMedicineDropdown && medicineSearch.length >= 2 && medicineOptions.length === 0 && !isSearchingMedicines && (
+              {showMedicineDropdown && medicineSearch.length >= 2 && medicineOptions.length === 0 && !isSearchingMedicines && !formData.medicineId && (
                 <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden">
                   <div className="px-4 py-3 text-sm text-amber-700 bg-amber-50 border-b border-amber-100">
                     No existing medicines found for &quot;{medicineSearch}&quot;
@@ -541,7 +698,6 @@ export default function AddInventoryModal({
                     onClick={() => {
                       setSelectedCategory(cat);
                       setError(e => ({ ...e, category: '' }));
-                      // Auto-focus batch after picking category
                       setTimeout(() => batchRef.current?.focus(), 50);
                     }}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
@@ -576,22 +732,43 @@ export default function AddInventoryModal({
             </div>
             
             <div className="grid gap-2">
-              <Label>Expiry Date *</Label>
-              <Input
-                ref={expiryRef}
-                tabIndex={5}
-                type="date"
-                value={formData.expiryDate}
-                onChange={(e) => {
-                  setFormData((c) => ({ ...c, expiryDate: e.target.value }));
-                  setError(er => ({...er, expiryDate: ''}));
-                }}
-                onKeyDown={(e) => handleFieldEnter(e, qtyRef)}
-              />
+              <Label>Expiry Date * <span className="text-[10px] text-gray-400 font-normal">(type MMYY e.g. 0727)</span></Label>
+              <div className="flex gap-2">
+                <Input
+                  ref={expiryRef}
+                  tabIndex={5}
+                  placeholder="MMYY e.g. 0727"
+                  value={expiryText}
+                  onChange={(e) => handleExpiryInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (formData.expiryDate) {
+                        qtyRef.current?.focus();
+                      }
+                    }
+                  }}
+                  className="flex-1"
+                  maxLength={6}
+                />
+                <Input
+                  type="date"
+                  tabIndex={-1}
+                  value={formData.expiryDate}
+                  onChange={(e) => handleExpiryDatePicker(e.target.value)}
+                  className="w-12 px-1 opacity-60"
+                  title="Or use date picker"
+                />
+              </div>
+              {formData.expiryDate && (
+                <span className="text-[10px] text-emerald-600 font-medium">
+                  → {new Date(formData.expiryDate + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+                </span>
+              )}
               {error.expiryDate && <span className="text-xs text-red-600 font-medium">{error.expiryDate}</span>}
               {isExpiringSoon() && !error.expiryDate && (
-                <div className="mt-1 flex items-start text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 p-2 rounded w-full">
-                  ⚠️ This batch expires soon - are you sure you want to add it?
+                <div className="flex items-start text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 p-2 rounded w-full">
+                  ⚠️ This batch expires soon
                 </div>
               )}
             </div>
@@ -736,12 +913,25 @@ export default function AddInventoryModal({
 
         </div>
 
+        {/* Success bar with "Same Medicine +" */}
         {batchesAdded > 0 && (
-          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
-            <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-600 text-white text-xs font-bold">{batchesAdded}</span>
-            <span className="text-emerald-800 font-medium">
-              {batchesAdded === 1 ? 'batch' : 'batches'} added{lastAddedName ? ` — last: ${lastAddedName}` : ''}
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm">
+            <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-600 text-white text-xs font-bold shrink-0">{batchesAdded}</span>
+            <span className="text-emerald-800 font-medium flex-1 truncate">
+              {batchesAdded === 1 ? 'batch' : 'batches'} added{lastAddedName ? ` — ${lastAddedName}` : ''}
             </span>
+            {lockedMedicine && !sameMedicineMode && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 h-8 text-xs font-semibold"
+                onClick={handleSameMedicine}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Same Medicine +
+              </Button>
+            )}
           </div>
         )}
 
