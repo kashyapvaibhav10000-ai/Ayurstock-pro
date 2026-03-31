@@ -41,21 +41,41 @@ export async function GET(request: NextRequest) {
 
     let textFilter = {};
     if (trimmedQuery.length >= 2) {
-      textFilter = trimmedQuery.length >= 3
-        ? {
-            OR: [
-              { name: { contains: trimmedQuery, mode: 'insensitive' as const } },
-              { company: { contains: trimmedQuery, mode: 'insensitive' as const } },
-              { barcode: trimmedQuery },
-            ],
-          }
-        : {
-            OR: [
-              { name: { startsWith: trimmedQuery, mode: 'insensitive' as const } },
-              { company: { startsWith: trimmedQuery, mode: 'insensitive' as const } },
-              { barcode: trimmedQuery },
-            ],
-          };
+      // Split query into words and match each word independently against the name
+      // This ensures "AROGYAVARDHINI VATI" can still find "AROGYAVARDHINI GUTIKA (RASA)"
+      const words = trimmedQuery.split(/\s+/).filter(w => w.length >= 2);
+      
+      if (words.length > 1) {
+        // Multi-word: each word must appear in name (AND), or full query matches company/barcode
+        textFilter = {
+          OR: [
+            {
+              AND: words.map(word => ({
+                name: { contains: word, mode: 'insensitive' as const },
+              })),
+            },
+            { company: { contains: trimmedQuery, mode: 'insensitive' as const } },
+            { barcode: trimmedQuery },
+          ],
+        };
+      } else {
+        // Single word: use original logic
+        textFilter = trimmedQuery.length >= 3
+          ? {
+              OR: [
+                { name: { contains: trimmedQuery, mode: 'insensitive' as const } },
+                { company: { contains: trimmedQuery, mode: 'insensitive' as const } },
+                { barcode: trimmedQuery },
+              ],
+            }
+          : {
+              OR: [
+                { name: { startsWith: trimmedQuery, mode: 'insensitive' as const } },
+                { company: { startsWith: trimmedQuery, mode: 'insensitive' as const } },
+                { barcode: trimmedQuery },
+              ],
+            };
+      }
     }
 
     const dateFilter = categoryFilter === 'Imported Today'
