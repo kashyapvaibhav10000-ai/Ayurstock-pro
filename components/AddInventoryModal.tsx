@@ -109,6 +109,7 @@ export default function AddInventoryModal({
   const [showMedicineDropdown, setShowMedicineDropdown] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownListRef = useRef<HTMLDivElement>(null);
 
   const [rackLocations, setRackLocations] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -126,6 +127,15 @@ export default function AddInventoryModal({
 
   // Expiry shorthand
   const [expiryText, setExpiryText] = useState('');
+
+  // Auto-scroll dropdown to highlighted item
+  useEffect(() => {
+    if (highlightedIndex < 0 || !dropdownListRef.current) return;
+    const el = dropdownListRef.current.querySelector('[data-highlighted="true"]') as HTMLElement;
+    if (el) {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [highlightedIndex]);
 
   // Refs for keyboard navigation
   const companyRef = useRef<HTMLSelectElement>(null);
@@ -310,21 +320,46 @@ export default function AddInventoryModal({
     setTimeout(() => batchRef.current?.focus(), 50);
   };
 
-  // "Same Medicine +" handler
+  // "Same Medicine +" handler — always reads fresh from localStorage
   const handleSameMedicine = () => {
-    if (!lockedMedicine) return;
+    // Read fresh from localStorage in case it was updated
+    let med = lockedMedicine;
+    try {
+      const saved = localStorage.getItem('inv_lastMedicine');
+      if (saved) med = JSON.parse(saved);
+    } catch { /* use state */ }
+    if (!med) return;
+    setLockedMedicine(med);
     setSameMedicineMode(true);
-    setMedicineSearch(lockedMedicine.name);
+    setMedicineSearch(med.name);
+    setSelectedCategory(med.category || '');
     setFormData(c => ({
       ...c,
-      medicineId: lockedMedicine.id,
+      medicineId: med!.id,
       batchNumber: '',
       expiryDate: '',
       stockQty: '',
-      // Keep: purchaseRate, mrp, packing, rackLocation, gstPercent
+      gstPercent: med!.gstPercent || c.gstPercent,
+      // Keep: purchaseRate, mrp, packing, rackLocation
     }));
     setExpiryText('');
     setError({});
+    setShowMedicineDropdown(false);
+
+    // Auto-fill from last batch of this medicine
+    axios.get(`/api/medicines/${med.id}/last-mrp`).then(res => {
+      if (res.data.success && res.data.data) {
+        const d = res.data.data;
+        setFormData(c => ({
+          ...c,
+          mrp: d.mrp || c.mrp,
+          purchaseRate: d.purchaseRate || c.purchaseRate,
+          packing: d.packing || c.packing,
+          rackLocation: d.rackLocation || c.rackLocation,
+        }));
+      }
+    }).catch(() => {});
+
     setTimeout(() => batchRef.current?.focus(), 50);
   };
 
@@ -651,10 +686,11 @@ export default function AddInventoryModal({
 
               {/* Search results dropdown */}
               {showMedicineDropdown && medicineSearch.length >= 2 && medicineOptions.length > 0 && !formData.medicineId && (
-                <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                <div ref={dropdownListRef} className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden max-h-48 overflow-y-auto">
                   {medicineOptions.map((med, idx) => (
                     <div 
                       key={med.id} 
+                      data-highlighted={idx === highlightedIndex ? 'true' : undefined}
                       className={`px-4 py-2 text-sm cursor-pointer border-b last:border-0 border-gray-100 transition-colors ${
                         idx === highlightedIndex ? 'bg-emerald-100 text-emerald-900' : 'hover:bg-emerald-50'
                       }`}
@@ -666,6 +702,7 @@ export default function AddInventoryModal({
                     </div>
                   ))}
                   <div 
+                    data-highlighted={highlightedIndex === medicineOptions.length ? 'true' : undefined}
                     className={`px-4 py-2 text-sm cursor-pointer border-t border-gray-200 flex items-center gap-2 transition-colors ${
                       highlightedIndex === medicineOptions.length ? 'bg-blue-100 text-blue-900' : 'bg-gray-50 hover:bg-blue-50'
                     }`}
