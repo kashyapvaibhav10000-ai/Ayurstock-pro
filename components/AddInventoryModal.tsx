@@ -509,16 +509,17 @@ export default function AddInventoryModal({
       setLastAddedName(addedName);
 
       // Save the current medicine for "Same Medicine +" mode
-      if (formData.medicineId) {
-        const currentMed = medicineOptions.find(m => m.id === formData.medicineId) 
-          || recentMedicinesStore.find(m => m.id === formData.medicineId)
+      // Use local `medicineId` (not formData.medicineId) — it includes newly created medicines
+      if (medicineId) {
+        const currentMed = medicineOptions.find(m => m.id === medicineId) 
+          || recentMedicinesStore.find(m => m.id === medicineId)
           || lockedMedicine;
         let medToSave: MedicineOption;
-        if (currentMed) {
+        if (currentMed && currentMed.id === medicineId) {
           medToSave = currentMed;
         } else {
           medToSave = {
-            id: formData.medicineId,
+            id: medicineId,
             name: medicineSearch.trim(),
             company: companies.find(c => c.id === selectedCompanyId)?.name || '',
             category: selectedCategory,
