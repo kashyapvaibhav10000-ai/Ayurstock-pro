@@ -19,6 +19,7 @@ export interface EditableInventoryBatch {
   gstPercent: number;
   medicine: {
     name: string;
+    category?: string;
   };
 }
 
@@ -27,6 +28,23 @@ const GST_OPTIONS = [
   { value: 12, label: '12%', category: 'Proprietary' },
   { value: 18, label: '18%', category: 'Cosmetic' },
 ];
+
+const PACKAGING_OPTIONS: Record<string, string[]> = {
+  Tablet: ['10 Tab', '20 Tab', '30 Tab', '40 Tab', '60 Tab', '80 Tab', '100 Tab'],
+  Capsule: ['10 Cap', '20 Cap', '30 Cap', '60 Cap'],
+  Powder: ['50 gm', '100 gm', '200 gm', '500 gm'],
+  Churna: ['50 gm', '100 gm', '200 gm', '500 gm'],
+  Asav: ['100 ml', '200 ml', '450 ml', '680 ml'],
+  Syrup: ['100 ml', '200 ml', '450 ml', '680 ml'],
+  Oil: ['50 ml', '100 ml', '200 ml', '500 ml'],
+  Cream: ['15 gm', '30 gm', '50 gm'],
+  Gel: ['15 gm', '30 gm', '50 gm'],
+  Drops: ['10 ml', '15 ml', '30 ml'],
+  Bhasma: ['10 gm', '25 gm', '50 gm'],
+  Vati: ['10 Tab', '20 Tab', '30 Tab', '60 Tab'],
+  Chawanprash: ['250 gm', '500 gm', '1 kg'],
+  Other: [],
+};
 
 interface InventoryEditModalProps {
   isOpen: boolean;
@@ -179,9 +197,9 @@ export default function InventoryEditModal({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="inventory-packing">Packing</Label>
-              <Input
+              <select
                 id="inventory-packing"
-                placeholder="e.g. 10x10 Strips, 100ml"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 value={formData.packing}
                 onChange={(e) =>
                   setFormData((current) => ({
@@ -189,7 +207,15 @@ export default function InventoryEditModal({
                     packing: e.target.value,
                   }))
                 }
-              />
+              >
+                <option value="">Select</option>
+                {(PACKAGING_OPTIONS[batch?.medicine?.category || ''] || []).map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+                {formData.packing && !(PACKAGING_OPTIONS[batch?.medicine?.category || ''] || []).includes(formData.packing) && (
+                  <option value={formData.packing}>{formData.packing}</option>
+                )}
+              </select>
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
