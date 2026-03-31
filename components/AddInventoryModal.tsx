@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, KeyboardEvent } from 'react';
+import { useEffect, useState, useRef, KeyboardEvent } from 'react';
 import axios from 'axios';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -239,10 +239,9 @@ export default function AddInventoryModal({
     setTimeout(() => batchRef.current?.focus(), 50);
   };
 
-  // Keyboard navigation for medicine dropdown
-  const handleMedicineKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
+  // Keyboard navigation for medicine dropdown (no useCallback to avoid stale closure)
+  const handleMedicineKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (!showMedicineDropdown) {
-      // If Enter pressed but no dropdown and medicine already selected, go to next field
       if (e.key === 'Enter' && formData.medicineId) {
         e.preventDefault();
         batchRef.current?.focus();
@@ -250,8 +249,7 @@ export default function AddInventoryModal({
       return;
     }
 
-    // Total items: medicines + "create new" button
-    const totalItems = medicineOptions.length + 1; // +1 for "Create new" option
+    const totalItems = medicineOptions.length + 1;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -264,10 +262,8 @@ export default function AddInventoryModal({
       if (highlightedIndex >= 0 && highlightedIndex < medicineOptions.length) {
         handleSelectMedicine(medicineOptions[highlightedIndex]);
       } else if (highlightedIndex === medicineOptions.length) {
-        // "Create new" option
         handleCreateNewMedicine();
       } else if (medicineOptions.length === 1) {
-        // Auto-select if only one result
         handleSelectMedicine(medicineOptions[0]);
       } else if (medicineOptions.length === 0) {
         handleCreateNewMedicine();
@@ -277,7 +273,7 @@ export default function AddInventoryModal({
       setShowMedicineDropdown(false);
       setHighlightedIndex(-1);
     }
-  }, [showMedicineDropdown, highlightedIndex, medicineOptions, formData.medicineId]);
+  };
 
   // Generic Enter key handler — pressing Enter on any input moves to next field
   const handleFieldEnter = (e: KeyboardEvent<HTMLInputElement>, nextRef: React.RefObject<HTMLInputElement | HTMLSelectElement | HTMLButtonElement | null>) => {
@@ -485,7 +481,7 @@ export default function AddInventoryModal({
                       onMouseEnter={() => setHighlightedIndex(idx)}
                     >
                       <div className="font-medium text-emerald-800">{med.name}</div>
-                      <div className="text-xs text-gray-500">{med.category} {med.hsn && `• HSN: ${med.hsn}`}</div>
+                      <div className="text-xs text-gray-500">{med.category}{med.packing ? ` • ${med.packing}` : ''}{med.hsn ? ` • HSN: ${med.hsn}` : ''}</div>
                     </div>
                   ))}
                   <div 
