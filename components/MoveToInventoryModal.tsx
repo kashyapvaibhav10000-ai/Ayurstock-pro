@@ -265,16 +265,18 @@ export default function MoveToInventoryModal({
               </div>
               <div>
                 <Label className="text-xs">Packing</Label>
-                <select
-                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                <Input
+                  className="mt-1 flex h-9 w-full text-sm"
+                  placeholder="e.g. 10x10 Strips, 100ml"
+                  list="move-packing-options"
                   value={current.packing}
                   onChange={(e) => updateField('packing', e.target.value)}
-                >
-                  <option value="">Select</option>
-                  {(PACKAGING_OPTIONS[medicines[currentIndex]?.category || ''] || []).map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
+                />
+                <datalist id="move-packing-options">
+                  {((PACKAGING_OPTIONS[medicines[currentIndex]?.category || ''] || PACKAGING_OPTIONS[(medicines[currentIndex]?.category || '').charAt(0).toUpperCase() + (medicines[currentIndex]?.category || '').slice(1).toLowerCase()]) || []).map((opt) => (
+                    <option key={opt} value={opt} />
                   ))}
-                </select>
+                </datalist>
               </div>
               <div>
                 <Label className="text-xs">GST Content (%)</Label>
