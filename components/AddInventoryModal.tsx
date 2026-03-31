@@ -15,6 +15,7 @@ interface MedicineOption {
   category: string;
   barcode?: string;
   hsn: string;
+  packing?: string;
   gstPercent?: number;
 }
 
@@ -183,16 +184,23 @@ export default function AddInventoryModal({
   const handleSelectMedicine = async (med: MedicineOption) => {
     setSelectedCategory(med.category || '');
     setIsCreatingNewMedicine(false);
-    setFormData(c => ({ ...c, medicineId: med.id, mrp: '', packing: '', gstPercent: med.gstPercent || 5 }));
+    setFormData(c => ({ ...c, medicineId: med.id, mrp: '', packing: med.packing || '', gstPercent: med.gstPercent || 5 }));
     setMedicineSearch(med.name);
     setShowMedicineDropdown(false);
     setError(e => ({ ...e, medicineId: '' }));
 
-    // Auto-fill MRP from historical batch
+    // Auto-fill from last batch: MRP, Purchase Rate, Packing, Rack Location
     try {
       const res = await axios.get(`/api/medicines/${med.id}/last-mrp`);
-      if (res.data.success && res.data.data.mrp) {
-        setFormData(c => ({ ...c, mrp: res.data.data.mrp }));
+      if (res.data.success && res.data.data) {
+        const d = res.data.data;
+        setFormData(c => ({
+          ...c,
+          mrp: d.mrp || c.mrp,
+          purchaseRate: d.purchaseRate || c.purchaseRate,
+          packing: d.packing || c.packing,
+          rackLocation: d.rackLocation || c.rackLocation,
+        }));
       }
     } catch(e) { /* silent fail on UX enhancement */ }
   };
