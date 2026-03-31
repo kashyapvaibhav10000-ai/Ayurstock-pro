@@ -46,6 +46,11 @@ export async function POST(req: NextRequest) {
             mrp: item.mrp,
             purchaseRate: item.purchaseRate,
             sellingRate: item.mrp,
+            packing:
+              typeof item.packing === 'string' && item.packing.trim()
+                ? item.packing.trim()
+                : null,
+            gstPercent: Number(item.gstPercent) || 0,
             rackLocation:
               typeof item.rackLocation === 'string' && item.rackLocation.trim()
                 ? item.rackLocation.trim()

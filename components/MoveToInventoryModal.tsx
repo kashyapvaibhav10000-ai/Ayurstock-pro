@@ -23,8 +23,34 @@ interface InventoryItem {
   quantity: number | string;
   purchaseRate: number | string;
   mrp: number | string;
+  packing: string;
+  gstPercent: number;
   rackLocation: string;
 }
+
+const PACKAGING_OPTIONS: Record<string, string[]> = {
+  Tablet: ['10 Tab', '20 Tab', '30 Tab', '40 Tab', '60 Tab', '80 Tab', '100 Tab'],
+  Capsule: ['10 Cap', '20 Cap', '30 Cap', '60 Cap'],
+  Powder: ['50 gm', '100 gm', '200 gm', '500 gm'],
+  Churna: ['50 gm', '100 gm', '200 gm', '500 gm'],
+  Asav: ['100 ml', '200 ml', '450 ml', '680 ml'],
+  Syrup: ['100 ml', '200 ml', '450 ml', '680 ml'],
+  Oil: ['50 ml', '100 ml', '200 ml', '500 ml'],
+  Cream: ['15 gm', '30 gm', '50 gm'],
+  Gel: ['15 gm', '30 gm', '50 gm'],
+  Drops: ['10 ml', '15 ml', '30 ml'],
+  Bhasma: ['10 gm', '25 gm', '50 gm'],
+  Vati: ['10 Tab', '20 Tab', '30 Tab', '60 Tab'],
+  Chawanprash: ['250 gm', '500 gm', '1 kg'],
+  Other: [],
+};
+
+const GST_OPTIONS = [
+  { value: 0, label: '0%' },
+  { value: 5, label: '5%' },
+  { value: 12, label: '12%' },
+  { value: 18, label: '18%' },
+];
 
 const emptyItem = (med: Medicine): InventoryItem => ({
   medicineId: med.id,
@@ -34,6 +60,8 @@ const emptyItem = (med: Medicine): InventoryItem => ({
   quantity: '',
   purchaseRate: '',
   mrp: '',
+  packing: '',
+  gstPercent: 5,
   rackLocation: '',
 });
 
@@ -236,6 +264,31 @@ export default function MoveToInventoryModal({
                 />
               </div>
               <div>
+                <Label className="text-xs">Packing</Label>
+                <select
+                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={current.packing}
+                  onChange={(e) => updateField('packing', e.target.value)}
+                >
+                  <option value="">Select</option>
+                  {(PACKAGING_OPTIONS[medicines[currentIndex]?.category || ''] || []).map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs">GST Content (%)</Label>
+                <select
+                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={current.gstPercent}
+                  onChange={(e) => updateField('gstPercent' as any, e.target.value)}
+                >
+                  {GST_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
                 <Label className="text-xs">Rack Location</Label>
                 <Input
                   placeholder="e.g., A-1-2"
