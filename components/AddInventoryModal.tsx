@@ -75,6 +75,8 @@ export default function AddInventoryModal({
   const [selectedCategory, setSelectedCategory] = useState('');
   
   const [isCreatingNewMedicine, setIsCreatingNewMedicine] = useState(false);
+  const [batchesAdded, setBatchesAdded] = useState(0);
+  const [lastAddedName, setLastAddedName] = useState('');
 
   // Refs for keyboard navigation (Tab flow)
   const companyRef = useRef<HTMLSelectElement>(null);
@@ -111,6 +113,8 @@ export default function AddInventoryModal({
     setSelectedCategory('');
     setIsCreatingNewMedicine(false);
     setHighlightedIndex(-1);
+    setBatchesAdded(0);
+    setLastAddedName('');
     setFormData({
       medicineId: '',
       batchNumber: '',
@@ -356,7 +360,35 @@ export default function AddInventoryModal({
       });
 
       await onSaved();
-      onClose();
+
+      // Track success
+      const addedName = medicineSearch.trim();
+      setBatchesAdded(prev => prev + 1);
+      setLastAddedName(addedName);
+
+      // Reset form for next entry — keep company, rack location, and GST
+      const keepRack = formData.rackLocation;
+      const keepGst = formData.gstPercent;
+      setMedicineSearch('');
+      setSelectedCategory('');
+      setIsCreatingNewMedicine(false);
+      setMedicineOptions([]);
+      setHighlightedIndex(-1);
+      setFormData({
+        medicineId: '',
+        batchNumber: '',
+        expiryDate: '',
+        stockQty: '',
+        purchaseRate: '',
+        mrp: '',
+        packing: '',
+        rackLocation: keepRack,
+        gstPercent: keepGst,
+      });
+      setError({});
+
+      // Auto-focus medicine search for next entry
+      setTimeout(() => medicineRef.current?.focus(), 100);
     } catch (submitError: any) {
       setError({ global: submitError.response?.data?.message || submitError.message || 'Failed to add inventory' });
     } finally {
@@ -697,9 +729,18 @@ export default function AddInventoryModal({
 
         </div>
 
+        {batchesAdded > 0 && (
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm">
+            <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-600 text-white text-xs font-bold">{batchesAdded}</span>
+            <span className="text-emerald-800 font-medium">
+              {batchesAdded === 1 ? 'batch' : 'batches'} added{lastAddedName ? ` — last: ${lastAddedName}` : ''}
+            </span>
+          </div>
+        )}
+
         <DialogFooter className="mt-4">
           <Button variant="outline" onClick={onClose} disabled={loading} tabIndex={15}>
-            Cancel
+            {batchesAdded > 0 ? `Done (${batchesAdded} added)` : 'Cancel'}
           </Button>
           <Button 
             ref={submitRef}
@@ -716,7 +757,7 @@ export default function AddInventoryModal({
           >
             {loading 
               ? (isCreatingNewMedicine ? 'Creating Medicine & Batch...' : 'Committing Batch...') 
-              : (isCreatingNewMedicine ? 'Create Medicine & Add Batch' : 'Add Required Batch Data')
+              : (isCreatingNewMedicine ? 'Create Medicine & Add Batch' : 'Add & Next →')
             }
           </Button>
         </DialogFooter>
