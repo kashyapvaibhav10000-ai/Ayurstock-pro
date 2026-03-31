@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
             select: {
               name: true,
               company: true,
+              category: true,
               hsn: true,
             },
           },

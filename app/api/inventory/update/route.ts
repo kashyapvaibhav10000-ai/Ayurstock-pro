@@ -68,6 +68,7 @@ export async function PUT(req: NextRequest) {
               id: true,
               name: true,
               company: true,
+              category: true,
               hsn: true,
             },
           },
