@@ -14,10 +14,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         medicineId: id
       },
       orderBy: { createdAt: 'desc' },
-      select: { mrp: true }
+      select: { mrp: true, purchaseRate: true, packing: true, rackLocation: true, sellingRate: true }
     });
 
-    return createApiResponse(true, { mrp: latestBatch?.mrp || '' });
+    return createApiResponse(true, {
+      mrp: latestBatch?.mrp || '',
+      purchaseRate: latestBatch?.purchaseRate || '',
+      packing: latestBatch?.packing || '',
+      rackLocation: latestBatch?.rackLocation || '',
+    });
   } catch (error) {
     console.error('Fetch last MRP error', error);
     return createErrorResponse('Internal error', 500);
