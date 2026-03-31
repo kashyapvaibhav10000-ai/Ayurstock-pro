@@ -63,6 +63,7 @@ export default function AddInventoryModal({
   
   const [companies, setCompanies] = useState<any[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const lastCompanyRef = useRef('');
   
   const [medicineSearch, setMedicineSearch] = useState('');
   const [medicineOptions, setMedicineOptions] = useState<MedicineOption[]>([]);
@@ -108,7 +109,8 @@ export default function AddInventoryModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    setSelectedCompanyId('');
+    // Restore last company if available
+    setSelectedCompanyId(lastCompanyRef.current || '');
     setMedicineSearch('');
     setSelectedCategory('');
     setIsCreatingNewMedicine(false);
@@ -132,8 +134,14 @@ export default function AddInventoryModal({
     fetchCompanies();
     fetchRackLocations();
 
-    // Auto-focus company dropdown when modal opens
-    setTimeout(() => companyRef.current?.focus(), 150);
+    // Auto-focus: if company remembered, go straight to medicine search
+    setTimeout(() => {
+      if (lastCompanyRef.current) {
+        medicineRef.current?.focus();
+      } else {
+        companyRef.current?.focus();
+      }
+    }, 150);
   }, [isOpen]);
 
   useEffect(() => {
@@ -166,7 +174,9 @@ export default function AddInventoryModal({
   };
 
   useEffect(() => {
-    if (!selectedCompanyId || medicineSearch.length < 2) {
+    // Don't search if medicine already selected (prevents dropdown reopening)
+    if (!selectedCompanyId || medicineSearch.length < 2 || formData.medicineId) {
+      if (formData.medicineId) return; // keep existing options if selected
       setMedicineOptions([]);
       return;
     }
@@ -188,10 +198,11 @@ export default function AddInventoryModal({
     }, 400);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [medicineSearch, selectedCompanyId]);
+  }, [medicineSearch, selectedCompanyId, formData.medicineId]);
 
   const handleCompanyChange = (val: string) => {
     setSelectedCompanyId(val);
+    lastCompanyRef.current = val; // Remember for next modal open
     setMedicineSearch('');
     setIsCreatingNewMedicine(false);
     setSelectedCategory('');
