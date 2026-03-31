@@ -197,25 +197,23 @@ export default function InventoryEditModal({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="inventory-packing">Packing</Label>
-              <select
+              <Input
                 id="inventory-packing"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                value={formData.packing}
+                list="edit-packing-options"
+                placeholder="e.g. 10x10 Strips, 100ml"
+                value={formData.packing || ''}
                 onChange={(e) =>
                   setFormData((current) => ({
                     ...current,
                     packing: e.target.value,
                   }))
                 }
-              >
-                <option value="">Select</option>
-                {(PACKAGING_OPTIONS[batch?.medicine?.category || ''] || []).map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
+              />
+              <datalist id="edit-packing-options">
+                {((PACKAGING_OPTIONS[batch?.medicine?.category || ''] || PACKAGING_OPTIONS[(batch?.medicine?.category || '').charAt(0).toUpperCase() + (batch?.medicine?.category || '').slice(1).toLowerCase()]) || []).map((opt) => (
+                  <option key={opt} value={opt} />
                 ))}
-                {formData.packing && !(PACKAGING_OPTIONS[batch?.medicine?.category || ''] || []).includes(formData.packing) && (
-                  <option value={formData.packing}>{formData.packing}</option>
-                )}
-              </select>
+              </datalist>
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
