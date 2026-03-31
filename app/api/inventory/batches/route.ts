@@ -92,7 +92,9 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validation = CreateBatchSchema.safeParse(body);
     if (!validation.success) {
-      return createErrorResponse('Invalid batch data', 400);
+      const errs = validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+      console.error('Validation failed:', errs);
+      return createErrorResponse('Invalid batch data: ' + errs, 400);
     }
 
     const { medicineId, batchNumber, expiryDate, stockQty, mrp, purchaseRate, sellingRate, rackLocation, packing } =
@@ -106,6 +108,29 @@ export async function POST(request: NextRequest) {
 
     if (!medicine || medicine.shopId !== auth.user.shopId) {
       return createErrorResponse('Medicine not found', 404);
+    }
+
+    // Update gstPercent if it was provided
+    if (typeof validation.data.gstPercent === 'number') {
+      await prisma.medicine.update({
+        where: { id: medicineId },
+        data: { gstPercent: validation.data.gstPercent }
+      });
+    }
+
+    // Check if batch already exists
+    const existingBatch = await prisma.inventoryBatch.findUnique({
+      where: {
+        shopId_medicineId_batchNumber: {
+          shopId: auth.user.shopId,
+          medicineId,
+          batchNumber,
+        }
+      }
+    });
+
+    if (existingBatch) {
+      return createErrorResponse('A batch with this number already exists for this medicine', 400);
     }
 
     // Create batch
@@ -139,8 +164,11 @@ export async function POST(request: NextRequest) {
     });
 
     return createApiResponse(true, batch, undefined, 201);
-  } catch (error) {
-    console.error('Create batch error:', error);
-    return createErrorResponse('Internal server error', 500);
+  } catch (error: any) {
+    console.error('Create batch error details:', error?.message || error);
+    if (error?.code === 'P2002') {
+      return createErrorResponse('A batch with this number already exists for this medicine', 400);
+    }
+    return createErrorResponse(`Internal server error: ${error?.message || error}`, 500);
   }
 }
