@@ -390,18 +390,19 @@ export default function AddInventoryModal({
             </div>
             <div className="grid gap-2">
               <Label>Packing</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              <Input
+                placeholder="e.g. 10x10 Strips, 100ml"
+                list="packing-options"
                 value={formData.packing}
                 onChange={(e) => {
                   setFormData((c) => ({ ...c, packing: e.target.value }));
                 }}
-              >
-                <option value="">Select</option>
-                {(PACKAGING_OPTIONS[selectedCategory] || []).map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
+              />
+              <datalist id="packing-options">
+                {((PACKAGING_OPTIONS[selectedCategory] || PACKAGING_OPTIONS[selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1).toLowerCase()]) || []).map((opt) => (
+                  <option key={opt} value={opt} />
                 ))}
-              </select>
+              </datalist>
             </div>
           </div>
 
