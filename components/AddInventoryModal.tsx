@@ -200,7 +200,7 @@ export default function AddInventoryModal({
         purchaseRate: formData.purchaseRate === '' ? null : Number(formData.purchaseRate),
         sellingRate: Number(formData.mrp),
         rackLocation: formData.rackLocation,
-        gstPercent: formData.gstPercent,
+        gstPercent: Number(formData.gstPercent),
       });
 
       await onSaved(); // Specifically relying on the UI framework to re-trigger parent loadInventory()
@@ -393,10 +393,10 @@ export default function AddInventoryModal({
                     key={opt.value}
                     type="button"
                     onClick={() =>
-                      setFormData((c) => ({ ...c, gstPercent: opt.value }))
+                      setFormData((c) => ({ ...c, gstPercent: Number(opt.value) }))
                     }
                     className={`flex-1 flex flex-col items-center justify-center rounded-md border p-2 py-3 transition-all ${
-                      formData.gstPercent === opt.value
+                      Number(formData.gstPercent) === Number(opt.value)
                         ? 'bg-emerald-600 border-emerald-600 text-white'
                         : 'border-input bg-background text-muted-foreground hover:bg-emerald-50'
                     }`}
