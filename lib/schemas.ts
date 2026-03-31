@@ -62,7 +62,7 @@ export const CreateBatchSchema = z.object({
   expiryDate: z.coerce.date(),
   stockQty: z.number().int().min(0),
   mrp: z.number().positive('MRP must be positive'),
-  purchaseRate: z.number().positive('Purchase rate must be positive').optional().nullable(),
+  purchaseRate: z.number().min(0, 'Purchase rate cannot be negative').optional().nullable(),
   sellingRate: z.number().positive('Selling rate must be positive'),
   rackLocation: z.string().trim().optional(),
   packing: z.string().trim().optional(),

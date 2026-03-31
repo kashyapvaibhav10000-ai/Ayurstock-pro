@@ -238,7 +238,7 @@ export default function AddInventoryModal({
   const defaultRacks = ['H1', 'H2', 'H3', 'H4', 'H5'];
   const displayRacks = rackLocations.length > 0 ? rackLocations.map(r => r.name) : defaultRacks;
 
-  const isSubmitDisabled = loading || Object.keys(error).filter(k => k !== 'global').length > 0;
+  const isSubmitDisabled = loading || Object.entries(error).some(([k, v]) => k !== 'global' && !!v);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
