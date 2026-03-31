@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, batchNumber, expiryDate, stockQty, purchaseRate, mrp, rackLocation } = body ?? {};
+    const { id, batchNumber, expiryDate, stockQty, purchaseRate, mrp, rackLocation, packing } = body ?? {};
 
     if (!id || !batchNumber || !expiryDate || stockQty === undefined || purchaseRate === undefined || mrp === undefined) {
       return NextResponse.json(
@@ -59,6 +59,8 @@ export async function PUT(req: NextRequest) {
           sellingRate: Number(mrp),
           rackLocation:
             typeof rackLocation === 'string' && rackLocation.trim() ? rackLocation.trim() : null,
+          packing:
+            typeof packing === 'string' ? packing.trim() : '',
         },
         include: {
           medicine: {

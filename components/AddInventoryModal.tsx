@@ -54,6 +54,7 @@ export default function AddInventoryModal({
     stockQty: '' as number | string,
     purchaseRate: '' as number | string,
     mrp: '' as number | string,
+    packing: '',
     rackLocation: '',
     gstPercent: 5,
   });
@@ -74,6 +75,7 @@ export default function AddInventoryModal({
       stockQty: '',
       purchaseRate: '',
       mrp: '',
+      packing: '',
       rackLocation: '',
       gstPercent: 5,
     });
@@ -199,6 +201,7 @@ export default function AddInventoryModal({
         mrp: Number(formData.mrp),
         purchaseRate: formData.purchaseRate === '' ? null : Number(formData.purchaseRate),
         sellingRate: Number(formData.mrp),
+        packing: formData.packing,
         rackLocation: formData.rackLocation,
         gstPercent: Number(formData.gstPercent),
       });
@@ -366,6 +369,19 @@ export default function AddInventoryModal({
               />
               {error.mrp && <span className="text-xs text-red-600 font-medium">{error.mrp}</span>}
             </div>
+            <div className="grid gap-2">
+              <Label>Packing</Label>
+              <Input
+                placeholder="e.g. 10x10 Strips, 100ml"
+                value={formData.packing}
+                onChange={(e) => {
+                  setFormData((c) => ({ ...c, packing: e.target.value }));
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
             
             <div className="grid gap-2">
               <Label>Rack Location *</Label>

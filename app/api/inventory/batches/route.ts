@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Invalid batch data', 400);
     }
 
-    const { medicineId, batchNumber, expiryDate, stockQty, mrp, purchaseRate, sellingRate, rackLocation } =
+    const { medicineId, batchNumber, expiryDate, stockQty, mrp, purchaseRate, sellingRate, rackLocation, packing } =
       validation.data;
 
     // Verify medicine belongs to shop
@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
         purchaseRate,
         sellingRate,
         rackLocation: rackLocation?.trim() || null,
+        packing: packing?.trim() || '',
       },
     });
 
