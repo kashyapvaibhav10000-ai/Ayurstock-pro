@@ -14,6 +14,7 @@ export interface EditableInventoryBatch {
   stockQty: number;
   purchaseRate: number;
   mrp: number;
+  packing?: string | null;
   rackLocation?: string | null;
   gstPercent: number;
   medicine: {
@@ -47,6 +48,7 @@ export default function InventoryEditModal({
     stockQty: 0,
     purchaseRate: 0,
     mrp: 0,
+    packing: '',
     rackLocation: '',
     gstPercent: 5,
   });
@@ -65,6 +67,7 @@ export default function InventoryEditModal({
       stockQty: batch.stockQty,
       purchaseRate: Number(batch.purchaseRate),
       mrp: Number(batch.mrp),
+      packing: batch.packing || '',
       rackLocation: batch.rackLocation || '',
       gstPercent: batch.gstPercent || 5,
     });
@@ -174,6 +177,22 @@ export default function InventoryEditModal({
                 }
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="inventory-packing">Packing</Label>
+              <Input
+                id="inventory-packing"
+                placeholder="e.g. 10x10 Strips, 100ml"
+                value={formData.packing}
+                onChange={(e) =>
+                  setFormData((current) => ({
+                    ...current,
+                    packing: e.target.value,
+                  }))
+                }
+              />
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="inventory-rack-location">Rack Location</Label>
               <Input

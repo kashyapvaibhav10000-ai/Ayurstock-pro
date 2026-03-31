@@ -232,6 +232,7 @@ model InventoryBatch {
   purchaseRate  Decimal?
   sellingRate   Decimal
   rackLocation  String?
+  packing       String?        @default("")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   medicine      Medicine       @relation(fields: [medicineId], references: [id], onDelete: Cascade)

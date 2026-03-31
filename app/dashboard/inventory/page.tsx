@@ -318,6 +318,7 @@ export default function InventoryPage() {
                   <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Stock</TableHead>
                   <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden md:table-cell">Purchase Rate</TableHead>
                   <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">MRP</TableHead>
+                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden md:table-cell">Packing</TableHead>
                   <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden sm:table-cell">Rack</TableHead>
                   <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Actions</TableHead>
                 </TableRow>
@@ -325,7 +326,7 @@ export default function InventoryPage() {
               <TableBody>
                 {filteredBatches.length === 0 ? (
                   <TableRow className="border-border">
-                    <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
                       No inventory batches found.
                     </TableCell>
                   </TableRow>
@@ -362,6 +363,7 @@ export default function InventoryPage() {
                         <TableCell>{batch.stockQty}</TableCell>
                         <TableCell className="hidden md:table-cell">Rs. {Number(batch.purchaseRate).toFixed(2)}</TableCell>
                         <TableCell>Rs. {Number(batch.mrp).toFixed(2)}</TableCell>
+                        <TableCell className="hidden md:table-cell">{batch.packing || '-'}</TableCell>
                         <TableCell className="hidden sm:table-cell">{batch.rackLocation || '-'}</TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-2 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity duration-150">
