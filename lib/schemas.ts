@@ -66,6 +66,7 @@ export const CreateBatchSchema = z.object({
   sellingRate: z.number().positive('Selling rate must be positive'),
   rackLocation: z.string().trim().optional(),
   packing: z.string().trim().optional(),
+  gstPercent: z.number().int().min(0).max(28).optional().default(0),
 });
 
 export const CreateCompanySchema = z.object({
