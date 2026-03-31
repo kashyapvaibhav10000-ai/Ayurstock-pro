@@ -304,6 +304,12 @@ export default function AddInventoryModal({
                   ))}
                 </div>
               )}
+              {showMedicineDropdown && medicineSearch.length >= 2 && medicineOptions.length === 0 && !isSearchingMedicines && (
+                <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-amber-200 bg-amber-50 shadow-lg px-4 py-3">
+                  <div className="text-sm font-medium text-amber-800">No medicines found</div>
+                  <div className="text-xs text-amber-600 mt-1">Try a shorter name or check the spelling. You must select a medicine from the dropdown.</div>
+                </div>
+              )}
               {error.medicineId && <span className="text-xs text-red-600 font-medium">{error.medicineId}</span>}
             </div>
           </div>
