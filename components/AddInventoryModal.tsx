@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback, KeyboardEvent } from 'react';
 import axios from 'axios';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -68,13 +68,25 @@ export default function AddInventoryModal({
   const [medicineOptions, setMedicineOptions] = useState<MedicineOption[]>([]);
   const [isSearchingMedicines, setIsSearchingMedicines] = useState(false);
   const [showMedicineDropdown, setShowMedicineDropdown] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [rackLocations, setRackLocations] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   
-  // NEW: flag for creating a brand new medicine
   const [isCreatingNewMedicine, setIsCreatingNewMedicine] = useState(false);
+
+  // Refs for keyboard navigation (Tab flow)
+  const companyRef = useRef<HTMLSelectElement>(null);
+  const medicineRef = useRef<HTMLInputElement>(null);
+  const batchRef = useRef<HTMLInputElement>(null);
+  const expiryRef = useRef<HTMLInputElement>(null);
+  const qtyRef = useRef<HTMLInputElement>(null);
+  const purchaseRateRef = useRef<HTMLInputElement>(null);
+  const mrpRef = useRef<HTMLInputElement>(null);
+  const packingRef = useRef<HTMLInputElement>(null);
+  const rackRef = useRef<HTMLSelectElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
 
   const [formData, setFormData] = useState({
     medicineId: '',
@@ -94,11 +106,11 @@ export default function AddInventoryModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    // Reset Form completely
     setSelectedCompanyId('');
     setMedicineSearch('');
     setSelectedCategory('');
     setIsCreatingNewMedicine(false);
+    setHighlightedIndex(-1);
     setFormData({
       medicineId: '',
       batchNumber: '',
@@ -113,16 +125,18 @@ export default function AddInventoryModal({
     setError({});
     setShowMedicineDropdown(false);
 
-    // Initial Fetch Core Metadata
     fetchCompanies();
     fetchRackLocations();
+
+    // Auto-focus company dropdown when modal opens
+    setTimeout(() => companyRef.current?.focus(), 150);
   }, [isOpen]);
 
-  // Click outside to close medicine dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowMedicineDropdown(false);
+        setHighlightedIndex(-1);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -147,7 +161,6 @@ export default function AddInventoryModal({
     }
   };
 
-  // Debounced Medicine Search Hook
   useEffect(() => {
     if (!selectedCompanyId || medicineSearch.length < 2) {
       setMedicineOptions([]);
@@ -161,6 +174,7 @@ export default function AddInventoryModal({
         if (res.data.success) {
           setMedicineOptions(res.data.data);
           setShowMedicineDropdown(true);
+          setHighlightedIndex(-1);
         }
       } catch (e) {
         console.error('Search timeout', e);
@@ -179,6 +193,8 @@ export default function AddInventoryModal({
     setSelectedCategory('');
     setFormData(c => ({ ...c, medicineId: '' }));
     setMedicineOptions([]);
+    // Auto-focus medicine search after selecting company
+    setTimeout(() => medicineRef.current?.focus(), 50);
   };
 
   const handleSelectMedicine = async (med: MedicineOption) => {
@@ -187,9 +203,13 @@ export default function AddInventoryModal({
     setFormData(c => ({ ...c, medicineId: med.id, mrp: '', packing: med.packing || '', gstPercent: med.gstPercent || 5 }));
     setMedicineSearch(med.name);
     setShowMedicineDropdown(false);
+    setHighlightedIndex(-1);
     setError(e => ({ ...e, medicineId: '' }));
 
-    // Auto-fill from last batch: MRP, Purchase Rate, Packing, Rack Location
+    // Auto-focus batch number after selecting medicine
+    setTimeout(() => batchRef.current?.focus(), 50);
+
+    // Auto-fill from last batch
     try {
       const res = await axios.get(`/api/medicines/${med.id}/last-mrp`);
       if (res.data.success && res.data.data) {
@@ -202,14 +222,65 @@ export default function AddInventoryModal({
           rackLocation: d.rackLocation || c.rackLocation,
         }));
       }
-    } catch(e) { /* silent fail on UX enhancement */ }
+    } catch(e) { /* silent */ }
   };
 
   const handleCreateNewMedicine = () => {
     setIsCreatingNewMedicine(true);
     setFormData(c => ({ ...c, medicineId: '' }));
     setShowMedicineDropdown(false);
+    setHighlightedIndex(-1);
     setError(e => ({ ...e, medicineId: '' }));
+    // Focus batch number
+    setTimeout(() => batchRef.current?.focus(), 50);
+  };
+
+  // Keyboard navigation for medicine dropdown
+  const handleMedicineKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
+    if (!showMedicineDropdown) {
+      // If Enter pressed but no dropdown and medicine already selected, go to next field
+      if (e.key === 'Enter' && formData.medicineId) {
+        e.preventDefault();
+        batchRef.current?.focus();
+      }
+      return;
+    }
+
+    // Total items: medicines + "create new" button
+    const totalItems = medicineOptions.length + 1; // +1 for "Create new" option
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev + 1) % totalItems);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev - 1 + totalItems) % totalItems);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && highlightedIndex < medicineOptions.length) {
+        handleSelectMedicine(medicineOptions[highlightedIndex]);
+      } else if (highlightedIndex === medicineOptions.length) {
+        // "Create new" option
+        handleCreateNewMedicine();
+      } else if (medicineOptions.length === 1) {
+        // Auto-select if only one result
+        handleSelectMedicine(medicineOptions[0]);
+      } else if (medicineOptions.length === 0) {
+        handleCreateNewMedicine();
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setShowMedicineDropdown(false);
+      setHighlightedIndex(-1);
+    }
+  }, [showMedicineDropdown, highlightedIndex, medicineOptions, formData.medicineId]);
+
+  // Generic Enter key handler — pressing Enter on any input moves to next field
+  const handleFieldEnter = (e: KeyboardEvent<HTMLInputElement>, nextRef: React.RefObject<HTMLInputElement | HTMLSelectElement | HTMLButtonElement | null>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      nextRef.current?.focus();
+    }
   };
 
   const isExpiringSoon = () => {
@@ -224,7 +295,6 @@ export default function AddInventoryModal({
     const newErrors: { [key: string]: string } = {};
     if (!selectedCompanyId) newErrors.companyId = 'Company is required';
     
-    // For new medicine: need medicine name + category. For existing: need medicineId
     if (isCreatingNewMedicine) {
       if (!medicineSearch.trim() || medicineSearch.trim().length < 2) newErrors.medicineId = 'Medicine name is required (min 2 chars)';
       if (!selectedCategory) newErrors.category = 'Category is required for new medicine';
@@ -251,7 +321,6 @@ export default function AddInventoryModal({
     try {
       let medicineId = formData.medicineId;
 
-      // If creating new medicine, create it first
       if (isCreatingNewMedicine && !medicineId) {
         const selectedCompany = companies.find(c => c.id === selectedCompanyId);
         const companyName = selectedCompany?.name || '';
@@ -260,7 +329,7 @@ export default function AddInventoryModal({
           name: medicineSearch.trim().toUpperCase(),
           company: companyName,
           category: selectedCategory,
-          hsn: '30049011', // Default Ayurvedic HSN
+          hsn: '30049011',
           unit: 'strip',
           packing: formData.packing || '',
           gstPercent: Number(formData.gstPercent),
@@ -273,7 +342,6 @@ export default function AddInventoryModal({
         }
       }
 
-      // Now create the inventory batch
       await axios.post('/api/inventory/batches', {
         medicineId,
         batchNumber: formData.batchNumber,
@@ -296,13 +364,11 @@ export default function AddInventoryModal({
     }
   };
 
-  // Determine which rack locations to map
   const defaultRacks = ['H1', 'H2', 'H3', 'H4', 'H5'];
   const displayRacks = rackLocations.length > 0 ? rackLocations.map(r => r.name) : defaultRacks;
 
   const isSubmitDisabled = loading || Object.entries(error).some(([k, v]) => k !== 'global' && !!v);
 
-  // Get packing suggestions based on category
   const packingSuggestions = (
     PACKAGING_OPTIONS[selectedCategory] || 
     PACKAGING_OPTIONS[selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1).toLowerCase()] || 
@@ -328,9 +394,17 @@ export default function AddInventoryModal({
             <div className="grid gap-2">
               <Label>Company Name *</Label>
               <select
+                ref={companyRef}
+                tabIndex={1}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 value={selectedCompanyId}
                 onChange={(e) => handleCompanyChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && selectedCompanyId) {
+                    e.preventDefault();
+                    medicineRef.current?.focus();
+                  }
+                }}
               >
                 <option value="" disabled>Select Company</option>
                 {companies.map((c) => (
@@ -345,14 +419,18 @@ export default function AddInventoryModal({
             <div className="grid gap-2 relative" ref={dropdownRef}>
               <Label>Medicine Name *</Label>
               <Input
-                placeholder="Type 2 characters to search..."
+                ref={medicineRef}
+                tabIndex={2}
+                placeholder="Type 2 chars to search..."
                 value={medicineSearch}
                 onChange={(e) => {
                   setMedicineSearch(e.target.value);
                   setFormData(c => ({ ...c, medicineId: '' }));
                   setIsCreatingNewMedicine(false);
                   setShowMedicineDropdown(true);
+                  setHighlightedIndex(-1);
                 }}
+                onKeyDown={handleMedicineKeyDown}
                 disabled={!selectedCompanyId}
                 className={`w-full ${isCreatingNewMedicine ? 'border-blue-500 ring-1 ring-blue-200' : ''}`}
                 autoComplete="off"
@@ -365,20 +443,25 @@ export default function AddInventoryModal({
               )}
               {showMedicineDropdown && medicineSearch.length >= 2 && medicineOptions.length > 0 && (
                 <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-                  {medicineOptions.map(med => (
+                  {medicineOptions.map((med, idx) => (
                     <div 
                       key={med.id} 
-                      className="px-4 py-2 text-sm hover:bg-emerald-50 cursor-pointer border-b last:border-0 border-gray-100"
+                      className={`px-4 py-2 text-sm cursor-pointer border-b last:border-0 border-gray-100 transition-colors ${
+                        idx === highlightedIndex ? 'bg-emerald-100 text-emerald-900' : 'hover:bg-emerald-50'
+                      }`}
                       onClick={() => handleSelectMedicine(med)}
+                      onMouseEnter={() => setHighlightedIndex(idx)}
                     >
                       <div className="font-medium text-emerald-800">{med.name}</div>
                       <div className="text-xs text-gray-500">{med.category} {med.hsn && `• HSN: ${med.hsn}`}</div>
                     </div>
                   ))}
-                  {/* Always show "Create new" at the bottom of results */}
                   <div 
-                    className="px-4 py-2 text-sm hover:bg-blue-50 cursor-pointer border-t border-gray-200 bg-gray-50 flex items-center gap-2"
+                    className={`px-4 py-2 text-sm cursor-pointer border-t border-gray-200 flex items-center gap-2 transition-colors ${
+                      highlightedIndex === medicineOptions.length ? 'bg-blue-100 text-blue-900' : 'bg-gray-50 hover:bg-blue-50'
+                    }`}
                     onClick={handleCreateNewMedicine}
+                    onMouseEnter={() => setHighlightedIndex(medicineOptions.length)}
                   >
                     <Plus className="h-3.5 w-3.5 text-blue-600" />
                     <span className="font-medium text-blue-700">Create &quot;{medicineSearch.trim().toUpperCase()}&quot; as new medicine</span>
@@ -391,8 +474,11 @@ export default function AddInventoryModal({
                     No existing medicines found for &quot;{medicineSearch}&quot;
                   </div>
                   <div 
-                    className="px-4 py-3 text-sm hover:bg-blue-50 cursor-pointer flex items-center gap-2"
+                    className={`px-4 py-3 text-sm cursor-pointer flex items-center gap-2 transition-colors ${
+                      highlightedIndex === 0 ? 'bg-blue-100' : 'hover:bg-blue-50'
+                    }`}
                     onClick={handleCreateNewMedicine}
+                    onMouseEnter={() => setHighlightedIndex(0)}
                   >
                     <Plus className="h-4 w-4 text-blue-600" />
                     <span className="font-semibold text-blue-700">Create &quot;{medicineSearch.trim().toUpperCase()}&quot; as new medicine</span>
@@ -412,9 +498,12 @@ export default function AddInventoryModal({
                   <button
                     key={cat}
                     type="button"
+                    tabIndex={3}
                     onClick={() => {
                       setSelectedCategory(cat);
                       setError(e => ({ ...e, category: '' }));
+                      // Auto-focus batch after picking category
+                      setTimeout(() => batchRef.current?.focus(), 50);
                     }}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
                       selectedCategory === cat
@@ -434,12 +523,15 @@ export default function AddInventoryModal({
             <div className="grid gap-2">
               <Label>Batch Number *</Label>
               <Input
+                ref={batchRef}
+                tabIndex={4}
                 placeholder="Enter batch identifier"
                 value={formData.batchNumber}
                 onChange={(e) => {
                   setFormData((c) => ({ ...c, batchNumber: e.target.value }));
                   setError(er => ({...er, batchNumber: ''}));
                 }}
+                onKeyDown={(e) => handleFieldEnter(e, expiryRef)}
               />
               {error.batchNumber && <span className="text-xs text-red-600 font-medium">{error.batchNumber}</span>}
             </div>
@@ -447,12 +539,15 @@ export default function AddInventoryModal({
             <div className="grid gap-2">
               <Label>Expiry Date *</Label>
               <Input
+                ref={expiryRef}
+                tabIndex={5}
                 type="date"
                 value={formData.expiryDate}
                 onChange={(e) => {
                   setFormData((c) => ({ ...c, expiryDate: e.target.value }));
                   setError(er => ({...er, expiryDate: ''}));
                 }}
+                onKeyDown={(e) => handleFieldEnter(e, qtyRef)}
               />
               {error.expiryDate && <span className="text-xs text-red-600 font-medium">{error.expiryDate}</span>}
               {isExpiringSoon() && !error.expiryDate && (
@@ -467,6 +562,8 @@ export default function AddInventoryModal({
             <div className="grid gap-2">
               <Label>Quantity *</Label>
               <Input
+                ref={qtyRef}
+                tabIndex={6}
                 type="number"
                 min="1"
                 placeholder="Enter quantity"
@@ -475,6 +572,7 @@ export default function AddInventoryModal({
                   setFormData((c) => ({ ...c, stockQty: e.target.value }));
                   setError(er => ({...er, stockQty: ''}));
                 }}
+                onKeyDown={(e) => handleFieldEnter(e, purchaseRateRef)}
               />
               {error.stockQty && <span className="text-xs text-red-600 font-medium">{error.stockQty}</span>}
             </div>
@@ -482,6 +580,8 @@ export default function AddInventoryModal({
             <div className="grid gap-2">
               <Label>Purchase Rate</Label>
               <Input
+                ref={purchaseRateRef}
+                tabIndex={7}
                 type="number"
                 step="0.01"
                 placeholder="Enter purchase rate"
@@ -490,6 +590,7 @@ export default function AddInventoryModal({
                   setFormData((c) => ({ ...c, purchaseRate: e.target.value }));
                   setError(er => ({...er, purchaseRate: ''}));
                 }}
+                onKeyDown={(e) => handleFieldEnter(e, mrpRef)}
               />
               {error.purchaseRate && <span className="text-xs text-red-600 font-medium">{error.purchaseRate}</span>}
             </div>
@@ -499,6 +600,8 @@ export default function AddInventoryModal({
             <div className="grid gap-2">
               <Label>MRP *</Label>
               <Input
+                ref={mrpRef}
+                tabIndex={8}
                 type="number"
                 step="0.01"
                 placeholder="Enter MRP"
@@ -507,18 +610,22 @@ export default function AddInventoryModal({
                   setFormData((c) => ({ ...c, mrp: e.target.value }));
                   setError(er => ({...er, mrp: ''}));
                 }}
+                onKeyDown={(e) => handleFieldEnter(e, packingRef)}
               />
               {error.mrp && <span className="text-xs text-red-600 font-medium">{error.mrp}</span>}
             </div>
             <div className="grid gap-2">
               <Label>Packing</Label>
               <Input
+                ref={packingRef}
+                tabIndex={9}
                 placeholder="e.g. 10x10 Strips, 100ml"
                 list="packing-options"
                 value={formData.packing}
                 onChange={(e) => {
                   setFormData((c) => ({ ...c, packing: e.target.value }));
                 }}
+                onKeyDown={(e) => handleFieldEnter(e, rackRef)}
               />
               <datalist id="packing-options">
                 {packingSuggestions.map((opt) => (
@@ -533,11 +640,19 @@ export default function AddInventoryModal({
             <div className="grid gap-2">
               <Label>Rack Location *</Label>
               <select
+                ref={rackRef}
+                tabIndex={10}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 value={formData.rackLocation}
                 onChange={(e) => {
                   setFormData((c) => ({ ...c, rackLocation: e.target.value }));
                   setError(er => ({...er, rackLocation: ''}));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitRef.current?.focus();
+                  }
                 }}
               >
                 <option value="" disabled>Select Rack Location</option>
@@ -551,13 +666,21 @@ export default function AddInventoryModal({
             <div className="grid gap-2 sm:col-span-2">
               <Label>GST Rate *</Label>
               <div className="flex gap-2">
-                {GST_OPTIONS.map((opt) => (
+                {GST_OPTIONS.map((opt, idx) => (
                   <button
                     key={opt.value}
                     type="button"
+                    tabIndex={11 + idx}
                     onClick={() =>
                       setFormData((c) => ({ ...c, gstPercent: Number(opt.value) }))
                     }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        setFormData((c) => ({ ...c, gstPercent: Number(opt.value) }));
+                        submitRef.current?.focus();
+                      }
+                    }}
                     className={`flex-1 flex flex-col items-center justify-center rounded-md border p-2 py-3 transition-all ${
                       Number(formData.gstPercent) === Number(opt.value)
                         ? 'bg-emerald-600 border-emerald-600 text-white'
@@ -575,10 +698,22 @@ export default function AddInventoryModal({
         </div>
 
         <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+          <Button variant="outline" onClick={onClose} disabled={loading} tabIndex={15}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitDisabled} className="bg-emerald-600 hover:bg-emerald-700">
+          <Button 
+            ref={submitRef}
+            tabIndex={14}
+            onClick={handleSubmit} 
+            disabled={isSubmitDisabled} 
+            className="bg-emerald-600 hover:bg-emerald-700"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+          >
             {loading 
               ? (isCreatingNewMedicine ? 'Creating Medicine & Batch...' : 'Committing Batch...') 
               : (isCreatingNewMedicine ? 'Create Medicine & Add Batch' : 'Add Required Batch Data')
