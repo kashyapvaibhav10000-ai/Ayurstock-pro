@@ -102,7 +102,6 @@ export default function AddInventoryModal({
   
   const [companies, setCompanies] = useState<any[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
-  const lastCompanyRef = useRef('');
   
   const [medicineSearch, setMedicineSearch] = useState('');
   const [medicineOptions, setMedicineOptions] = useState<MedicineOption[]>([]);
@@ -158,7 +157,9 @@ export default function AddInventoryModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    setSelectedCompanyId(lastCompanyRef.current || '');
+    // Restore last company from localStorage
+    const savedCompany = localStorage.getItem('inv_lastCompany') || '';
+    setSelectedCompanyId(savedCompany);
     setMedicineSearch('');
     setSelectedCategory('');
     setIsCreatingNewMedicine(false);
@@ -166,9 +167,18 @@ export default function AddInventoryModal({
     setBatchesAdded(0);
     setLastAddedName('');
     setSameMedicineMode(false);
-    setLockedMedicine(null);
     setExpiryText('');
     setRecentMedicines([...recentMedicinesStore]);
+
+    // Restore locked medicine from localStorage
+    try {
+      const savedMed = localStorage.getItem('inv_lastMedicine');
+      if (savedMed) {
+        setLockedMedicine(JSON.parse(savedMed));
+      } else {
+        setLockedMedicine(null);
+      }
+    } catch { setLockedMedicine(null); }
     setFormData({
       medicineId: '',
       batchNumber: '',
@@ -187,7 +197,7 @@ export default function AddInventoryModal({
     fetchRackLocations();
 
     setTimeout(() => {
-      if (lastCompanyRef.current) {
+      if (savedCompany) {
         medicineRef.current?.focus();
       } else {
         companyRef.current?.focus();
@@ -252,7 +262,7 @@ export default function AddInventoryModal({
 
   const handleCompanyChange = (val: string) => {
     setSelectedCompanyId(val);
-    lastCompanyRef.current = val;
+    localStorage.setItem('inv_lastCompany', val);
     setMedicineSearch('');
     setIsCreatingNewMedicine(false);
     setSelectedCategory('');
@@ -468,10 +478,11 @@ export default function AddInventoryModal({
         const currentMed = medicineOptions.find(m => m.id === formData.medicineId) 
           || recentMedicinesStore.find(m => m.id === formData.medicineId)
           || lockedMedicine;
+        let medToSave: MedicineOption;
         if (currentMed) {
-          setLockedMedicine(currentMed);
+          medToSave = currentMed;
         } else {
-          setLockedMedicine({
+          medToSave = {
             id: formData.medicineId,
             name: medicineSearch.trim(),
             company: companies.find(c => c.id === selectedCompanyId)?.name || '',
@@ -479,8 +490,10 @@ export default function AddInventoryModal({
             hsn: '',
             packing: formData.packing,
             gstPercent: formData.gstPercent,
-          });
+          };
         }
+        setLockedMedicine(medToSave);
+        localStorage.setItem('inv_lastMedicine', JSON.stringify(medToSave));
       }
 
       // Reset for next entry — keep company, rack, GST, and all rate info
@@ -932,6 +945,25 @@ export default function AddInventoryModal({
                 Same Medicine +
               </Button>
             )}
+          </div>
+        )}
+
+        {/* Show "Same Medicine +" from previous session (no batches added yet) */}
+        {batchesAdded === 0 && lockedMedicine && !sameMedicineMode && !formData.medicineId && (
+          <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
+            <Copy className="h-4 w-4 text-blue-600 shrink-0" />
+            <span className="text-blue-800 font-medium flex-1 truncate">
+              Quick add: continue with <strong>{lockedMedicine.name}</strong>?
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="shrink-0 gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-100 hover:text-blue-800 h-8 text-xs font-semibold"
+              onClick={handleSameMedicine}
+            >
+              Same Medicine +
+            </Button>
           </div>
         )}
 
