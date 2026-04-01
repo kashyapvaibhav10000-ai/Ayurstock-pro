@@ -128,8 +128,14 @@ export default function InventoryEditModal({
         ) : null}
 
         <div className="grid gap-4 py-2">
-          <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+          <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 flex items-center gap-2">
             {batch?.medicine.name}
+            {batch && batch.stockQty < 3 && (
+              <span
+                className="critical-dot"
+                title={`Critical: Only ${batch.stockQty} unit(s) left`}
+              />
+            )}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="inventory-batch-number">Batch Number</Label>
