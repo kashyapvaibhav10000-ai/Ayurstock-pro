@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         shopId: authResult.user.shopId,
         id: { in: ids },
       },
-      data: { isActive: false },
+      data: { isActive: false, deletedAt: new Date() },
     });
 
     return NextResponse.json({

@@ -1,5 +1,5 @@
 export type UserRole = 'ADMIN' | 'MANAGER' | 'CASHIER';
-export type SaleType = 'RETAIL' | 'WHOLESALE';
+export type SaleType = 'RETAIL' | 'WHOLESALE' | 'TRANSFER';
 export type PaymentMode = 'CASH' | 'CARD' | 'UPI' | 'CHEQUE' | 'CREDIT';
 export type ReturnType = 'CUSTOMER_RETURN' | 'SUPPLIER_RETURN';
 

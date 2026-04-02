@@ -26,7 +26,6 @@ import {
 import { Button } from '@/components/ui/button';
 import InventoryEditModal, { EditableInventoryBatch } from '@/components/InventoryEditModal';
 import AddInventoryModal from '@/components/AddInventoryModal';
-import ImportPriceList from '@/components/medicine/import-price-list';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -90,11 +89,12 @@ export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortByExpiry, setSortByExpiry] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedBatches, setArchivedBatches] = useState<InventoryBatch[]>([]);
 
   /* ---- state (modals — unchanged) ---- */
   const [editingBatch, setEditingBatch] = useState<EditableInventoryBatch | null>(null);
   const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
-  const [showPriceListModal, setShowPriceListModal] = useState(false);
 
   const ROWS_PER_PAGE = 15;
 
@@ -109,6 +109,13 @@ export default function InventoryPage() {
   const loadInventory = async () => {
     try {
       setLoading(true);
+      if (showArchived) {
+        const response = await axios.get('/api/inventory/archived');
+        if (response.data.success) {
+          setArchivedBatches(response.data.data);
+        }
+        return;
+      }
       const response = await axios.get('/api/inventory/batches', {
         params: { limit: 200 },
       });
@@ -151,11 +158,25 @@ export default function InventoryPage() {
     }
   };
 
+  const handleRestoreBatch = async (id: string) => {
+    try {
+      const response = await axios.post('/api/inventory/archived', { id });
+      if (response.data.success) {
+        toast.success('Inventory batch restored successfully');
+        await loadInventory();
+      }
+    } catch (error) {
+      toast.error('Failed to restore inventory batch');
+    }
+  };
+
   /* ---- derived data ---- */
   const companyOptions = useMemo(
     () => Array.from(new Set(batches.map((b) => b.medicine.company))).sort(),
     [batches]
   );
+
+  const displayList = showArchived ? archivedBatches : batches;
 
   const stats = useMemo(() => {
     let lowStock = 0;
@@ -163,7 +184,7 @@ export default function InventoryPage() {
     let expiring60 = 0;
     let expired = 0;
 
-    batches.forEach((b) => {
+    displayList.forEach((b) => {
       const d = daysUntilExpiry(b.expiryDate);
       if (b.stockQty <= 10) lowStock++;
       if (d < 0) expired++;
@@ -171,12 +192,12 @@ export default function InventoryPage() {
       else if (d <= 60) expiring60++;
     });
 
-    return { total: batches.length, lowStock, expiring30, expiring60, expired };
-  }, [batches]);
+    return { total: displayList.length, lowStock, expiring30, expiring60, expired };
+  }, [displayList]);
 
   /* ---- filtering + sorting + pagination ---- */
   const filteredBatches = useMemo(() => {
-    let list = batches;
+    let list = displayList;
 
     // tab filter
     if (activeTab === 'lowStock') list = list.filter((b) => b.stockQty <= 10);
@@ -210,7 +231,7 @@ export default function InventoryPage() {
     }
 
     return list;
-  }, [batches, activeTab, companyFilter, searchQuery, sortByExpiry]);
+  }, [displayList, activeTab, companyFilter, searchQuery, sortByExpiry]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBatches.length / ROWS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
@@ -344,6 +365,21 @@ export default function InventoryPage() {
         </div>
       </div>
 
+      <div className="flex gap-4">
+        <button
+          onClick={() => { setShowArchived(false); void loadInventory(); }}
+          className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${!showArchived ? 'bg-primary text-white shadow-soft' : 'text-muted-foreground hover:bg-muted'}`}
+        >
+          Active Stock
+        </button>
+        <button
+          onClick={() => { setShowArchived(true); void loadInventory(); }}
+          className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${showArchived ? 'bg-primary text-white shadow-soft' : 'text-muted-foreground hover:bg-muted'}`}
+        >
+          Archived Items
+        </button>
+      </div>
+
       {/* ========== 2. STAT CARDS ========== */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {statCards.map((card) => {
@@ -440,17 +476,6 @@ export default function InventoryPage() {
           >
             <ArrowDownUp className="h-3.5 w-3.5" />
             Expiry
-          </Button>
-
-          {/* import bill */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl gap-1.5 hover:border-primary hover:text-primary"
-            onClick={() => setShowPriceListModal(true)}
-          >
-            <FileText className="h-3.5 w-3.5" />
-            Import Bill
           </Button>
 
           {/* download excel */}
@@ -612,16 +637,27 @@ export default function InventoryPage() {
                       {/* Actions */}
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity duration-150">
-                          <button
-                            onClick={() => setEditingBatch(batch)}
-                            title="Edit inventory"
-                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
+                          {showArchived ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 rounded-xl"
+                              onClick={() => handleRestoreBatch(batch.id)}
+                            >
+                              Restore
+                            </Button>
+                          ) : (
+                            <button
+                              onClick={() => setEditingBatch(batch)}
+                              title="Edit inventory"
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDeleteBatch(batch)}
-                            title="Delete inventory"
+                            title={showArchived ? 'Delete permanently' : 'Archive inventory'}
                             className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -712,14 +748,7 @@ export default function InventoryPage() {
         }}
       />
 
-      <ImportPriceList
-        isOpen={showPriceListModal}
-        onClose={() => setShowPriceListModal(false)}
-        onSuccess={async (count) => {
-          toast.success(`${count} medicines imported — go to Medicine Master to move them into Inventory`);
-          await loadMedicines();
-        }}
-      />
+
     </div>
   );
 }

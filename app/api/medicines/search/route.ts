@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
     const coreWhere = {
       shopId: auth.user.shopId,
       isActive: true,
+      deletedAt: null,
       ...textFilter,
       ...dateFilter,
       ...(companyNameFilter ? { company: companyNameFilter } : {}),
@@ -133,6 +134,7 @@ export async function GET(request: NextRequest) {
             where: {
               shopId: auth.user.shopId,
               medicineId: { in: medicineIds },
+              deletedAt: null,
             },
             _sum: {
               stockQty: true,
@@ -146,6 +148,7 @@ export async function GET(request: NextRequest) {
               medicineId: { in: medicineIds },
               stockQty: { gt: 0 },
               expiryDate: { gt: new Date() },
+              deletedAt: null,
             },
             select: {
               medicineId: true,

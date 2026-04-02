@@ -183,6 +183,7 @@ model Customer {
   address   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  isWholesale Boolean @default(false)
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   sales     Sale[]
 
@@ -202,6 +203,7 @@ model Medicine {
   unit              String           @default("strip")
   lowStockThreshold Int              @default(0)
   isActive          Boolean          @default(true)
+  deletedAt         DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   mrp               Decimal?         @default(0)
@@ -233,6 +235,7 @@ model InventoryBatch {
   sellingRate   Decimal
   rackLocation  String?
   packing       String?        @default("")
+  deletedAt     DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   medicine      Medicine       @relation(fields: [medicineId], references: [id], onDelete: Cascade)

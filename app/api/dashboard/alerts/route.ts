@@ -25,56 +25,35 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    const lowStock = await prisma.inventoryBatch.findMany({
-      where: {
-        shopId: auth.user.shopId,
-        stockQty: {
-          lte: 5,
-        },
-        expiryDate: {
-          gt: new Date(),
-        },
-      },
+    const allActiveBatches = await prisma.inventoryBatch.findMany({
+      where: { shopId: auth.user.shopId, expiryDate: { gt: new Date() }, deletedAt: null },
       include: {
         medicine: {
-          select: {
-            id: true,
-            name: true,
-            lowStockThreshold: true,
-          },
-        },
-      },
-      orderBy: {
-        stockQty: "asc",
-      },
-    })
-
-    const lowStockByMedicine = await prisma.medicine.findMany({
-      where: {
-        shopId: auth.user.shopId,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        lowStockThreshold: true,
-        batches: {
-          select: { stockQty: true },
+          select: { id: true, name: true, lowStockThreshold: true },
         },
       },
     })
 
-    const lowStockMedicines = lowStockByMedicine
-      .map((medicine) => {
-        const totalStock = medicine.batches.reduce((sum, batch) => sum + batch.stockQty, 0)
-        return {
-          id: medicine.id,
-          name: medicine.name,
-          currentStock: totalStock,
-          threshold: medicine.lowStockThreshold,
-        }
-      })
-      .filter((medicine) => medicine.currentStock <= medicine.threshold)
+    const lowStock = allActiveBatches
+      .filter((batch) => batch.stockQty <= batch.medicine.lowStockThreshold)
+      .sort((a, b) => a.stockQty - b.stockQty)
+
+    // Optional: compute aggregated medicine stock from active batches if still needed
+    const medicineStockMap = new Map<string, { id: string; name: string; threshold: number; currentStock: number }>()
+    for (const batch of allActiveBatches) {
+      if (!medicineStockMap.has(batch.medicine.id)) {
+        medicineStockMap.set(batch.medicine.id, {
+          id: batch.medicine.id,
+          name: batch.medicine.name,
+          threshold: batch.medicine.lowStockThreshold,
+          currentStock: 0,
+        })
+      }
+      medicineStockMap.get(batch.medicine.id)!.currentStock += batch.stockQty
+    }
+
+    const lowStockMedicines = Array.from(medicineStockMap.values())
+      .filter((med) => med.currentStock <= med.threshold)
       .sort((a, b) => a.currentStock - b.currentStock)
 
     const [negativeStockBatches, expiredBatches, missingBatchNumbers] = await Promise.all([

@@ -118,6 +118,8 @@ export default function MedicinesPage() {
   const [mrpMin, setMrpMin] = useState('');
   const [mrpMax, setMrpMax] = useState('');
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [view, setView] = useState<'active' | 'archived'>('active');
+  const [archivedMedicines, setArchivedMedicines] = useState<Medicine[]>([]);
   const router = useRouter();
   const { hasRole } = useAuth();
   const isAuthorized = hasRole(['ADMIN', 'MANAGER']);
@@ -145,8 +147,8 @@ export default function MedicinesPage() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [selectedMedicines]);
 
-  const visibleMedicines = medicines;
-  const selectedMedicinesData = medicines.filter((m) => selectedMedicines.has(m.id));
+  const visibleMedicines = view === 'active' ? medicines : archivedMedicines;
+  const selectedMedicinesData = visibleMedicines.filter((m) => selectedMedicines.has(m.id));
 
   const hasActiveFilters = activeFilter !== 'All' || companyFilter !== '' || mrpMin !== '' || mrpMax !== '';
 
@@ -160,6 +162,15 @@ export default function MedicinesPage() {
   ) => {
     try {
       setLoading(true);
+      if (view === 'archived') {
+        const response = await axios.get('/api/medicines/archived');
+        if (response.data.success) {
+          setArchivedMedicines(response.data.data);
+          setTotalCount(response.data.data.length);
+        }
+        return;
+      }
+
       const params: Record<string, string | number> = {
         query,
         category: filter,
@@ -189,7 +200,7 @@ export default function MedicinesPage() {
       }, searchQuery ? 500 : 0);
       return () => clearTimeout(timer);
     }
-  }, [isAuthorized, currentPage, activeFilter, companyFilter, mrpMin, mrpMax, searchQuery]);
+  }, [isAuthorized, currentPage, activeFilter, companyFilter, mrpMin, mrpMax, searchQuery, view]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -282,6 +293,18 @@ export default function MedicinesPage() {
     setShowImportModal(false);
     await loadCompanies();
     await loadMedicines();
+  };
+
+  const handleRestoreMedicine = async (id: string) => {
+    try {
+      const response = await axios.post('/api/medicines/archived', { id });
+      if (response.data.success) {
+        toast.success('Medicine restored successfully');
+        await loadMedicines();
+      }
+    } catch (error) {
+      toast.error('Failed to restore medicine');
+    }
   };
 
   const handleDeleteMedicine = async (medicine: Medicine) => {
@@ -441,6 +464,21 @@ export default function MedicinesPage() {
         </div>
       </div>
 
+      <div className="flex gap-4">
+        <button
+          onClick={() => setView('active')}
+          className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${view === 'active' ? 'bg-primary text-white shadow-soft' : 'text-muted-foreground hover:bg-muted'}`}
+        >
+          Active
+        </button>
+        <button
+          onClick={() => setView('archived')}
+          className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${view === 'archived' ? 'bg-primary text-white shadow-soft' : 'text-muted-foreground hover:bg-muted'}`}
+        >
+          Archived
+        </button>
+      </div>
+
       <Card className="rounded-2xl">
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -463,7 +501,7 @@ export default function MedicinesPage() {
                 onClick={() => setShowDeleteModal(true)}
               >
                 <Trash2 className="h-4 w-4" />
-                Delete Selected
+                {view === 'active' ? 'Archive Selected' : 'Delete Permanently'}
               </Button>
             </div>
           ) : null}
@@ -629,7 +667,16 @@ export default function MedicinesPage() {
                       </TableCell>
                       <TableCell>
                         <div className={`flex justify-end gap-2 transition-opacity duration-150 ${editingRowId === medicine.id ? 'opacity-100' : 'opacity-100 xl:opacity-0 xl:group-hover:opacity-100'}`}>
-                          {editingRowId === medicine.id ? (
+                          {view === 'archived' ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 rounded-xl"
+                              onClick={() => handleRestoreMedicine(medicine.id)}
+                            >
+                              Restore
+                            </Button>
+                          ) : editingRowId === medicine.id ? (
                             <>
                               <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
                                 Cancel
@@ -654,7 +701,7 @@ export default function MedicinesPage() {
                             variant="ghost"
                             className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
                             onClick={() => handleDeleteMedicine(medicine)}
-                            title="Delete medicine"
+                            title={view === 'active' ? 'Archive medicine' : 'Delete permanently'}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>

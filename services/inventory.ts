@@ -146,37 +146,31 @@ export async function getTotalStock(
  */
 export async function getLowStockMedicines(
   shopId: string,
-  threshold: number = 10
+  _threshold?: number // Retained for compatibility, but overridden by medicine.lowStockThreshold
 ) {
-  const batches = await prisma.inventoryBatch.groupBy({
-    by: ['medicineId'],
-    where: {
-      shopId,
-    },
-    _sum: {
-      stockQty: true,
-    },
+  const allActiveBatches = await prisma.inventoryBatch.findMany({
+    where: { shopId, deletedAt: null },
+    include: { medicine: true },
   });
 
-  const lowStockMedicines = [];
+  const medicineStockMap = new Map<string, any>();
 
-  for (const batch of batches) {
-    if ((batch._sum.stockQty || 0) <= threshold) {
-      const medicine = await prisma.medicine.findUnique({
-        where: { id: batch.medicineId },
+  for (const batch of allActiveBatches) {
+    if (!medicineStockMap.has(batch.medicineId)) {
+      medicineStockMap.set(batch.medicineId, {
+        medicineId: batch.medicineId,
+        name: batch.medicine.name,
+        company: batch.medicine.company,
+        currentStock: 0,
+        minStockLevel: batch.medicine.lowStockThreshold,
       });
-
-      if (medicine) {
-        lowStockMedicines.push({
-          medicineId: medicine.id,
-          name: medicine.name,
-          company: medicine.company,
-          currentStock: batch._sum.stockQty || 0,
-          minStockLevel: threshold,
-        });
-      }
     }
+    medicineStockMap.get(batch.medicineId)!.currentStock += batch.stockQty;
   }
+
+  const lowStockMedicines = Array.from(medicineStockMap.values()).filter(
+    (med) => med.currentStock <= med.minStockLevel
+  );
 
   return lowStockMedicines;
 }

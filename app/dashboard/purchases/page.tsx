@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import ImportPriceList from '@/components/medicine/import-price-list';
 
 interface PurchaseStats {
   todayPurchases: number;
@@ -162,6 +163,7 @@ export default function PurchasesPage() {
     possible: 0,
     newItems: 0,
   });
+  const [showPriceListModal, setShowPriceListModal] = useState(false);
   const [appliedScanMeta, setAppliedScanMeta] = useState<
     Record<string, { status: ScanPreviewItem['matchStatus']; score: number }>
   >({});
@@ -483,11 +485,10 @@ export default function PurchasesPage() {
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => scanInputRef.current?.click()}
-            disabled={scanning}
+            onClick={() => setShowPriceListModal(true)}
           >
             <FileScan className="h-4 w-4" />
-            {scanning ? 'Scanning Invoice...' : 'Upload Distributor Invoice'}
+            Upload Distributor Invoice
           </Button>
           <Button className="gap-2" onClick={addPurchaseRow}>
             <Plus className="h-4 w-4" />
@@ -1096,6 +1097,15 @@ export default function PurchasesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ImportPriceList
+        isOpen={showPriceListModal}
+        onClose={() => setShowPriceListModal(false)}
+        onSuccess={async (count) => {
+          toast.success(`${count} invoices imported & processed via AI successfully`);
+          await loadAll();
+        }}
+      />
     </div>
   );
 }
