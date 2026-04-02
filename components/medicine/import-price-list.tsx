@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { AlertCircle, CheckCircle, Upload, FileText, Loader2, Play, CheckCircle2 } from "lucide-react"
+import { AlertCircle, CheckCircle, Upload, FileText, Loader2, Play, CheckCircle2, Plus } from "lucide-react"
 import { toast } from "sonner"
 
 const CATEGORY_OPTIONS = [
@@ -84,6 +84,7 @@ interface ParsedMedicine {
   selected?: boolean
   validationError?: string
   confidence?: MedicineConfidence
+  isManual?: boolean
 }
 
 interface ImportPriceListProps {
@@ -426,7 +427,18 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
 
     try {
       // Upgrade 3: Filter out unselected rows
-      const payloadRows = parsedMedicines.filter((row) => row.action !== "skip" && row.selected !== false)
+      const selectedRows = parsedMedicines.filter((row) => row.action !== "skip" && row.selected !== false)
+      
+      // Manual Row Validation: Check for empty medicine name in selected manual rows
+      const emptyManualNames = selectedRows.filter(r => r.isManual && (!r.name || r.name.trim() === ""))
+      if (emptyManualNames.length > 0) {
+        toast.error("Please fill in medicine name for all manually added rows")
+        setStep("preview")
+        setLoading(false)
+        return
+      }
+
+      const payloadRows = selectedRows
       
       const response = await fetch("/api/medicine/bulk-import", {
         method: "POST",
@@ -483,6 +495,21 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
 
   const removeMedicine = (index: number) => {
     setParsedMedicines(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleAddManualRow = () => {
+    const newRow: ParsedMedicine = {
+      name: "",
+      company: selectedCompany || "",
+      category: "Powder",
+      packing: "",
+      selected: true,
+      isManual: true,
+      action: "create",
+      confidence: { overall: "high" }
+    }
+    setParsedMedicines((prev) => [...prev, newRow])
+    toast.success("New manual row added")
   }
 
   const updateMedicine = (index: number, field: keyof ParsedMedicine, value: any) => {
@@ -865,6 +892,14 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                     <Button variant="outline" size="sm" onClick={sortProblemsFirst} className="h-8 text-xs font-medium border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100">
                       Sort Problems First ⚠️
                     </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleAddManualRow} 
+                      className="h-8 text-xs font-medium border-emerald-200 text-emerald-700 hover:bg-emerald-50 bg-white"
+                    >
+                      <Plus className="w-3 h-3 mr-1" /> Add Row Manually
+                    </Button>
                     <Button variant="outline" size="sm" onClick={toggleSelectAll} className="h-8 text-xs font-medium border-slate-200">
                       {parsedMedicines.every(m => m.selected !== false) ? "Deselect All" : "Select All"}
                     </Button>
@@ -907,7 +942,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                     return (
                     <TableRow
                       key={index}
-                      className={`group transition-colors ${hasIssues ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-slate-50/80"} ${duplicate ? "opacity-60" : ""} ${medicine.selected === false ? "opacity-50 bg-gray-50 filter grayscale" : ""}`}
+                      className={`group transition-colors ${hasIssues ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-slate-50/80"} ${duplicate ? "opacity-60" : ""} ${medicine.selected === false ? "opacity-50 bg-gray-50 filter grayscale" : ""} ${medicine.isManual ? "border-l-4 border-l-blue-500 bg-blue-50/20" : ""}`}
                     >
                       {/* Checkbox */}
                       <TableCell className="text-center py-4">
@@ -920,6 +955,13 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                         {(() => {
                           const medKey = `${medicine.name?.toLowerCase()}|${medicine.company?.toLowerCase() || ''}`
                           const rd = restockData[medKey]
+                          if (medicine.isManual) {
+                            return (
+                              <div className="mt-1" title="Manually added medicine row">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700 whitespace-nowrap">MANUAL</span>
+                              </div>
+                            )
+                          }
                           if (!rd) return null
                           if (rd.exists) {
                             return (

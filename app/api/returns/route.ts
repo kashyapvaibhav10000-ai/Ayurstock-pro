@@ -60,12 +60,15 @@ export async function POST(req: NextRequest) {
       medicineId, 
       companyId, 
       batchNumber, 
+      batchId,
       expiryDate, 
       mrp, 
       quantity, 
       reason, 
       notes, 
-      type 
+      type,
+      saleId,
+      saleItemId
     } = body;
 
     if (!medicineId || !expiryDate || mrp === undefined || !quantity || !reason || !type) {
@@ -86,6 +89,27 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('Access Denied: Medicine does not belong to your shop.', 403);
     }
 
+    // Step 1: Handle SaleItem Validation if provided
+    let verifiedBatchId = batchId;
+    if (saleItemId) {
+      const saleItem = await prisma.saleItem.findUnique({
+        where: { id: saleItemId },
+        include: { medicineReturns: true }
+      });
+
+      if (!saleItem || saleItem.medicineId !== medicineId) {
+        return createErrorResponse('Invalid Sale Item provided.', 400);
+      }
+
+      const previouslyReturned = saleItem.medicineReturns.reduce((acc: number, curr: any) => acc + curr.quantity, 0);
+      if (q + previouslyReturned > saleItem.quantity) {
+        return createErrorResponse(`Maximum returnable quantity is ${saleItem.quantity - previouslyReturned}.`, 400);
+      }
+      
+      // Use the exact batch from the sale item
+      verifiedBatchId = saleItem.batchId;
+    }
+
     // Execute the return registration and stock logic transactionally
     const result = await prisma.$transaction(async (tx: any) => {
       // 1. Log the return
@@ -95,6 +119,7 @@ export async function POST(req: NextRequest) {
           medicineId,
           companyId,
           batchNumber: batchNumber || 'RETURN_BATCH',
+          batchId: verifiedBatchId,
           expiryDate: new Date(expiryDate),
           mrp: Number(mrp),
           quantity: q,
@@ -102,7 +127,9 @@ export async function POST(req: NextRequest) {
           notes,
           type, // CUSTOMER or SUPPLIER
           status: 'PROCESSED',
-          createdByUserId: auth.user.id
+          createdByUserId: auth.user.id,
+          saleId,
+          saleItemId
         }
       });
 
@@ -113,14 +140,22 @@ export async function POST(req: NextRequest) {
         stockQuantityAdjustment = -q; // Remove stock
       }
 
-      const existingBatch = await tx.inventoryBatch.findFirst({
-        where: {
-          shopId: auth.user.shopId,
-          medicineId,
-          batchNumber: batchNumber || 'RETURN_BATCH',
-          mrp: Number(mrp)
-        }
-      });
+      // Priority: Find by verifiedBatchId, fallback to batchNumber
+      let existingBatch;
+      if (verifiedBatchId) {
+        existingBatch = await tx.inventoryBatch.findUnique({
+          where: { id: verifiedBatchId }
+        });
+      } else {
+        existingBatch = await tx.inventoryBatch.findFirst({
+          where: {
+            shopId: auth.user.shopId,
+            medicineId,
+            batchNumber: batchNumber || 'RETURN_BATCH',
+            mrp: Number(mrp)
+          }
+        });
+      }
 
       let assignedBatchId = '';
 

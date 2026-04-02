@@ -244,6 +244,7 @@ model InventoryBatch {
   returns       Return[]
   saleItems     SaleItem[]
   stockLedgers  StockLedger[]
+  medicineReturns MedicineReturn[]
 
   @@unique([shopId, medicineId, batchNumber])
   @@index([shopId, medicineId, expiryDate])
@@ -317,6 +318,7 @@ model Sale {
   customer        Customer?  @relation(fields: [customerId], references: [id])
   shop            Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
   saleItems       SaleItem[]
+  medicineReturns MedicineReturn[]
 
   @@unique([shopId, invoiceNumber])
   @@index([shopId, createdAt])
@@ -339,6 +341,7 @@ model SaleItem {
   batch      InventoryBatch @relation(fields: [batchId], references: [id])
   medicine   Medicine       @relation(fields: [medicineId], references: [id])
   sale       Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  medicineReturns MedicineReturn[]
 
   @@index([saleId])
   @@index([batchId])
@@ -448,6 +451,12 @@ model MedicineReturn {
   createdBy       User     @relation(fields: [createdByUserId], references: [id])
   medicine        Medicine @relation(fields: [medicineId], references: [id])
   shop            Shop     @relation(fields: [shopId], references: [id])
+  batchId         String?
+  batch           InventoryBatch? @relation(fields: [batchId], references: [id])
+  saleId          String?
+  saleItemId      String?
+  sale            Sale?    @relation(fields: [saleId], references: [id])
+  saleItem        SaleItem? @relation(fields: [saleItemId], references: [id])
 
   @@index([shopId])
   @@index([medicineId])
