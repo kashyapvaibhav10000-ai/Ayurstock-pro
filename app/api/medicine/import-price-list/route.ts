@@ -6,7 +6,7 @@ import { parsePDFWithAI, parseTextWithAI } from '@/lib/aiParser';
 async function extractTextWithTesseract(imageBuffer: Buffer): Promise<string> {
   try {
     const Tesseract = await import('tesseract.js');
-    const worker = await Tesseract.createWorker('eng');
+    const worker = await Tesseract.createWorker('eng', 1, { workerPath: require.resolve('tesseract.js/src/worker-script/node/index.js') });
     const { data } = await worker.recognize(imageBuffer);
     await worker.terminate();
     return data.text || '';
