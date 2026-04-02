@@ -8,7 +8,7 @@ async function extractTextWithTesseract(imageBuffer: Buffer): Promise<string> {
     const path = await import('path');
     const workerPath = path.join(process.cwd(), 'node_modules', 'tesseract.js', 'src', 'worker-script', 'node', 'index.js');
     const Tesseract = await import('tesseract.js');
-    const worker = await Tesseract.createWorker('eng', 1, { workerPath = '/root/Ayurstock-pro/node_modules/tesseract.js/src/worker-script/node/index.js'; });
+    const worker = await Tesseract.createWorker('eng', 1, { workerPath = '/root/Ayurstock-pro/node_modules/tesseract.js/src/worker-script/node/index.js' });
     const { data } = await worker.recognize(imageBuffer);
     await worker.terminate();
     return data.text || '';
