@@ -9,35 +9,10 @@ import { toast } from "sonner"
 export default function SystemSettings() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [settings, setSettings] = useState({
-    enableNotifications: true,
-    enableCloudBackup: true,
-  });
 
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem('ayurstock_system_prefs');
-    if (saved) {
-      try {
-        setSettings(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse settings", e);
-      }
-    }
   }, []);
-
-  const handleToggle = (key: keyof typeof settings, label: string) => {
-    const newValue = !settings[key];
-    const newSettings = {
-      ...settings,
-      [key]: newValue,
-    };
-    
-    setSettings(newSettings);
-    localStorage.setItem('ayurstock_system_prefs', JSON.stringify(newSettings));
-    
-    toast.success(`${label} turned ${newValue ? 'on' : 'off'}`);
-  }
 
   // Prevent hydration mismatch
   if (!mounted) return null;
@@ -69,10 +44,7 @@ export default function SystemSettings() {
             <h3 className="text-sm font-extrabold text-foreground uppercase tracking-tight">System Notifications</h3>
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Real-time alerts for inventory and logistics</p>
           </div>
-          <Switch
-            checked={settings.enableNotifications}
-            onCheckedChange={() => handleToggle("enableNotifications", "Notifications")}
-          />
+          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-wider border border-amber-200">Coming Soon</span>
         </div>
 
         <div className="flex justify-between items-center py-4 border-t border-border">
@@ -80,10 +52,7 @@ export default function SystemSettings() {
             <h3 className="text-sm font-extrabold text-foreground uppercase tracking-tight">Cloud Synchronicity</h3>
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Automated secure archival of clinical records</p>
           </div>
-          <Switch
-            checked={settings.enableCloudBackup}
-            onCheckedChange={() => handleToggle("enableCloudBackup", "Cloud Sync")}
-          />
+          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-wider border border-amber-200">Coming Soon</span>
         </div>
       </CardContent>
     </Card>

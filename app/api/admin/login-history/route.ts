@@ -12,15 +12,19 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
+    const statusFilter = searchParams.get('status'); // 'failed' or null
     const skip = (page - 1) * limit;
+
+    const whereClause: any = {
+      user: { shopId: auth.user.shopId },
+    };
+    if (statusFilter === 'failed') {
+      whereClause.status = 'failed';
+    }
 
     const [history, total] = await Promise.all([
       prisma.loginHistory.findMany({
-        where: {
-          user: {
-            shopId: auth.user.shopId
-          }
-        },
+        where: whereClause,
         include: {
           user: {
             select: { name: true, email: true }
@@ -30,18 +34,31 @@ export async function GET(req: NextRequest) {
         skip,
         take: limit,
       }),
-      prisma.loginHistory.count({
-        where: {
-          user: {
-            shopId: auth.user.shopId
-          }
-        }
-      })
+      prisma.loginHistory.count({ where: whereClause }),
     ]);
+
+    // Aggregate failed login counts per IP
+    const failedByIp = await prisma.loginHistory.groupBy({
+      by: ['ipAddress'],
+      where: {
+        user: { shopId: auth.user.shopId },
+        status: 'failed',
+        ipAddress: { not: null },
+      },
+      _count: { id: true },
+    });
+
+    const failedIpCounts: Record<string, number> = {};
+    for (const row of failedByIp) {
+      if (row.ipAddress) {
+        failedIpCounts[row.ipAddress] = row._count.id;
+      }
+    }
 
     return NextResponse.json({
       success: true,
       data: history,
+      failedIpCounts,
       pagination: {
         total,
         page,

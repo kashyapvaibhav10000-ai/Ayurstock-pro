@@ -54,6 +54,12 @@ export default function BillingPage() {
   const [scannerActive, setScannerActive] = useState(false);
   const [gstMode, setGstMode] = useState<'inclusive' | 'exclusive'>('inclusive');
   const [discountMode, setDiscountMode] = useState<'flat' | 'percent'>('flat');
+  // Billing settings toggles
+  const [enableRetail, setEnableRetail] = useState(true);
+  const [enableWholesale, setEnableWholesale] = useState(true);
+  const [allowDiscounts, setAllowDiscounts] = useState(true);
+  const [enableBarcode, setEnableBarcode] = useState(true);
+  const [autoPrintInvoice, setAutoPrintInvoice] = useState(false);
 
   useEffect(() => {
     setOrderId(`#POS-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`);
@@ -63,8 +69,14 @@ export default function BillingPage() {
   useEffect(() => {
     setMounted(true);
     axios.get('/api/settings/billing').then(res => {
-      if (res.data.success && res.data.data?.gstMode) {
-        setGstMode(res.data.data.gstMode);
+      if (res.data.success && res.data.data) {
+        const d = res.data.data;
+        if (d.gstMode) setGstMode(d.gstMode);
+        if (typeof d.enableRetail === 'boolean') setEnableRetail(d.enableRetail);
+        if (typeof d.enableWholesale === 'boolean') setEnableWholesale(d.enableWholesale);
+        if (typeof d.allowDiscounts === 'boolean') setAllowDiscounts(d.allowDiscounts);
+        if (typeof d.enableBarcode === 'boolean') setEnableBarcode(d.enableBarcode);
+        if (typeof d.autoPrintInvoice === 'boolean') setAutoPrintInvoice(d.autoPrintInvoice);
       }
     }).catch(console.error);
 
@@ -373,7 +385,8 @@ export default function BillingPage() {
       resetBill();
 
       if (saleId) {
-        router.push(`/dashboard/billing/invoice/${saleId}`);
+        const invoiceUrl = `/dashboard/billing/invoice/${saleId}${autoPrintInvoice ? '?autoprint=1' : ''}`;
+        router.push(invoiceUrl);
       } else {
         toast.warning('Sale created but invoice preview failed to load.');
       }
@@ -429,13 +442,13 @@ export default function BillingPage() {
       const tag = (event.target as HTMLElement)?.tagName;
       const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
-      // ── Barcode scanner detection ───────────────────────────────
+      // ── Barcode scanner detection (only when enabled) ─────────
       // Scanners send chars very fast (<80ms apart) then Enter
       const now = Date.now();
       const timeSinceLast = now - barcodeLastKeyTimeRef.current;
       barcodeLastKeyTimeRef.current = now;
 
-      if (event.key === 'Enter' && barcodeBufferRef.current.length >= 4 && timeSinceLast < 100) {
+      if (enableBarcode && event.key === 'Enter' && barcodeBufferRef.current.length >= 4 && timeSinceLast < 100) {
         // This looks like a scanner — process the buffer
         const scanned = barcodeBufferRef.current;
         barcodeBufferRef.current = '';
@@ -591,7 +604,13 @@ export default function BillingPage() {
                 </div>
               </div>
               <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-md">
-                {(['RETAIL', 'WHOLESALE', 'TRANSFER'] as const).map((mode) => (
+                {(['RETAIL', 'WHOLESALE', 'TRANSFER'] as const)
+                  .filter((mode) => {
+                    if (mode === 'RETAIL' && !enableRetail) return false;
+                    if (mode === 'WHOLESALE' && !enableWholesale) return false;
+                    return true;
+                  })
+                  .map((mode) => (
                   <button key={mode} onClick={() => setSaleType(mode)} className={`px-3 py-1 text-[12px] font-bold rounded shadow-sm hover:shadow uppercase tracking-wider transition-all ${saleType === mode ? 'bg-primary text-white shadow-primary/20' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
                     {mode}
                   </button>
@@ -629,6 +648,7 @@ export default function BillingPage() {
                         <span className="material-symbols-outlined text-[15px]">add</span>
                       </button>
                     </div>
+                    {allowDiscounts && (
                     <div className="col-span-4 relative min-h-[34px]">
                       <button onClick={() => setDiscountMode(m => m === 'percent' ? 'flat' : 'percent')} className="absolute left-1.5 top-1/2 -translate-y-1/2 z-10 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-colors">{discountMode === 'percent' ? '%' : '₹'}</button>
                       <input 
@@ -638,6 +658,7 @@ export default function BillingPage() {
                         onChange={(e) => updateCartItemDiscount(index, parseFloat(e.target.value) || 0)}
                       />
                     </div>
+                    )}
                     <div className="col-span-4 min-h-[34px]">
                       <select 
                         value={item.gstPercent}

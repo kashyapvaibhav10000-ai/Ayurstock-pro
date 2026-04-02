@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
+      // Can't log to LoginHistory without a userId FK
       return createErrorResponse('Access denied. Contact administrator.', 401);
     }
 
@@ -35,12 +36,28 @@ export async function POST(request: NextRequest) {
 
     // Check if user is active
     if (!user.isActive) {
+      await prisma.loginHistory.create({
+        data: {
+          userId: user.id,
+          ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+          userAgent: request.headers.get('user-agent'),
+          status: 'failed',
+        },
+      }).catch(console.error);
       return createErrorResponse('Access denied. Contact administrator.', 401);
     }
 
     // Verify password
     const passwordValid = verifyPassword(password, user.passwordHash);
     if (!passwordValid) {
+      await prisma.loginHistory.create({
+        data: {
+          userId: user.id,
+          ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+          userAgent: request.headers.get('user-agent'),
+          status: 'failed',
+        },
+      }).catch(console.error);
       return createErrorResponse('Access denied. Contact administrator.', 401);
     }
 

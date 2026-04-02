@@ -12,7 +12,7 @@ import {
 import {
   Database, Download, Trash2, AlertTriangle, Loader2, RefreshCw, Search,
   FileText, Package, ShoppingCart, Truck, Users, Building, ChevronDown,
-  Upload, ShieldCheck, CheckCircle2, XCircle, HardDrive, RotateCcw
+  Upload, ShieldCheck, CheckCircle2, XCircle, HardDrive, RotateCcw, Clock, Lock
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
@@ -21,8 +21,32 @@ import { Input } from "@/components/ui/input";
 type CompanyEntry = { name: string; count: number };
 type DryRunSummary = {
   medicines: number; inventoryBatches: number; suppliers: number;
-  companies: number; rackLocations: number; customers: number; message: string;
+  companies: number; rackLocations: number; customers: number;
+  sales?: number; purchases?: number; returns?: number;
+  medicineReturns?: number; stockLedgers?: number;
+  message: string;
 };
+
+type BackupPreview = {
+  version: string;
+  backedUpAt: string | null;
+  shopId: string;
+  tableCounts: Record<string, number>;
+  warnings: string[];
+};
+
+function getLastBackupLabel(): string | null {
+  if (typeof window === 'undefined') return null;
+  const ts = localStorage.getItem('ayurstock_last_backup');
+  if (!ts) return null;
+  const backupDate = new Date(ts);
+  const now = new Date();
+  const diffMs = now.getTime() - backupDate.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return '1 day ago';
+  return `${diffDays} days ago`;
+}
 
 export default function DatabaseAdmin() {
   const [stats, setStats] = useState<any>(null);
@@ -51,7 +75,21 @@ export default function DatabaseAdmin() {
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [restoreConfirmText, setRestoreConfirmText] = useState('');
   const [restoreResult, setRestoreResult] = useState<any>(null);
+  const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null);
+  const [dryRunWarnings, setDryRunWarnings] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Clear All password state
+  const [clearPassword, setClearPassword] = useState('');
+  const [clearPasswordVerified, setClearPasswordVerified] = useState(false);
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+
+  // Last backup timestamp
+  const [lastBackupLabel, setLastBackupLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLastBackupLabel(getLastBackupLabel());
+  }, []);
 
   const fetchCompanies = async () => {
     setLoadingCompanies(true);
@@ -114,13 +152,39 @@ export default function DatabaseAdmin() {
 
   useEffect(() => { fetchStats(); fetchMedicines(); fetchCompanies(); }, []);
 
+  const handleVerifyPassword = async () => {
+    if (!clearPassword) return;
+    setVerifyingPassword(true);
+    try {
+      const res = await axios.post('/api/auth/verify-password', { password: clearPassword });
+      if (res.data.success) {
+        setClearPasswordVerified(true);
+        toast.success('Password verified');
+      } else {
+        toast.error('Incorrect password');
+        setClearPasswordVerified(false);
+      }
+    } catch {
+      toast.error('Password verification failed');
+      setClearPasswordVerified(false);
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
   const handleClearAll = async () => {
+    if (!clearPasswordVerified) {
+      toast.error('Please verify your password first');
+      return;
+    }
     setIsDeleting(true);
     try {
       const response = await axios.delete('/api/medicines/clear-all');
       if (response.data.success) {
         toast.success("Database cleared successfully");
         setIsDialogOpen(false);
+        setClearPassword('');
+        setClearPasswordVerified(false);
         fetchStats(); fetchMedicines();
       }
     } catch (error: any) {
@@ -161,6 +225,9 @@ export default function DatabaseAdmin() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      // Save last backup timestamp to localStorage
+      localStorage.setItem('ayurstock_last_backup', new Date().toISOString());
+      setLastBackupLabel('Today');
       toast.success("Backup downloaded successfully!");
     } catch (error) {
       toast.error("Failed to generate backup");
@@ -181,6 +248,41 @@ export default function DatabaseAdmin() {
     setRestoreResult(null);
     setShowRestoreConfirm(false);
     setRestoreConfirmText('');
+    setBackupPreview(null);
+    setDryRunWarnings([]);
+
+    // Parse and preview the backup file client-side
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const backup = JSON.parse(ev.target?.result as string);
+        const meta = backup?.meta || {};
+        const data = backup?.data || {};
+
+        const tableCounts: Record<string, number> = {};
+        for (const [key, val] of Object.entries(data)) {
+          if (Array.isArray(val)) {
+            tableCounts[key] = val.length;
+          }
+        }
+
+        const warnings: string[] = [];
+        if (meta.version === '1.0') {
+          warnings.push('This is a v1.0 backup. Sales, Purchases, Returns, and Settings data are NOT included.');
+        }
+
+        setBackupPreview({
+          version: meta.version || 'Unknown',
+          backedUpAt: meta.backedUpAt || meta.timestamp || null,
+          shopId: meta.shopId || 'Unknown',
+          tableCounts,
+          warnings,
+        });
+      } catch {
+        toast.error('Failed to parse backup file');
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleDryRun = async () => {
@@ -192,6 +294,7 @@ export default function DatabaseAdmin() {
       const response = await axios.post('/api/database/restore?dryRun=true', backup);
       if (response.data.success) {
         setDryRunSummary(response.data.summary);
+        setDryRunWarnings(response.data.warnings || []);
         toast.success("Validation complete! Review the summary below.");
       }
     } catch (error: any) {
@@ -250,10 +353,18 @@ export default function DatabaseAdmin() {
             Monitor records and perform bulk operations on your shop data.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchStats} disabled={loadingStats} className="gap-2">
-          <RefreshCw className={`h-4 w-4 ${loadingStats ? 'animate-spin' : ''}`} />
-          Refresh Stats
-        </Button>
+        <div className="flex items-center gap-3">
+          {lastBackupLabel && (
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-surface-muted/50 border border-border rounded-lg px-3 py-1.5">
+              <Clock className="h-3 w-3" />
+              Last backup: {lastBackupLabel}
+            </div>
+          )}
+          <Button variant="outline" size="sm" onClick={fetchStats} disabled={loadingStats} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loadingStats ? 'animate-spin' : ''}`} />
+            Refresh Stats
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -279,10 +390,10 @@ export default function DatabaseAdmin() {
             <CardHeader className="pb-3 border-b border-stitch-surfaceLow">
               <CardTitle className="text-sm font-bold text-stitch-onSurface flex items-center gap-2">
                 <Download className="h-4 w-4 text-stitch-primary" />
-                Download Full Backup
+                Download Full Backup (v2.0)
               </CardTitle>
               <CardDescription className="text-xs text-stitch-onSurfaceVariant">
-                Downloads a complete snapshot of your medicines, inventory, suppliers & rack locations as a <code>.json</code> file. Sales history is NOT included (safe).
+                Downloads a complete snapshot including ALL tables: medicines, inventory, sales, purchases, returns, settings, and stock ledgers.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4">
@@ -307,7 +418,7 @@ export default function DatabaseAdmin() {
                 Restore from Backup
               </CardTitle>
               <CardDescription className="text-xs text-amber-700/80">
-                Upload a previously downloaded backup file. Uses safe UPSERT — sales records are never touched.
+                Upload a previously downloaded backup file. Uses safe UPSERT — existing financial records are preserved.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3">
@@ -329,6 +440,37 @@ export default function DatabaseAdmin() {
                   : <p className="text-sm text-amber-600 font-medium">Click to select <code>.json</code> backup file</p>
                 }
               </div>
+
+              {/* Client-side backup preview */}
+              {backupPreview && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                  <p className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="h-4 w-4 text-slate-500" /> Backup Preview
+                  </p>
+                  <div className="flex items-center gap-4 text-[11px] text-slate-600">
+                    <span className="font-bold">Version: <span className="text-primary">{backupPreview.version}</span></span>
+                    {backupPreview.backedUpAt && (
+                      <span>Backed up: <span className="font-bold">{new Date(backupPreview.backedUpAt).toLocaleString()}</span></span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Object.entries(backupPreview.tableCounts)
+                      .filter(([, v]) => v > 0)
+                      .map(([key, val]) => (
+                      <div key={key} className="rounded-lg bg-slate-50 border border-slate-100 text-center p-2">
+                        <p className="text-lg font-extrabold text-slate-800">{val}</p>
+                        <p className="text-[9px] text-slate-500 font-semibold uppercase">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {backupPreview.warnings.map((w, i) => (
+                    <div key={i} className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-800 font-medium">{w}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Dry Run */}
               {restoreFile && !dryRunSummary && (
@@ -352,6 +494,12 @@ export default function DatabaseAdmin() {
                     <CheckCircle2 className="h-4 w-4 text-blue-500" /> Validation Complete
                   </p>
                   <p className="text-sm text-blue-700">{dryRunSummary.message}</p>
+                  {dryRunWarnings.length > 0 && dryRunWarnings.map((w, i) => (
+                    <div key={i} className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-800 font-medium">{w}</p>
+                    </div>
+                  ))}
                   <div className="grid grid-cols-3 gap-2 pt-1">
                     {[
                       { label: 'Medicines', val: dryRunSummary.medicines },
@@ -396,7 +544,7 @@ export default function DatabaseAdmin() {
               Confirm Database Restore
             </DialogTitle>
             <DialogDescription className="pt-2 text-red-800">
-              <strong>This will overwrite your current medicines, suppliers, and rack locations</strong> using UPSERT. Your sales history and financial records will NOT be changed.
+              <strong>This will overwrite your current medicines, suppliers, and rack locations</strong> using UPSERT. Your existing financial records will be preserved.
               <br /><br />
               An automatic backup of your current data will be saved to your Activity Log before the restore begins.
             </DialogDescription>
@@ -465,7 +613,10 @@ export default function DatabaseAdmin() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) { setClearPassword(''); setClearPasswordVerified(false); }
+            }}>
               <DialogTrigger asChild>
                 <Button variant="destructive" className="w-full gap-2 font-bold shadow-sm">
                   <Trash2 className="h-4 w-4" />
@@ -489,11 +640,46 @@ export default function DatabaseAdmin() {
                     <p className="mt-4 text-red-600 font-bold uppercase text-xs">This cannot be undone!</p>
                   </DialogDescription>
                 </DialogHeader>
+                <div className="space-y-3 mt-2">
+                  <p className="text-sm text-slate-600 font-medium flex items-center gap-1.5">
+                    <Lock className="h-4 w-4 text-slate-400" />
+                    Enter your admin login password to proceed:
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      placeholder="Your login password"
+                      value={clearPassword}
+                      onChange={(e) => { setClearPassword(e.target.value); setClearPasswordVerified(false); }}
+                      className="font-mono"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={handleVerifyPassword}
+                      disabled={verifyingPassword || !clearPassword || clearPasswordVerified}
+                      className="shrink-0 gap-1.5"
+                    >
+                      {verifyingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                      {clearPasswordVerified ? 'Verified ✓' : 'Verify'}
+                    </Button>
+                  </div>
+                  {clearPasswordVerified && (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-200">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Password verified. You may proceed with the wipeout.
+                    </div>
+                  )}
+                </div>
                 <DialogFooter className="mt-4">
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isDeleting}>
                     Cancel
                   </Button>
-                  <Button variant="destructive" onClick={handleClearAll} disabled={isDeleting} className="gap-2 font-bold">
+                  <Button
+                    variant="destructive"
+                    onClick={handleClearAll}
+                    disabled={isDeleting || !clearPasswordVerified}
+                    className="gap-2 font-bold"
+                  >
                     {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     Confirm Absolute Wipeout
                   </Button>

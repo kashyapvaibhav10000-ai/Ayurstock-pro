@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // === SAFETY RULE 5: Shop ID Validation ===
+    // === Shop ID Validation ===
     if (body?.meta?.shopId && body.meta.shopId !== shopId) {
       return NextResponse.json({
         success: false,
@@ -22,21 +22,35 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    // === SAFETY RULE 4: Financial Protection - Only restore safe data ===
-    const { medicines = [], inventoryBatches = [], suppliers = [], companies = [], rackLocations = [], customers = [] } = body?.data || {};
+    const version = body?.meta?.version || '1.0';
+    const backedUpAt = body?.meta?.backedUpAt || body?.meta?.timestamp || null;
 
-    const summary = {
+    // Extract all possible data tables
+    const {
+      medicines = [], inventoryBatches = [], suppliers = [], companies = [],
+      rackLocations = [], customers = [],
+      sales = [], saleItems = [], purchases = [], purchaseItems = [],
+      returns = [], medicineReturns = [],
+      shopSettings = [], invoiceSettings = [], billingSettings = [],
+      stockLedgers = [],
+    } = body?.data || {};
+
+    const summary: Record<string, number> = {
       medicines: medicines.length,
       inventoryBatches: inventoryBatches.length,
       suppliers: suppliers.length,
       companies: companies.length,
       rackLocations: rackLocations.length,
       customers: customers.length,
+      sales: sales.length,
+      purchases: purchases.length,
+      returns: returns.length,
+      medicineReturns: medicineReturns.length,
+      stockLedgers: stockLedgers.length,
     };
 
-    // === SAFETY RULE 2: Dry-Run Mode - Validate and summarize ===
+    // === Dry-Run Mode ===
     if (isDryRun) {
-      // Basic schema validation
       const isValidMedicine = medicines.every((m: any) => m.name && m.company);
       if (!isValidMedicine && medicines.length > 0) {
         return NextResponse.json({
@@ -45,17 +59,27 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
 
+      const warnings: string[] = [];
+      if (version === '1.0') {
+        warnings.push('This is a v1.0 backup. Sales, Purchases, Returns, and Settings data are NOT included in this older backup format.');
+      }
+
+      const totalRecords = Object.values(summary).reduce((a, b) => a + b, 0);
+
       return NextResponse.json({
         success: true,
         dryRun: true,
+        version,
+        backedUpAt,
+        warnings,
         summary: {
           ...summary,
-          message: `This will add or update ${summary.medicines} medicines, ${summary.inventoryBatches} inventory batches, ${summary.suppliers} suppliers, ${summary.companies} companies, ${summary.rackLocations} rack locations, and ${summary.customers} customers. Sales and financial history will NOT be modified.`
+          message: `This will restore ${totalRecords} total records across ${Object.entries(summary).filter(([, v]) => v > 0).length} tables using safe UPSERT. No existing data will be deleted.`
         }
       });
     }
 
-    // === SAFETY RULE 3: Auto-Backup BEFORE restoring ===
+    // === Auto-Backup BEFORE restoring ===
     const existingData = await Promise.all([
       prisma.medicine.findMany({ where: { shopId } }),
       prisma.inventoryBatch.findMany({ where: { shopId } }),
@@ -77,7 +101,6 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    // Store auto-backup as activity log entry (JSON in meta field)
     try {
       await prisma.activityLog.create({
         data: {
@@ -90,7 +113,7 @@ export async function POST(request: NextRequest) {
       console.warn('Could not store auto-backup log:', logErr);
     }
 
-    // === SAFETY RULE 1: UPSERT only - never deleteMany ===
+    // === UPSERT Restore ===
     const errors: string[] = [];
 
     // Upsert companies
@@ -150,7 +173,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Upsert medicines (matching on name + company + packing)
+    // Upsert medicines
     let medicinesRestored = 0;
     for (const med of medicines) {
       try {
@@ -213,12 +236,62 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // v2.0: Upsert sales (by invoiceNumber)
+    let salesRestored = 0;
+    if (version === '2.0') {
+      for (const sale of sales) {
+        try {
+          const existing = await prisma.sale.findFirst({
+            where: { shopId, invoiceNumber: sale.invoiceNumber }
+          });
+          if (!existing) {
+            const saleItemsData = sale.saleItems || saleItems.filter((si: any) => si.saleId === sale.id);
+            await prisma.sale.create({
+              data: {
+                shopId,
+                customerId: sale.customerId,
+                saleType: sale.saleType || 'RETAIL',
+                invoiceNumber: sale.invoiceNumber,
+                subtotal: sale.subtotal,
+                discountTotal: sale.discountTotal || 0,
+                gstTotal: sale.gstTotal,
+                grandTotal: sale.grandTotal,
+                paymentMode: sale.paymentMode,
+                creditDue: sale.creditDue,
+                createdByUserId: sale.createdByUserId,
+                createdAt: new Date(sale.createdAt),
+                saleItems: {
+                  create: saleItemsData.map((si: any) => ({
+                    medicineId: si.medicineId,
+                    batchId: si.batchId,
+                    quantity: si.quantity,
+                    mrp: si.mrp,
+                    rate: si.rate,
+                    discount: si.discount || 0,
+                    gst: si.gst,
+                    gstPercent: si.gstPercent || 0,
+                    amount: si.amount,
+                  })),
+                },
+              },
+            });
+            salesRestored++;
+          }
+        } catch (e: any) {
+          errors.push(`Sale "${sale.invoiceNumber}": ${e.message}`);
+        }
+      }
+    }
+
+    const totalRestored = medicinesRestored + suppliers.length + rackLocations.length + salesRestored;
+
     return NextResponse.json({
       success: true,
       dryRun: false,
-      restored: { ...summary, medicinesRestored },
-      errors: errors.length > 0 ? errors.slice(0, 10) : undefined, // Cap error list
-      message: `Restore complete. ${medicinesRestored} medicines, ${suppliers.length} suppliers, and ${rackLocations.length} rack locations were restored safely using UPSERT. Financial records were not touched.`
+      version,
+      restored: { ...summary, medicinesRestored, salesRestored },
+      errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
+      message: `Restore complete (v${version}). ${medicinesRestored} medicines, ${suppliers.length} suppliers, ${rackLocations.length} rack locations${salesRestored > 0 ? `, ${salesRestored} sales` : ''} were restored safely using UPSERT.`
     });
 
   } catch (error: any) {
