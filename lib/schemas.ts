@@ -99,7 +99,10 @@ export const CreateCustomerSchema = z.object({
   name: z.string().min(2, 'Customer name is required'),
   phone: z.string().min(10, 'Valid phone number required'),
   address: z.string().min(5, 'Address is required'),
+  isWholesale: z.boolean().optional().default(false),
 });
+
+export const UpdateCustomerSchema = CreateCustomerSchema.partial();
 
 // Invoice Settings Schema
 export const InvoiceSettingsSchema = z.object({
@@ -144,7 +147,7 @@ export const CreateSaleSchema = z.object({
       address: z.string().optional().nullable().or(z.literal('')),
     })
     .optional(),
-  saleType: z.enum(['RETAIL', 'WHOLESALE']),
+  saleType: z.enum(['RETAIL', 'WHOLESALE', 'TRANSFER']),
   items: z.array(
     z.object({
       medicineId: z.string(),

@@ -300,7 +300,11 @@ export default function SalesHistoryPage() {
                         <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-foreground shadow-sm">{row.paymentMode}</span>
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${row.saleType === 'WHOLESALE' ? 'bg-surface-muted/50 text-muted-foreground' : 'bg-primary/10 text-primary border-primary/20'}`}>
+                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${
+                          row.saleType === 'WHOLESALE' ? 'bg-surface-muted/50 text-muted-foreground' : 
+                          row.saleType === 'TRANSFER' ? 'bg-amber-100 text-amber-600 border-amber-200' :
+                          'bg-primary/10 text-primary border-primary/20'
+                        }`}>
                           {row.saleType}
                         </span>
                       </TableCell>

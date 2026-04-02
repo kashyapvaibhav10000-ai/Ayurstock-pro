@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
           shopId: auth.user.shopId,
           stockQty: { gt: 0 },
           expiryDate: { gt: new Date() },
+          deletedAt: null,
           OR: [
             { batchNumber: query },
             { medicine: { barcode: query } },
@@ -67,6 +68,7 @@ export async function GET(request: NextRequest) {
             stockQty: batch.stockQty,
             mrp: Number(batch.mrp),
             rate: Number(batch.sellingRate),
+            purchaseRate: Number(batch.purchaseRate || 0),
             rackLocation: batch.rackLocation,
             expiryDate: batch.expiryDate,
           })),
@@ -79,6 +81,7 @@ export async function GET(request: NextRequest) {
         shopId: auth.user.shopId,
         stockQty: { gt: 0 },
         expiryDate: { gt: new Date() },
+        deletedAt: null,
         OR: [
           {
             medicine: {
@@ -142,6 +145,7 @@ export async function GET(request: NextRequest) {
         stockQty: batch.stockQty,
         mrp: Number(batch.mrp),
         rate: Number(batch.sellingRate),
+        purchaseRate: Number(batch.purchaseRate || 0),
         rackLocation: batch.rackLocation,
         expiryDate: batch.expiryDate,
       })),

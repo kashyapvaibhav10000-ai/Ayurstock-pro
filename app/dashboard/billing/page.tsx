@@ -25,13 +25,14 @@ interface BillingSuggestion {
   stockQty: number;
   mrp: number;
   rate: number;
+  purchaseRate: number;
   rackLocation: string;
   expiryDate: string;
 }
 
 export default function BillingPage() {
   const router = useRouter();
-  const [saleType, setSaleType] = useState<'RETAIL' | 'WHOLESALE'>('RETAIL');
+  const [saleType, setSaleType] = useState<'RETAIL' | 'WHOLESALE' | 'TRANSFER'>('RETAIL');
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<BillingSuggestion[]>([]);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
@@ -77,7 +78,7 @@ export default function BillingPage() {
       }
       
       const savedSaleType = localStorage.getItem('pos_saleType');
-      if (savedSaleType) setSaleType(savedSaleType as 'RETAIL' | 'WHOLESALE');
+      if (savedSaleType) setSaleType(savedSaleType as 'RETAIL' | 'WHOLESALE' | 'TRANSFER');
       
       const savedCustomerName = localStorage.getItem('pos_customerName');
       if (savedCustomerName) setCustomerName(savedCustomerName);
@@ -143,17 +144,22 @@ export default function BillingPage() {
     const mrp = suggestion.mrp;
     const gstPercent = suggestion.gstPercent ?? 0;
 
+    // Use purchase rate (TP) for wholesale/transfer, selling rate for retail
+    const baseRate = (saleType === 'WHOLESALE' || saleType === 'TRANSFER') 
+      ? suggestion.purchaseRate 
+      : suggestion.rate;
+
     let rate: number;
     let gst: number;
     let amount: number;
 
     if (gstMode === 'inclusive') {
-      rate = suggestion.mrp;
-      amount = suggestion.mrp * 1;
+      rate = baseRate;
+      amount = baseRate * 1;
       const basePrice = Math.round((amount / (1 + gstPercent / 100)) * 100) / 100;
       gst = Math.round((amount - basePrice) * 100) / 100;
     } else {
-      rate = mrp;
+      rate = baseRate;
       const afterDiscount = rate * 1 - 0;
       gst = Math.round(((afterDiscount * gstPercent) / 100) * 100) / 100;
       amount = afterDiscount + gst;
@@ -585,8 +591,8 @@ export default function BillingPage() {
                 </div>
               </div>
               <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-md">
-                {(['RETAIL', 'WHOLESALE'] as const).map((mode) => (
-                  <button key={mode} onClick={() => setSaleType(mode)} className={`px-3 py-1 text-[13px] font-bold rounded shadow-sm hover:shadow uppercase tracking-wider transition-all ${saleType === mode ? 'bg-primary text-white shadow-primary/20' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                {(['RETAIL', 'WHOLESALE', 'TRANSFER'] as const).map((mode) => (
+                  <button key={mode} onClick={() => setSaleType(mode)} className={`px-3 py-1 text-[12px] font-bold rounded shadow-sm hover:shadow uppercase tracking-wider transition-all ${saleType === mode ? 'bg-primary text-white shadow-primary/20' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
                     {mode}
                   </button>
                 ))}

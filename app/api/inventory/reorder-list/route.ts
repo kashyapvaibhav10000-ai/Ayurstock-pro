@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
 
     const threshold = parseInt(request.nextUrl.searchParams.get('threshold') || '10');
 
-    const batches = await prisma.inventoryBatch.findMany({
+    const allBatches = await prisma.inventoryBatch.findMany({
       where: {
         shopId: auth.user.shopId,
-        stockQty: { lte: threshold },
+        deletedAt: null,
       },
       select: {
         stockQty: true,
@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
       },
       orderBy: [{ stockQty: 'asc' }, { medicine: { name: 'asc' } }],
     });
+
+    const batches = allBatches.filter(b => b.stockQty <= b.medicine.lowStockThreshold);
 
     // Deduplicate by medicine, keep lowest stock batch
     const byMedicine = new Map<string, typeof batches[number]>();

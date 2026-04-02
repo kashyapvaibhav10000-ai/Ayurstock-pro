@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import Link from 'next/link';
@@ -17,6 +19,7 @@ import {
   RotateCcw,
   History,
   IndianRupee,
+  User,
   Pin,
   PinOff,
 } from 'lucide-react';
@@ -44,6 +47,7 @@ const menuGroups = [
       { href: '/dashboard/sales-history', label: 'Sales History', icon: History, roles: ['ADMIN', 'MANAGER'] },
       { href: '/dashboard/credits', label: 'Credits', icon: IndianRupee, roles: ['ADMIN', 'MANAGER'] },
       { href: '/dashboard/reports', label: 'Reports', icon: ClipboardList, roles: ['ADMIN', 'MANAGER'] },
+      { href: '/dashboard/customers', label: 'Customers', icon: User, roles: ['ADMIN', 'MANAGER'] },
       { href: '/dashboard/suppliers', label: 'Suppliers', icon: PackageSearch, roles: ['ADMIN', 'MANAGER'] },
     ]
   },
@@ -165,7 +169,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
                   {group.label}
                 </span>
               </div>
-              
+
               <div className="space-y-1">
                 {group.items.map((item) => {
                   const Icon = item.icon;
@@ -193,11 +197,11 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
                         <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-r-full bg-stitch-primary" />
                       )}
 
-                      <Icon 
+                      <Icon
                         className={`shrink-0 transition-transform duration-200 
                           ${isExpanded ? 'w-[18px] h-[18px]' : 'w-5 h-5 group-hover:scale-110'}
                           ${isActive ? 'text-primary drop-shadow-[0_2px_4px_var(--primary)] drop-shadow-primary/20' : 'text-muted-foreground group-hover:text-primary'}
-                        `} 
+                        `}
                       />
 
                       {isExpanded && (

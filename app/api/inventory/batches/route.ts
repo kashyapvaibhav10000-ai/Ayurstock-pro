@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     // Get all batches for the shop
     const [batches, total] = await Promise.all([
       prisma.inventoryBatch.findMany({
-        where: { shopId: auth.user.shopId },
+        where: { shopId: auth.user.shopId, deletedAt: null },
         include: {
           medicine: {
             select: {
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         skip: offset,
       }),
-      prisma.inventoryBatch.count({ where: { shopId: auth.user.shopId } }),
+      prisma.inventoryBatch.count({ where: { shopId: auth.user.shopId, deletedAt: null } }),
     ]);
 
     return createPaginatedResponse(batches, total, Math.floor(offset / limit) + 1, limit);

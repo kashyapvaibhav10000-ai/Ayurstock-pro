@@ -51,7 +51,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
   const loadDependencies = async () => {
     try {
       const [medRes, compRes] = await Promise.all([
-        axios.get('/api/medicines'),
+        axios.get('/api/returns/medicines'),
         axios.get('/api/companies')
       ]);
       setMedicines(medRes.data.data || []);

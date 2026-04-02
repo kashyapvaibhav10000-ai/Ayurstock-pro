@@ -127,8 +127,9 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    await prisma.inventoryBatch.delete({
+    await prisma.inventoryBatch.update({
       where: { id },
+      data: { deletedAt: new Date() },
     });
 
     return NextResponse.json({

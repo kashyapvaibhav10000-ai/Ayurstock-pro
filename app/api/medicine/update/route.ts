@@ -146,7 +146,7 @@ export async function DELETE(req: NextRequest) {
 
     await prisma.medicine.update({
       where: { id },
-      data: { isActive: false },
+      data: { isActive: false, deletedAt: new Date() },
     });
 
     return NextResponse.json({
