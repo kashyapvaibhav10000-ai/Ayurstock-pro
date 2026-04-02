@@ -1,22 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { parsePDFWithAI, parseTextWithAI } from '@/lib/aiParser';
+import { parsePDFWithAI, parseTextWithAI, parseImageWithGeminiVision } from '@/lib/aiParser';
 
-// ── Upgrade 7: Server-side OCR with Tesseract.js ────────────────────────
-async function extractTextWithTesseract(imageBuffer: Buffer): Promise<string> {
-  try {
-    const path = await import('path');
-    const workerPath = path.join(process.cwd(), 'node_modules', 'tesseract.js', 'src', 'worker-script', 'node', 'index.js');
-    const Tesseract = await import('tesseract.js');
-    const worker = await Tesseract.createWorker('eng', 1, { workerPath: '/root/Ayurstock-pro/node_modules/tesseract.js/src/worker-script/node/index.js' });
-    const { data } = await worker.recognize(imageBuffer);
-    await worker.terminate();
-    return data.text || '';
-  } catch (err) {
-    console.warn('⚠ Tesseract OCR failed:', err);
-    return '';
-  }
-}
+// Dedicated Vision-based import pipeline for price lists and invoices
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await verifyAuth(req);
@@ -84,40 +71,8 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     if (isImage) {
-      // ── Upgrade 7: OCR-first approach for images ──────────────────
-      // Step 1: Try Tesseract OCR first (cheaper, faster)
-      console.log('🔍 [import-price-list] Step 1: Trying Tesseract OCR on image...');
-      const ocrText = await extractTextWithTesseract(buffer);
-
-      if (ocrText.trim().length > 100) {
-        // Step 2: OCR worked — send clean text to text LLM
-        console.log(`✅ [import-price-list] Tesseract extracted ${ocrText.length} chars. Using text LLM.`);
-        try {
-          const result = await parseTextWithAI(ocrText);
-
-          if (result.medicines.length > 0) {
-            console.log(`✅ [import-price-list] Text LLM extracted ${result.medicines.length} medicines from OCR text`);
-            return NextResponse.json({
-              success: true,
-              medicines: result.medicines,
-              count: result.medicines.length,
-              pdfType: 'scanned',
-              provider: `ocr+${result.provider || 'text'}`,
-            }, { headers: { 'X-AI-Provider': `ocr+${result.provider || 'text'}` } });
-          }
-
-          console.warn('⚠️ [import-price-list] Text LLM found 0 medicines from OCR text. Falling back to Vision API.');
-        } catch (err) {
-          console.warn('⚠️ [import-price-list] Text LLM failed on OCR text. Falling back to Vision API.', err);
-        }
-      } else {
-        console.log(`⚠️ [import-price-list] Tesseract extracted only ${ocrText.trim().length} chars. Falling back to Vision API.`);
-      }
-
-      // Step 3: Fallback to Vision API (original approach)
-      console.log('🖼️ [import-price-list] Falling back to Vision API:', file.name);
+      console.log('🖼️ [import-price-list] Processing with Vision API:', file.name);
       try {
-        const { parseImageWithGeminiVision } = await import('@/lib/aiParser');
         const result = await parseImageWithGeminiVision(buffer, file.type);
 
         if (result.errorCode || result.medicines.length === 0) {
