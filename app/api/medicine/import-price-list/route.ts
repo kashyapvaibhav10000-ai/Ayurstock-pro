@@ -5,17 +5,18 @@ import { parsePDFWithAI, parseTextWithAI } from '@/lib/aiParser';
 // ── Upgrade 7: Server-side OCR with Tesseract.js ────────────────────────
 async function extractTextWithTesseract(imageBuffer: Buffer): Promise<string> {
   try {
+    const path = await import('path');
+    const workerPath = path.join(process.cwd(), 'node_modules', 'tesseract.js', 'src', 'worker-script', 'node', 'index.js');
     const Tesseract = await import('tesseract.js');
-    const worker = await Tesseract.createWorker('eng', 1, { workerPath: require.resolve('tesseract.js/src/worker-script/node/index.js') });
+    const worker = await Tesseract.createWorker('eng', 1, { workerPath });
     const { data } = await worker.recognize(imageBuffer);
     await worker.terminate();
     return data.text || '';
   } catch (err) {
-    console.warn('⚠️ Tesseract OCR failed:', err);
+    console.warn('⚠ Tesseract OCR failed:', err);
     return '';
   }
 }
-
 export async function POST(req: NextRequest) {
   try {
     const auth = await verifyAuth(req);
