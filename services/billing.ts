@@ -33,20 +33,22 @@ export interface BillingCalculation {
 }
 
 /**
- * Calculate billing totals for items
+ * Calculate billing totals for items (Inclusive MRP)
  */
 export function calculateBilling(items: BillingItem[]): BillingCalculation {
   const calculatedItems = items.map((item) => {
-    const itemSubtotal = new Decimal(item.quantity * item.rate);
+    const itemInclusiveTotal = new Decimal(item.quantity * item.rate);
     const itemDiscount = new Decimal(item.discount);
-    const itemAfterDiscount = itemSubtotal.minus(itemDiscount);
-    const itemGst = itemAfterDiscount.times(
-      new Decimal(item.gstPercent).dividedBy(100)
-    );
-    const itemAmount = itemAfterDiscount.plus(itemGst);
+    const itemAfterDiscount = itemInclusiveTotal.minus(itemDiscount);
+    
+    // Extract GST from the inclusive price: (Price / (100 + GST%)) * GST%
+    const gstFactor = new Decimal(item.gstPercent).dividedBy(new Decimal(100).plus(item.gstPercent));
+    const itemGst = itemAfterDiscount.times(gstFactor);
+    const itemAmount = itemAfterDiscount; // Already inclusive
 
     return {
       ...item,
+      batchId: item.batchId || '',
       gst: Math.round(itemGst.toNumber() * 100) / 100,
       amount: itemAmount,
     };
@@ -67,7 +69,7 @@ export function calculateBilling(items: BillingItem[]): BillingCalculation {
     new Decimal(0)
   );
 
-  const grandTotal = subtotal.minus(totalDiscount).plus(totalGst);
+  const grandTotal = subtotal.minus(totalDiscount);
   
   return {
     subtotal,
