@@ -14,6 +14,87 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import axios from "axios";
 
+function formatMeta(action: string, metaRaw: string | null): string {
+  if (!metaRaw) return '—';
+
+  try {
+    const meta = JSON.parse(metaRaw);
+
+    switch (action) {
+      case 'CREATE_SALE': {
+        const inv = meta.invoiceNumber || meta.invoice || '—';
+        const total = meta.grandTotal ?? meta.total ?? '—';
+        const payment = meta.paymentMode || meta.payment || '';
+        const formatted = typeof total === 'number' ? `₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : `₹${total}`;
+        return `Sold ${inv} for ${formatted}${payment ? ` via ${payment}` : ''}`;
+      }
+
+      case 'CREATE_PURCHASE': {
+        const supplier = meta.supplierName || meta.supplier || 'Unknown Supplier';
+        const total = meta.totalAmount ?? meta.total ?? '—';
+        const formatted = typeof total === 'number' ? `₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : `₹${total}`;
+        return `Recorded purchase from ${supplier} — ${formatted}`;
+      }
+
+      case 'CREATE_RETURN': {
+        const medName = meta.medicineName || meta.medicine || 'Unknown Medicine';
+        const amount = meta.amount ?? meta.mrp ?? '';
+        const qty = meta.quantity ?? '';
+        let result = `Returned ${medName}`;
+        if (qty) result += ` ×${qty}`;
+        if (amount) {
+          const formatted = typeof amount === 'number' ? `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : `₹${amount}`;
+          result += ` — ${formatted}`;
+        }
+        return result;
+      }
+
+      case 'STOCK_ADJUSTMENT': {
+        const medName = meta.medicineName || meta.medicine || 'Item';
+        const batch = meta.batchNumber || meta.batch || '';
+        const qty = meta.quantity ?? meta.qty ?? 0;
+        const type = meta.type || '';
+        const sign = type === 'REMOVE' ? '-' : '+';
+        return `Adjusted ${medName}${batch ? ` batch ${batch}` : ''}: ${sign}${Math.abs(qty)} units`;
+      }
+
+      case 'DATABASE_RESTORE_AUTO_BACKUP': {
+        const ts = meta.timestamp ? new Date(meta.timestamp).toLocaleString() : '';
+        const counts = meta.recordCounts;
+        if (counts) {
+          const total = (counts.medicines || 0) + (counts.inventoryBatches || 0) + (counts.suppliers || 0);
+          return `Auto-backup created before restore${ts ? ` at ${ts}` : ''} (${total} records saved)`;
+        }
+        return `Auto-backup created before restore${ts ? ` at ${ts}` : ''}`;
+      }
+
+      case 'DATABASE_RESTORE': {
+        const restored = meta.medicinesRestored ?? meta.medicines ?? '';
+        return `Database restored${restored ? ` — ${restored} medicines processed` : ''}`;
+      }
+
+      case 'CLEAR_ALL': {
+        return `All database records cleared`;
+      }
+
+      case 'DELETE_BY_COMPANY': {
+        const company = meta.companyName || meta.company || 'Unknown';
+        const count = meta.deletedCount ?? '';
+        return `Deleted ${count ? `${count} medicines from` : 'medicines from'} ${company}`;
+      }
+
+      default: {
+        // Fallback: show truncated raw JSON
+        const raw = typeof metaRaw === 'string' ? metaRaw : JSON.stringify(meta);
+        return raw.length > 120 ? raw.slice(0, 117) + '…' : raw;
+      }
+    }
+  } catch {
+    // Not valid JSON — return truncated raw string
+    return metaRaw.length > 120 ? metaRaw.slice(0, 117) + '…' : metaRaw;
+  }
+}
+
 export default function ActivityLogTab() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,8 +190,8 @@ export default function ActivityLogTab() {
                       {log.action}
                     </span>
                   </TableCell>
-                  <TableCell className="text-[11px] font-mono text-muted-foreground/60 pr-6 break-all">
-                    {log.meta ? log.meta : '—'}
+                  <TableCell className="text-[11px] text-muted-foreground pr-6 max-w-[400px]">
+                    <span className="font-medium">{formatMeta(log.action, log.meta)}</span>
                   </TableCell>
                 </TableRow>
               ))

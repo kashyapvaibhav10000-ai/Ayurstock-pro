@@ -155,6 +155,36 @@ export default function AiUsageTab() {
         <GaugeCard provider="openrouter" used={todayOR} loading={loading} />
       </div>
 
+      {/* Cost Estimate Card */}
+      <div className="rounded-2xl border border-border bg-surface shadow-soft p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+          <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground">Cost Estimate</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          {[
+            { name: 'Gemini', limit: '1,400/day', cost: '₹0' },
+            { name: 'Groq', limit: '14,000/day', cost: '₹0' },
+            { name: 'OpenRouter', limit: 'Free model (llama-3.3-70b)', cost: '₹0' },
+          ].map((p) => (
+            <div key={p.name} className="flex items-center justify-between rounded-xl border border-border bg-surface-muted/30 px-4 py-3">
+              <div>
+                <p className="text-[11px] font-black text-foreground uppercase tracking-wider">{p.name}</p>
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{p.limit}</p>
+              </div>
+              <span className="text-lg font-black text-emerald-600">{p.cost}</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 px-5 py-3">
+          <div>
+            <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-[0.2em]">Estimated Monthly Cost</p>
+            <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">All active AI tiers are currently on free plans</p>
+          </div>
+          <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300 tracking-tighter">₹0</span>
+        </div>
+      </div>
+
       {/* Summary */}
       <div className="flex items-center gap-10 rounded-2xl bg-surface-muted/30 border border-border px-8 py-6 shadow-inner relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-5">

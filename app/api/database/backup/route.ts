@@ -11,32 +11,66 @@ export async function GET(request: NextRequest) {
 
     const shopId = auth.user.shopId;
 
-    // Export non-financial core data only
-    const [medicines, inventoryBatches, suppliers, companies, rackLocations, customers] = await Promise.all([
+    // Export ALL tables — full pharmacy backup
+    const [
+      medicines, inventoryBatches, suppliers, companies, rackLocations, customers,
+      sales, saleItems, purchases, purchaseItems,
+      returns, medicineReturns,
+      shopSettings, invoiceSettings, billingSettings,
+      stockLedgers,
+    ] = await Promise.all([
       prisma.medicine.findMany({ where: { shopId } }),
       prisma.inventoryBatch.findMany({ where: { shopId } }),
       prisma.supplier.findMany({ where: { shopId } }),
       prisma.company.findMany({ where: { shopId } }),
       prisma.rackLocation.findMany({ where: { shopId } }),
       prisma.customer.findMany({ where: { shopId } }),
+      prisma.sale.findMany({ where: { shopId }, include: { saleItems: true } }),
+      prisma.saleItem.findMany({ where: { sale: { shopId } } }),
+      prisma.purchase.findMany({ where: { shopId }, include: { purchaseItems: true } }),
+      prisma.purchaseItem.findMany({ where: { purchase: { shopId } } }),
+      prisma.return.findMany({ where: { shopId } }),
+      prisma.medicineReturn.findMany({ where: { shopId } }),
+      prisma.shopSettings.findUnique({ where: { shopId } }),
+      prisma.invoiceSettings.findUnique({ where: { shopId } }),
+      prisma.billingSettings.findUnique({ where: { shopId } }),
+      prisma.stockLedger.findMany({ where: { shopId } }),
     ]);
 
     const backupData = {
       meta: {
         shopId,
         timestamp: new Date().toISOString(),
-        version: '1.0',
-        note: 'This backup contains only non-financial data (Medicines, Inventory, Suppliers, Rack Locations, Customers). Sales and financial records are excluded for data integrity.'
+        backedUpAt: new Date().toISOString(),
+        version: '2.0',
+        note: 'Full backup including all tables: Medicines, Inventory, Suppliers, Sales, Purchases, Returns, Settings, and Stock Ledgers. Pharmacy transaction records included as required by law.',
       },
-      data: { medicines, inventoryBatches, suppliers, companies, rackLocations, customers }
+      data: {
+        medicines,
+        inventoryBatches,
+        suppliers,
+        companies,
+        rackLocations,
+        customers,
+        sales,
+        saleItems,
+        purchases,
+        purchaseItems,
+        returns,
+        medicineReturns,
+        shopSettings: shopSettings ? [shopSettings] : [],
+        invoiceSettings: invoiceSettings ? [invoiceSettings] : [],
+        billingSettings: billingSettings ? [billingSettings] : [],
+        stockLedgers,
+      },
     };
 
     return new NextResponse(JSON.stringify(backupData, null, 2), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Content-Disposition': `attachment; filename="AyurStock_Backup_${new Date().toISOString().split('T')[0]}.json"`
-      }
+        'Content-Disposition': `attachment; filename="AyurStock_Backup_${new Date().toISOString().split('T')[0]}.json"`,
+      },
     });
 
   } catch (error: any) {
@@ -44,4 +78,3 @@ export async function GET(request: NextRequest) {
     return createErrorResponse(error.message || 'Failed to generate backup', 500);
   }
 }
-

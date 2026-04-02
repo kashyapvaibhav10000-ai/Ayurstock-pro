@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { toast } from 'sonner';
-import { Package, Clock, BarChart2 } from 'lucide-react';
+import { Package, Clock, BarChart2, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 type Settings = {
   enableBatchTracking: boolean;
@@ -78,13 +79,45 @@ export default function InventorySettings() {
     lowStockThreshold: 5,
     nearExpiryDays: 30,
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await axios.get('/api/settings/inventory');
+        if (res.data.success) {
+          setSettings(res.data.data);
+        }
+      } catch (error) {
+        console.error('Failed to load inventory settings', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const handleToggle = (key: keyof Settings) => {
     setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleSave = () => {
-    toast.success('Inventory settings saved!');
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await axios.patch('/api/settings/inventory', settings);
+      if (res.data.success) {
+        setSettings(res.data.data);
+        toast.success('Inventory settings saved!');
+      } else {
+        throw new Error(res.data.error || 'Failed to save');
+      }
+    } catch (error) {
+      console.error('Failed to save inventory settings', error);
+      toast.error('Failed to save inventory settings');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const ToggleRow = ({ label, description, settingKey }: { label: string; description: string; settingKey: keyof Settings }) => (
@@ -96,9 +129,18 @@ export default function InventorySettings() {
       <Switch
         checked={settings[settingKey] as boolean}
         onCheckedChange={() => handleToggle(settingKey)}
+        disabled={loading}
       />
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -165,9 +207,10 @@ export default function InventorySettings() {
 
       <Button
         onClick={handleSave}
+        disabled={loading || saving}
         className="w-full bg-stitch-primary hover:bg-stitch-primary/90 text-white font-bold"
       >
-        Save Inventory Settings
+        {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : 'Save Inventory Settings'}
       </Button>
     </div>
   );

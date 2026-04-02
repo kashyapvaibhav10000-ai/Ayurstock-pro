@@ -128,6 +128,9 @@ export default function AddInventoryModal({
   // Expiry shorthand
   const [expiryText, setExpiryText] = useState('');
 
+  // GST category defaults cache
+  const [gstCategoryMap, setGstCategoryMap] = useState<Record<string, number>>({});
+
   // Auto-scroll dropdown to highlighted item
   useEffect(() => {
     if (highlightedIndex < 0 || !dropdownListRef.current) return;
@@ -205,6 +208,7 @@ export default function AddInventoryModal({
 
     fetchCompanies();
     fetchRackLocations();
+    fetchGstDefaults();
 
     setTimeout(() => {
       if (savedCompany) {
@@ -241,6 +245,21 @@ export default function AddInventoryModal({
       if (res.data.success) setRackLocations(res.data.data);
     } catch (e) {
       console.error('Failed to fetch racks', e);
+    }
+  };
+
+  const fetchGstDefaults = async () => {
+    try {
+      const res = await axios.get('/api/settings/gst-categories');
+      if (res.data.success) {
+        const map: Record<string, number> = {};
+        for (const item of res.data.data) {
+          map[item.category] = item.gstPercent;
+        }
+        setGstCategoryMap(map);
+      }
+    } catch (e) {
+      // Silently fail — defaults stay at current value
     }
   };
 
@@ -749,6 +768,10 @@ export default function AddInventoryModal({
                     onClick={() => {
                       setSelectedCategory(cat);
                       setError(e => ({ ...e, category: '' }));
+                      // Auto-fill GST from category defaults
+                      if (gstCategoryMap[cat] !== undefined) {
+                        setFormData(c => ({ ...c, gstPercent: gstCategoryMap[cat] }));
+                      }
                       setTimeout(() => batchRef.current?.focus(), 50);
                     }}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${

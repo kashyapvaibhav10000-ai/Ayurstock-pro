@@ -8,12 +8,18 @@ export async function GET(req: NextRequest) {
     if (!auth.authenticated || !auth.user) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
     }
+    const shopId = auth.user.shopId;
+
+    // Fetch global inventory settings for thresholds
+    const shopSettings = await prisma.shopSettings.findUnique({ where: { shopId } });
+    const nearExpiryDays = shopSettings?.nearExpiryDays ?? 30;
+    const globalLowStock = shopSettings?.lowStockThreshold ?? 5;
 
     const expiryAlerts = await prisma.inventoryBatch.findMany({
       where: {
-        shopId: auth.user.shopId,
+        shopId,
         expiryDate: {
-          lte: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30), // 30 days
+          lte: new Date(Date.now() + 1000 * 60 * 60 * 24 * nearExpiryDays),
           gt: new Date(),
         },
       },
@@ -26,7 +32,7 @@ export async function GET(req: NextRequest) {
     })
 
     const allActiveBatches = await prisma.inventoryBatch.findMany({
-      where: { shopId: auth.user.shopId, expiryDate: { gt: new Date() }, deletedAt: null },
+      where: { shopId, expiryDate: { gt: new Date() }, deletedAt: null },
       include: {
         medicine: {
           select: { id: true, name: true, lowStockThreshold: true },
@@ -35,7 +41,7 @@ export async function GET(req: NextRequest) {
     })
 
     const lowStock = allActiveBatches
-      .filter((batch) => batch.stockQty <= batch.medicine.lowStockThreshold)
+      .filter((batch) => batch.stockQty <= (batch.medicine.lowStockThreshold || globalLowStock))
       .sort((a, b) => a.stockQty - b.stockQty)
 
     // Optional: compute aggregated medicine stock from active batches if still needed
@@ -45,7 +51,7 @@ export async function GET(req: NextRequest) {
         medicineStockMap.set(batch.medicine.id, {
           id: batch.medicine.id,
           name: batch.medicine.name,
-          threshold: batch.medicine.lowStockThreshold,
+          threshold: batch.medicine.lowStockThreshold || globalLowStock,
           currentStock: 0,
         })
       }
@@ -59,7 +65,7 @@ export async function GET(req: NextRequest) {
     const [negativeStockBatches, expiredBatches, missingBatchNumbers] = await Promise.all([
       prisma.inventoryBatch.findMany({
         where: {
-          shopId: auth.user.shopId,
+          shopId,
           stockQty: { lt: 0 },
         },
         include: {
@@ -70,7 +76,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.inventoryBatch.findMany({
         where: {
-          shopId: auth.user.shopId,
+          shopId,
           expiryDate: { lte: new Date() },
         },
         include: {
@@ -81,7 +87,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.inventoryBatch.findMany({
         where: {
-          shopId: auth.user.shopId,
+          shopId,
           batchNumber: "",
         },
         include: {

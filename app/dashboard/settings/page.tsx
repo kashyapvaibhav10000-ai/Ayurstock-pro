@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud, Database, Sparkles, ShieldCheck, BellRing } from 'lucide-react';
+import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud, Database, Sparkles, ShieldCheck, BellRing, ReceiptText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,7 @@ import ActivityLogTab from '@/components/settings/activity-log-tab';
 import AiUsageTab from '@/components/settings/ai-usage-tab';
 import LoginHistoryTab from '@/components/settings/login-history-tab';
 import ExpiryAlertSettings from '@/components/settings/expiry-alert-settings';
+import GstCategorySettings from '@/components/settings/gst-category-settings';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -34,7 +35,8 @@ const SETTINGS_CATEGORIES = [
   { id: 'profile', label: 'My Profile', icon: User, group: 'Account' },
   { id: 'users', label: 'Team', icon: Users, group: 'Account' },
   { id: 'invoice', label: 'Invoices', icon: FileText, group: 'Billing' },
-  { id: 'billing', label: 'Plans & Billing', icon: CreditCard, group: 'Billing' },
+  { id: 'billing', label: 'Shop Configuration', icon: CreditCard, group: 'Billing' },
+  { id: 'gst-categories', label: 'GST by Category', icon: ReceiptText, group: 'Billing' },
   { id: 'import', label: 'Bulk Import Data', icon: UploadCloud, group: 'Advanced' },
   { id: 'database', label: 'Database Admin', icon: Database, group: 'Advanced' },
   { id: 'activity', label: 'Activity Log', icon: FileText, group: 'Advanced' },
@@ -89,6 +91,7 @@ export default function SettingsPage() {
       case 'ai-usage': return <AiUsageTab />;
       case 'login-history': return <LoginHistoryTab />;
       case 'system': return <SystemSettings />;
+      case 'gst-categories': return <GstCategorySettings />;
       default: return <ShopSettings />;
     }
   };

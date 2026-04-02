@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import InvoiceTemplate, { InvoiceSettings, ShopSettings, SaleDetails } from '@/components/InvoiceTemplate';
 import { MessageCircle, X } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -11,6 +11,8 @@ export default function InvoicePreviewPage() {
   const params = useParams();
   const router = useRouter();
   const saleId = params?.id as string;
+  const searchParams = useSearchParams();
+  const shouldAutoPrint = searchParams.get('autoprint') === '1';
   const [settings, setSettings] = useState<InvoiceSettings | null>(null);
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
   const [sale, setSale] = useState<SaleDetails | null>(null);
@@ -71,6 +73,14 @@ export default function InvoicePreviewPage() {
 
     if (saleId) fetchInvoiceData();
   }, [saleId]);
+
+  // Auto-print when enabled via billing settings
+  useEffect(() => {
+    if (!loading && sale && settings && shopSettings && shouldAutoPrint) {
+      const timer = setTimeout(() => window.print(), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, sale, settings, shopSettings, shouldAutoPrint]);
 
   const buildWaImage = async (phone: string) => {
     if (!sale) return;
