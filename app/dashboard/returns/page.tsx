@@ -141,10 +141,10 @@ export default function ReturnsPage() {
                       {format(new Date(ret.expiryDate), 'MM/yyyy')}
                     </td>
                     <td className="px-6 py-4 font-extrabold text-primary">
-                      ₹{ret.mrp.toFixed(2)}
+                      ₹{Number(ret.mrp).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 font-extrabold text-foreground">
-                      {ret.quantity}
+                      {Number(ret.quantity)}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground font-bold max-w-[150px] truncate" title={ret.reason}>
                       {ret.reason}
