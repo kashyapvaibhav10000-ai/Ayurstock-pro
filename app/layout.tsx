@@ -1,14 +1,9 @@
 import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  display: 'swap',
-  variable: '--font-plus-jakarta',
-});
+// Font is now handled through a system font stack in globals.css
+// to ensure builds succeed on servers without external internet access.
 
 export const metadata: Metadata = {
   title: 'AyurStock Pro - Management System',
@@ -21,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={plusJakartaSans.variable} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20">
         <Providers>
           {children}
