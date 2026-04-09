@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const medicineId = searchParams.get('medicineId');
     const reportType = searchParams.get('report'); // 'low-stock', 'near-expiry'
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 5000);
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Low stock report
