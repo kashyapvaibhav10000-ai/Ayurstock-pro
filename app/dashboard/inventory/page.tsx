@@ -117,7 +117,7 @@ export default function InventoryPage() {
         return;
       }
       const response = await axios.get('/api/inventory/batches', {
-        params: { limit: 200 },
+        params: { limit: 5000 },
       });
       if (response.data.success) setBatches(response.data.data);
     } catch (error) {

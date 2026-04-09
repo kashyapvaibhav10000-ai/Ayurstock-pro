@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
           expiryDate: { gt: new Date() },
           deletedAt: null,
           OR: [
-            { batchNumber: query },
+            { batchNumber: { equals: query, mode: 'insensitive' } },
             { medicine: { barcode: query } },
           ],
         },
@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
             medicine: {
               name: {
                 contains: query,
+                mode: 'insensitive',
               },
             },
           },
@@ -98,6 +99,7 @@ export async function GET(request: NextRequest) {
           {
             batchNumber: {
               contains: query,
+              mode: 'insensitive',
             },
           },
         ],
