@@ -48,6 +48,7 @@ export default function InvoicePreviewPage() {
               rate: Number(item.rate),
               discount: Number(item.discount),
               gst: Number(item.gst),
+              gstPercent: Number(item.gstPercent),
               amount: Number(item.amount),
               medicine: item.medicine,
               batch: {
