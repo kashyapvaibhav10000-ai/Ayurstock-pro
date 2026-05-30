@@ -34,23 +34,28 @@ export async function POST(request: NextRequest) {
       const normalizedPhone = customer.phone?.trim() || "";
       const normalizedName = customer.name?.trim() || "";
       const normalizedAddress = customer.address?.trim() || "";
+      const hasNamedCustomer = normalizedName && normalizedName.toLowerCase() !== "walk-in customer";
+      const hasAddress = normalizedAddress && normalizedAddress.toLowerCase() !== "walk-in";
+      const shouldSaveCustomer = Boolean(normalizedPhone || hasNamedCustomer || hasAddress);
 
-      // Only create/link a customer record when a real phone number is provided.
-      // Walk-in sales (empty phone) are recorded without a customer FK.
-      if (normalizedPhone) {
-        const existingCustomer = await prisma.customer.findFirst({
-          where: {
-            shopId: auth.user.shopId,
-            phone: normalizedPhone,
-          },
-        });
+      // Save customer details when the cashier entered a real name/address, even without a phone.
+      // Pure walk-in sales stay anonymous and the invoice will not print fake fallback details.
+      if (shouldSaveCustomer) {
+        const existingCustomer = normalizedPhone
+          ? await prisma.customer.findFirst({
+              where: {
+                shopId: auth.user.shopId,
+                phone: normalizedPhone,
+              },
+            })
+          : null;
 
         if (existingCustomer) {
           resolvedCustomerId = existingCustomer.id;
           await prisma.customer.update({
             where: { id: existingCustomer.id },
             data: {
-              name: normalizedName,
+              name: normalizedName || existingCustomer.name,
               address: normalizedAddress,
             },
           });
@@ -58,7 +63,7 @@ export async function POST(request: NextRequest) {
           const createdCustomer = await prisma.customer.create({
             data: {
               shopId: auth.user.shopId,
-              name: normalizedName,
+              name: normalizedName || 'Walk-in Customer',
               phone: normalizedPhone,
               address: normalizedAddress,
             },
