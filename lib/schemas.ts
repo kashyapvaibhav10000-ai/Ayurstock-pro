@@ -153,7 +153,7 @@ export const CreateSaleSchema = z.object({
       medicineId: z.string(),
       batchId: z.string().optional().nullable(),
       quantity: z.number().int().positive(),
-      rate: z.number().positive(),
+      rate: z.number().min(0),
       discount: z.number().min(0).default(0),
       gstPercent: z.number().min(0).max(100),
     })

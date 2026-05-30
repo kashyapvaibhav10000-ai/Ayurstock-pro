@@ -32,6 +32,26 @@ export interface BillingCalculation {
   }[];
 }
 
+function resolvePositiveRate(
+  requestedRate: number,
+  batch: { sellingRate: Decimal; mrp: Decimal; purchaseRate?: Decimal | null },
+  saleType: SaleType
+) {
+  if (requestedRate > 0) {
+    return requestedRate;
+  }
+
+  const purchaseRate = Number(batch.purchaseRate || 0);
+  const sellingRate = Number(batch.sellingRate || 0);
+  const mrp = Number(batch.mrp || 0);
+
+  if ((saleType === 'WHOLESALE' || saleType === 'TRANSFER') && purchaseRate > 0) {
+    return purchaseRate;
+  }
+
+  return sellingRate > 0 ? sellingRate : mrp;
+}
+
 /**
  * Calculate billing totals for items (Inclusive MRP)
  */
@@ -159,6 +179,9 @@ export async function createSale(params: {
             id: true,
             medicineId: true,
             stockQty: true,
+            mrp: true,
+            purchaseRate: true,
+            sellingRate: true,
           },
         });
 
@@ -181,7 +204,7 @@ export async function createSale(params: {
             medicineId: item.medicineId,
             batchId: preferredBatch.id,
             quantity: takeQty,
-            rate: item.rate,
+            rate: resolvePositiveRate(item.rate, preferredBatch, params.saleType),
             discount: Number(proportionalDiscount.toFixed(2)),
             gstPercent: item.gstPercent,
           });
@@ -203,6 +226,9 @@ export async function createSale(params: {
           select: {
             id: true,
             stockQty: true,
+            mrp: true,
+            purchaseRate: true,
+            sellingRate: true,
           },
           orderBy: [{ expiryDate: 'asc' }, { stockQty: 'desc' }],
         });
@@ -225,7 +251,7 @@ export async function createSale(params: {
             medicineId: item.medicineId,
             batchId: batch.id,
             quantity: takeQty,
-            rate: item.rate,
+            rate: resolvePositiveRate(item.rate, batch, params.saleType),
             discount: Number(proportionalDiscount.toFixed(2)),
             gstPercent: item.gstPercent,
           });

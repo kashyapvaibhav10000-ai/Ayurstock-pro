@@ -143,6 +143,22 @@ export default function BillingPage() {
     }, 300);
   }, [searchQuery]);
 
+  const getBillingRate = (suggestion: BillingSuggestion) => {
+    const purchaseRate = Number(suggestion.purchaseRate || 0);
+    const sellingRate = Number(suggestion.rate || 0);
+    const mrp = Number(suggestion.mrp || 0);
+
+    if ((saleType === 'WHOLESALE' || saleType === 'TRANSFER') && purchaseRate > 0) {
+      return purchaseRate;
+    }
+
+    return sellingRate > 0 ? sellingRate : mrp;
+  };
+
+  const getItemUnitPrice = (item: CartItem) => {
+    return item.rate > 0 ? item.rate : item.mrp;
+  };
+
   const addSuggestionToCart = (suggestion: BillingSuggestion) => {
     const daysToExpiry = Math.ceil(
       (new Date(suggestion.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
@@ -156,10 +172,9 @@ export default function BillingPage() {
     const mrp = suggestion.mrp;
     const gstPercent = suggestion.gstPercent ?? 0;
 
-    // Use purchase rate (TP) for wholesale/transfer, selling rate for retail
-    const baseRate = (saleType === 'WHOLESALE' || saleType === 'TRANSFER') 
-      ? suggestion.purchaseRate 
-      : suggestion.rate;
+    // Use purchase rate (TP) for wholesale/transfer when available.
+    // Imported batches can have TP as 0, so fall back to a billable positive rate.
+    const baseRate = getBillingRate(suggestion);
 
     let rate: number;
     let gst: number;
@@ -254,8 +269,9 @@ export default function BillingPage() {
         const quantity = Math.max(1, nextQuantity);
         let gst: number;
         let amount: number;
+        const unitPrice = getItemUnitPrice(item);
         if (gstMode === 'inclusive') {
-          amount = Math.round((item.mrp * quantity - item.discount) * 100) / 100;
+          amount = Math.round((unitPrice * quantity - item.discount) * 100) / 100;
           const basePrice = Math.round((amount / (1 + item.gstPercent / 100)) * 100) / 100;
           gst = Math.round((amount - basePrice) * 100) / 100;
         } else {
@@ -272,13 +288,14 @@ export default function BillingPage() {
     setCart((current) =>
       current.map((item, i) => {
         if (i !== index) return item;
+        const unitPrice = getItemUnitPrice(item);
         const discountRupees = discountMode === 'percent'
-          ? Math.round((item.mrp * item.quantity * (discountInput / 100)) * 100) / 100
+          ? Math.round((unitPrice * item.quantity * (discountInput / 100)) * 100) / 100
           : discountInput;
         const discountPercent = discountMode === 'percent' ? discountInput : 0;
         
         if (gstMode === 'inclusive') {
-          const amount = Math.round((item.mrp * item.quantity - discountRupees) * 100) / 100;
+          const amount = Math.round((unitPrice * item.quantity - discountRupees) * 100) / 100;
           const basePrice = Math.round((amount / (1 + item.gstPercent / 100)) * 100) / 100;
           const gst = Math.round((amount - basePrice) * 100) / 100;
           return { ...item, discount: discountRupees, discountPercent, gst, amount };
@@ -297,8 +314,9 @@ export default function BillingPage() {
         if (i !== index) return item;
         let gst: number;
         let amount: number;
+        const unitPrice = getItemUnitPrice(item);
         if (gstMode === 'inclusive') {
-          amount = Math.round((item.mrp * item.quantity - item.discount) * 100) / 100;
+          amount = Math.round((unitPrice * item.quantity - item.discount) * 100) / 100;
           const basePrice = Math.round((amount / (1 + gstPercent / 100)) * 100) / 100;
           gst = Math.round((amount - basePrice) * 100) / 100;
         } else {
@@ -368,7 +386,7 @@ export default function BillingPage() {
           medicineId: item.medicineId,
           batchId: item.batchId,
           quantity: item.quantity,
-          rate: item.rate,
+          rate: getItemUnitPrice(item),
           discount: item.discount,
           gstPercent: item.gstPercent,
         })),
@@ -392,7 +410,12 @@ export default function BillingPage() {
       }
     } catch (error) {
       console.error('Checkout error:', error);
-      toast.error('Failed to create sale');
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.error || error.response?.data?.message || error.message
+        : error instanceof Error
+          ? error.message
+          : 'Failed to create sale';
+      toast.error(message || 'Failed to create sale');
     } finally {
       setLoading(false);
     }
@@ -626,7 +649,7 @@ export default function BillingPage() {
                       <div className="flex flex-wrap gap-2 mt-1.5">
                         <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded uppercase">B:{item.batchNumber}</span>
                         <span className="text-[10px] font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-600 px-1.5 py-0.5 rounded uppercase">Exp: {new Date(item.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })}</span>
-                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase">₹{(gstMode === 'inclusive' ? item.mrp : item.rate).toFixed(2)}/U</span>
+                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase">₹{getItemUnitPrice(item).toFixed(2)}/U</span>
                       </div>
                     </div>
                     <button onClick={() => removeFromCart(index)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 transition-colors">
