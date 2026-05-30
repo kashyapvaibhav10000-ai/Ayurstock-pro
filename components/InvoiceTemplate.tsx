@@ -122,9 +122,13 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
 
   const customer = sale.customer || {
     name: 'Walk-in Customer',
-    phone: '0000000000',
-    address: 'Walk-in',
+    phone: '',
+    address: '',
   };
+  const customerAddress = customer.address?.trim() || '';
+  const customerPhone = customer.phone?.trim() || '';
+  const shouldShowAddress = customerAddress && customerAddress.toLowerCase() !== 'walk-in';
+  const shouldShowPhone = customerPhone && !/^0+$/.test(customerPhone);
 
   return (
     <>
@@ -224,8 +228,8 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
               <div className="text-[10px] md:text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Bill To</div>
               <div className="mt-2 md:mt-3 space-y-1 text-slate-700 text-xs md:text-sm">
                 <div className="font-bold text-slate-900">{customer.name}</div>
-                <div>{customer.address}</div>
-                <div>Phone: {customer.phone}</div>
+                {shouldShowAddress && <div>{customerAddress}</div>}
+                {shouldShowPhone && <div>Phone: {customerPhone}</div>}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white force-print-border p-4 text-sm">

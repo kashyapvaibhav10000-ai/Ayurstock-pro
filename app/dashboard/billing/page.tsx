@@ -377,7 +377,7 @@ export default function BillingPage() {
       const normalizedCustomer = {
         name: customerName.trim() || 'Walk-in Customer',
         phone: customerPhone.trim() || '',
-        address: customerAddress.trim() || 'Walk-in',
+        address: customerAddress.trim(),
       };
 
       const response = await axios.post('/api/sales', {
