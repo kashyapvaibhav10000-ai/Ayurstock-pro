@@ -82,35 +82,40 @@ const formatExpiry = (dateString: string) => {
 export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode = 'inclusive' }: InvoiceTemplateProps) {
   const totals = useMemo(() => {
     if (gstMode === 'inclusive') {
-      let subtotal = 0;
+      let grossTotal = 0;
       let gstTotal = 0;
       let grandTotal = 0;
       
       sale.saleItems.forEach(item => {
-        const itemAmount = (item.mrp * item.quantity) - item.discount;
+        const itemAmount = item.amount || ((item.rate || item.mrp) * item.quantity) - item.discount;
+        grossTotal += (item.rate || item.mrp) * item.quantity;
         grandTotal += itemAmount;
         gstTotal += item.gst;
-        subtotal += (itemAmount - item.gst);
       });
 
       return {
-        subtotal,
+        grossTotal,
         discountTotal: sale.discountTotal,
         gstTotal,
+        taxableValue: grandTotal - gstTotal,
         grandTotal,
         cgst: gstTotal / 2,
         sgst: gstTotal / 2,
+        isInclusive: true,
       };
     } else {
       const cgst = sale.gstTotal / 2;
       const sgst = sale.gstTotal / 2;
       return {
+        grossTotal: sale.subtotal,
         subtotal: sale.subtotal,
         discountTotal: sale.discountTotal,
         gstTotal: sale.gstTotal,
+        taxableValue: sale.subtotal - sale.discountTotal,
         grandTotal: sale.grandTotal,
         cgst,
         sgst,
+        isInclusive: false,
       };
     }
   }, [sale, gstMode]);
@@ -255,7 +260,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
                     let itemAmount = item.amount;
 
                     if (gstMode === 'inclusive') {
-                      itemAmount = (item.mrp * item.quantity) - item.discount;
+                      itemAmount = item.amount || ((item.rate || item.mrp) * item.quantity) - item.discount;
                     } else {
                       const afterDiscount = (item.rate * item.quantity) - item.discount;
                       itemAmount = afterDiscount + item.gst;
@@ -287,19 +292,29 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
           <section className="flex flex-col items-end gap-3 border-t border-slate-200 pt-4 text-xs md:text-sm">
             <div className="w-full max-w-sm space-y-2 text-slate-700">
               <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>{formatCurrency(totals.subtotal)}</span>
+                <span>{totals.isInclusive ? 'MRP Total' : 'Subtotal'}</span>
+                <span>{formatCurrency(totals.grossTotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Discount</span>
                 <span>-{formatCurrency(totals.discountTotal)}</span>
               </div>
+              {totals.isInclusive && (
+                <div className="flex justify-between font-semibold text-slate-900">
+                  <span>Subtotal (Incl. GST)</span>
+                  <span>{formatCurrency(totals.grandTotal)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
-                <span>CGST</span>
+                <span>Taxable Value</span>
+                <span>{formatCurrency(totals.taxableValue)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>CGST{totals.isInclusive ? ' (Included)' : ''}</span>
                 <span>{formatCurrency(totals.cgst)}</span>
               </div>
               <div className="flex justify-between">
-                <span>SGST</span>
+                <span>SGST{totals.isInclusive ? ' (Included)' : ''}</span>
                 <span>{formatCurrency(totals.sgst)}</span>
               </div>
               <div className="flex justify-between border-t border-dashed border-slate-300 pt-2 text-sm md:text-base font-bold text-slate-900">
