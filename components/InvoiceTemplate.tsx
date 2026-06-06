@@ -198,7 +198,9 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
               </div>
               <div className="text-xs md:text-sm text-slate-600 mt-2">
                 <div>Phone: {shopSettings.phone}</div>
-                <div>Email: {shopSettings.email}</div>
+                {shopSettings.email && shopSettings.email !== 'shop@email.com' && (
+                  <div>Email: {shopSettings.email}</div>
+                )}
               </div>
               {shopSettings.gstin && (
                 <div className="text-xs md:text-sm font-semibold text-slate-700 mt-1">
