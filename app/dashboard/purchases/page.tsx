@@ -702,6 +702,7 @@ export default function PurchasesPage() {
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-border mt-4">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader className="bg-surface-muted/50 border-b border-border">
                     <TableRow className="border-border hover:bg-transparent">
@@ -881,6 +882,7 @@ export default function PurchasesPage() {
                     )})}
                   </TableBody>
                 </Table>
+                </div>
               </div>
 
               <div className="flex flex-col items-end gap-4 md:flex-row md:items-center md:justify-between">
@@ -948,6 +950,7 @@ export default function PurchasesPage() {
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-border mt-4">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader className="bg-surface-muted/50 border-b border-border">
                     <TableRow className="border-border hover:bg-transparent">
@@ -990,6 +993,7 @@ export default function PurchasesPage() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </div>
 
               {selectedPurchase ? (
@@ -1062,6 +1066,7 @@ export default function PurchasesPage() {
             </CardHeader>
             <CardContent>
               <div className="overflow-hidden rounded-2xl border border-border mt-4">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader className="bg-surface-muted/50 border-b border-border">
                     <TableRow className="border-border hover:bg-transparent">
@@ -1092,6 +1097,7 @@ export default function PurchasesPage() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             </CardContent>
           </Card>
