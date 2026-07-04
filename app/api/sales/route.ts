@@ -51,9 +51,14 @@ export async function POST(request: NextRequest) {
       const normalizedPhone = customer.phone?.trim() || "";
       const normalizedName = customer.name?.trim() || "";
       const normalizedAddress = customer.address?.trim() || "";
+      const normalizedGstin = customer.gstin?.trim() || "";
+      const normalizedDrugLicense = customer.drugLicense?.trim() || "";
+      const normalizedPan = customer.pan?.trim() || "";
       const hasNamedCustomer = normalizedName && normalizedName.toLowerCase() !== "walk-in customer";
       const hasAddress = normalizedAddress && normalizedAddress.toLowerCase() !== "walk-in";
-      const shouldSaveCustomer = Boolean(normalizedPhone || hasNamedCustomer || hasAddress);
+      const shouldSaveCustomer = Boolean(
+        normalizedPhone || hasNamedCustomer || hasAddress || normalizedGstin || normalizedDrugLicense || normalizedPan
+      );
 
       // Save customer details when the cashier entered a real name/address, even without a phone.
       // Pure walk-in sales stay anonymous and the invoice will not print fake fallback details.
@@ -74,6 +79,9 @@ export async function POST(request: NextRequest) {
             data: {
               name: normalizedName || existingCustomer.name,
               address: normalizedAddress,
+              gstin: normalizedGstin || existingCustomer.gstin,
+              drugLicense: normalizedDrugLicense || existingCustomer.drugLicense,
+              pan: normalizedPan || existingCustomer.pan,
             },
           });
         } else {
@@ -83,6 +91,9 @@ export async function POST(request: NextRequest) {
               name: normalizedName || 'Walk-in Customer',
               phone: normalizedPhone,
               address: normalizedAddress,
+              gstin: normalizedGstin,
+              drugLicense: normalizedDrugLicense,
+              pan: normalizedPan,
             },
           });
           resolvedCustomerId = createdCustomer.id;

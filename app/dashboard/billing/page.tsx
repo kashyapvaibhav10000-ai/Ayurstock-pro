@@ -43,6 +43,9 @@ export default function BillingPage() {
   const [customerName, setCustomerName] = useState<string>('Walk-in Customer');
   const [customerPhone, setCustomerPhone] = useState<string>('');
   const [customerAddress, setCustomerAddress] = useState<string>('');
+  const [customerGstin, setCustomerGstin] = useState<string>('');
+  const [customerDrugLicense, setCustomerDrugLicense] = useState<string>('');
+  const [customerPan, setCustomerPan] = useState<string>('');
   const [orderId, setOrderId] = useState<string>('');
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -100,6 +103,15 @@ export default function BillingPage() {
 
       const savedCustomerAddress = localStorage.getItem('pos_customerAddress');
       if (savedCustomerAddress) setCustomerAddress(savedCustomerAddress);
+
+      const savedCustomerGstin = localStorage.getItem('pos_customerGstin');
+      if (savedCustomerGstin) setCustomerGstin(savedCustomerGstin);
+
+      const savedCustomerDrugLicense = localStorage.getItem('pos_customerDrugLicense');
+      if (savedCustomerDrugLicense) setCustomerDrugLicense(savedCustomerDrugLicense);
+
+      const savedCustomerPan = localStorage.getItem('pos_customerPan');
+      if (savedCustomerPan) setCustomerPan(savedCustomerPan);
     } catch (error) {
       console.error('Failed to parse POS local storage', error);
     }
@@ -113,8 +125,11 @@ export default function BillingPage() {
       localStorage.setItem('pos_customerName', customerName);
       localStorage.setItem('pos_customerPhone', customerPhone);
       localStorage.setItem('pos_customerAddress', customerAddress);
+      localStorage.setItem('pos_customerGstin', customerGstin);
+      localStorage.setItem('pos_customerDrugLicense', customerDrugLicense);
+      localStorage.setItem('pos_customerPan', customerPan);
     }
-  }, [mounted, cart, saleType, customerName, customerPhone, customerAddress]);
+  }, [mounted, cart, saleType, customerName, customerPhone, customerAddress, customerGstin, customerDrugLicense, customerPan]);
 
   useEffect(() => {
     if (searchTimeoutRef.current) {
@@ -358,12 +373,18 @@ export default function BillingPage() {
     setCustomerName('Walk-in Customer');
     setCustomerPhone('');
     setCustomerAddress('');
+    setCustomerGstin('');
+    setCustomerDrugLicense('');
+    setCustomerPan('');
     
     // Clear localStorage
     localStorage.removeItem('pos_cart');
     localStorage.removeItem('pos_customerName');
     localStorage.removeItem('pos_customerPhone');
     localStorage.removeItem('pos_customerAddress');
+    localStorage.removeItem('pos_customerGstin');
+    localStorage.removeItem('pos_customerDrugLicense');
+    localStorage.removeItem('pos_customerPan');
   }, []);
 
   const handleCheckout = useCallback(async () => {
@@ -378,6 +399,9 @@ export default function BillingPage() {
         name: customerName.trim() || 'Walk-in Customer',
         phone: customerPhone.trim() || '',
         address: customerAddress.trim(),
+        gstin: customerGstin.trim(),
+        drugLicense: customerDrugLicense.trim(),
+        pan: customerPan.trim(),
       };
 
       // For credit sales, the outstanding amount is the grand total minus
@@ -439,6 +463,9 @@ export default function BillingPage() {
     customerName,
     customerPhone,
     customerAddress,
+    customerGstin,
+    customerDrugLicense,
+    customerPan,
     router,
     resetBill,
   ]);
@@ -789,6 +816,37 @@ export default function BillingPage() {
                 <input 
                   className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400 shadow-sm" 
                   type="text" placeholder="Contact Number (Optional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
+                />
+              </div>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">location_on</span>
+                <input 
+                  className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400 shadow-sm" 
+                  type="text" placeholder="Address (Optional)" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)}
+                />
+              </div>
+
+              {/* B2B / GST details — always available, never mandatory, for both RETAIL and WHOLESALE/TRANSFER */}
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pt-1">B2B Details (Optional)</p>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">receipt_long</span>
+                <input 
+                  className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all uppercase placeholder:text-slate-400 placeholder:normal-case shadow-sm font-mono" 
+                  type="text" placeholder="GSTIN (Optional)" value={customerGstin} onChange={(e) => setCustomerGstin(e.target.value)}
+                />
+              </div>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">medication</span>
+                <input 
+                  className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400 shadow-sm font-mono" 
+                  type="text" placeholder="Drug License No. (Optional)" value={customerDrugLicense} onChange={(e) => setCustomerDrugLicense(e.target.value)}
+                />
+              </div>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">badge</span>
+                <input 
+                  className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all uppercase placeholder:text-slate-400 placeholder:normal-case shadow-sm font-mono" 
+                  type="text" placeholder="PAN No. (Optional)" value={customerPan} onChange={(e) => setCustomerPan(e.target.value)}
                 />
               </div>
             </div>

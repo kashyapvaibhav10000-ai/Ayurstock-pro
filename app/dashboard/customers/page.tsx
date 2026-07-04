@@ -24,6 +24,8 @@ interface Customer {
   phone: string;
   address: string;
   gstin?: string;
+  drugLicense?: string;
+  pan?: string;
   isWholesale: boolean;
   createdAt: string;
 }
@@ -44,6 +46,8 @@ export default function CustomersPage() {
     phone: '',
     address: '',
     gstin: '',
+    drugLicense: '',
+    pan: '',
     isWholesale: false,
   });
 
@@ -73,7 +77,7 @@ export default function CustomersPage() {
       if (res.data.success) {
         toast.success('Customer added successfully');
         setIsAddModalOpen(false);
-        setNewCustomer({ name: '', phone: '', address: '', gstin: '', isWholesale: false });
+        setNewCustomer({ name: '', phone: '', address: '', gstin: '', drugLicense: '', pan: '', isWholesale: false });
         await load();
       }
     } catch (e: any) {
@@ -161,6 +165,24 @@ export default function CustomersPage() {
                   className="rounded-xl border-border bg-background h-11 font-mono uppercase"
                   value={newCustomer.gstin}
                   onChange={(e) => setNewCustomer({ ...newCustomer, gstin: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Drug License No. (optional)</Label>
+                <Input 
+                  placeholder="e.g. KA-B-123456" 
+                  className="rounded-xl border-border bg-background h-11 font-mono"
+                  value={newCustomer.drugLicense}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, drugLicense: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">PAN No. (optional)</Label>
+                <Input 
+                  placeholder="e.g. ABCDE1234F" 
+                  className="rounded-xl border-border bg-background h-11 font-mono uppercase"
+                  value={newCustomer.pan}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, pan: e.target.value })}
                 />
               </div>
               <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface-muted/30 mt-2">
