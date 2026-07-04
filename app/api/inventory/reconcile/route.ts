@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createErrorResponse } from '@/middleware/auth';
+import { signedLedgerQty } from '@/lib/stock-ledger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,11 +31,7 @@ export async function POST(request: NextRequest) {
 
     for (const entry of ledgerEntries) {
       const current = stockMap.get(entry.batchId) || 0;
-      if (entry.type === 'PURCHASE' || entry.type === 'CUSTOMER_RETURN' || entry.type === 'ADJUSTMENT') {
-        stockMap.set(entry.batchId, current + Number(entry.qty));
-      } else if (entry.type === 'SALE' || entry.type === 'SUPPLIER_RETURN') {
-        stockMap.set(entry.batchId, current - Number(entry.qty));
-      }
+      stockMap.set(entry.batchId, current + signedLedgerQty(entry.type, entry.qty));
     }
 
     let updatedCount = 0;

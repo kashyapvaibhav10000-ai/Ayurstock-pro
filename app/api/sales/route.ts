@@ -26,7 +26,24 @@ export async function POST(request: NextRequest) {
       return createErrorResponse(`Validation error: ${JSON.stringify(errors)}`, 400);
     }
 
-    const { customerId, customer, saleType, items, paymentMode, discountTotal, creditDue } = validation.data;
+    const { customerId, customer, saleType, items, paymentMode, discountTotal, gstMode, creditDue } = validation.data;
+
+    // Credit sales create an outstanding balance, so they must be attributable to
+    // a real customer. Otherwise every walk-in credit collapses into one
+    // anonymous bucket and the money owed can never be traced back.
+    if (paymentMode === 'CREDIT') {
+      const hasNamedCustomer =
+        customer &&
+        customer.name &&
+        customer.name.trim().toLowerCase() !== 'walk-in customer' &&
+        (customer.phone?.trim() || customer.address?.trim());
+      if (!customerId && !hasNamedCustomer) {
+        return createErrorResponse(
+          'Credit sales require a customer name with a phone number or address.',
+          400
+        );
+      }
+    }
 
     let resolvedCustomerId = customerId || null;
 
@@ -88,6 +105,7 @@ export async function POST(request: NextRequest) {
       })),
       paymentMode,
       discountTotal,
+      gstMode,
       creditDue,
       createdByUserId: auth.user.id,
     });

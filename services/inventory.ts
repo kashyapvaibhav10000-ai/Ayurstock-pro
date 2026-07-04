@@ -30,6 +30,7 @@ export async function getAvailableBatches(
       medicineId,
       stockQty: { gt: 0 },
       expiryDate: { gt: new Date() },
+      deletedAt: null,
     },
     orderBy: {
       expiryDate: 'asc', // FEFO - earliest expiry first

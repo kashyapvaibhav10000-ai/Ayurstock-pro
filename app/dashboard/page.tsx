@@ -218,11 +218,10 @@ export default function DashboardPage() {
 
                 <div className="pt-2">
                   <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                    <span>Performance Target</span>
-                    <span className="text-primary">98.2%</span>
-                  </div>
-                  <div className="h-[6px] w-full bg-surface-muted/50 rounded-full overflow-hidden border border-border">
-                    <div className="h-full bg-primary rounded-full w-[98.2%] shadow-[0_0_8px_rgba(212,175,55,0.4)]" />
+                    <span>Sales This Week</span>
+                    <span className="text-primary">
+                      ₹{(metrics?.totalSalesWeek || 0).toLocaleString('en-IN')}
+                    </span>
                   </div>
                 </div>
               </div>

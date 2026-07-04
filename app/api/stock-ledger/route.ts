@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
+import { STOCK_IN_TYPES, STOCK_OUT_TYPES, signedLedgerQty } from '@/lib/stock-ledger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,9 +18,9 @@ export async function GET(request: NextRequest) {
     const where: any = { shopId: auth.user.shopId };
 
     if (type === 'IN') {
-      where.type = { in: ['PURCHASE', 'ADJUSTMENT_IN', 'RETURN'] };
+      where.type = { in: [...STOCK_IN_TYPES] };
     } else if (type === 'OUT') {
-      where.type = { in: ['SALE', 'ADJUSTMENT_OUT'] };
+      where.type = { in: [...STOCK_OUT_TYPES] };
     }
 
     if (search) {
@@ -59,15 +60,10 @@ export async function GET(request: NextRequest) {
           },
         });
 
-        const runningBalance = previousEntries.reduce((acc, curr) => {
-          if (['PURCHASE', 'ADJUSTMENT_IN', 'RETURN'].includes(curr.type)) {
-            return acc + curr.qty;
-          }
-          if (['SALE', 'ADJUSTMENT_OUT'].includes(curr.type)) {
-            return acc - curr.qty;
-          }
-          return acc;
-        }, 0);
+        const runningBalance = previousEntries.reduce(
+          (acc, curr) => acc + signedLedgerQty(curr.type, curr.qty),
+          0
+        );
 
         return {
           id: entry.id,

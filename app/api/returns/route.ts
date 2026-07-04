@@ -177,6 +177,15 @@ export async function POST(req: NextRequest) {
           throw new Error('Cannot return to supplier: This batch physically does not exist in inventory.');
         }
 
+        // Inherit the purchase rate from an existing batch of the same medicine so
+        // that returned stock keeps a realistic cost basis. Falling back to 0 here
+        // would understate COGS and inflate profit reports.
+        const referenceBatch = await tx.inventoryBatch.findFirst({
+          where: { shopId: auth.user.shopId, medicineId, purchaseRate: { not: null } },
+          orderBy: { createdAt: 'desc' },
+          select: { purchaseRate: true },
+        });
+
         const newBatch = await tx.inventoryBatch.create({
           data: {
             shopId: auth.user.shopId,
@@ -185,7 +194,7 @@ export async function POST(req: NextRequest) {
             expiryDate: new Date(expiryDate),
             stockQty: stockQuantityAdjustment,
             mrp: Number(mrp),
-            purchaseRate: 0,
+            purchaseRate: referenceBatch?.purchaseRate ?? null,
             sellingRate: Number(mrp)
           }
         });

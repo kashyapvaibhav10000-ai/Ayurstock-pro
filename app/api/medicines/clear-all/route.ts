@@ -31,8 +31,8 @@ export async function DELETE(req: NextRequest) {
     // 3. Medicines
     await prisma.medicine.deleteMany({ where: { shopId } });
     
-    // Clear generic AI jobs and batch jobs
-    await prisma.importJob.deleteMany({});
+    // Clear AI/import jobs for THIS shop only (never wipe other tenants' jobs)
+    await prisma.importJob.deleteMany({ where: { shopId } });
     await prisma.pdfImportJob.deleteMany({ where: { shopId } });
 
     return NextResponse.json({ 
