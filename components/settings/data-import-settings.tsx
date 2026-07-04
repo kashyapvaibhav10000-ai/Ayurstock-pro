@@ -85,23 +85,23 @@ export default function DataImportSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Mass Data Import</h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="text-xl font-bold text-foreground tracking-tight">Mass Data Import</h2>
+        <p className="text-sm text-muted-foreground mt-1">
           Bypass manual entry mechanisms entirely. Drop a strict `.csv` file detailing legacy mappings and let the engine ingest them natively up to 5000 lines.
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+      <div className="bg-surface rounded-xl border border-border overflow-hidden shadow-sm">
         <div className="p-6 md:p-8">
           <div className="flex flex-col md:flex-row gap-8 items-start">
             
             {/* Left Col - Info & Template */}
             <div className="flex-1 space-y-4">
-              <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-4">
-                <h4 className="font-semibold text-emerald-800 flex items-center gap-2 mb-2">
+              <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 p-4">
+                <h4 className="font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2 mb-2">
                   <FileText className="h-4 w-4" /> Formatting Guidelines
                 </h4>
-                <ul className="text-sm text-emerald-700 space-y-1 list-disc list-inside">
+                <ul className="text-sm text-emerald-700 dark:text-emerald-400 space-y-1 list-disc list-inside">
                   <li>Maximum length is capped at <strong>5000 rows</strong> in a single chunk.</li>
                   <li>Columns must exactly match the internal template layout.</li>
                   <li>Dates must strictly adhere to HTML5 <code>YYYY-MM-DD</code> constraints.</li>
@@ -110,7 +110,7 @@ export default function DataImportSettings() {
                 <Button 
                   onClick={generateTemplate}
                   variant="outline" 
-                  className="mt-4 bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-200"
+                  className="mt-4 bg-surface hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/40"
                 >
                   <FileDown className="h-4 w-4 mr-2" />
                   Download Blueprint Template
@@ -119,7 +119,7 @@ export default function DataImportSettings() {
             </div>
 
             {/* Right Col - Upload Area */}
-            <div className="flex-1 w-full border-2 border-dashed border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-gray-50/50 relative">
+            <div className="flex-1 w-full border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center bg-surface-muted/50 relative">
               <input 
                 type="file" 
                 accept=".csv"
@@ -128,14 +128,14 @@ export default function DataImportSettings() {
                 disabled={loading}
               />
               
-              <div className="h-16 w-16 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center mb-4 text-emerald-600">
+              <div className="h-16 w-16 bg-surface shadow-sm border border-border rounded-full flex items-center justify-center mb-4 text-emerald-600 dark:text-emerald-400">
                 <Upload className="h-8 w-8" />
               </div>
               
-              <h3 className="font-bold text-gray-900 mb-1">
+              <h3 className="font-bold text-foreground mb-1">
                 {file ? file.name : 'Click or Drag CSV here'}
               </h3>
-              <p className="text-sm text-gray-500 mb-6">
+              <p className="text-sm text-muted-foreground mb-6">
                 {file ? `${(file.size / 1024).toFixed(2)} KB detected` : 'Valid files: .csv payloads only.'}
               </p>
 
@@ -145,7 +145,7 @@ export default function DataImportSettings() {
                   handleUpload();
                 }}
                 disabled={!file || loading}
-                className="bg-gray-900 text-white w-full max-w-[200px] z-10"
+                className="bg-foreground text-background hover:bg-foreground/90 w-full max-w-[200px] z-10"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {loading ? 'Ingesting Payload...' : 'Execute Import Engine'}

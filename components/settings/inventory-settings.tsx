@@ -27,23 +27,23 @@ function ColorSlider({
 }) {
   const pct = ((value - min) / (max - min)) * 100;
   const color = value <= greenThreshold ? '#22c55e' : value <= yellowThreshold ? '#f59e0b' : '#ef4444';
-  const textColor = value <= greenThreshold ? 'text-green-600' : value <= yellowThreshold ? 'text-amber-600' : 'text-red-600';
-  const bgColor = value <= greenThreshold ? 'bg-green-50 border-green-200' : value <= yellowThreshold ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200';
+  const textColor = value <= greenThreshold ? 'text-green-600 dark:text-green-400' : value <= yellowThreshold ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
+  const bgColor = value <= greenThreshold ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-900/40' : value <= yellowThreshold ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40' : 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900/40';
   const statusLabel = value <= greenThreshold ? '🟢 Comfortable' : value <= yellowThreshold ? '🟡 Moderate' : '🔴 Alert Zone';
 
   return (
     <div className={`rounded-xl border p-4 space-y-3 transition-all ${bgColor}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4 text-slate-500" />
+          <Icon className="h-4 w-4 text-muted-foreground" />
           <div>
-            <p className="text-sm font-bold text-slate-800">{label}</p>
-            <p className="text-[11px] text-slate-500">{description}</p>
+            <p className="text-sm font-bold text-foreground">{label}</p>
+            <p className="text-[11px] text-muted-foreground">{description}</p>
           </div>
         </div>
         <div className="text-right">
           <p className={`text-2xl font-extrabold ${textColor}`}>{value}</p>
-          <p className="text-[10px] text-slate-400">{unit}</p>
+          <p className="text-[10px] text-muted-foreground">{unit}</p>
         </div>
       </div>
 
@@ -63,9 +63,9 @@ function ColorSlider({
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-slate-400">{min} {unit}</span>
+        <span className="text-[10px] text-muted-foreground">{min} {unit}</span>
         <span className={`text-[10px] font-semibold ${textColor}`}>{statusLabel}</span>
-        <span className="text-[10px] text-slate-400">{max} {unit}</span>
+        <span className="text-[10px] text-muted-foreground">{max} {unit}</span>
       </div>
     </div>
   );
@@ -121,10 +121,10 @@ export default function InventorySettings() {
   };
 
   const ToggleRow = ({ label, description, settingKey }: { label: string; description: string; settingKey: keyof Settings }) => (
-    <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+    <div className="flex items-center justify-between rounded-xl border border-border bg-surface-muted px-4 py-3">
       <div>
-        <p className="text-sm font-semibold text-slate-800">{label}</p>
-        <p className="text-[11px] text-slate-500 mt-0.5">{description}</p>
+        <p className="text-sm font-semibold text-foreground">{label}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>
       </div>
       <Switch
         checked={settings[settingKey] as boolean}
@@ -145,18 +145,18 @@ export default function InventorySettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
           <BarChart2 className="h-5 w-5 text-stitch-primary" />
           Inventory Settings
         </h2>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Configure tracking rules and visual alert thresholds for your stock.
         </p>
       </div>
 
       {/* Toggle Switches */}
       <div className="space-y-3">
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tracking Rules</p>
+        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Tracking Rules</p>
         <ToggleRow
           label="Batch Tracking"
           description="Track individual medicine batches for precise stock management"
@@ -176,7 +176,7 @@ export default function InventorySettings() {
 
       {/* Color-Coded Sliders */}
       <div className="space-y-3">
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Alert Thresholds</p>
+        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Alert Thresholds</p>
 
         <ColorSlider
           label="Low Stock Alert"

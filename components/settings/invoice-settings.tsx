@@ -77,10 +77,10 @@ export default function InvoiceSettings() {
       <CardContent className="space-y-4 p-6">
         <div>
           <h2 className="text-lg font-semibold">Invoice Settings</h2>
-          <p className="text-sm text-slate-500">Control invoice numbering and print styling.</p>
+          <p className="text-sm text-muted-foreground">Control invoice numbering and print styling.</p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-700">
+        <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/70 dark:bg-emerald-950/30 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
           Shop name, address, GSTIN, and contact details now come from Shop Settings.
         </div>
         <div className="grid gap-3 md:grid-cols-2">
@@ -91,16 +91,16 @@ export default function InvoiceSettings() {
             onChange={handleChange}
             disabled={loading}
           />
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            Next Invoice: <span className="font-semibold text-slate-900">{previewInvoiceNumber}</span>
+          <div className="rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-muted-foreground">
+            Next Invoice: <span className="font-semibold text-foreground">{previewInvoiceNumber}</span>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+        <div className="rounded-2xl border border-border bg-surface-muted/60 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-semibold text-slate-900">Invoice Watermark</div>
-              <div className="text-xs text-slate-500">Shown in the invoice background.</div>
+              <div className="text-sm font-semibold text-foreground">Invoice Watermark</div>
+              <div className="text-xs text-muted-foreground">Shown in the invoice background.</div>
             </div>
             <Switch
               checked={formData.watermarkEnabled}
@@ -116,9 +116,9 @@ export default function InvoiceSettings() {
             onChange={handleChange}
             disabled={loading || !formData.watermarkEnabled}
             rows={3}
-            className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:bg-slate-100"
+            className="mt-3 w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:bg-surface-muted"
           />
-          <div className="mt-2 text-xs text-slate-500">
+          <div className="mt-2 text-xs text-muted-foreground">
             Tip: Use line breaks for multi-line watermark text.
           </div>
         </div>

@@ -15,17 +15,17 @@ function getDaysOverdue(createdAt: string): number {
 
 function OverdueBadge({ days }: { days: number }) {
   if (days < 7) return (
-    <span className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-green-600">
+    <span className="inline-flex items-center gap-1 rounded-lg border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-green-600 dark:text-green-400">
       <Clock className="h-3 w-3" />{days}d
     </span>
   );
   if (days < 30) return (
-    <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-600">
+    <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
       <AlertTriangle className="h-3 w-3" />{days}d overdue
     </span>
   );
   return (
-    <span className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-600">
+    <span className="inline-flex items-center gap-1 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-400">
       <AlertOctagon className="h-3 w-3" />{days}d overdue
     </span>
   );
@@ -118,7 +118,7 @@ export default function CreditsPage() {
   if (!isAuthorized) return null;
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading credit data...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Loading credit data...</div>;
   }
 
   return (
@@ -197,7 +197,7 @@ export default function CreditsPage() {
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                      isOverdue ? 'bg-red-100 text-red-600' : 'bg-primary/10 text-primary'
+                      isOverdue ? 'bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400' : 'bg-primary/10 text-primary'
                     }`}>
                       {customer.customerName.slice(0, 2).toUpperCase()}
                     </div>

@@ -859,7 +859,7 @@ export default function MedicinesPage() {
           <DialogHeader>
             <DialogTitle>Delete Medicines</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted-foreground">
             You are about to delete {selectedMedicines.size} medicines from the Medicine Master.
             This action cannot be undone.
           </p>

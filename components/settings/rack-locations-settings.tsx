@@ -113,8 +113,8 @@ export default function RackLocationsSettings() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 tracking-tight">Physical Rack Locations</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <h2 className="text-xl font-bold text-foreground tracking-tight">Physical Rack Locations</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             Map out aisles and shelving coordinates to strictly bind physical inventory batches.
           </p>
         </div>
@@ -126,33 +126,33 @@ export default function RackLocationsSettings() {
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-surface rounded-xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 font-medium tracking-wide text-xs uppercase">
+            <thead className="bg-surface-muted border-b border-border text-muted-foreground font-medium tracking-wide text-xs uppercase">
               <tr>
                 <th className="px-6 py-4">Blueprint Code</th>
                 <th className="px-6 py-4">Description</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {locations.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={3} className="px-6 py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center">
-                      <Archive className="h-8 w-8 text-gray-300 mb-3" />
+                      <Archive className="h-8 w-8 text-muted-foreground mb-3" />
                       <p>No rack locations defined.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 locations.map((loc) => (
-                  <tr key={loc.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={loc.id} className="hover:bg-surface-muted transition-colors">
                     <td className="px-6 py-4 font-bold tracking-wide text-emerald-800">
                       {loc.name}
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
+                    <td className="px-6 py-4 text-muted-foreground">
                       {loc.description || '-'}
                     </td>
                     <td className="px-6 py-4 text-right">

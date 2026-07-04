@@ -89,7 +89,7 @@ export default function ShopSettings() {
   };
 
   const Label = ({ children }: { children: React.ReactNode }) => (
-    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+    <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
       {children}
     </label>
   );
@@ -97,11 +97,11 @@ export default function ShopSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
           <Store className="h-5 w-5 text-stitch-primary" />
           Shop Information
         </h2>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Manage your shop name and contact details. Changes appear on printed bills instantly.
         </p>
       </div>
@@ -219,7 +219,7 @@ export default function ShopSettings() {
               onChange={handleChange}
               disabled={loading}
               rows={2}
-              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
             />
           </div>
           <Button
@@ -235,29 +235,29 @@ export default function ShopSettings() {
         <div className="lg:sticky lg:top-4">
           <div className="flex items-center gap-2 mb-3">
             <Eye className="h-4 w-4 text-stitch-primary" />
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Live Bill Preview</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Live Bill Preview</p>
           </div>
-          <div className="border border-dashed border-slate-300 rounded-xl bg-white p-5 shadow-inner font-mono text-[11px] leading-relaxed text-slate-700 min-h-[280px]">
+          <div className="border border-dashed border-border rounded-xl bg-surface p-5 shadow-inner font-mono text-[11px] leading-relaxed text-foreground min-h-[280px]">
             {/* Header */}
-            <div className="text-center space-y-0.5 border-b border-slate-200 pb-3 mb-3">
-              <p className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
+            <div className="text-center space-y-0.5 border-b border-border pb-3 mb-3">
+              <p className="text-sm font-extrabold text-foreground uppercase tracking-wide">
                 {formData.shopName || 'Your Shop Name'}
               </p>
-              <p className="text-[10px] text-slate-500">
+              <p className="text-[10px] text-muted-foreground">
                 {formData.addressLine1 || 'Address Line 1'}
                 {formData.addressLine2 ? `, ${formData.addressLine2}` : ''}
               </p>
-              <p className="text-[10px] text-slate-500">
+              <p className="text-[10px] text-muted-foreground">
                 Ph: {formData.phone || '0000000000'} | {formData.email || 'email@shop.com'}
               </p>
               {formData.gstin && (
-                <p className="text-[10px] font-semibold text-slate-600 uppercase">GSTIN: {formData.gstin}</p>
+                <p className="text-[10px] font-semibold text-foreground uppercase">GSTIN: {formData.gstin}</p>
               )}
             </div>
 
             {/* Sample Line Items */}
-            <div className="space-y-1 text-[10px] text-slate-500 border-b border-slate-200 pb-3 mb-3">
-              <div className="flex justify-between font-bold text-slate-700 border-b border-slate-100 pb-1">
+            <div className="space-y-1 text-[10px] text-muted-foreground border-b border-border pb-3 mb-3">
+              <div className="flex justify-between font-bold text-foreground border-b border-border pb-1">
                 <span>Medicine Name</span>
                 <span>Qty × Rate</span>
                 <span>Amount</span>
@@ -278,13 +278,13 @@ export default function ShopSettings() {
             <div className="space-y-0.5 text-[10px]">
               <div className="flex justify-between"><span>Sub Total</span><span>₹325.00</span></div>
               <div className="flex justify-between"><span>GST (12%)</span><span>₹39.00</span></div>
-              <div className="flex justify-between font-extrabold text-slate-900 text-xs pt-1 border-t border-slate-200 mt-1">
+              <div className="flex justify-between font-extrabold text-foreground text-xs pt-1 border-t border-border mt-1">
                 <span>GRAND TOTAL</span><span>₹364.00</span>
               </div>
             </div>
 
             {/* Footer */}
-            <p className="text-center text-[9px] text-slate-400 mt-4 border-t border-slate-200 pt-2">
+            <p className="text-center text-[9px] text-muted-foreground mt-4 border-t border-border pt-2">
               Thank you for your purchase! Get well soon.
             </p>
           </div>

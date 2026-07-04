@@ -146,19 +146,19 @@ export default function CompanySettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           {successMessage ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
               {successMessage}
             </div>
           ) : null}
           {error ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-300">
               {error}
             </div>
           ) : null}
 
           <div className="overflow-hidden rounded-xl border">
             <Table>
-              <TableHeader className="bg-slate-50">
+              <TableHeader className="bg-surface-muted">
                 <TableRow>
                   <TableHead>Company Name</TableHead>
                   <TableHead>Created Date</TableHead>
@@ -168,20 +168,20 @@ export default function CompanySettings() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="py-10 text-center text-sm text-slate-500">
+                    <TableCell colSpan={3} className="py-10 text-center text-sm text-muted-foreground">
                       Loading companies...
                     </TableCell>
                   </TableRow>
                 ) : companies.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="py-10 text-center text-sm text-slate-500">
+                    <TableCell colSpan={3} className="py-10 text-center text-sm text-muted-foreground">
                       No companies added yet.
                     </TableCell>
                   </TableRow>
                 ) : (
                   companies.map((company) => (
-                    <TableRow key={company.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium text-slate-900">{company.name}</TableCell>
+                    <TableRow key={company.id} className="hover:bg-surface-muted">
+                      <TableCell className="font-medium text-foreground">{company.name}</TableCell>
                       <TableCell>{new Date(company.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
@@ -264,7 +264,7 @@ export default function CompanySettings() {
           <DialogHeader>
             <DialogTitle>Delete Company</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted-foreground">
             Are you sure you want to delete this company?
           </p>
           <DialogFooter>
