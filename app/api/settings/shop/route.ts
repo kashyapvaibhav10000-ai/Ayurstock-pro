@@ -57,6 +57,10 @@ export async function GET(request: NextRequest) {
       phone: settings.phone || '',
       email: settings.email || '',
       gstin: settings.gstin || '',
+      drugLicense: settings.drugLicense || '',
+      state: settings.state || '',
+      stateCode: settings.stateCode || '',
+      invoiceTerms: settings.invoiceTerms || '',
     });
   } catch (error) {
     console.error('Get shop settings error:', error);
@@ -83,7 +87,7 @@ export async function PUT(request: NextRequest) {
       return createErrorResponse(`Validation error: ${JSON.stringify(errors)}`, 400);
     }
 
-    const { shopName, addressLine1, addressLine2, phone, email, gstin } = validation.data;
+    const { shopName, addressLine1, addressLine2, phone, email, gstin, drugLicense, state, stateCode, invoiceTerms } = validation.data;
     const normalizedEmail = email ? email.trim().toLowerCase() : '';
     const normalizedGstin = gstin ? gstin.trim() : '';
 
@@ -110,6 +114,10 @@ export async function PUT(request: NextRequest) {
         phone: phone?.trim() || '',
         email: normalizedEmail,
         gstin: normalizedGstin,
+        drugLicense: drugLicense?.trim() || '',
+        state: state?.trim() || '',
+        stateCode: stateCode?.trim() || '',
+        invoiceTerms: invoiceTerms?.trim() || '',
       },
       create: {
         shopId: auth.user.shopId,
@@ -119,6 +127,10 @@ export async function PUT(request: NextRequest) {
         phone: phone?.trim() || '',
         email: normalizedEmail,
         gstin: normalizedGstin,
+        drugLicense: drugLicense?.trim() || '',
+        state: state?.trim() || '',
+        stateCode: stateCode?.trim() || '',
+        invoiceTerms: invoiceTerms?.trim() || '',
       },
     });
 
@@ -141,6 +153,10 @@ export async function PUT(request: NextRequest) {
       phone: updatedSettings.phone || '',
       email: updatedSettings.email || '',
       gstin: updatedSettings.gstin || '',
+      drugLicense: updatedSettings.drugLicense || '',
+      state: updatedSettings.state || '',
+      stateCode: updatedSettings.stateCode || '',
+      invoiceTerms: updatedSettings.invoiceTerms || '',
     });
   } catch (error) {
     console.error('Update shop settings error:', error);
