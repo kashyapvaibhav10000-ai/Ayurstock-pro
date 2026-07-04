@@ -3,10 +3,21 @@ import { prisma } from '@/lib/db';
 import { generateToken, verifyPassword } from '@/lib/auth';
 import { LoginSchema } from '@/lib/schemas';
 import { createErrorResponse } from '@/middleware/auth';
+import { rateLimit, getClientIp } from '@/lib/rate-limit';
 import { UserRole } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
+    // Throttle repeated login attempts from the same IP to slow brute-forcing.
+    const ip = getClientIp(request);
+    const limit = rateLimit(`login:${ip}`, 10, 60_000);
+    if (!limit.allowed) {
+      return createErrorResponse(
+        `Too many login attempts. Try again in ${limit.retryAfterSeconds}s.`,
+        429
+      );
+    }
+
     const body = await request.json();
 
     // Validate input

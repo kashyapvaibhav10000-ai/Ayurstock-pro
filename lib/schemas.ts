@@ -160,6 +160,7 @@ export const CreateSaleSchema = z.object({
   ).min(1, 'At least one item is required'),
   paymentMode: z.enum(['CASH', 'CARD', 'UPI', 'CHEQUE', 'CREDIT']),
   discountTotal: z.number().min(0).default(0),
+  gstMode: z.enum(['inclusive', 'exclusive']).default('inclusive'),
   creditDue: z.number().min(0).optional(),
 });
 

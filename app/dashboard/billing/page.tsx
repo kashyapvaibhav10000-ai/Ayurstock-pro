@@ -380,6 +380,13 @@ export default function BillingPage() {
         address: customerAddress.trim(),
       };
 
+      // For credit sales, the outstanding amount is the grand total minus
+      // whatever was received up front (partial payment allowed).
+      const creditDue =
+        paymentMode === 'CREDIT'
+          ? Math.max(0, Math.round((totals.grandTotal - (receivedAmount || 0)) * 100) / 100)
+          : undefined;
+
       const response = await axios.post('/api/sales', {
         saleType,
         items: cart.map((item) => ({
@@ -392,6 +399,8 @@ export default function BillingPage() {
         })),
         paymentMode,
         discountTotal: totals.discountTotal,
+        gstMode,
+        creditDue,
         customer: normalizedCustomer,
       });
 
@@ -424,6 +433,9 @@ export default function BillingPage() {
     saleType,
     paymentMode,
     totals.discountTotal,
+    totals.grandTotal,
+    receivedAmount,
+    gstMode,
     customerName,
     customerPhone,
     customerAddress,

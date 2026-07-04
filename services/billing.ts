@@ -52,19 +52,42 @@ function resolvePositiveRate(
   return sellingRate > 0 ? sellingRate : mrp;
 }
 
+export type GstMode = 'inclusive' | 'exclusive';
+
 /**
- * Calculate billing totals for items (Inclusive MRP)
+ * Calculate billing totals for items.
+ *
+ * - inclusive: the item rate already contains GST. GST is extracted out of the
+ *   discounted price and the amount equals the discounted (inclusive) price.
+ * - exclusive: the item rate is pre-tax. GST is added on top of the discounted
+ *   price and the amount equals discounted price + GST.
+ *
+ * The mode must match what the POS screen used so stored totals equal what the
+ * cashier saw.
  */
-export function calculateBilling(items: BillingItem[]): BillingCalculation {
+export function calculateBilling(
+  items: BillingItem[],
+  gstMode: GstMode = 'inclusive'
+): BillingCalculation {
   const calculatedItems = items.map((item) => {
-    const itemInclusiveTotal = new Decimal(item.quantity * item.rate);
+    const lineTotal = new Decimal(item.quantity * item.rate);
     const itemDiscount = new Decimal(item.discount);
-    const itemAfterDiscount = itemInclusiveTotal.minus(itemDiscount);
-    
-    // Extract GST from the inclusive price: (Price / (100 + GST%)) * GST%
-    const gstFactor = new Decimal(item.gstPercent).dividedBy(new Decimal(100).plus(item.gstPercent));
-    const itemGst = itemAfterDiscount.times(gstFactor);
-    const itemAmount = itemAfterDiscount; // Already inclusive
+    const itemAfterDiscount = lineTotal.minus(itemDiscount);
+
+    let itemGst: Decimal;
+    let itemAmount: Decimal;
+
+    if (gstMode === 'exclusive') {
+      // GST is added on top of the (pre-tax) discounted price.
+      const gstFactor = new Decimal(item.gstPercent).dividedBy(100);
+      itemGst = itemAfterDiscount.times(gstFactor);
+      itemAmount = itemAfterDiscount.plus(itemGst);
+    } else {
+      // Extract GST from the inclusive price: Price * GST% / (100 + GST%)
+      const gstFactor = new Decimal(item.gstPercent).dividedBy(new Decimal(100).plus(item.gstPercent));
+      itemGst = itemAfterDiscount.times(gstFactor);
+      itemAmount = itemAfterDiscount; // Already inclusive
+    }
 
     return {
       ...item,
@@ -89,8 +112,13 @@ export function calculateBilling(items: BillingItem[]): BillingCalculation {
     new Decimal(0)
   );
 
-  const grandTotal = subtotal.minus(totalDiscount);
-  
+  // Inclusive: amount already contains tax, so grand total = subtotal - discount.
+  // Exclusive: tax sits on top, so grand total = subtotal - discount + gst.
+  const grandTotal =
+    gstMode === 'exclusive'
+      ? subtotal.minus(totalDiscount).plus(totalGst)
+      : subtotal.minus(totalDiscount);
+
   return {
     subtotal,
     totalDiscount,
@@ -110,6 +138,7 @@ export async function createSale(params: {
   items: BillingItem[];
   paymentMode: PaymentMode;
   discountTotal?: number;
+  gstMode?: GstMode;
   creditDue?: number;
   createdByUserId: string;
 }) {
@@ -153,13 +182,17 @@ export async function createSale(params: {
       },
     });
 
-    const invoiceSequence = invoiceSettings.nextInvoiceNumber;
-    const invoiceNumber = `${invoiceSettings.invoicePrefix}${String(invoiceSequence).padStart(3, '0')}`;
-
-    await tx.invoiceSettings.update({
+    // Atomically reserve the next invoice number. Using `increment` issues a
+    // single UPDATE that row-locks the settings row, so two concurrent sales
+    // cannot read the same sequence and produce duplicate invoice numbers.
+    const bumped = await tx.invoiceSettings.update({
       where: { shopId: params.shopId },
-      data: { nextInvoiceNumber: invoiceSequence + 1 },
+      data: { nextInvoiceNumber: { increment: 1 } },
+      select: { nextInvoiceNumber: true, invoicePrefix: true },
     });
+
+    const invoiceSequence = bumped.nextInvoiceNumber - 1;
+    const invoiceNumber = `${bumped.invoicePrefix}${String(invoiceSequence).padStart(3, '0')}`;
 
     const reservedQty = new Map<string, number>();
     const expandedItems: BillingItem[] = [];
@@ -174,6 +207,7 @@ export async function createSale(params: {
           where: {
             id: item.batchId,
             shopId: params.shopId,
+            deletedAt: null,
           },
           select: {
             id: true,
@@ -221,6 +255,7 @@ export async function createSale(params: {
             medicineId: item.medicineId,
             stockQty: { gt: 0 },
             expiryDate: { gt: now },
+            deletedAt: null,
             ...(item.batchId ? { NOT: { id: item.batchId } } : {}),
           },
           select: {
@@ -269,7 +304,7 @@ export async function createSale(params: {
       }
     }
 
-    const billing = calculateBilling(expandedItems);
+    const billing = calculateBilling(expandedItems, params.gstMode ?? 'inclusive');
 
     const batches = await tx.inventoryBatch.findMany({
       where: {
@@ -337,12 +372,18 @@ export async function createSale(params: {
     }
 
     for (const [batchId, qty] of reservedQty.entries()) {
-      await tx.inventoryBatch.update({
-        where: { id: batchId },
-        data: {
-          stockQty: { decrement: qty },
-        },
+      // Guard against overselling under concurrency: only decrement when the row
+      // still has enough stock. updateMany returns a count, so if a competing
+      // transaction already drew the stock down, count === 0 and we abort the
+      // whole sale instead of pushing stock negative.
+      const result = await tx.inventoryBatch.updateMany({
+        where: { id: batchId, stockQty: { gte: qty } },
+        data: { stockQty: { decrement: qty } },
       });
+
+      if (result.count === 0) {
+        throw new Error('Insufficient stock: batch was updated by another transaction. Please retry.');
+      }
     }
 
     return sale;

@@ -7,8 +7,13 @@ import { prisma } from '@/lib/db';
 const JWT_SECRET = process.env.JWT_SECRET || '';
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '30d';
 
-if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'development') {
-  console.warn('⚠️ JWT_SECRET is not set. Authentication will not work.');
+// Fail loudly rather than falling back to an empty secret. An empty signing key
+// means anyone can forge a valid token, so we never want to run without it.
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is not set. Refusing to start with an insecure empty signing key.');
+  }
+  console.warn('⚠️ JWT_SECRET is not set. Authentication will not work until it is configured.');
 }
 
 export function hashPassword(password: string): string {

@@ -33,6 +33,7 @@ model Shop {
   sales            Sale[]
   shopSettings     ShopSettings?
   stockLedgers     StockLedger[]
+  stockAdjustments StockAdjustment[]
   suppliers        Supplier[]
   users            User[]
   gstCategoryDefaults GstCategoryDefault[]
@@ -143,6 +144,7 @@ model User {
   medicineReturns MedicineReturn[]
   returns         Return[]
   sales           Sale[]
+  stockAdjustments StockAdjustment[]
   shop            Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, email])
@@ -236,6 +238,7 @@ model Medicine {
   returns           Return[]
   saleItems         SaleItem[]
   stockLedgers      StockLedger[]
+  stockAdjustments  StockAdjustment[]
 
   @@unique([shopId, barcode])
   @@index([shopId, name])
@@ -265,6 +268,7 @@ model InventoryBatch {
   saleItems     SaleItem[]
   stockLedgers  StockLedger[]
   medicineReturns MedicineReturn[]
+  stockAdjustments StockAdjustment[]
 
   @@unique([shopId, medicineId, batchNumber])
   @@index([shopId, medicineId, expiryDate])
@@ -538,7 +542,13 @@ model StockAdjustment {
   notes       String?
   createdAt   DateTime @default(now())
 
+  shop        Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  medicine    Medicine       @relation(fields: [medicineId], references: [id])
+  batch       InventoryBatch @relation(fields: [batchId], references: [id])
+  user        User           @relation(fields: [userId], references: [id])
+
   @@index([shopId, createdAt])
   @@index([batchId])
   @@index([medicineId])
+  @@index([userId])
 }
