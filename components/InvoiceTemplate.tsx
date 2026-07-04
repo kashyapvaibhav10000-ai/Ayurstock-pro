@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { amountToWords } from '@/lib/number-to-words';
 
 export interface InvoiceSettings {
   invoicePrefix: string;
@@ -13,6 +14,10 @@ export interface ShopSettings {
   phone: string;
   email: string;
   gstin: string;
+  drugLicense?: string | null;
+  state?: string | null;
+  stateCode?: string | null;
+  invoiceTerms?: string | null;
 }
 
 export interface SaleItem {
@@ -47,6 +52,7 @@ export interface SaleDetails {
     name: string;
     phone: string;
     address: string;
+    gstin?: string | null;
   } | null;
   saleItems: SaleItem[];
 }
@@ -63,7 +69,7 @@ const numberFormatter = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 2,
 });
 
-const formatCurrency = (value: number) => `Rs.${numberFormatter.format(value)}`;
+const formatCurrency = (value: number) => `\u20B9${numberFormatter.format(value)}`;
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -120,13 +126,53 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
     }
   }, [sale, gstMode]);
 
+  // HSN-wise tax summary: group each line by HSN + GST rate and accumulate the
+  // taxable value and tax so the invoice shows the legally-expected breakdown.
+  const hsnSummary = useMemo(() => {
+    const map = new Map<
+      string,
+      { hsn: string; gstPercent: number; taxable: number; cgst: number; sgst: number; total: number }
+    >();
+
+    sale.saleItems.forEach((item) => {
+      const gross =
+        gstMode === 'inclusive'
+          ? (item.amount || (item.rate || item.mrp) * item.quantity - item.discount)
+          : (item.rate * item.quantity - item.discount) + item.gst;
+      const taxable = gross - item.gst;
+      const key = `${item.medicine.hsn || '-'}|${item.gstPercent}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.taxable += taxable;
+        existing.cgst += item.gst / 2;
+        existing.sgst += item.gst / 2;
+        existing.total += item.gst;
+      } else {
+        map.set(key, {
+          hsn: item.medicine.hsn || '-',
+          gstPercent: item.gstPercent,
+          taxable,
+          cgst: item.gst / 2,
+          sgst: item.gst / 2,
+          total: item.gst,
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [sale.saleItems, gstMode]);
+
+  const amountInWords = useMemo(() => amountToWords(totals.grandTotal), [totals.grandTotal]);
+
   const customer = sale.customer || {
     name: 'Walk-in Customer',
     phone: '',
     address: '',
+    gstin: '',
   };
   const customerAddress = customer.address?.trim() || '';
   const customerPhone = customer.phone?.trim() || '';
+  const customerGstin = customer.gstin?.trim() || '';
   const shouldShowAddress = customerAddress && customerAddress.toLowerCase() !== 'walk-in';
   const shouldShowPhone = customerPhone && !/^0+$/.test(customerPhone);
 
@@ -207,6 +253,17 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
                   GSTIN: {shopSettings.gstin}
                 </div>
               )}
+              {shopSettings.drugLicense && (
+                <div className="text-xs md:text-sm font-semibold text-slate-700">
+                  D.L. No: {shopSettings.drugLicense}
+                </div>
+              )}
+              {shopSettings.state && (
+                <div className="text-xs md:text-sm text-slate-600">
+                  Place of Supply: {shopSettings.state}
+                  {shopSettings.stateCode ? ` (${shopSettings.stateCode})` : ''}
+                </div>
+              )}
             </div>
 
             <div className="min-w-[220px] rounded-xl border border-slate-200 bg-slate-50 force-print-bg force-print-border p-4 text-xs md:text-sm text-slate-700">
@@ -232,6 +289,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
                 <div className="font-bold text-slate-900">{customer.name}</div>
                 {shouldShowAddress && <div>{customerAddress}</div>}
                 {shouldShowPhone && <div>Phone: {customerPhone}</div>}
+                {customerGstin && <div className="font-semibold">GSTIN: {customerGstin}</div>}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white force-print-border p-4 text-sm">
@@ -275,7 +333,7 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
                     return (
                       <tr key={item.id} className="border-t border-slate-100 text-slate-700 text-[11px] md:text-sm">
                         <td className="px-2 md:px-3 py-2 md:py-3">{index + 1}</td>
-                        <td className="px-2 md:px-3 py-2 md:py-3 font-semibold text-slate-900 max-w-[120px] truncate">{item.medicine.name}</td>
+                        <td className="px-2 md:px-3 py-2 md:py-3 font-semibold text-slate-900 min-w-[140px] break-words">{item.medicine.name}</td>
                         <td className="px-2 md:px-3 py-2 md:py-3">{item.batch.batchNumber}</td>
                         <td className="px-2 md:px-3 py-2 md:py-3">{formatExpiry(item.batch.expiryDate)}</td>
                         <td className="px-2 md:px-3 py-2 md:py-3">{item.medicine.hsn}</td>
@@ -329,6 +387,62 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
               </div>
             </div>
           </section>
+
+          {/* Amount in words */}
+          <section className="rounded-xl border border-slate-200 force-print-border bg-slate-50 force-print-bg px-4 py-3 text-xs md:text-sm">
+            <span className="font-semibold uppercase tracking-wide text-slate-500">Amount in Words: </span>
+            <span className="font-semibold text-slate-900">{amountInWords}</span>
+          </section>
+
+          {/* HSN-wise tax summary */}
+          <section>
+            <div className="text-[10px] md:text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-2">
+              Tax Summary (HSN-wise)
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-slate-200 force-print-border">
+              <table className="w-full border-collapse text-left text-xs md:text-sm">
+                <thead className="bg-slate-100 force-print-bg text-[10px] md:text-[11px] uppercase tracking-widest text-slate-700 border-b-2 border-slate-300">
+                  <tr>
+                    <th className="px-2 md:px-3 py-2 whitespace-nowrap">HSN</th>
+                    <th className="px-2 md:px-3 py-2 text-right whitespace-nowrap">Taxable Value</th>
+                    <th className="px-2 md:px-3 py-2 text-right whitespace-nowrap">Rate</th>
+                    <th className="px-2 md:px-3 py-2 text-right whitespace-nowrap">CGST</th>
+                    <th className="px-2 md:px-3 py-2 text-right whitespace-nowrap">SGST</th>
+                    <th className="px-2 md:px-3 py-2 text-right whitespace-nowrap">Total Tax</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hsnSummary.map((row, index) => (
+                    <tr key={`${row.hsn}-${row.gstPercent}-${index}`} className="border-t border-slate-100 text-slate-700 text-[11px] md:text-sm">
+                      <td className="px-2 md:px-3 py-2">{row.hsn}</td>
+                      <td className="px-2 md:px-3 py-2 text-right">{formatCurrency(row.taxable)}</td>
+                      <td className="px-2 md:px-3 py-2 text-right">{row.gstPercent}%</td>
+                      <td className="px-2 md:px-3 py-2 text-right">{formatCurrency(row.cgst)}</td>
+                      <td className="px-2 md:px-3 py-2 text-right">{formatCurrency(row.sgst)}</td>
+                      <td className="px-2 md:px-3 py-2 text-right font-semibold text-slate-900">{formatCurrency(row.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-300 bg-slate-50 force-print-bg font-bold text-slate-900 text-[11px] md:text-sm">
+                    <td className="px-2 md:px-3 py-2">Total</td>
+                    <td className="px-2 md:px-3 py-2 text-right">{formatCurrency(totals.taxableValue)}</td>
+                    <td className="px-2 md:px-3 py-2 text-right" />
+                    <td className="px-2 md:px-3 py-2 text-right">{formatCurrency(totals.cgst)}</td>
+                    <td className="px-2 md:px-3 py-2 text-right">{formatCurrency(totals.sgst)}</td>
+                    <td className="px-2 md:px-3 py-2 text-right">{formatCurrency(totals.gstTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+
+          {shopSettings.invoiceTerms && (
+            <section className="border-t border-slate-200 pt-3 text-[10px] md:text-xs text-slate-500">
+              <div className="font-semibold uppercase tracking-[0.2em] text-slate-400 mb-1">Terms &amp; Conditions</div>
+              <div className="whitespace-pre-line leading-relaxed">{shopSettings.invoiceTerms}</div>
+            </section>
+          )}
 
           <div className="grid gap-6 border-t border-slate-200 pt-6 text-xs md:text-sm text-slate-600 md:grid-cols-2 print:grid-cols-2 mt-auto">
             <div>

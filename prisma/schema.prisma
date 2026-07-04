@@ -50,6 +50,11 @@ model ShopSettings {
   phone        String   @default("")
   email            String   @default("")
   gstin            String   @default("")
+  // Pharmacy compliance / invoice fields
+  drugLicense      String   @default("")
+  state            String   @default("")
+  stateCode        String   @default("")
+  invoiceTerms     String   @default("")
   commanderActions Json?
   // Inventory settings (merged from former InventorySettings model)
   enableBatchTracking   Boolean  @default(true)
@@ -203,6 +208,7 @@ model Customer {
   name      String
   phone     String
   address   String
+  gstin     String   @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   isWholesale Boolean @default(false)

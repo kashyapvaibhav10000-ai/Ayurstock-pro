@@ -40,6 +40,10 @@ export const ShopSettingsSchema = z.object({
   phone: z.string().trim().optional().nullable().default(''),
   email: z.union([z.string().email('Valid email required'), z.literal('')]).optional().nullable(),
   gstin: z.string().trim().optional().nullable().default(''),
+  drugLicense: z.string().trim().optional().nullable().default(''),
+  state: z.string().trim().optional().nullable().default(''),
+  stateCode: z.string().trim().optional().nullable().default(''),
+  invoiceTerms: z.string().trim().optional().nullable().default(''),
 });
 
 // Medicine Schemas
@@ -99,6 +103,7 @@ export const CreateCustomerSchema = z.object({
   name: z.string().min(2, 'Customer name is required'),
   phone: z.string().min(10, 'Valid phone number required'),
   address: z.string().min(5, 'Address is required'),
+  gstin: z.string().trim().optional().default(''),
   isWholesale: z.boolean().optional().default(false),
 });
 

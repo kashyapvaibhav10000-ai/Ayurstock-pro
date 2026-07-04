@@ -23,6 +23,7 @@ interface Customer {
   name: string;
   phone: string;
   address: string;
+  gstin?: string;
   isWholesale: boolean;
   createdAt: string;
 }
@@ -42,6 +43,7 @@ export default function CustomersPage() {
     name: '',
     phone: '',
     address: '',
+    gstin: '',
     isWholesale: false,
   });
 
@@ -71,7 +73,7 @@ export default function CustomersPage() {
       if (res.data.success) {
         toast.success('Customer added successfully');
         setIsAddModalOpen(false);
-        setNewCustomer({ name: '', phone: '', address: '', isWholesale: false });
+        setNewCustomer({ name: '', phone: '', address: '', gstin: '', isWholesale: false });
         await load();
       }
     } catch (e: any) {
@@ -150,6 +152,15 @@ export default function CustomersPage() {
                   className="rounded-xl border-border bg-background h-11"
                   value={newCustomer.address}
                   onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">GSTIN (optional)</Label>
+                <Input 
+                  placeholder="e.g. 09AAWPK7673B1ZP" 
+                  className="rounded-xl border-border bg-background h-11 font-mono uppercase"
+                  value={newCustomer.gstin}
+                  onChange={(e) => setNewCustomer({ ...newCustomer, gstin: e.target.value })}
                 />
               </div>
               <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface-muted/30 mt-2">

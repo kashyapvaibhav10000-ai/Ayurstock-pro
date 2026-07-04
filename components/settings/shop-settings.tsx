@@ -15,6 +15,10 @@ export default function ShopSettings() {
     phone: '',
     email: '',
     gstin: '',
+    drugLicense: '',
+    state: '',
+    stateCode: '',
+    invoiceTerms: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,6 +36,10 @@ export default function ShopSettings() {
             phone: settings.phone || '',
             email: settings.email || '',
             gstin: settings.gstin || '',
+            drugLicense: settings.drugLicense || '',
+            state: settings.state || '',
+            stateCode: settings.stateCode || '',
+            invoiceTerms: settings.invoiceTerms || '',
           });
         }
       } catch (error) {
@@ -43,7 +51,7 @@ export default function ShopSettings() {
     fetchShopSettings();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -60,6 +68,10 @@ export default function ShopSettings() {
           phone: settings.phone || '',
           email: settings.email || '',
           gstin: settings.gstin || '',
+          drugLicense: settings.drugLicense || '',
+          state: settings.state || '',
+          stateCode: settings.stateCode || '',
+          invoiceTerms: settings.invoiceTerms || '',
         });
         toast.success('Shop settings saved successfully.');
         if (typeof window !== 'undefined') {
@@ -162,6 +174,52 @@ export default function ShopSettings() {
               onChange={handleChange}
               disabled={loading}
               className="font-mono uppercase"
+            />
+          </div>
+          <div>
+            <Label>Drug License No.</Label>
+            <Input
+              placeholder="e.g. 20B: KA-B-123456, 21B: KA-B-123457"
+              name="drugLicense"
+              value={formData.drugLicense}
+              onChange={handleChange}
+              disabled={loading}
+              className="font-mono"
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>State (Place of Supply)</Label>
+              <Input
+                placeholder="e.g. Uttar Pradesh"
+                name="state"
+                value={formData.state}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <Label>State Code</Label>
+              <Input
+                placeholder="e.g. 09"
+                name="stateCode"
+                value={formData.stateCode}
+                onChange={handleChange}
+                disabled={loading}
+                className="font-mono"
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Invoice Terms / Declaration</Label>
+            <textarea
+              placeholder="e.g. Goods once sold will not be taken back. Subject to local jurisdiction."
+              name="invoiceTerms"
+              value={formData.invoiceTerms}
+              onChange={handleChange}
+              disabled={loading}
+              rows={2}
+              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
             />
           </div>
           <Button
