@@ -104,6 +104,8 @@ export const CreateCustomerSchema = z.object({
   phone: z.string().min(10, 'Valid phone number required'),
   address: z.string().min(5, 'Address is required'),
   gstin: z.string().trim().optional().default(''),
+  drugLicense: z.string().trim().optional().default(''),
+  pan: z.string().trim().optional().default(''),
   isWholesale: z.boolean().optional().default(false),
 });
 
@@ -150,6 +152,9 @@ export const CreateSaleSchema = z.object({
       name: z.string().min(1, 'Customer name is required'),
       phone: z.string().optional().nullable().or(z.literal('')),
       address: z.string().optional().nullable().or(z.literal('')),
+      gstin: z.string().optional().nullable().or(z.literal('')),
+      drugLicense: z.string().optional().nullable().or(z.literal('')),
+      pan: z.string().optional().nullable().or(z.literal('')),
     })
     .optional(),
   saleType: z.enum(['RETAIL', 'WHOLESALE', 'TRANSFER']),

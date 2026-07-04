@@ -53,6 +53,8 @@ export interface SaleDetails {
     phone: string;
     address: string;
     gstin?: string | null;
+    drugLicense?: string | null;
+    pan?: string | null;
   } | null;
   saleItems: SaleItem[];
 }
@@ -173,6 +175,8 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
   const customerAddress = customer.address?.trim() || '';
   const customerPhone = customer.phone?.trim() || '';
   const customerGstin = customer.gstin?.trim() || '';
+  const customerDrugLicense = customer.drugLicense?.trim() || '';
+  const customerPan = customer.pan?.trim() || '';
   const shouldShowAddress = customerAddress && customerAddress.toLowerCase() !== 'walk-in';
   const shouldShowPhone = customerPhone && !/^0+$/.test(customerPhone);
 
@@ -290,6 +294,8 @@ export default function InvoiceTemplate({ sale, settings, shopSettings, gstMode 
                 {shouldShowAddress && <div>{customerAddress}</div>}
                 {shouldShowPhone && <div>Phone: {customerPhone}</div>}
                 {customerGstin && <div className="font-semibold">GSTIN: {customerGstin}</div>}
+                {customerDrugLicense && <div className="font-semibold">D.L. No: {customerDrugLicense}</div>}
+                {customerPan && <div className="font-semibold">PAN: {customerPan}</div>}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white force-print-border p-4 text-sm">

@@ -209,6 +209,8 @@ model Customer {
   phone     String
   address   String
   gstin     String   @default("")
+  drugLicense String @default("")
+  pan       String   @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   isWholesale Boolean @default(false)
