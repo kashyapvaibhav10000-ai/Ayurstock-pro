@@ -552,10 +552,10 @@ export default function BillingPage() {
       `}} />
       <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
 
-      <main className="flex-1 p-4 grid grid-cols-12 gap-4 w-full overflow-hidden h-full xl:h-[calc(100vh-6rem)]">
+      <main className="flex-1 p-3 sm:p-4 grid grid-cols-12 gap-3 sm:gap-4 w-full lg:overflow-hidden lg:h-full xl:h-[calc(100vh-6rem)]">
         
         {/* LEFT PANEL: INVENTORY SEARCH */}
-        <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 overflow-hidden h-full">
+        <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 lg:overflow-hidden lg:h-full">
           <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 flex items-center gap-3 shadow-sm shrink-0">
             <span className="material-symbols-outlined text-primary text-2xl">search</span>
             <input 
@@ -572,7 +572,7 @@ export default function BillingPage() {
               <span className={`material-symbols-outlined text-2xl transition-all duration-200 cursor-pointer ${scannerActive ? 'text-primary scale-125 animate-pulse' : 'text-slate-400 hover:text-primary'}`}>qr_code_scanner</span>
             </div>
           </div>
-          <section className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-1 flex flex-col overflow-hidden">
+          <section className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-1 flex flex-col overflow-hidden max-h-[45vh] lg:max-h-none">
             <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
               <h2 className="text-[13px] font-bold uppercase tracking-widest text-slate-500">Inventory Items</h2>
               {searchQuery && (
@@ -607,7 +607,7 @@ export default function BillingPage() {
                 ))
               )}
             </div>
-            <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 shrink-0">
+            <div className="hidden lg:block p-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 shrink-0">
               <div className="grid grid-cols-3 gap-2">
                 <div className="flex flex-col items-center py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded shadow-sm">
                   <span className="text-[10px] font-black text-slate-400">ESC</span>
@@ -627,7 +627,7 @@ export default function BillingPage() {
         </div>
 
         {/* CENTER PANEL: CURRENT ORDER */}
-        <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 overflow-hidden h-full">
+        <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 lg:overflow-hidden lg:h-full">
           <section className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-1 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
               <div>
@@ -652,7 +652,7 @@ export default function BillingPage() {
                 ))}
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar min-h-[30vh]">
               {cart.map((item, index) => (
                 <div key={`${item.batchId}-${index}`} className="p-4 rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 group hover:border-primary/30 transition-all shadow-sm">
                   <div className="flex justify-between items-start mb-4">
@@ -668,8 +668,8 @@ export default function BillingPage() {
                       <span className="material-symbols-outlined text-[20px]">close</span>
                     </button>
                   </div>
-                  <div className="grid grid-cols-12 gap-3 xl:gap-4 items-center">
-                    <div className="col-span-4 flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded px-1 min-h-[34px]">
+                  <div className="grid grid-cols-2 lg:grid-cols-12 gap-2.5 sm:gap-3 xl:gap-4 items-center">
+                    <div className="col-span-2 lg:col-span-4 flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded px-1 min-h-[42px] lg:min-h-[34px]">
                       <button onClick={() => updateCartItemQuantity(index, item.quantity - 1)} className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-primary transition-all">
                         <span className="material-symbols-outlined text-[15px]">remove</span>
                       </button>
@@ -684,21 +684,21 @@ export default function BillingPage() {
                       </button>
                     </div>
                     {allowDiscounts && (
-                    <div className="col-span-4 relative min-h-[34px]">
+                    <div className="col-span-1 lg:col-span-4 relative min-h-[42px] lg:min-h-[34px]">
                       <button onClick={() => setDiscountMode(m => m === 'percent' ? 'flat' : 'percent')} className="absolute left-1.5 top-1/2 -translate-y-1/2 z-10 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-colors">{discountMode === 'percent' ? '%' : '₹'}</button>
                       <input 
-                        className="w-full pl-8 pr-2 py-[7px] text-[13px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded focus:ring-1 focus:ring-primary focus:border-primary transition-all text-right shadow-sm"
+                        className="w-full h-full pl-8 pr-2 py-[7px] text-[13px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded focus:ring-1 focus:ring-primary focus:border-primary transition-all text-right shadow-sm"
                         type="number" min="0" max={discountMode === 'percent' ? "100" : undefined}
                         value={discountMode === 'percent' ? (item.discountPercent || 0) : item.discount}
                         onChange={(e) => updateCartItemDiscount(index, parseFloat(e.target.value) || 0)}
                       />
                     </div>
                     )}
-                    <div className="col-span-4 min-h-[34px]">
+                    <div className={`${allowDiscounts ? 'col-span-1' : 'col-span-2'} lg:col-span-4 min-h-[42px] lg:min-h-[34px]`}>
                       <select 
                         value={item.gstPercent}
                         onChange={(e) => updateCartItemGst(index, parseFloat(e.target.value) || 0)}
-                        className="w-full py-[7px] pl-2 pr-6 text-[13px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm appearance-none cursor-pointer"
+                        className="w-full h-full py-[7px] pl-2 pr-6 text-[13px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm appearance-none cursor-pointer"
                       >
                         {GST_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>GST {opt.label}</option>)}
                       </select>
@@ -722,8 +722,8 @@ export default function BillingPage() {
         </div>
 
         {/* RIGHT PANEL: CHECKOUT SUMMARY */}
-        <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 overflow-hidden h-full">
-          <section className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-1 flex flex-col overflow-y-auto no-scrollbar">
+        <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 lg:overflow-hidden lg:h-full pb-4 lg:pb-0">
+          <section className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-1 flex flex-col lg:overflow-y-auto no-scrollbar">
             
             <div className="p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
               <div className="flex items-center gap-2 mb-4">
