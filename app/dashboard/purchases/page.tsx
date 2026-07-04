@@ -886,15 +886,15 @@ export default function PurchasesPage() {
               </div>
 
               <div className="flex flex-col items-end gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                  Subtotal: <span className="font-semibold text-slate-900">₹{totals.subtotal.toFixed(2)}</span>
+                <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3 text-sm text-muted-foreground">
+                  Subtotal: <span className="font-semibold text-foreground">₹{totals.subtotal.toFixed(2)}</span>
                   {' · '}
-                  Discount: <span className="font-semibold text-slate-900">₹{totals.discountTotal.toFixed(2)}</span>
+                  Discount: <span className="font-semibold text-foreground">₹{totals.discountTotal.toFixed(2)}</span>
                   {' · '}
-                  GST: <span className="font-semibold text-slate-900">₹{totals.gstTotal.toFixed(2)}</span>
+                  GST: <span className="font-semibold text-foreground">₹{totals.gstTotal.toFixed(2)}</span>
                   {' · '}
                   Grand Total:{' '}
-                  <span className="font-semibold text-slate-900">₹{totals.grandTotal.toFixed(2)}</span>
+                  <span className="font-semibold text-foreground">₹{totals.grandTotal.toFixed(2)}</span>
                 </div>
                 <Button className="gap-2" onClick={handleSavePurchase} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Purchase'}

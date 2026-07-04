@@ -290,8 +290,8 @@ export default function InventoryPage() {
       value: stats.lowStock,
       icon: <AlertTriangle className="h-5 w-5" />,
       color: 'border-amber-400/60 ring-amber-400/20',
-      textColor: 'text-amber-600',
-      bgColor: 'bg-amber-50',
+      textColor: 'text-amber-600 dark:text-amber-400',
+      bgColor: 'bg-amber-50 dark:bg-amber-950/30',
     },
     {
       key: 'expiring30',
@@ -299,8 +299,8 @@ export default function InventoryPage() {
       value: stats.expiring30,
       icon: <Clock className="h-5 w-5" />,
       color: 'border-orange-400/60 ring-orange-400/20',
-      textColor: 'text-orange-600',
-      bgColor: 'bg-orange-50',
+      textColor: 'text-orange-600 dark:text-orange-400',
+      bgColor: 'bg-orange-50 dark:bg-orange-950/30',
     },
     {
       key: 'expiring60',
@@ -308,8 +308,8 @@ export default function InventoryPage() {
       value: stats.expiring60,
       icon: <CalendarClock className="h-5 w-5" />,
       color: 'border-blue-400/60 ring-blue-400/20',
-      textColor: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-50 dark:bg-blue-950/30',
     },
     {
       key: 'expired',
@@ -317,8 +317,8 @@ export default function InventoryPage() {
       value: stats.expired,
       icon: <ShieldAlert className="h-5 w-5" />,
       color: 'border-red-400/60 ring-red-400/20',
-      textColor: 'text-red-600',
-      bgColor: 'bg-red-50',
+      textColor: 'text-red-600 dark:text-red-400',
+      bgColor: 'bg-red-50 dark:bg-red-950/30',
     },
   ];
 

@@ -129,7 +129,7 @@ export default function ProfileSettings() {
       <CardContent className="space-y-6 p-6">
         <div>
           <h2 className="text-lg font-semibold">Profile Settings</h2>
-          <p className="text-sm text-slate-500">Manage your personal details and login info.</p>
+          <p className="text-sm text-muted-foreground">Manage your personal details and login info.</p>
         </div>
 
         <div className="flex flex-col gap-6 md:flex-row md:items-center">
@@ -142,8 +142,8 @@ export default function ProfileSettings() {
               )}
             </div>
             <div>
-              <div className="text-sm font-semibold text-slate-900">Profile Photo</div>
-              <div className="text-xs text-slate-500">Upload a square image for best results.</div>
+              <div className="text-sm font-semibold text-foreground">Profile Photo</div>
+              <div className="text-xs text-muted-foreground">Upload a square image for best results.</div>
             </div>
           </div>
           <div>
@@ -152,7 +152,7 @@ export default function ProfileSettings() {
               accept="image/*"
               onChange={handleAvatarChange}
               disabled={loading}
-              className="block text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-emerald-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+              className="block text-sm text-muted-foreground file:mr-4 file:rounded-xl file:border-0 file:bg-emerald-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
             />
           </div>
         </div>

@@ -125,12 +125,12 @@ export default function LoginHistoryTab() {
             {loading ? (
               <TableRow>
                 <TableCell colSpan={4} className="h-24 text-center">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-slate-300" />
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : history.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-slate-500">
+                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                   {statusFilter === 'failed' ? 'No failed login attempts found.' : 'No login history found.'}
                 </TableCell>
               </TableRow>

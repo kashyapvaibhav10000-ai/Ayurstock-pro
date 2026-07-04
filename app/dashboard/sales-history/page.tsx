@@ -302,7 +302,7 @@ export default function SalesHistoryPage() {
                       <TableCell>
                         <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${
                           row.saleType === 'WHOLESALE' ? 'bg-surface-muted/50 text-muted-foreground' : 
-                          row.saleType === 'TRANSFER' ? 'bg-amber-100 text-amber-600 border-amber-200' :
+                          row.saleType === 'TRANSFER' ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/40' :
                           'bg-primary/10 text-primary border-primary/20'
                         }`}>
                           {row.saleType}
@@ -321,7 +321,7 @@ export default function SalesHistoryPage() {
                           </Link>
                           <Link
                             href={`/dashboard/returns?saleId=${row.id}`}
-                            className="inline-flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-orange-600 hover:bg-orange-100 transition-all"
+                            className="inline-flex items-center gap-1 rounded-lg border border-orange-200 dark:border-orange-900/40 bg-orange-50 dark:bg-orange-950/30 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-950/50 transition-all"
                           >
                             <CornerUpLeft className="h-3 w-3" /> Return
                           </Link>

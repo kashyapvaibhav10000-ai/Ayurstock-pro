@@ -45,7 +45,7 @@ function GaugeCard({ provider, used, loading }: { provider: keyof typeof LIMITS;
       </CardHeader>
       <CardContent className="pb-5">
         {loading ? (
-          <Loader2 className="h-5 w-5 animate-spin text-slate-300 mt-1" />
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mt-1" />
         ) : (
           <>
             <div className="flex items-end gap-1.5 leading-none">
@@ -217,7 +217,7 @@ export default function AiUsageTab() {
         <CardContent className="h-[360px]">
           {loading ? (
             <div className="h-full flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">

@@ -243,7 +243,7 @@ export default function UserSettings() {
   }
 
   if (loading) {
-     return <Card><CardContent className="p-6 text-center text-gray-500">Loading user database securely...</CardContent></Card>
+     return <Card><CardContent className="p-6 text-center text-muted-foreground">Loading user database securely...</CardContent></Card>
   }
 
   if (error) {
@@ -251,7 +251,7 @@ export default function UserSettings() {
        <Card>
          <CardContent className="p-6 text-center">
             <h3 className="text-red-600 font-semibold mb-2">Access Denied</h3>
-            <p className="text-gray-600 text-sm">{error}</p>
+            <p className="text-muted-foreground text-sm">{error}</p>
          </CardContent>
        </Card>
      )
@@ -262,8 +262,8 @@ export default function UserSettings() {
       <CardContent className="p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="font-semibold text-lg text-slate-800">User Management</h2>
-            <p className="text-xs text-slate-500">Manage employee accounts, role escalations, and reset passwords.</p>
+            <h2 className="font-semibold text-lg text-foreground">User Management</h2>
+            <p className="text-xs text-muted-foreground">Manage employee accounts, role escalations, and reset passwords.</p>
           </div>
           <Button onClick={openAddModal} className="bg-green-600 hover:bg-green-700 text-white">
             Add New User
@@ -273,28 +273,28 @@ export default function UserSettings() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left border-b border-slate-200">
-                <th className="p-3 text-slate-600 font-medium">Name</th>
-                <th className="p-3 text-slate-600 font-medium">Email</th>
-                <th className="p-3 text-slate-600 font-medium">Role</th>
-                <th className="p-3 text-slate-600 font-medium">Status</th>
-                <th className="p-3 text-slate-600 font-medium text-right">Actions</th>
+              <tr className="text-left border-b border-border">
+                <th className="p-3 text-muted-foreground font-medium">Name</th>
+                <th className="p-3 text-muted-foreground font-medium">Email</th>
+                <th className="p-3 text-muted-foreground font-medium">Role</th>
+                <th className="p-3 text-muted-foreground font-medium">Status</th>
+                <th className="p-3 text-muted-foreground font-medium text-right">Actions</th>
               </tr>
             </thead>
 
             <tbody>
               {users.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-4 text-slate-500">No users found for this shop.</td></tr>
+                <tr><td colSpan={5} className="text-center py-4 text-muted-foreground">No users found for this shop.</td></tr>
               ) : users.map((user) => {
                  // Check if the current row represents the currently logged-in admin!
                  const isSelf = user.id === currentUserId;
                  
                  return (
-                <tr key={user.id} className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${!user.isActive ? 'opacity-60 grayscale' : ''}`}>
-                  <td className="p-3 font-medium text-slate-800">
+                <tr key={user.id} className={`border-b border-border hover:bg-surface-muted transition-colors ${!user.isActive ? 'opacity-60 grayscale' : ''}`}>
+                  <td className="p-3 font-medium text-foreground">
                     {user.name} {isSelf && <span className="text-[9px] text-blue-600 font-bold ml-1">(YOU)</span>}
                   </td>
-                  <td className="p-3 text-slate-600">{user.email}</td>
+                  <td className="p-3 text-muted-foreground">{user.email}</td>
                   <td className="p-3">
                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase ${
                         user.role === 'ADMIN' ? 'bg-indigo-100 text-indigo-700' :
@@ -314,9 +314,9 @@ export default function UserSettings() {
                   </td>
                   <td className="p-3 text-right">
                     <button onClick={() => openEditModal(user)} disabled={isSelf} className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Edit</button>
-                    <span className="text-slate-300">|</span>
+                    <span className="text-muted-foreground">|</span>
                     <button onClick={() => openPasswordModal(user)} disabled={isSelf} className="text-orange-500 hover:text-orange-700 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Reset Password</button>
-                    <span className="text-slate-300">|</span>
+                    <span className="text-muted-foreground">|</span>
                     {user.isActive ? (
                       <button onClick={() => handleDelete(user)} disabled={isSelf} className="text-red-500 hover:text-red-700 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Delete</button>
                     ) : (
@@ -394,12 +394,12 @@ export default function UserSettings() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-role">Account Role</Label>
-                  <select {...register("role")} disabled={editingUser?.role === 'ADMIN'} className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:bg-slate-100 disabled:cursor-not-allowed">
+                  <select {...register("role")} disabled={editingUser?.role === 'ADMIN'} className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:bg-surface-muted disabled:cursor-not-allowed">
                      <option value="CASHIER">Cashier</option>
                      <option value="MANAGER">Manager</option>
                      <option value="ADMIN">Admin</option>
                   </select>
-                  {editingUser?.role === 'ADMIN' && <p className="text-[10px] text-slate-500">Admin roles cannot be demoted directly from standard edit view to prevent accidental lockouts.</p>}
+                  {editingUser?.role === 'ADMIN' && <p className="text-[10px] text-muted-foreground">Admin roles cannot be demoted directly from standard edit view to prevent accidental lockouts.</p>}
                 </div>
               </div>
               <DialogFooter>
@@ -422,7 +422,7 @@ export default function UserSettings() {
                 <DialogTitle>Admin Password Override</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                 <p className="text-xs text-slate-500">You are securely overriding the password for <span className="font-bold text-slate-800">{passwordUser?.email}</span>.</p>
+                 <p className="text-xs text-muted-foreground">You are securely overriding the password for <span className="font-bold text-foreground">{passwordUser?.email}</span>.</p>
                 <div className="space-y-2">
                   <Label htmlFor="new-password">New Password (Min 8 Characters)</Label>
                   <Input id="new-password" type="text" {...registerPassword("newPassword")} placeholder="Must be 8+ characters..." />

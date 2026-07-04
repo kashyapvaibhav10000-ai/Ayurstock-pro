@@ -1,22 +1,9 @@
 'use client';
 
 import { Card, CardContent } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
-import { useState, useEffect } from "react"
-import { useTheme } from "next-themes"
-import { toast } from "sonner"
+import ThemeToggle from "@/components/ThemeToggle"
 
 export default function SystemSettings() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Prevent hydration mismatch
-  if (!mounted) return null;
-
   return (
     <Card className="border-border bg-surface shadow-soft">
       <CardContent className="p-6 space-y-6">
@@ -25,18 +12,12 @@ export default function SystemSettings() {
           <p className="text-[11px] font-bold text-muted-foreground mt-2 uppercase tracking-widest">Global configurations and interface synchronization.</p>
         </div>
 
-        <div className="flex justify-between items-center py-4 border-t border-border mt-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 py-4 border-t border-border mt-6">
           <div className="space-y-1">
-            <h3 className="text-sm font-extrabold text-foreground uppercase tracking-tight">Dark Mode Protocol</h3>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Enable high-contrast 'Soft Black & Gold' interface</p>
+            <h3 className="text-sm font-extrabold text-foreground uppercase tracking-tight">Appearance</h3>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Light, dark, or follow your device automatically</p>
           </div>
-          <Switch
-            checked={theme === 'dark'}
-            onCheckedChange={(checked) => {
-              setTheme(checked ? 'dark' : 'light');
-              toast.success(`Dark Mode turned ${checked ? 'on' : 'off'}`);
-            }}
-          />
+          <ThemeToggle />
         </div>
 
         <div className="flex justify-between items-center py-4 border-t border-border">

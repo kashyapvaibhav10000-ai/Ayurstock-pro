@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AuthUser } from '@/types';
 import Image from 'next/image';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -109,7 +110,11 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Search everything..." className="rounded-2xl border-border bg-surface shadow-soft pl-9 h-10 transition-shadow focus-visible:shadow-bento text-foreground" />
           </div>
-          
+
+          {/* Theme toggle: available to every role (Admin, Manager, Cashier), on every
+              device including mobile — this is the fix for the "stuck theme" bug. */}
+          <ThemeToggle />
+
           <Button variant="outline" size="icon" className="hidden sm:flex rounded-2xl border-border bg-surface shadow-soft hover:shadow-bento h-10 w-10">
             <Bell className="h-4 w-4 text-muted-foreground" />
           </Button>
