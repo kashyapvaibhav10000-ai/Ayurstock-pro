@@ -202,11 +202,16 @@ The user approved all previously-suggested enhancements. These are now committed
 1. WHEN a user changes the Discount_Mode while using the Item_Detail_Popup, THE Billing_Page SHALL persist the selected Discount_Mode to browser local storage.
 2. WHEN the Billing_Page loads, THE Billing_Page SHALL initialize Discount_Mode from the persisted value in browser local storage if one exists.
 
-### Requirement 16: Persisted Company Filter
+### Requirement 16: Company Filter Auto-Reset
 
-**User Story:** As a cashier, I want my last-selected company filter remembered, so that I don't have to reselect it after a page reload within the same session.
+**User Story:** As a cashier, I want the company filter to reset automatically once I've added an item, so that a forgotten filter never silently hides medicines on my next search.
+
+> Revised after user feedback: persisting the Company_Filter across page reloads caused it to be forgotten and silently narrow later searches. The filter is now session-scoped and clears itself once it has served its purpose (adding an item).
 
 #### Acceptance Criteria
 
-1. WHEN a user changes the Company_Filter, THE Billing_Page SHALL persist the selected company to browser local storage.
-2. WHEN the Billing_Page loads, THE Billing_Page SHALL initialize the Company_Filter from the persisted value in browser local storage if one exists and still refers to a valid company; otherwise THE Company_Filter SHALL default to "All Companies".
+1. THE Billing_Page SHALL NOT persist the Company_Filter across page reloads.
+2. WHEN the Billing_Page loads, THE Company_Filter SHALL default to "All Companies".
+3. WHEN a CartItem is added to the Cart by any method (Item_Detail_Popup confirm, Barcode_Scan_Flow, or Exact_Match_Lookup), THE Billing_Page SHALL reset the Company_Filter to "All Companies".
+4. WHEN the Cart is discarded or a sale is completed, THE Billing_Page SHALL reset the Company_Filter to "All Companies".
+5. IF the selected Company_Filter no longer matches any company in the current list, THEN THE Billing_Page SHALL reset the Company_Filter to "All Companies".

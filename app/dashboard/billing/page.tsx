@@ -109,15 +109,16 @@ export default function BillingPage() {
     }).catch(console.error);
 
     try {
-      // Requirement 16: restore last-selected Company_Filter
-      const savedCompanyFilter = localStorage.getItem('pos_companyFilter');
-      if (savedCompanyFilter) setCompanyFilter(savedCompanyFilter);
-
       // Requirement 15: restore last-used Discount_Mode
       const savedDiscountMode = localStorage.getItem('pos_discountMode');
       if (savedDiscountMode === 'flat' || savedDiscountMode === 'percent') {
         setDiscountMode(savedDiscountMode);
       }
+      // Note: Company_Filter is intentionally NOT restored from storage on
+      // load. It auto-resets to "All Companies" after every item is added
+      // (see handleDetailPopupConfirm / addSuggestionToCart) so a forgotten
+      // filter never silently hides medicines on a fresh visit or the next
+      // search — see clarification from user feedback.
     } catch (error) {
       console.error('Failed to restore POS preferences', error);
     }
@@ -170,24 +171,14 @@ export default function BillingPage() {
     }
   }, [mounted, cart, saleType, customerName, customerPhone, customerAddress, customerGstin, customerDrugLicense, customerPan]);
 
-  // Requirement 16: persist Company_Filter selection
-  useEffect(() => {
-    if (!mounted) return;
-    if (companyFilter) {
-      localStorage.setItem('pos_companyFilter', companyFilter);
-    } else {
-      localStorage.removeItem('pos_companyFilter');
-    }
-  }, [mounted, companyFilter]);
-
   // Requirement 15: persist Discount_Mode
   useEffect(() => {
     if (!mounted) return;
     localStorage.setItem('pos_discountMode', discountMode);
   }, [mounted, discountMode]);
 
-  // Requirement 16.2: if the persisted company no longer exists once the
-  // real company list has loaded, fall back to "All Companies".
+  // If the selected company no longer exists once the real company list has
+  // loaded (e.g. it was renamed/removed), fall back to "All Companies".
   useEffect(() => {
     if (companies.length > 0 && companyFilter && !companies.includes(companyFilter)) {
       setCompanyFilter('');
@@ -293,6 +284,9 @@ export default function BillingPage() {
     setSearchQuery('');
     setSuggestions([]);
     setActiveSuggestionIndex(0);
+    // Keep Company_Filter behavior consistent regardless of how the item was
+    // added (barcode scan / exact-match Enter also land here).
+    setCompanyFilter('');
   };
 
   // Requirement 4.1: manual selection (click, or Enter on a highlighted
@@ -312,6 +306,9 @@ export default function BillingPage() {
     setSearchQuery('');
     setSuggestions([]);
     setActiveSuggestionIndex(0);
+    // Auto-reset the Company_Filter back to "All Companies" once an item has
+    // been added, so it doesn't silently keep narrowing the next search.
+    setCompanyFilter('');
     searchInputRef.current?.focus();
   };
 
@@ -471,6 +468,7 @@ export default function BillingPage() {
     setCustomerGstin('');
     setCustomerDrugLicense('');
     setCustomerPan('');
+    setCompanyFilter('');
     
     // Clear localStorage
     localStorage.removeItem('pos_cart');

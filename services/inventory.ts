@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/db';
-import { Decimal } from '@prisma/client/runtime/library';
 
 /**
  * Inventory Service - Handles batch-wise inventory management with FEFO
@@ -10,9 +9,9 @@ export interface AvailableBatch {
   batchNumber: string;
   expiryDate: Date;
   stockQty: number;
-  mrp: Decimal;
-  purchaseRate: Decimal;
-  sellingRate: Decimal;
+  mrp: number;
+  purchaseRate: number;
+  sellingRate: number;
   daysToExpiry: number;
 }
 
@@ -39,6 +38,14 @@ export async function getAvailableBatches(
 
   return batches.map((batch: any) => ({
     ...batch,
+    // Prisma Decimal fields (mrp, purchaseRate, sellingRate) are not
+    // JSON-serializable as-is — NextResponse.json() throws on them, which
+    // crashes any API route that returns this array directly (this broke
+    // the Item Detail Popup's batch picker). Convert to plain numbers here
+    // so every caller gets safely serializable data.
+    mrp: Number(batch.mrp),
+    purchaseRate: Number(batch.purchaseRate || 0),
+    sellingRate: Number(batch.sellingRate),
     daysToExpiry: Math.ceil(
       (batch.expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
     ),
