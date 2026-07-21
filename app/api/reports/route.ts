@@ -15,6 +15,19 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(searchParams.get('startDate') || new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
     const endDate = new Date(searchParams.get('endDate') || new Date().toISOString());
 
+    // Guard against accidentally (or deliberately) requesting a huge date
+    // span, which would force every report branch to scan/aggregate years
+    // of sales in one request. 2 years is generous for a single shop's
+    // reporting needs.
+    const MAX_RANGE_DAYS = 730;
+    const rangeDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (rangeDays > MAX_RANGE_DAYS) {
+      return createErrorResponse(
+        `Date range too large. Please select a range of ${MAX_RANGE_DAYS} days or less.`,
+        400
+      );
+    }
+
     if (reportType === 'daily-sales') {
       const report = await getDailySalesSummary(auth.user.shopId, startDate, endDate);
       return createApiResponse(true, { report });
@@ -46,42 +59,44 @@ export async function GET(request: NextRequest) {
     }
 
     if (reportType === 'summary') {
-      const sales = await prisma.sale.findMany({
-        where: {
-          shopId: auth.user.shopId,
-          createdAt: { gte: startDate, lte: endDate },
-        },
-        select: {
-          grandTotal: true,
-          gstTotal: true,
-          paymentMode: true,
-          saleItems: {
-            select: {
-              quantity: true,
-              rate: true,
-              amount: true,
-              batch: {
-                select: { purchaseRate: true },
-              },
-            },
+      // Previously this pulled every Sale row + every SaleItem + its batch's
+      // purchaseRate for the whole date range into Node and summed them by
+      // hand. Revenue/GST/credit/bill-count can be computed directly in the
+      // database with aggregate + groupBy; only COGS needs a join across
+      // SaleItem -> InventoryBatch, which we do with one raw SQL SUM instead
+      // of loading every item row into memory.
+      const shopId = auth.user.shopId;
+
+      const [salesAggregate, creditAggregate, cogsRows] = await Promise.all([
+        prisma.sale.aggregate({
+          where: { shopId, createdAt: { gte: startDate, lte: endDate } },
+          _sum: { grandTotal: true, gstTotal: true },
+          _count: { id: true },
+        }),
+        prisma.sale.aggregate({
+          where: {
+            shopId,
+            createdAt: { gte: startDate, lte: endDate },
+            paymentMode: 'CREDIT',
           },
-        },
-      });
+          _sum: { grandTotal: true },
+        }),
+        prisma.$queryRaw<{ total_cogs: number | null }[]>`
+          SELECT COALESCE(SUM(si."quantity" * ib."purchaseRate"), 0) AS total_cogs
+          FROM "SaleItem" si
+          INNER JOIN "Sale" s ON s."id" = si."saleId"
+          INNER JOIN "InventoryBatch" ib ON ib."id" = si."batchId"
+          WHERE s."shopId" = ${shopId}
+            AND s."createdAt" >= ${startDate}
+            AND s."createdAt" <= ${endDate}
+        `,
+      ]);
 
-      let totalRevenue = 0;
-      let totalGst = 0;
-      let totalCredit = 0;
-      let totalCogs = 0;
-
-      sales.forEach((sale: any) => {
-        totalRevenue += Number(sale.grandTotal || 0);
-        totalGst += Number(sale.gstTotal || 0);
-        if (sale.paymentMode === 'CREDIT') totalCredit += Number(sale.grandTotal || 0);
-        sale.saleItems.forEach((item: any) => {
-          const purchaseRate = Number(item.batch?.purchaseRate || 0);
-          totalCogs += purchaseRate * item.quantity;
-        });
-      });
+      const totalRevenue = Number(salesAggregate._sum.grandTotal || 0);
+      const totalGst = Number(salesAggregate._sum.gstTotal || 0);
+      const totalCredit = Number(creditAggregate._sum.grandTotal || 0);
+      const totalCogs = Number(cogsRows[0]?.total_cogs || 0);
+      const totalBills = salesAggregate._count.id;
 
       const grossProfit = totalRevenue - totalCogs;
       const profitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
@@ -89,7 +104,7 @@ export async function GET(request: NextRequest) {
       return createApiResponse(true, {
         report: {
           totalRevenue: Math.round(totalRevenue * 100) / 100,
-          totalBills: sales.length,
+          totalBills,
           totalGst: Math.round(totalGst * 100) / 100,
           totalCredit: Math.round(totalCredit * 100) / 100,
           totalCogs: Math.round(totalCogs * 100) / 100,

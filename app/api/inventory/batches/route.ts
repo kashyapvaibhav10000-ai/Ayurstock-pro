@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
     const reportType = searchParams.get('report'); // 'low-stock', 'near-expiry'
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 5000);
     const offset = parseInt(searchParams.get('offset') || '0');
+    const search = searchParams.get('search')?.trim();
+    const company = searchParams.get('company')?.trim();
+    const tab = searchParams.get('tab'); // 'all' | 'lowStock' | 'expiring30' | 'expiring60' | 'expired'
+    const includeStats = searchParams.get('includeStats') === 'true';
 
     // Low stock report
     if (reportType === 'low-stock') {
@@ -46,10 +50,42 @@ export async function GET(request: NextRequest) {
       return createPaginatedResponse(batches, batches.length, 1, batches.length);
     }
 
-    // Get all batches for the shop
+    // Get all batches for the shop (with optional server-side search/company/tab
+    // filtering so the Inventory page no longer has to download every batch and
+    // filter thousands of rows in the browser).
+    const shopId = auth.user.shopId;
+    const now = new Date();
+    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const in60Days = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+
+    const baseWhere: any = { shopId, deletedAt: null };
+
+    if (search) {
+      baseWhere.OR = [
+        { medicine: { name: { contains: search, mode: 'insensitive' } } },
+        { medicine: { company: { contains: search, mode: 'insensitive' } } },
+        { batchNumber: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (company && company !== 'all') {
+      baseWhere.medicine = { ...(baseWhere.medicine || {}), company };
+    }
+
+    // Tab-based filtering mirrors the stat cards on the Inventory page.
+    if (tab === 'lowStock') {
+      baseWhere.stockQty = { lte: 10 };
+    } else if (tab === 'expiring30') {
+      baseWhere.expiryDate = { gte: now, lte: in30Days };
+    } else if (tab === 'expiring60') {
+      baseWhere.expiryDate = { gte: now, lte: in60Days };
+    } else if (tab === 'expired') {
+      baseWhere.expiryDate = { lt: now };
+    }
+
     const [batches, total] = await Promise.all([
       prisma.inventoryBatch.findMany({
-        where: { shopId: auth.user.shopId, deletedAt: null },
+        where: baseWhere,
         include: {
           medicine: {
             select: {
@@ -64,10 +100,52 @@ export async function GET(request: NextRequest) {
         take: limit,
         skip: offset,
       }),
-      prisma.inventoryBatch.count({ where: { shopId: auth.user.shopId, deletedAt: null } }),
+      prisma.inventoryBatch.count({ where: baseWhere }),
     ]);
 
-    return createPaginatedResponse(batches, total, Math.floor(offset / limit) + 1, limit);
+    // Stat card counts are independent of the current search/company/tab
+    // filters (they always reflect totals for the active - or archived -
+    // batch set), so compute them with cheap COUNT queries instead of
+    // loading every batch into memory.
+    let stats: {
+      total: number;
+      lowStock: number;
+      expiring30: number;
+      expiring60: number;
+      expired: number;
+    } | undefined;
+
+    if (includeStats) {
+      const [statsTotal, statsLowStock, statsExpiring30, statsExpiring60, statsExpired] =
+        await Promise.all([
+          prisma.inventoryBatch.count({ where: { shopId, deletedAt: null } }),
+          prisma.inventoryBatch.count({ where: { shopId, deletedAt: null, stockQty: { lte: 10 } } }),
+          prisma.inventoryBatch.count({
+            where: { shopId, deletedAt: null, expiryDate: { gte: now, lte: in30Days } },
+          }),
+          prisma.inventoryBatch.count({
+            where: { shopId, deletedAt: null, expiryDate: { gte: now, lte: in60Days } },
+          }),
+          prisma.inventoryBatch.count({ where: { shopId, deletedAt: null, expiryDate: { lt: now } } }),
+        ]);
+
+      stats = {
+        total: statsTotal,
+        lowStock: statsLowStock,
+        expiring30: statsExpiring30,
+        expiring60: statsExpiring60,
+        expired: statsExpired,
+      };
+    }
+
+    return createApiResponse(true, {
+      batches,
+      total,
+      page: Math.floor(offset / limit) + 1,
+      pageSize: limit,
+      totalPages: Math.ceil(total / limit),
+      stats,
+    });
   } catch (error) {
     console.error('Get inventory error:', error);
     return createErrorResponse('Internal server error', 500);

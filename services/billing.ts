@@ -464,45 +464,45 @@ export async function getSalesByDateRange(
 
 /**
  * Get daily sales summary
+ *
+ * Previously this pulled every Sale row (createdAt + grandTotal) for the
+ * whole date range into Node and grouped/summed them by hand. That means
+ * the payload size and CPU work grows with the number of sales in the
+ * range instead of the number of days — a year of daily billing could mean
+ * thousands of rows crossing the wire just to add them up. Postgres can
+ * group and sum in a single pass with `date_trunc`, so we let it.
  */
 export async function getDailySalesSummary(
   shopId: string,
   startDate: Date,
   endDate: Date
 ) {
-  const sales = await prisma.sale.findMany({
-    where: {
-      shopId,
-      createdAt: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    select: {
-      createdAt: true,
-      grandTotal: true,
-    },
+  const rows = await prisma.$queryRaw<
+    { date: Date; total_sales: bigint; total_amount: Decimal }[]
+  >`
+    SELECT
+      date_trunc('day', "createdAt") AS date,
+      COUNT(*) AS total_sales,
+      COALESCE(SUM("grandTotal"), 0) AS total_amount
+    FROM "Sale"
+    WHERE "shopId" = ${shopId}
+      AND "createdAt" >= ${startDate}
+      AND "createdAt" <= ${endDate}
+    GROUP BY date
+    ORDER BY date ASC
+  `;
+
+  return rows.map((row) => {
+    const count = Number(row.total_sales);
+    const total = new Decimal(row.total_amount);
+    return {
+      date: row.date,
+      totalSales: count,
+      totalAmount: total,
+      transactionCount: count,
+      avgTransactionValue: count > 0 ? total.dividedBy(count) : new Decimal(0),
+    };
   });
-
-  // Group by date
-  const dailyStats: Record<string, { count: number; total: Decimal }> = {};
-
-  sales.forEach((sale: any) => {
-    const dateKey = sale.createdAt.toISOString().split('T')[0];
-    if (!dailyStats[dateKey]) {
-      dailyStats[dateKey] = { count: 0, total: new Decimal(0) };
-    }
-    dailyStats[dateKey].count += 1;
-    dailyStats[dateKey].total = dailyStats[dateKey].total.plus(sale.grandTotal);
-  });
-
-  return Object.entries(dailyStats).map(([date, stats]) => ({
-    date: new Date(date),
-    totalSales: stats.count,
-    totalAmount: stats.total,
-    transactionCount: stats.count,
-    avgTransactionValue: stats.total.dividedBy(stats.count),
-  }));
 }
 
 /**
@@ -537,21 +537,26 @@ export async function getTopSellingMedicines(
     take: limit,
   });
 
-  const medicines = await Promise.all(
-    result.map(async (item: any) => {
-      const medicine = await prisma.medicine.findUnique({
-        where: { id: item.medicineId },
-        select: { name: true, company: true },
-      });
-      return {
-        medicineId: item.medicineId,
-        name: medicine?.name || 'Unknown',
-        company: medicine?.company || 'Unknown',
-        totalQuantity: item._sum.quantity || 0,
-        totalAmount: item._sum.amount || new Decimal(0),
-      };
-    })
-  );
+  // Previously this did one findUnique per medicine in the top-10 list
+  // (10 extra queries every time the report ran). A single findMany with
+  // an `id IN (...)` filter gets the same data in one round trip.
+  const medicineIds = result.map((item) => item.medicineId);
+  const medicineRows = medicineIds.length
+    ? await prisma.medicine.findMany({
+        where: { id: { in: medicineIds } },
+        select: { id: true, name: true, company: true },
+      })
+    : [];
+  const medicineById = new Map(medicineRows.map((m) => [m.id, m]));
 
-  return medicines;
+  return result.map((item: any) => {
+    const medicine = medicineById.get(item.medicineId);
+    return {
+      medicineId: item.medicineId,
+      name: medicine?.name || 'Unknown',
+      company: medicine?.company || 'Unknown',
+      totalQuantity: item._sum.quantity || 0,
+      totalAmount: item._sum.amount || new Decimal(0),
+    };
+  });
 }
