@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Search, RotateCcw, FileDown } from 'lucide-react';
 import axios from 'axios';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ export default function ReturnsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchReturns = async (search = '') => {
     setLoading(true);
@@ -33,11 +34,25 @@ export default function ReturnsPage() {
   }, []);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    if (e.target.value.length > 2 || e.target.value.length === 0) {
-      fetchReturns(e.target.value);
-    }
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    // Wait for the user to pause typing before firing a request, instead of
+    // hitting the API on every keystroke.
+    searchDebounceRef.current = setTimeout(() => {
+      if (value.length > 2 || value.length === 0) {
+        fetchReturns(value);
+      }
+    }, 350);
   };
+
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
 
   return (
     <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">

@@ -53,6 +53,19 @@ interface MedicineOption {
   hsn: string;
 }
 
+interface CompanyOption {
+  id: string;
+  name: string;
+}
+
+interface InventoryStats {
+  total: number;
+  lowStock: number;
+  expiring30: number;
+  expiring60: number;
+  expired: number;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -78,15 +91,25 @@ export default function InventoryPage() {
     if (!isAuthorized) router.replace('/dashboard');
   }, [isAuthorized, router]);
 
-  /* ---- state (data — unchanged) ---- */
+  /* ---- state (data) ---- */
   const [batches, setBatches] = useState<InventoryBatch[]>([]);
   const [medicines, setMedicines] = useState<MedicineOption[]>([]);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [stats, setStats] = useState<InventoryStats>({
+    total: 0,
+    lowStock: 0,
+    expiring30: 0,
+    expiring60: 0,
+    expired: 0,
+  });
 
-  /* ---- state (UI — new) ---- */
+  /* ---- state (UI) ---- */
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortByExpiry, setSortByExpiry] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showArchived, setShowArchived] = useState(false);
@@ -98,13 +121,36 @@ export default function InventoryPage() {
 
   const ROWS_PER_PAGE = 15;
 
-  /* ---- data fetchers (unchanged) ---- */
+  /* ---- data fetchers ----
+   * Filtering (search / company / tab) and pagination now happen on the
+   * server via /api/inventory/batches query params, instead of pulling up
+   * to 5000 rows into the browser and filtering them with JS on every
+   * keystroke. Stat card counts come from the same request (includeStats)
+   * so they always reflect the true totals, not just what's on this page.
+   */
   useEffect(() => {
     if (isAuthorized) {
-      void loadInventory();
+      void loadCompanies();
       void loadMedicines();
     }
   }, [isAuthorized]);
+
+  // Debounce search input so typing doesn't fire a request per keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (isAuthorized) {
+      void loadInventory();
+    }
+  }, [isAuthorized, showArchived, activeTab, companyFilter, debouncedSearch, currentPage]);
+
+  // Reset to page 1 whenever a filter changes.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, companyFilter, debouncedSearch, showArchived]);
 
   const loadInventory = async () => {
     try {
@@ -113,13 +159,26 @@ export default function InventoryPage() {
         const response = await axios.get('/api/inventory/archived');
         if (response.data.success) {
           setArchivedBatches(response.data.data);
+          setTotalCount(response.data.data.length);
         }
         return;
       }
+
       const response = await axios.get('/api/inventory/batches', {
-        params: { limit: 5000 },
+        params: {
+          limit: ROWS_PER_PAGE,
+          offset: (currentPage - 1) * ROWS_PER_PAGE,
+          search: debouncedSearch || undefined,
+          company: companyFilter !== 'all' ? companyFilter : undefined,
+          tab: activeTab !== 'all' ? activeTab : undefined,
+          includeStats: true,
+        },
       });
-      if (response.data.success) setBatches(response.data.data);
+      if (response.data.success) {
+        setBatches(response.data.data.batches);
+        setTotalCount(response.data.data.total);
+        if (response.data.data.stats) setStats(response.data.data.stats);
+      }
     } catch (error) {
       console.error('Failed to load inventory:', error);
     } finally {
@@ -135,6 +194,15 @@ export default function InventoryPage() {
       if (response.data.success) setMedicines(response.data.data);
     } catch (error) {
       console.error('Failed to load medicines for inventory modal:', error);
+    }
+  };
+
+  const loadCompanies = async () => {
+    try {
+      const response = await axios.get('/api/companies');
+      if (response.data.success) setCompanies(response.data.data);
+    } catch (error) {
+      console.error('Failed to load companies:', error);
     }
   };
 
@@ -170,80 +238,48 @@ export default function InventoryPage() {
     }
   };
 
-  /* ---- derived data ---- */
-  const companyOptions = useMemo(
-    () => Array.from(new Set(batches.map((b) => b.medicine.company))).sort(),
-    [batches]
-  );
+  /* ---- derived data ----
+   * Search, company filter, and tab filter are now applied server-side
+   * (see loadInventory), so `batches` already holds exactly the current
+   * page's rows for the active filter set. Archived view still fetches
+   * its full (typically small) list and filters/paginates it client-side,
+   * same as before, since it has no dedicated filtered endpoint.
+   */
+  const companyOptions = useMemo(() => companies.map((c) => c.name), [companies]);
 
-  const displayList = showArchived ? archivedBatches : batches;
+  const displayList = showArchived
+    ? archivedBatches.filter((b) => {
+        if (debouncedSearch) {
+          const q = debouncedSearch.toLowerCase();
+          if (
+            !b.medicine.name.toLowerCase().includes(q) &&
+            !b.batchNumber.toLowerCase().includes(q) &&
+            !b.medicine.company.toLowerCase().includes(q)
+          ) {
+            return false;
+          }
+        }
+        if (companyFilter !== 'all' && b.medicine.company !== companyFilter) return false;
+        return true;
+      })
+    : batches;
 
-  const stats = useMemo(() => {
-    let lowStock = 0;
-    let expiring30 = 0;
-    let expiring60 = 0;
-    let expired = 0;
+  /* ---- sorting (current page only) + pagination ---- */
+  const sortedBatches = useMemo(() => {
+    if (!sortByExpiry) return displayList;
+    return [...displayList].sort(
+      (a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime()
+    );
+  }, [displayList, sortByExpiry]);
 
-    displayList.forEach((b) => {
-      const d = daysUntilExpiry(b.expiryDate);
-      if (b.stockQty <= 10) lowStock++;
-      if (d < 0) expired++;
-      else if (d <= 30) { expiring30++; expiring60++; }
-      else if (d <= 60) expiring60++;
-    });
-
-    return { total: displayList.length, lowStock, expiring30, expiring60, expired };
-  }, [displayList]);
-
-  /* ---- filtering + sorting + pagination ---- */
-  const filteredBatches = useMemo(() => {
-    let list = displayList;
-
-    // tab filter
-    if (activeTab === 'lowStock') list = list.filter((b) => b.stockQty <= 10);
-    else if (activeTab === 'expiring30')
-      list = list.filter((b) => { const d = daysUntilExpiry(b.expiryDate); return d >= 0 && d <= 30; });
-    else if (activeTab === 'expiring60')
-      list = list.filter((b) => { const d = daysUntilExpiry(b.expiryDate); return d >= 0 && d <= 60; });
-    else if (activeTab === 'expired')
-      list = list.filter((b) => daysUntilExpiry(b.expiryDate) < 0);
-
-    // company filter
-    if (companyFilter !== 'all')
-      list = list.filter((b) => b.medicine.company === companyFilter);
-
-    // search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(
-        (b) =>
-          b.medicine.name.toLowerCase().includes(q) ||
-          b.batchNumber.toLowerCase().includes(q) ||
-          b.medicine.company.toLowerCase().includes(q)
-      );
-    }
-
-    // sort by expiry ascending
-    if (sortByExpiry) {
-      list = [...list].sort(
-        (a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime()
-      );
-    }
-
-    return list;
-  }, [displayList, activeTab, companyFilter, searchQuery, sortByExpiry]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredBatches.length / ROWS_PER_PAGE));
+  const filteredCount = showArchived ? sortedBatches.length : totalCount;
+  const totalPages = Math.max(1, Math.ceil(filteredCount / ROWS_PER_PAGE));
   const safePage = Math.min(currentPage, totalPages);
-  const paginatedBatches = filteredBatches.slice(
-    (safePage - 1) * ROWS_PER_PAGE,
-    safePage * ROWS_PER_PAGE
-  );
-  const showFrom = filteredBatches.length === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
-  const showTo = Math.min(safePage * ROWS_PER_PAGE, filteredBatches.length);
-
-  // reset page when filters change
-  useEffect(() => { setCurrentPage(1); }, [activeTab, companyFilter, searchQuery, sortByExpiry]);
+  const paginatedBatches = showArchived
+    ? sortedBatches.slice((safePage - 1) * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE)
+    : sortedBatches;
+  const showFrom = filteredCount === 0 ? 0 : (safePage - 1) * ROWS_PER_PAGE + 1;
+  const showTo = Math.min(safePage * ROWS_PER_PAGE, filteredCount);
 
   /* ---- stat card click → switch tab ---- */
   const handleStatClick = (tab: TabKey) => setActiveTab(tab);
@@ -367,13 +403,13 @@ export default function InventoryPage() {
 
       <div className="flex gap-4">
         <button
-          onClick={() => { setShowArchived(false); void loadInventory(); }}
+          onClick={() => setShowArchived(false)}
           className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${!showArchived ? 'bg-primary text-white shadow-soft' : 'text-muted-foreground hover:bg-muted'}`}
         >
           Active Stock
         </button>
         <button
-          onClick={() => { setShowArchived(true); void loadInventory(); }}
+          onClick={() => setShowArchived(true)}
           className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${showArchived ? 'bg-primary text-white shadow-soft' : 'text-muted-foreground hover:bg-muted'}`}
         >
           Archived Items
@@ -448,7 +484,7 @@ export default function InventoryPage() {
         <div>
           <h2 className="text-base font-bold text-foreground">Inventory Batches</h2>
           <p className="text-xs text-muted-foreground">
-            Showing {showFrom}–{showTo} of {filteredBatches.length} batches
+            Showing {showFrom}–{showTo} of {filteredCount} batches
           </p>
         </div>
 

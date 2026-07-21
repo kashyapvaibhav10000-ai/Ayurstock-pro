@@ -41,43 +41,45 @@ export async function GET(request: NextRequest) {
       prisma.stockLedger.count({ where }),
     ]);
 
-    // To calculate running balance, we need all entries for the related medicine+batch ordered by time
-    // But evaluating running balance globally on the fly across pagination is hard, 
-    // we'll compute running balance historically for the returned subset by fetching all older rows for those batches and summing them up.
-    // Given the prompt "calculate cumulative stock from oldest to newest entry, return it per row",
-    // We can fetch the sum of all qty changes for that medicine+batch before this particular ledger entry.
-    // A simplified approach for smaller scale:
+    // Running balance = cumulative sum of signed qty for a batch, from its oldest
+    // entry up to a given entry. Previously this issued one extra findMany PER ROW
+    // on the page (up to `limit` queries) just to sum "everything before it".
+    // Instead, fetch every ledger row for the batches present on this page ONCE,
+    // then compute cumulative balances per batch in memory.
+    const batchIds = Array.from(new Set(entries.map((entry) => entry.batchId)));
 
-    const enrichedEntries = await Promise.all(
-      entries.map(async (entry) => {
-        // compute cumulative qty before this entry
-        // + IN types minus OUT types
-        const previousEntries = await prisma.stockLedger.findMany({
-          where: {
-            shopId: auth.user.shopId,
-            batchId: entry.batchId,
-            createdAt: { lte: entry.createdAt },
-          },
-        });
+    const runningBalanceByEntryId = new Map<string, number>();
 
-        const runningBalance = previousEntries.reduce(
-          (acc, curr) => acc + signedLedgerQty(curr.type, curr.qty),
-          0
-        );
+    if (batchIds.length > 0) {
+      const allRowsForBatches = await prisma.stockLedger.findMany({
+        where: {
+          shopId: auth.user.shopId,
+          batchId: { in: batchIds },
+        },
+        select: { id: true, batchId: true, type: true, qty: true, createdAt: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
 
-        return {
-          id: entry.id,
-          createdAt: entry.createdAt,
-          medicineName: entry.medicine?.name || 'Unknown',
-          batchNumber: entry.batch?.batchNumber || 'Unknown',
-          type: entry.type,
-          quantity: entry.qty,
-          referenceId: entry.referenceId,
-          notes: '', // standard StockLedger doesn't have notes, we can leave empty or fetch from StockAdjustment if needed
-          runningBalance,
-        };
-      })
-    );
+      const cumulativeByBatch = new Map<string, number>();
+      for (const row of allRowsForBatches) {
+        const runningTotal =
+          (cumulativeByBatch.get(row.batchId) || 0) + signedLedgerQty(row.type, row.qty);
+        cumulativeByBatch.set(row.batchId, runningTotal);
+        runningBalanceByEntryId.set(row.id, runningTotal);
+      }
+    }
+
+    const enrichedEntries = entries.map((entry) => ({
+      id: entry.id,
+      createdAt: entry.createdAt,
+      medicineName: entry.medicine?.name || 'Unknown',
+      batchNumber: entry.batch?.batchNumber || 'Unknown',
+      type: entry.type,
+      quantity: entry.qty,
+      referenceId: entry.referenceId,
+      notes: '', // standard StockLedger doesn't have notes, we can leave empty or fetch from StockAdjustment if needed
+      runningBalance: runningBalanceByEntryId.get(entry.id) ?? 0,
+    }));
 
     return createApiResponse(true, {
       data: enrichedEntries,

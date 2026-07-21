@@ -26,6 +26,30 @@ export async function GET(request: NextRequest) {
 
     const dateFilter = { gte: startDate, lte: endDate };
 
+    // Totals for the summary cards are computed via DB aggregates instead of
+    // JS reduce over the full row set fetched below (the row set is still
+    // needed for the per-item tables, but the totals no longer depend on it).
+    const [salesAggregate, purchaseAggregate, returnAggregate] = await Promise.all([
+      prisma.sale.aggregate({
+        where: { shopId, createdAt: dateFilter },
+        _sum: { grandTotal: true },
+        _count: { id: true },
+      }),
+      prisma.purchase.aggregate({
+        where: { shopId, createdAt: dateFilter },
+        _sum: { totalAmount: true },
+        _count: { id: true },
+      }),
+      prisma.$queryRaw<{ total_returns: number | null; returns_count: bigint }[]>`
+        SELECT COALESCE(SUM(r."quantity" * ib."mrp"), 0) AS total_returns, COUNT(*) AS returns_count
+        FROM "Return" r
+        INNER JOIN "InventoryBatch" ib ON ib."id" = r."batchId"
+        WHERE r."shopId" = ${shopId}
+          AND r."createdAt" >= ${startDate}
+          AND r."createdAt" <= ${endDate}
+      `,
+    ]);
+
     const [sales, purchases, returns] = await Promise.all([
       prisma.sale.findMany({
         where: { shopId, createdAt: dateFilter },
@@ -90,12 +114,9 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const totalSalesRevenue = sales.reduce((sum, s) => sum + Number(s.grandTotal), 0);
-    const totalPurchaseCost = purchases.reduce((sum, p) => sum + Number(p.totalAmount), 0);
-    const totalReturnsAmount = returns.reduce(
-      (sum, r) => sum + r.quantity * Number(r.batch?.mrp ?? 0),
-      0
-    );
+    const totalSalesRevenue = Number(salesAggregate._sum.grandTotal || 0);
+    const totalPurchaseCost = Number(purchaseAggregate._sum.totalAmount || 0);
+    const totalReturnsAmount = Number(returnAggregate[0]?.total_returns || 0);
     const grossProfit = totalSalesRevenue - totalPurchaseCost - totalReturnsAmount;
 
     return NextResponse.json({
