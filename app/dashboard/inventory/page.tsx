@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { toast } from 'sonner';
@@ -141,29 +141,55 @@ export default function InventoryPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Archived view fetches its (typically small) full list once per toggle,
+  // then filters/paginates it client-side — no search/company/tab params to
+  // send server-side, so it does NOT need to refetch on every page click.
   useEffect(() => {
-    if (isAuthorized) {
-      void loadInventory();
+    if (isAuthorized && showArchived) {
+      void loadArchivedInventory();
     }
-  }, [isAuthorized, showArchived, activeTab, companyFilter, debouncedSearch, currentPage]);
+  }, [isAuthorized, showArchived]);
 
-  // Reset to page 1 whenever a filter changes.
+  // Active view: search/company/tab filtering happens server-side, so any
+  // change to those — or to the page number — needs a fresh request. When a
+  // filter (not the page) changes while we're past page 1, reset to page 1
+  // and let that state change re-trigger this same effect, rather than
+  // firing one request for the stale page and a second corrective one.
+  const activeFiltersKey = `${activeTab}|${companyFilter}|${debouncedSearch}`;
+  const prevActiveFiltersKeyRef = useRef(activeFiltersKey);
+
   useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, companyFilter, debouncedSearch, showArchived]);
+    if (!isAuthorized || showArchived) return;
+    const filtersChanged = prevActiveFiltersKeyRef.current !== activeFiltersKey;
+    prevActiveFiltersKeyRef.current = activeFiltersKey;
 
-  const loadInventory = async () => {
+    if (filtersChanged && currentPage !== 1) {
+      setCurrentPage(1); // triggers this same effect again with page reset
+      return;
+    }
+
+    void loadActiveInventory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthorized, showArchived, activeFiltersKey, currentPage]);
+
+  const loadArchivedInventory = async () => {
     try {
       setLoading(true);
-      if (showArchived) {
-        const response = await axios.get('/api/inventory/archived');
-        if (response.data.success) {
-          setArchivedBatches(response.data.data);
-          setTotalCount(response.data.data.length);
-        }
-        return;
+      const response = await axios.get('/api/inventory/archived');
+      if (response.data.success) {
+        setArchivedBatches(response.data.data);
+        setTotalCount(response.data.data.length);
       }
+    } catch (error) {
+      console.error('Failed to load archived inventory:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const loadActiveInventory = async () => {
+    try {
+      setLoading(true);
       const response = await axios.get('/api/inventory/batches', {
         params: {
           limit: ROWS_PER_PAGE,
@@ -185,6 +211,10 @@ export default function InventoryPage() {
       setLoading(false);
     }
   };
+
+  // Shared entry point used by mutation handlers (delete/restore/add/edit)
+  // below, so they don't need to know which view is currently active.
+  const loadInventory = () => (showArchived ? loadArchivedInventory() : loadActiveInventory());
 
   const loadMedicines = async () => {
     try {
