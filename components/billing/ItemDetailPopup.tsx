@@ -296,7 +296,7 @@ export default function ItemDetailPopup({
       <DialogContent
         onKeyDown={handleDialogKeyDown}
         className="p-0 gap-0 flex flex-col overflow-hidden
-          w-screen h-screen max-w-none max-h-none rounded-none top-0 left-0 translate-x-0 translate-y-0
+          w-screen h-[100dvh] max-w-none max-h-none rounded-none top-0 left-0 translate-x-0 translate-y-0
           sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[85vh] sm:rounded-lg sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]"
       >
         <DialogHeader className="p-4 sm:p-5 border-b border-border shrink-0 text-left">
