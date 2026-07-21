@@ -10,7 +10,12 @@ export async function GET(request: NextRequest) {
     }
 
     const query = (request.nextUrl.searchParams.get('q') || '').trim();
+    const company = (request.nextUrl.searchParams.get('company') || '').trim();
     const limit = Math.min(parseInt(request.nextUrl.searchParams.get('limit') || '10', 10), 20);
+
+    // Company filter is applied as an exact match on Medicine.company (a plain
+    // string field, not a relation) — see Requirement 2.1.
+    const companyFilter = company ? { medicine: { company } } : {};
 
     if (!query) {
       return NextResponse.json({
@@ -33,9 +38,14 @@ export async function GET(request: NextRequest) {
           stockQty: { gt: 0 },
           expiryDate: { gt: new Date() },
           deletedAt: null,
-          OR: [
-            { batchNumber: { equals: query, mode: 'insensitive' } },
-            { medicine: { barcode: query } },
+          AND: [
+            {
+              OR: [
+                { batchNumber: { equals: query, mode: 'insensitive' } },
+                { medicine: { barcode: query } },
+              ],
+            },
+            companyFilter,
           ],
         },
         include: {
@@ -46,6 +56,8 @@ export async function GET(request: NextRequest) {
               company: true,
               barcode: true,
               gstPercent: true,
+              hsn: true,
+              lowStockThreshold: true,
             },
           },
         },
@@ -64,6 +76,8 @@ export async function GET(request: NextRequest) {
             company: batch.medicine.company,
             barcode: batch.medicine.barcode,
             gstPercent: batch.medicine.gstPercent,
+            hsn: batch.medicine.hsn,
+            lowStockThreshold: batch.medicine.lowStockThreshold,
             batchNumber: batch.batchNumber,
             stockQty: batch.stockQty,
             mrp: Number(batch.mrp),
@@ -82,26 +96,31 @@ export async function GET(request: NextRequest) {
         stockQty: { gt: 0 },
         expiryDate: { gt: new Date() },
         deletedAt: null,
-        OR: [
+        AND: [
           {
-            medicine: {
-              name: {
-                contains: query,
-                mode: 'insensitive',
+            OR: [
+              {
+                medicine: {
+                  name: {
+                    contains: query,
+                    mode: 'insensitive',
+                  },
+                },
               },
-            },
+              {
+                medicine: {
+                  barcode: query,
+                },
+              },
+              {
+                batchNumber: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+            ],
           },
-          {
-            medicine: {
-              barcode: query,
-            },
-          },
-          {
-            batchNumber: {
-              contains: query,
-              mode: 'insensitive',
-            },
-          },
+          companyFilter,
         ],
       },
       include: {
@@ -112,6 +131,8 @@ export async function GET(request: NextRequest) {
             company: true,
             barcode: true,
             gstPercent: true,
+            hsn: true,
+            lowStockThreshold: true,
           },
         },
       },
@@ -143,6 +164,8 @@ export async function GET(request: NextRequest) {
         company: batch.medicine.company,
         barcode: batch.medicine.barcode,
         gstPercent: batch.medicine.gstPercent,
+        hsn: batch.medicine.hsn,
+        lowStockThreshold: batch.medicine.lowStockThreshold,
         batchNumber: batch.batchNumber,
         stockQty: batch.stockQty,
         mrp: Number(batch.mrp),

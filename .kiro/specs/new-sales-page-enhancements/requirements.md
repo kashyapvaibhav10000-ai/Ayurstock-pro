@@ -143,14 +143,70 @@ These changes must coexist with the Billing Page's existing barcode-scanner dete
 
 ---
 
-## Suggested Enhancements (Optional — Not Yet Approved)
+## Approved Enhancements (Promoted from Suggestions)
 
-These are additive ideas beyond what was explicitly requested. **None of these are committed requirements yet.** Let me know which ones (if any) you want promoted into formal numbered requirements before we move to design — anything not called out here will not be built.
+The user approved all previously-suggested enhancements. These are now committed requirements.
 
-1. **Batch picker for multi-batch medicines** — when a medicine has more than one non-expired batch in stock, let the user pick which batch to bill from inside the popup. Today's search already collapses results to the earliest-expiring batch (FEFO), so this only matters if you want to override FEFO from the popup. A `BatchSelectionModal` component already exists in the codebase and could likely be reused.
-2. **Near-expiry warning badge** — visually flag batches expiring soon on the popup, using the shop's existing `nearExpiryDays` setting.
-3. **Live subtotal preview** — show the calculated item amount inside the popup, updating as Quantity/GST/Discount change. (Requirement 7.8 already requires the recalculation itself; this adds a visible running total in the UI.)
-4. **Stock availability badge** — a badge (e.g. "Only 4 left") on the popup to make low stock more visible before confirming.
-5. **Popup keyboard shortcuts** — Enter to confirm, Esc to cancel, matching the page's existing keyboard-first workflow (F1/F2/F7/F12 shortcuts already exist).
-6. **Remember last-used Discount_Mode** — persist the cashier's last chosen flat/percent toggle across popup sessions, similar to other preferences already persisted to `localStorage`.
-7. **Remember last-selected Company_Filter** — keep the company filter selection across page reloads within the same session, similar to how cart/customer fields already persist to `localStorage`.
+### Requirement 10: Multi-Batch Picker
+
+**User Story:** As a cashier, I want to override FEFO and pick a specific batch when a medicine has more than one batch in stock, so that I can bill from a batch other than the earliest-expiring one when needed.
+
+#### Acceptance Criteria
+
+1. WHEN the Item_Detail_Popup opens for a Search_Suggestion whose medicine has more than one non-expired Inventory_Batch in stock, THE Item_Detail_Popup SHALL display a batch selector reusing the existing `BatchSelectionModal` pattern.
+2. WHEN a user selects a different batch in the batch selector, THE Item_Detail_Popup SHALL re-populate batch number, expiry date, MRP, selling rate, available stock quantity, and rack location from the newly selected Inventory_Batch.
+3. IF a medicine has exactly one non-expired Inventory_Batch in stock, THEN THE Item_Detail_Popup SHALL NOT display a batch selector.
+
+### Requirement 11: Near-Expiry Warning Badge
+
+**User Story:** As a cashier, I want to see a visible warning when a batch is close to expiry, so that I can decide whether to sell it or check with the customer.
+
+#### Acceptance Criteria
+
+1. THE Item_Detail_Popup SHALL display a near-expiry warning badge WHEN the selected Inventory_Batch's expiry date falls within the shop's configured `nearExpiryDays` setting from the current date.
+2. THE Item_Detail_Popup SHALL NOT display the near-expiry warning badge WHEN the selected Inventory_Batch's expiry date falls outside the shop's configured `nearExpiryDays` window.
+
+### Requirement 12: Live Subtotal Preview
+
+**User Story:** As a cashier, I want to see the calculated item amount update live as I edit quantity, GST, or discount, so that I can confirm the price before adding to cart.
+
+#### Acceptance Criteria
+
+1. THE Item_Detail_Popup SHALL display the calculated item amount, visibly labeled, at all times while the popup is open.
+2. WHEN Quantity, GST_Percent, or Discount changes in the Item_Detail_Popup, THE Item_Detail_Popup SHALL update the displayed item amount without requiring a page refresh or additional user action.
+
+### Requirement 13: Stock Availability Badge
+
+**User Story:** As a cashier, I want a clear visual indicator of low stock in the popup, so that I notice constrained availability before confirming a large quantity.
+
+#### Acceptance Criteria
+
+1. THE Item_Detail_Popup SHALL display a stock availability badge showing the available stock quantity of the selected Inventory_Batch.
+2. WHEN the available stock quantity of the selected Inventory_Batch is at or below the shop's configured low-stock threshold, THE Item_Detail_Popup SHALL display the stock availability badge in a visually distinct low-stock style.
+
+### Requirement 14: Popup Keyboard Shortcuts
+
+**User Story:** As a cashier, I want to confirm or cancel the popup using the keyboard, so that billing stays fast and keyboard-driven.
+
+#### Acceptance Criteria
+
+1. WHILE the Item_Detail_Popup is open and focus is not inside a field that requires Enter for its own purpose (e.g. a batch selector awaiting selection), pressing Enter SHALL trigger the confirm action if the confirm action is enabled.
+2. WHILE the Item_Detail_Popup is open, pressing Escape SHALL trigger the cancel action.
+
+### Requirement 15: Persisted Discount Mode
+
+**User Story:** As a cashier, I want my last-used discount mode remembered, so that I don't have to reselect it every time I open the popup.
+
+#### Acceptance Criteria
+
+1. WHEN a user changes the Discount_Mode while using the Item_Detail_Popup, THE Billing_Page SHALL persist the selected Discount_Mode to browser local storage.
+2. WHEN the Billing_Page loads, THE Billing_Page SHALL initialize Discount_Mode from the persisted value in browser local storage if one exists.
+
+### Requirement 16: Persisted Company Filter
+
+**User Story:** As a cashier, I want my last-selected company filter remembered, so that I don't have to reselect it after a page reload within the same session.
+
+#### Acceptance Criteria
+
+1. WHEN a user changes the Company_Filter, THE Billing_Page SHALL persist the selected company to browser local storage.
+2. WHEN the Billing_Page loads, THE Billing_Page SHALL initialize the Company_Filter from the persisted value in browser local storage if one exists and still refers to a valid company; otherwise THE Company_Filter SHALL default to "All Companies".

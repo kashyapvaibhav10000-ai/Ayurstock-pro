@@ -6,6 +6,7 @@ import { Search, ScanLine, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { CartItem } from '@/types';
+import ItemDetailPopup, { ItemDetailSuggestion } from '@/components/billing/ItemDetailPopup';
 
 const GST_OPTIONS = [
   { value: 5, label: '5%', category: 'Standard' },
@@ -21,6 +22,7 @@ interface BillingSuggestion {
   company: string;
   barcode?: string;
   gstPercent: number;
+  hsn?: string;
   batchNumber: string;
   stockQty: number;
   mrp: number;
@@ -37,6 +39,14 @@ export default function BillingPage() {
   const [suggestions, setSuggestions] = useState<BillingSuggestion[]>([]);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [cart, setCart] = useState<CartItem[]>([]);
+  // Company filter (Requirement 1/2/16) — "" means "All Companies"
+  const [companies, setCompanies] = useState<string[]>([]);
+  const [companyFilter, setCompanyFilter] = useState<string>('');
+  // Item Detail Popup (Requirement 4-14)
+  const [detailSuggestion, setDetailSuggestion] = useState<ItemDetailSuggestion | null>(null);
+  const [isDetailPopupOpen, setIsDetailPopupOpen] = useState(false);
+  const [nearExpiryDays, setNearExpiryDays] = useState(30);
+  const [lowStockThreshold, setLowStockThreshold] = useState(5);
   const [loading, setLoading] = useState(false);
   const [paymentMode, setPaymentMode] = useState<'CASH' | 'CARD' | 'UPI' | 'CREDIT'>('CASH');
   const [receivedAmount, setReceivedAmount] = useState<number>(0);
@@ -82,6 +92,35 @@ export default function BillingPage() {
         if (typeof d.autoPrintInvoice === 'boolean') setAutoPrintInvoice(d.autoPrintInvoice);
       }
     }).catch(console.error);
+
+    // Company list for the Company_Filter (Requirement 1.3/1.4)
+    axios.get('/api/medicines/companies').then(res => {
+      if (res.data.success && Array.isArray(res.data.companies)) {
+        setCompanies(res.data.companies.map((c: { name: string }) => c.name).filter(Boolean));
+      }
+    }).catch(console.error);
+
+    // Near-expiry / low-stock thresholds for popup badges (Requirement 11/13)
+    axios.get('/api/settings/inventory').then(res => {
+      if (res.data.success && res.data.data) {
+        if (typeof res.data.data.nearExpiryDays === 'number') setNearExpiryDays(res.data.data.nearExpiryDays);
+        if (typeof res.data.data.lowStockThreshold === 'number') setLowStockThreshold(res.data.data.lowStockThreshold);
+      }
+    }).catch(console.error);
+
+    try {
+      // Requirement 16: restore last-selected Company_Filter
+      const savedCompanyFilter = localStorage.getItem('pos_companyFilter');
+      if (savedCompanyFilter) setCompanyFilter(savedCompanyFilter);
+
+      // Requirement 15: restore last-used Discount_Mode
+      const savedDiscountMode = localStorage.getItem('pos_discountMode');
+      if (savedDiscountMode === 'flat' || savedDiscountMode === 'percent') {
+        setDiscountMode(savedDiscountMode);
+      }
+    } catch (error) {
+      console.error('Failed to restore POS preferences', error);
+    }
 
     try {
       const savedCart = localStorage.getItem('pos_cart');
@@ -131,6 +170,30 @@ export default function BillingPage() {
     }
   }, [mounted, cart, saleType, customerName, customerPhone, customerAddress, customerGstin, customerDrugLicense, customerPan]);
 
+  // Requirement 16: persist Company_Filter selection
+  useEffect(() => {
+    if (!mounted) return;
+    if (companyFilter) {
+      localStorage.setItem('pos_companyFilter', companyFilter);
+    } else {
+      localStorage.removeItem('pos_companyFilter');
+    }
+  }, [mounted, companyFilter]);
+
+  // Requirement 15: persist Discount_Mode
+  useEffect(() => {
+    if (!mounted) return;
+    localStorage.setItem('pos_discountMode', discountMode);
+  }, [mounted, discountMode]);
+
+  // Requirement 16.2: if the persisted company no longer exists once the
+  // real company list has loaded, fall back to "All Companies".
+  useEffect(() => {
+    if (companies.length > 0 && companyFilter && !companies.includes(companyFilter)) {
+      setCompanyFilter('');
+    }
+  }, [companies, companyFilter]);
+
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -145,7 +208,8 @@ export default function BillingPage() {
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         const response = await axios.get('/api/billing/search', {
-          params: { q: searchQuery, limit: 10 },
+          // Requirement 2.1/2.2: company filter scopes results when active
+          params: { q: searchQuery, limit: 10, ...(companyFilter ? { company: companyFilter } : {}) },
         });
 
         if (response.data.success) {
@@ -156,7 +220,7 @@ export default function BillingPage() {
         console.error('Billing search failed:', error);
       }
     }, 300);
-  }, [searchQuery]);
+  }, [searchQuery, companyFilter]);
 
   const getBillingRate = (suggestion: BillingSuggestion) => {
     const purchaseRate = Number(suggestion.purchaseRate || 0);
@@ -231,13 +295,42 @@ export default function BillingPage() {
     setActiveSuggestionIndex(0);
   };
 
+  // Requirement 4.1: manual selection (click, or Enter on a highlighted
+  // suggestion) opens the Item_Detail_Popup instead of adding directly.
+  // Barcode scanning and Exact_Match_Lookup (Requirement 3) bypass this and
+  // continue to call addSuggestionToCart() directly.
+  const openItemDetailPopup = (suggestion: BillingSuggestion) => {
+    setDetailSuggestion(suggestion);
+    setIsDetailPopupOpen(true);
+  };
+
+  const handleDetailPopupConfirm = (item: CartItem) => {
+    setCart((current) => [...current, item]);
+    setIsDetailPopupOpen(false);
+    setDetailSuggestion(null);
+    // Requirement 4.5: clear search after the popup closes via confirm/cancel
+    setSearchQuery('');
+    setSuggestions([]);
+    setActiveSuggestionIndex(0);
+    searchInputRef.current?.focus();
+  };
+
+  const handleDetailPopupCancel = () => {
+    setIsDetailPopupOpen(false);
+    setDetailSuggestion(null);
+    setSearchQuery('');
+    setSuggestions([]);
+    setActiveSuggestionIndex(0);
+    searchInputRef.current?.focus();
+  };
+
   const handleSearchKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (!suggestions.length) {
       if (event.key === 'Enter' && searchQuery.trim()) {
         event.preventDefault();
         try {
           const response = await axios.get('/api/billing/search', {
-            params: { q: searchQuery.trim(), limit: 5 },
+            params: { q: searchQuery.trim(), limit: 5, ...(companyFilter ? { company: companyFilter } : {}) },
           });
 
           if (response.data.success) {
@@ -247,6 +340,7 @@ export default function BillingPage() {
                 item.barcode === searchQuery.trim() || item.batchNumber === searchQuery.trim()
             );
 
+            // Requirement 3.4: Exact_Match_Lookup adds directly, no popup.
             if (exactMatch) {
               addSuggestionToCart(exactMatch);
               return;
@@ -273,7 +367,8 @@ export default function BillingPage() {
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      addSuggestionToCart(suggestions[activeSuggestionIndex]);
+      // Requirement 4.1: Enter on a highlighted suggestion opens the popup.
+      openItemDetailPopup(suggestions[activeSuggestionIndex]);
     }
   };
 
@@ -501,6 +596,12 @@ export default function BillingPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // While the Item_Detail_Popup is open, its own keydown handler owns
+      // Enter/Escape (Requirement 14) — skip all page-level shortcuts and
+      // barcode-buffer capture so typing in the popup can't false-trigger
+      // scanner detection, checkout, or other global hotkeys.
+      if (isDetailPopupOpen) return;
+
       const tag = (event.target as HTMLElement)?.tagName;
       const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
@@ -568,7 +669,7 @@ export default function BillingPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCheckout, handleBarcodeInput, loading, resetBill]);
+  }, [handleCheckout, handleBarcodeInput, loading, resetBill, isDetailPopupOpen]);
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col min-h-[calc(100vh-4rem)] relative font-sans">
@@ -599,6 +700,24 @@ export default function BillingPage() {
               <span className={`material-symbols-outlined text-2xl transition-all duration-200 cursor-pointer ${scannerActive ? 'text-primary scale-125 animate-pulse' : 'text-slate-400 hover:text-primary'}`}>qr_code_scanner</span>
             </div>
           </div>
+
+          {/* Company Filter — Requirement 1 */}
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 flex items-center gap-2 shadow-sm shrink-0">
+            <span className="material-symbols-outlined text-slate-400 text-xl shrink-0">apartment</span>
+            <select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 text-[13px] font-bold text-slate-700 dark:text-slate-200 py-1"
+              aria-label="Filter by company"
+            >
+              <option value="">All Companies</option>
+              {companies.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
           <section className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-1 flex flex-col overflow-hidden max-h-[45vh] lg:max-h-none">
             <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
               <h2 className="text-[13px] font-bold uppercase tracking-widest text-slate-500">Inventory Items</h2>
@@ -610,12 +729,18 @@ export default function BillingPage() {
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1 no-scrollbar flex flex-col">
               {suggestions.length === 0 ? (
-                <div className="p-4 text-center text-[13px] text-slate-400 font-medium my-auto">Search inventory to begin.</div>
+                <div className="p-4 text-center text-[13px] text-slate-400 font-medium my-auto">
+                  {searchQuery.trim()
+                    ? companyFilter
+                      ? `No results for "${companyFilter}".`
+                      : 'No matching medicines found.'
+                    : 'Search inventory to begin.'}
+                </div>
               ) : (
                 suggestions.map((suggestion, index) => (
                   <div 
                     key={`${suggestion.batchId}-${index}`}
-                    onClick={() => addSuggestionToCart(suggestion)}
+                    onClick={() => openItemDetailPopup(suggestion)}
                     className={`group p-3 rounded-md border cursor-pointer transition-all ${index === activeSuggestionIndex ? 'border-primary/40 bg-slate-50 dark:bg-slate-900/50' : 'border-transparent hover:border-primary/20 hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
                   >
                     <div className="flex justify-between items-start">
@@ -886,6 +1011,20 @@ export default function BillingPage() {
           </section>
         </div>
       </main>
+
+      {/* Item Detail Popup — Requirements 4-14 */}
+      <ItemDetailPopup
+        isOpen={isDetailPopupOpen}
+        suggestion={detailSuggestion}
+        saleType={saleType}
+        gstMode={gstMode}
+        discountMode={discountMode}
+        onDiscountModeChange={setDiscountMode}
+        nearExpiryDays={nearExpiryDays}
+        lowStockThreshold={lowStockThreshold}
+        onCancel={handleDetailPopupCancel}
+        onConfirm={handleDetailPopupConfirm}
+      />
     </div>
   );
 }
