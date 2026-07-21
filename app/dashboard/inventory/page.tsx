@@ -150,6 +150,12 @@ export default function InventoryPage() {
     }
   }, [isAuthorized, showArchived]);
 
+  // Archived view filters client-side, but should still reset to page 1
+  // whenever a filter changes (matches the active view's behavior).
+  useEffect(() => {
+    if (showArchived) setCurrentPage(1);
+  }, [showArchived, activeTab, companyFilter, debouncedSearch]);
+
   // Active view: search/company/tab filtering happens server-side, so any
   // change to those — or to the page number — needs a fresh request. When a
   // filter (not the page) changes while we're past page 1, reset to page 1
@@ -269,16 +275,45 @@ export default function InventoryPage() {
   };
 
   /* ---- derived data ----
-   * Search, company filter, and tab filter are now applied server-side
-   * (see loadInventory), so `batches` already holds exactly the current
-   * page's rows for the active filter set. Archived view still fetches
-   * its full (typically small) list and filters/paginates it client-side,
-   * same as before, since it has no dedicated filtered endpoint.
+   * Search, company filter, and tab filter are now applied server-side for
+   * the ACTIVE view (see loadActiveInventory), so `batches` already holds
+   * exactly the current page's rows for the active filter set. Archived
+   * view still fetches its full (typically small) list once and filters +
+   * paginates it client-side, same as the original implementation — so tab
+   * filtering (low stock / expiring / expired) and stat counts both need to
+   * run against `archivedBatches` here rather than relying on the
+   * server-computed `stats`, which only reflects the active batch set.
    */
   const companyOptions = useMemo(() => companies.map((c) => c.name), [companies]);
 
+  const archivedStats = useMemo(() => {
+    let lowStock = 0;
+    let expiring30 = 0;
+    let expiring60 = 0;
+    let expired = 0;
+    archivedBatches.forEach((b) => {
+      const d = daysUntilExpiry(b.expiryDate);
+      if (b.stockQty <= 10) lowStock++;
+      if (d < 0) expired++;
+      else if (d <= 30) { expiring30++; expiring60++; }
+      else if (d <= 60) expiring60++;
+    });
+    return { total: archivedBatches.length, lowStock, expiring30, expiring60, expired };
+  }, [archivedBatches]);
+
   const displayList = showArchived
     ? archivedBatches.filter((b) => {
+        if (activeTab === 'lowStock' && b.stockQty > 10) return false;
+        if (activeTab === 'expiring30') {
+          const d = daysUntilExpiry(b.expiryDate);
+          if (!(d >= 0 && d <= 30)) return false;
+        }
+        if (activeTab === 'expiring60') {
+          const d = daysUntilExpiry(b.expiryDate);
+          if (!(d >= 0 && d <= 60)) return false;
+        }
+        if (activeTab === 'expired' && daysUntilExpiry(b.expiryDate) >= 0) return false;
+
         if (debouncedSearch) {
           const q = debouncedSearch.toLowerCase();
           if (
@@ -293,6 +328,8 @@ export default function InventoryPage() {
         return true;
       })
     : batches;
+
+  const displayStats = showArchived ? archivedStats : stats;
 
   /* ---- sorting (current page only) + pagination ---- */
   const sortedBatches = useMemo(() => {
@@ -344,7 +381,7 @@ export default function InventoryPage() {
     {
       key: 'all',
       label: 'Total Batches',
-      value: stats.total,
+      value: displayStats.total,
       icon: <Package className="h-5 w-5" />,
       color: 'border-primary/40 ring-primary/20',
       textColor: 'text-primary',
@@ -353,7 +390,7 @@ export default function InventoryPage() {
     {
       key: 'lowStock',
       label: 'Low Stock',
-      value: stats.lowStock,
+      value: displayStats.lowStock,
       icon: <AlertTriangle className="h-5 w-5" />,
       color: 'border-amber-400/60 ring-amber-400/20',
       textColor: 'text-amber-600 dark:text-amber-400',
@@ -362,7 +399,7 @@ export default function InventoryPage() {
     {
       key: 'expiring30',
       label: 'Near Expiry 30d',
-      value: stats.expiring30,
+      value: displayStats.expiring30,
       icon: <Clock className="h-5 w-5" />,
       color: 'border-orange-400/60 ring-orange-400/20',
       textColor: 'text-orange-600 dark:text-orange-400',
@@ -371,7 +408,7 @@ export default function InventoryPage() {
     {
       key: 'expiring60',
       label: 'Expiring 60d',
-      value: stats.expiring60,
+      value: displayStats.expiring60,
       icon: <CalendarClock className="h-5 w-5" />,
       color: 'border-blue-400/60 ring-blue-400/20',
       textColor: 'text-blue-600 dark:text-blue-400',
@@ -380,7 +417,7 @@ export default function InventoryPage() {
     {
       key: 'expired',
       label: 'Expired',
-      value: stats.expired,
+      value: displayStats.expired,
       icon: <ShieldAlert className="h-5 w-5" />,
       color: 'border-red-400/60 ring-red-400/20',
       textColor: 'text-red-600 dark:text-red-400',
@@ -389,11 +426,11 @@ export default function InventoryPage() {
   ];
 
   const tabs: { key: TabKey; label: string; count: number }[] = [
-    { key: 'all', label: 'All Batches', count: stats.total },
-    { key: 'lowStock', label: 'Low Stock', count: stats.lowStock },
-    { key: 'expiring30', label: 'Expiring 30d', count: stats.expiring30 },
-    { key: 'expiring60', label: 'Expiring 60d', count: stats.expiring60 },
-    { key: 'expired', label: 'Expired', count: stats.expired },
+    { key: 'all', label: 'All Batches', count: displayStats.total },
+    { key: 'lowStock', label: 'Low Stock', count: displayStats.lowStock },
+    { key: 'expiring30', label: 'Expiring 30d', count: displayStats.expiring30 },
+    { key: 'expiring60', label: 'Expiring 60d', count: displayStats.expiring60 },
+    { key: 'expired', label: 'Expired', count: displayStats.expired },
   ];
 
   return (
