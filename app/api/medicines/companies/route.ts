@@ -8,9 +8,8 @@ export async function GET(req: NextRequest) {
     if (!auth.authenticated || !auth.user) {
       return NextResponse.json({ success: false }, { status: 401 });
     }
-    if (auth.user.role !== 'ADMIN') {
-      return NextResponse.json({ success: false, message: 'ADMIN only' }, { status: 403 });
-    }
+    // Available to every role that can access billing (ADMIN, MANAGER, CASHIER)
+    // so the Company_Filter on the Billing Page works for all users, not just admins.
 
     const shopId = auth.user.shopId;
 
