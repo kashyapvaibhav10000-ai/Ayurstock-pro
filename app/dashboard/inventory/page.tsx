@@ -668,127 +668,151 @@ export default function InventoryPage() {
                   </td>
                 </tr>
               ) : (
-                paginatedBatches.map((batch) => {
-                  const days = daysUntilExpiry(batch.expiryDate);
+                (() => {
+                  let lastCategory = '';
+                  return paginatedBatches.map((batch, batchIndex) => {
+                    const days = daysUntilExpiry(batch.expiryDate);
+                    const currentCategory = batch.medicine.category;
+                    const showCategoryHeader = currentCategory !== lastCategory;
+                    lastCategory = currentCategory;
 
-                  // row tint
-                  const rowBg =
-                    days < 0
-                      ? 'bg-red-50/70 dark:bg-red-950/20'
-                      : days <= 30
-                        ? 'bg-amber-50/70 dark:bg-amber-950/20'
-                        : days <= 60
-                          ? 'bg-blue-50/50 dark:bg-blue-950/15'
-                          : '';
+                    // row tint
+                    const rowBg =
+                      days < 0
+                        ? 'bg-red-50/70 dark:bg-red-950/20'
+                        : days <= 30
+                          ? 'bg-amber-50/70 dark:bg-amber-950/20'
+                          : days <= 60
+                            ? 'bg-blue-50/50 dark:bg-blue-950/15'
+                            : '';
 
-                  // expiry chip
-                  let chipLabel = '';
-                  let chipClass = '';
-                  if (days < 0) {
-                    chipLabel = `Expired ${Math.abs(days)}d ago`;
-                    chipClass = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
-                  } else if (days <= 30) {
-                    chipLabel = `⚠ ${days}d left`;
-                    chipClass = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
-                  } else if (days <= 60) {
-                    chipLabel = `${days}d left`;
-                    chipClass = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
-                  }
+                    // expiry chip
+                    let chipLabel = '';
+                    let chipClass = '';
+                    if (days < 0) {
+                      chipLabel = `Expired ${Math.abs(days)}d ago`;
+                      chipClass = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+                    } else if (days <= 30) {
+                      chipLabel = `⚠ ${days}d left`;
+                      chipClass = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+                    } else if (days <= 60) {
+                      chipLabel = `${days}d left`;
+                      chipClass = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+                    }
 
-                  // stock color
-                  const stockColor =
-                    batch.stockQty === 0
-                      ? 'text-red-600 font-bold'
-                      : batch.stockQty <= 10
-                        ? 'text-amber-600 font-semibold'
-                        : 'text-foreground';
+                    // stock color
+                    const stockColor =
+                      batch.stockQty === 0
+                        ? 'text-red-600 font-bold'
+                        : batch.stockQty <= 10
+                          ? 'text-amber-600 font-semibold'
+                          : 'text-foreground';
 
-                  return (
-                    <tr
-                      key={batch.id}
-                      className={`group border-b border-border/60 transition-colors duration-150 hover:bg-surface-muted/40 ${rowBg}`}
-                    >
-                      {/* Medicine */}
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-foreground leading-tight">{batch.medicine.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{batch.medicine.company}</div>
-                      </td>
-
-                      {/* Batch */}
-                      <td className="px-4 py-3">
-                        <span className="inline-block rounded-md bg-surface-muted px-2 py-0.5 font-mono text-xs tracking-wide">
-                          {batch.batchNumber}
-                        </span>
-                      </td>
-
-                      {/* Expiry */}
-                      <td className="px-4 py-3">
-                        <div className="text-sm">{new Date(batch.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-                        {chipLabel && (
-                          <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold leading-none ${chipClass}`}>
-                            {chipLabel}
-                          </span>
+                    return (
+                      <>
+                        {/* Category Header Row */}
+                        {showCategoryHeader && (
+                          <tr key={`category-${currentCategory}`}>
+                            <td colSpan={9} className="px-4 py-2 bg-primary/5 border-y-2 border-primary/20">
+                              <div className="flex items-center gap-2">
+                                <div className="h-1 w-1 rounded-full bg-primary" />
+                                <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                                  {currentCategory}
+                                </span>
+                                <div className="flex-1 h-px bg-primary/20" />
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </td>
 
-                      {/* Stock */}
-                      <td className={`px-4 py-3 tabular-nums ${stockColor}`}>
-                        {batch.stockQty}
-                      </td>
+                        {/* Batch Row */}
+                        <tr
+                          key={batch.id}
+                          className={`group border-b border-border/60 transition-colors duration-150 hover:bg-surface-muted/40 ${rowBg}`}
+                        >
+                          {/* Medicine */}
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-foreground leading-tight">{batch.medicine.name}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">{batch.medicine.company}</div>
+                          </td>
 
-                      {/* Purchase Rate */}
-                      <td className="px-4 py-3 hidden md:table-cell tabular-nums">
-                        ₹{Number(batch.purchaseRate).toFixed(2)}
-                      </td>
+                          {/* Batch */}
+                          <td className="px-4 py-3">
+                            <span className="inline-block rounded-md bg-surface-muted px-2 py-0.5 font-mono text-xs tracking-wide">
+                              {batch.batchNumber}
+                            </span>
+                          </td>
 
-                      {/* MRP */}
-                      <td className="px-4 py-3 tabular-nums font-medium">
-                        ₹{Number(batch.mrp).toFixed(2)}
-                      </td>
+                          {/* Expiry */}
+                          <td className="px-4 py-3">
+                            <div className="text-sm">{new Date(batch.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                            {chipLabel && (
+                              <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold leading-none ${chipClass}`}>
+                                {chipLabel}
+                              </span>
+                            )}
+                          </td>
 
-                      {/* Packing */}
-                      <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
-                        {batch.packing || '–'}
-                      </td>
+                          {/* Stock */}
+                          <td className={`px-4 py-3 tabular-nums ${stockColor}`}>
+                            {batch.stockQty}
+                          </td>
 
-                      {/* Rack */}
-                      <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">
-                        {batch.rackLocation || '–'}
-                      </td>
+                          {/* Purchase Rate */}
+                          <td className="px-4 py-3 hidden md:table-cell tabular-nums">
+                            ₹{Number(batch.purchaseRate).toFixed(2)}
+                          </td>
 
-                      {/* Actions */}
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity duration-150">
-                          {showArchived ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 rounded-xl"
-                              onClick={() => handleRestoreBatch(batch.id)}
-                            >
-                              Restore
-                            </Button>
-                          ) : (
-                            <button
-                              onClick={() => setEditingBatch(batch)}
-                              title="Edit inventory"
-                              className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDeleteBatch(batch)}
-                            title={showArchived ? 'Delete permanently' : 'Archive inventory'}
-                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                          {/* MRP */}
+                          <td className="px-4 py-3 tabular-nums font-medium">
+                            ₹{Number(batch.mrp).toFixed(2)}
+                          </td>
+
+                          {/* Packing */}
+                          <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
+                            {batch.packing || '–'}
+                          </td>
+
+                          {/* Rack */}
+                          <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">
+                            {batch.rackLocation || '–'}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="px-4 py-3">
+                            <div className="flex justify-end gap-1 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity duration-150">
+                              {showArchived ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 rounded-xl"
+                                  onClick={() => handleRestoreBatch(batch.id)}
+                                >
+                                  Restore
+                                </Button>
+                              ) : (
+                                <button
+                                  onClick={() => setEditingBatch(batch)}
+                                  title="Edit inventory"
+                                  className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteBatch(batch)}
+                                title={showArchived ? 'Delete permanently' : 'Archive inventory'}
+                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      </>
+                    );
+                  });
+                })()
               )}
             </tbody>
           </table>
