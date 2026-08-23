@@ -14,6 +14,7 @@ import {
   FileText,
   ListOrdered,
   Package,
+  PackageX,
   Pencil,
   Plus,
   Printer,
@@ -25,8 +26,10 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import InventoryEditModal, { EditableInventoryBatch } from '@/components/InventoryEditModal';
 import AddInventoryModal from '@/components/AddInventoryModal';
+import EmptyStockBatchesDrawer from '@/components/inventory/EmptyStockBatchesDrawer';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -119,6 +122,8 @@ export default function InventoryPage() {
   /* ---- state (modals — unchanged) ---- */
   const [editingBatch, setEditingBatch] = useState<EditableInventoryBatch | null>(null);
   const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
+  const [showEmptyStockDrawer, setShowEmptyStockDrawer] = useState(false);
+  const [emptyStockCount, setEmptyStockCount] = useState(0);
 
   const ROWS_PER_PAGE = 15;
 
@@ -242,6 +247,24 @@ export default function InventoryPage() {
       console.error('Failed to load companies:', error);
     }
   };
+
+  const loadEmptyStockCount = async () => {
+    try {
+      const response = await axios.get('/api/inventory/empty-stock-batches');
+      if (response.data.success) {
+        setEmptyStockCount(response.data.count);
+      }
+    } catch (error) {
+      console.error('Failed to load empty stock count:', error);
+    }
+  };
+
+  // Load empty stock count on mount and after inventory changes
+  useEffect(() => {
+    if (isAuthorized) {
+      void loadEmptyStockCount();
+    }
+  }, [isAuthorized]);
 
   /* ---- delete handler (unchanged) ---- */
   const handleDeleteBatch = async (batch: InventoryBatch) => {
@@ -622,6 +645,22 @@ export default function InventoryPage() {
             Reorder List
           </Button>
 
+          {/* empty stock batches */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl gap-1.5 hover:border-orange-500 hover:text-orange-500"
+            onClick={() => setShowEmptyStockDrawer(true)}
+          >
+            <PackageX className="h-3.5 w-3.5" />
+            Empty Stock
+            {emptyStockCount > 0 && (
+              <Badge variant="secondary" className="ml-1 bg-orange-500/20 text-orange-600">
+                {emptyStockCount}
+              </Badge>
+            )}
+          </Button>
+
           {/* add inventory */}
           <Button
             size="sm"
@@ -891,9 +930,19 @@ export default function InventoryPage() {
           toast.success('Inventory added successfully');
           await loadInventory();
           await loadMedicines();
+          await loadEmptyStockCount();
         }}
       />
 
+      <EmptyStockBatchesDrawer
+        isOpen={showEmptyStockDrawer}
+        onClose={() => setShowEmptyStockDrawer(false)}
+        onArchiveSuccess={async () => {
+          toast.success('Batch archived successfully');
+          await loadInventory();
+          await loadEmptyStockCount();
+        }}
+      />
 
     </div>
   );
