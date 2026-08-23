@@ -46,9 +46,8 @@ interface EmptyBatch {
   };
 }
 
-// Holds exactly which batch+medicine the user clicked — never changes until next click
+// Holds exactly which batch the user clicked — batchId is the single source of truth
 interface SelectedBatch {
-  medicineId: string;
   batchId: string;
 }
 
@@ -111,12 +110,9 @@ export default function EmptyStockBatchesDrawer({
   }, [isOpen, fetchEmptyBatches]);
 
   // Called when user clicks "View Batches" on a row
-  // Capture medicineId and batchId atomically from the exact row object
+  // Only the batchId matters — backend resolves the correct medicine
   const handleViewBatches = (batch: EmptyBatch) => {
-    const medicineId = batch.medicine.id;
-    const batchId = batch.id;
-    // Set atomically — both values come from the same batch object, no mismatch possible
-    setSelected({ medicineId, batchId });
+    setSelected({ batchId: batch.id });
   };
 
   const handleBackToList = () => {
@@ -138,15 +134,9 @@ export default function EmptyStockBatchesDrawer({
       >
         {/* ── Detail view ─────────────────────────────────────────── */}
         {selected ? (
-          /*
-           * key={selected.batchId} forces React to fully unmount + remount
-           * MedicineBatchDetailsView every time a different batch is selected.
-           * This guarantees no stale state from a previous selection survives.
-           */
           <MedicineBatchDetailsView
-            key={`${selected.medicineId}-${selected.batchId}`}
-            medicineId={selected.medicineId}
-            highlightBatchId={selected.batchId}
+            key={selected.batchId}
+            batchId={selected.batchId}
             onBack={handleBackToList}
             onArchiveSuccess={handleArchiveSuccess}
           />
