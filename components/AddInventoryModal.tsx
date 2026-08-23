@@ -598,9 +598,9 @@ export default function AddInventoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl overflow-visible">
+      <DialogContent className="max-w-[calc(100vw-1rem)] w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Inventory</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Add Inventory</DialogTitle>
         </DialogHeader>
 
         {error.global && (
@@ -609,15 +609,15 @@ export default function AddInventoryModal({
           </div>
         )}
 
-        <div className="grid gap-4 py-2">
+        <div className="grid gap-4 py-2 px-1">
           
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label>Company Name *</Label>
+              <Label className="text-sm">Company Name *</Label>
               <select
                 ref={companyRef}
                 tabIndex={1}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
                 value={selectedCompanyId}
                 onChange={(e) => handleCompanyChange(e.target.value)}
                 onKeyDown={(e) => {
@@ -639,10 +639,10 @@ export default function AddInventoryModal({
             </div>
 
             <div className="grid gap-2 relative" ref={dropdownRef}>
-              <Label>Medicine Name *</Label>
+              <Label className="text-sm">Medicine Name *</Label>
               {sameMedicineMode ? (
                 // Locked medicine display
-                <div className="flex h-10 w-full items-center rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
+                <div className="flex h-11 w-full items-center rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-base font-medium text-emerald-800">
                   {medicineSearch}
                 </div>
               ) : (
@@ -665,7 +665,7 @@ export default function AddInventoryModal({
                   }}
                   onKeyDown={handleMedicineKeyDown}
                   disabled={!selectedCompanyId}
-                  className={`w-full ${isCreatingNewMedicine ? 'border-blue-500 ring-1 ring-blue-200' : ''}`}
+                  className={`w-full h-11 text-base ${isCreatingNewMedicine ? 'border-blue-500 ring-1 ring-blue-200' : ''}`}
                   autoComplete="off"
                 />
               )}
@@ -788,9 +788,9 @@ export default function AddInventoryModal({
             </div>
           )}
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label>Batch Number *</Label>
+              <Label className="text-sm">Batch Number *</Label>
               <Input
                 ref={batchRef}
                 tabIndex={4}
@@ -801,17 +801,18 @@ export default function AddInventoryModal({
                   setError(er => ({...er, batchNumber: ''}));
                 }}
                 onKeyDown={(e) => handleFieldEnter(e, expiryRef)}
+                className="h-11 text-base"
               />
               {error.batchNumber && <span className="text-xs text-red-600 font-medium">{error.batchNumber}</span>}
             </div>
             
             <div className="grid gap-2">
-              <Label>Expiry Date * <span className="text-[10px] text-gray-400 font-normal">(type MMYY e.g. 0727)</span></Label>
+              <Label className="text-sm">Expiry Date * <span className="text-[10px] text-gray-400 font-normal">(type MMYY)</span></Label>
               <div className="flex gap-2">
                 <Input
                   ref={expiryRef}
                   tabIndex={5}
-                  placeholder="MMYY e.g. 0727"
+                  placeholder="e.g. 0727"
                   value={expiryText}
                   onChange={(e) => handleExpiryInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -822,7 +823,7 @@ export default function AddInventoryModal({
                       }
                     }
                   }}
-                  className="flex-1"
+                  className="flex-1 h-11 text-base"
                   maxLength={6}
                 />
                 <Input
@@ -830,7 +831,7 @@ export default function AddInventoryModal({
                   tabIndex={-1}
                   value={formData.expiryDate}
                   onChange={(e) => handleExpiryDatePicker(e.target.value)}
-                  className="w-12 px-1 opacity-60"
+                  className="w-12 h-11 px-1 opacity-60"
                   title="Or use date picker"
                 />
               </div>
@@ -848,9 +849,9 @@ export default function AddInventoryModal({
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label>Quantity *</Label>
+              <Label className="text-sm">Quantity *</Label>
               <Input
                 ref={qtyRef}
                 tabIndex={6}
@@ -863,12 +864,13 @@ export default function AddInventoryModal({
                   setError(er => ({...er, stockQty: ''}));
                 }}
                 onKeyDown={(e) => handleFieldEnter(e, purchaseRateRef)}
+                className="h-11 text-base"
               />
               {error.stockQty && <span className="text-xs text-red-600 font-medium">{error.stockQty}</span>}
             </div>
             
             <div className="grid gap-2">
-              <Label>Purchase Rate</Label>
+              <Label className="text-sm">Purchase Rate</Label>
               <Input
                 ref={purchaseRateRef}
                 tabIndex={7}
@@ -881,14 +883,15 @@ export default function AddInventoryModal({
                   setError(er => ({...er, purchaseRate: ''}));
                 }}
                 onKeyDown={(e) => handleFieldEnter(e, mrpRef)}
+                className="h-11 text-base"
               />
               {error.purchaseRate && <span className="text-xs text-red-600 font-medium">{error.purchaseRate}</span>}
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label>MRP *</Label>
+              <Label className="text-sm">MRP *</Label>
               <Input
                 ref={mrpRef}
                 tabIndex={8}
@@ -901,11 +904,12 @@ export default function AddInventoryModal({
                   setError(er => ({...er, mrp: ''}));
                 }}
                 onKeyDown={(e) => handleFieldEnter(e, packingRef)}
+                className="h-11 text-base"
               />
               {error.mrp && <span className="text-xs text-red-600 font-medium">{error.mrp}</span>}
             </div>
             <div className="grid gap-2">
-              <Label>Packing</Label>
+              <Label className="text-sm">Packing</Label>
               <Input
                 ref={packingRef}
                 tabIndex={9}
@@ -916,6 +920,7 @@ export default function AddInventoryModal({
                   setFormData((c) => ({ ...c, packing: e.target.value }));
                 }}
                 onKeyDown={(e) => handleFieldEnter(e, rackRef)}
+                className="h-11 text-base"
               />
               <datalist id="packing-options">
                 {packingSuggestions.map((opt) => (
@@ -925,14 +930,14 @@ export default function AddInventoryModal({
             </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
             
             <div className="grid gap-2">
-              <Label>Rack Location *</Label>
+              <Label className="text-sm">Rack Location *</Label>
               <select
                 ref={rackRef}
                 tabIndex={10}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
                 value={formData.rackLocation}
                 onChange={(e) => {
                   setFormData((c) => ({ ...c, rackLocation: e.target.value }));
@@ -954,7 +959,7 @@ export default function AddInventoryModal({
             </div>
             
             <div className="grid gap-2 sm:col-span-2">
-              <Label>GST Rate *</Label>
+              <Label className="text-sm">GST Rate *</Label>
               <div className="flex gap-2">
                 {GST_OPTIONS.map((opt, idx) => (
                   <button
@@ -971,14 +976,14 @@ export default function AddInventoryModal({
                         submitRef.current?.focus();
                       }
                     }}
-                    className={`flex-1 flex flex-col items-center justify-center rounded-md border p-2 py-3 transition-all ${
+                    className={`flex-1 flex flex-col items-center justify-center rounded-md border p-3 py-4 transition-all min-h-[60px] ${
                       Number(formData.gstPercent) === Number(opt.value)
                         ? 'bg-emerald-600 border-emerald-600 text-white'
                         : 'border-input bg-background text-muted-foreground hover:bg-emerald-50'
                     }`}
                   >
-                    <span className="text-sm font-bold">{opt.label}</span>
-                    <span className="text-[10px] opacity-80 font-normal">{opt.category}</span>
+                    <span className="text-base font-bold">{opt.label}</span>
+                    <span className="text-xs opacity-80 font-normal mt-0.5">{opt.category}</span>
                   </button>
                 ))}
               </div>
@@ -1028,8 +1033,14 @@ export default function AddInventoryModal({
           </div>
         )}
 
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={onClose} disabled={loading} tabIndex={15}>
+        <DialogFooter className="mt-4 flex-col sm:flex-row gap-2">
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            disabled={loading} 
+            tabIndex={15}
+            className="w-full sm:w-auto h-11 text-base"
+          >
             {batchesAdded > 0 ? `Done (${batchesAdded} added)` : 'Cancel'}
           </Button>
           <Button 
@@ -1037,7 +1048,7 @@ export default function AddInventoryModal({
             tabIndex={14}
             onClick={handleSubmit} 
             disabled={isSubmitDisabled} 
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="w-full sm:w-auto h-11 text-base bg-emerald-600 hover:bg-emerald-700"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
