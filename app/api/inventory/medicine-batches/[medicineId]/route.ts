@@ -4,7 +4,7 @@ import { verifyAuth } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { medicineId: string } }
+  { params }: { params: Promise<{ medicineId: string }> }
 ) {
   try {
     const auth = await verifyAuth(req);
@@ -12,7 +12,7 @@ export async function GET(
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { medicineId } = params;
+    const { medicineId } = await params;
     const { searchParams } = new URL(req.url);
     const highlightBatchId = searchParams.get('highlightBatchId');
 

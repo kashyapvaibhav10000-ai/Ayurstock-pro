@@ -69,7 +69,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (company && company !== 'all') {
-      baseWhere.medicine = { ...(baseWhere.medicine || {}), company };
+      baseWhere.medicine = {
+        ...(baseWhere.medicine || {}),
+        company: { equals: company, mode: 'insensitive' },
+      };
     }
 
     // Tab-based filtering mirrors the stat cards on the Inventory page.

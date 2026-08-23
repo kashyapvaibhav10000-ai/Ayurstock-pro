@@ -48,20 +48,40 @@ export default function PrintInventoryPage() {
   const loadInventory = async () => {
     try {
       setLoading(true);
-      const params: any = {
-        limit: 10000, // Load all for print
-        offset: 0,
-      };
-      
-      if (company && company !== 'all') {
-        params.company = company;
+
+      const pageSize = 5000;
+      let offset = 0;
+      let total = Number.POSITIVE_INFINITY;
+      const allBatches: InventoryBatch[] = [];
+
+      while (offset < total) {
+        const params: Record<string, string | number> = {
+          limit: pageSize,
+          offset,
+        };
+
+        if (company && company !== 'all') {
+          params.company = company;
+        }
+
+        const response = await axios.get('/api/inventory/batches', { params });
+
+        if (!response.data.success) {
+          throw new Error('Failed to load inventory data');
+        }
+
+        const pageBatches: InventoryBatch[] = response.data.data.batches || [];
+        allBatches.push(...pageBatches);
+        total = Number(response.data.data.total || pageBatches.length);
+
+        if (pageBatches.length === 0) {
+          break;
+        }
+
+        offset += pageSize;
       }
 
-      const response = await axios.get('/api/inventory/batches', { params });
-      
-      if (response.data.success) {
-        setBatches(response.data.data.batches);
-      }
+      setBatches(allBatches);
     } catch (err) {
       console.error('Failed to load inventory:', err);
       setError('Failed to load inventory data');
