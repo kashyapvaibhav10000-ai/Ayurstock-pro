@@ -127,7 +127,12 @@ code {
     background: #ffffff;
   }
 
-  body * {
+  /* Invoice-specific print rules - only apply when invoice-container exists */
+  .invoice-container ~ * {
+    visibility: hidden !important;
+  }
+
+  body:has(.invoice-container) * {
     visibility: hidden !important;
   }
 
@@ -143,7 +148,7 @@ code {
     width: 100%;
   }
 
-  .print-hidden {
+  .print-hidden, .print\\:hidden {
     display: none !important;
   }
 

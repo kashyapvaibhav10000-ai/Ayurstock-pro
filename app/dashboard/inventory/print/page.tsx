@@ -219,6 +219,7 @@ export default function PrintInventoryPage() {
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            background: white !important;
           }
           
           @page {
@@ -226,8 +227,27 @@ export default function PrintInventoryPage() {
             margin: 1cm;
           }
           
+          /* Hide UI elements during print */
           .print\\:hidden {
             display: none !important;
+          }
+          
+          /* Page breaks for long tables */
+          table {
+            page-break-inside: auto;
+          }
+          
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          
+          thead {
+            display: table-header-group;
+          }
+          
+          tfoot {
+            display: table-footer-group;
           }
         }
       `}</style>
