@@ -96,7 +96,10 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: { expiryDate: 'asc' },
+        orderBy: [
+          { medicine: { category: 'asc' } },
+          { expiryDate: 'asc' }
+        ],
         take: limit,
         skip: offset,
       }),
