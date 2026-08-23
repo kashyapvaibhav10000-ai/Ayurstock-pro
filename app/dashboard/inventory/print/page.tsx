@@ -100,15 +100,15 @@ export default function PrintInventoryPage() {
   return (
     <>
       {/* Print button - hidden when printing */}
-      <div className="fixed top-4 right-4 print:hidden z-50">
+      <div id="inventory-print-btn" className="fixed top-4 right-4 z-50">
         <Button onClick={handlePrint} className="gap-2 shadow-lg">
           <Printer className="h-4 w-4" />
           Print
         </Button>
       </div>
 
-      {/* Print-friendly content */}
-      <div className="max-w-[1200px] mx-auto p-8 bg-white">
+      {/* Report content - this is what prints */}
+      <div id="inventory-report" className="max-w-[1200px] mx-auto p-8 bg-white">
         {/* Header */}
         <div className="border-b-2 border-gray-800 pb-4 mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Inventory Report</h1>
@@ -152,7 +152,7 @@ export default function PrintInventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {batches.map((batch, idx) => {
+              {batches.map((batch) => {
                 const days = daysUntilExpiry(batch.expiryDate);
                 const rowValue = batch.stockQty * Number(batch.mrp);
                 const isExpired = days < 0;
@@ -213,42 +213,49 @@ export default function PrintInventoryPage() {
         </div>
       </div>
 
-      {/* Print-specific styles */}
+      {/* Self-contained print styles scoped to this page only */}
       <style jsx global>{`
         @media print {
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-            background: white !important;
-          }
-          
+          /* ── Page setup ── */
           @page {
             size: A4 landscape;
             margin: 1cm;
           }
-          
-          /* Hide UI elements during print */
-          .print\\:hidden {
-            display: none !important;
+
+          /* ── Step 1: hide everything on the page ── */
+          body * {
+            visibility: hidden !important;
           }
-          
-          /* Page breaks for long tables */
-          table {
-            page-break-inside: auto;
+
+          /* ── Step 2: show only the report and all its children ── */
+          #inventory-report,
+          #inventory-report * {
+            visibility: visible !important;
           }
-          
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
+
+          /* ── Step 3: position report at top-left so it fills the page ── */
+          #inventory-report {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: white !important;
           }
-          
-          thead {
-            display: table-header-group;
+
+          /* ── Colour accuracy ── */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
-          
-          tfoot {
-            display: table-footer-group;
-          }
+
+          /* ── Multi-page table support ── */
+          table  { page-break-inside: auto; }
+          tr     { page-break-inside: avoid; page-break-after: auto; }
+          thead  { display: table-header-group; }
+          tfoot  { display: table-footer-group; }
         }
       `}</style>
     </>
