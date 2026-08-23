@@ -34,10 +34,39 @@ export async function GET(
       return NextResponse.json({ success: false, message: 'Medicine not found' }, { status: 404 });
     }
 
+    // SAFETY CHECK: if highlightBatchId is provided, verify it belongs to this medicine.
+    // If it doesn't match (data inconsistency), look up the correct medicine from the batch.
+    let resolvedMedicineId = medicineId;
+    if (highlightBatchId) {
+      const highlightedBatch = await prisma.inventoryBatch.findFirst({
+        where: {
+          id: highlightBatchId,
+          shopId: auth.user.shopId,
+        },
+        select: { medicineId: true },
+      });
+
+      if (highlightedBatch && highlightedBatch.medicineId !== medicineId) {
+        // The batch belongs to a different medicine — use the correct one from the batch
+        console.warn(
+          `[medicine-batches] medicineId mismatch: passed ${medicineId} but batch ${highlightBatchId} belongs to ${highlightedBatch.medicineId}. Using batch's actual medicineId.`
+        );
+        resolvedMedicineId = highlightedBatch.medicineId;
+      }
+    }
+
+    // If we resolved to a different medicine, re-fetch it
+    const resolvedMedicine = resolvedMedicineId !== medicineId
+      ? await prisma.medicine.findFirst({
+          where: { id: resolvedMedicineId, shopId: auth.user.shopId },
+          select: { id: true, name: true, company: true, category: true },
+        }) ?? medicine
+      : medicine;
+
     // Get ALL active batches of this medicine (both zero and non-zero stock)
     const batches = await prisma.inventoryBatch.findMany({
       where: {
-        medicineId,
+        medicineId: resolvedMedicineId,
         shopId: auth.user.shopId,
         deletedAt: null,
       },
@@ -93,7 +122,7 @@ export async function GET(
       success: true,
       data: {
         medicine: {
-          ...medicine,
+          ...resolvedMedicine,
           totalActiveStock,
         },
         batches: enrichedBatches,

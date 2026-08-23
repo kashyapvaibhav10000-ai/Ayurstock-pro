@@ -56,15 +56,13 @@ interface MedicineData {
 }
 
 interface MedicineBatchDetailsViewProps {
-  medicineId: string;
-  highlightBatchId: string;
+  batchId: string;          // the exact batch the user clicked — drives everything
   onBack: () => void;
   onArchiveSuccess: () => void;
 }
 
 export default function MedicineBatchDetailsView({
-  medicineId,
-  highlightBatchId,
+  batchId,
   onBack,
   onArchiveSuccess,
 }: MedicineBatchDetailsViewProps) {
@@ -76,15 +74,15 @@ export default function MedicineBatchDetailsView({
 
   useEffect(() => {
     void fetchMedicineBatches();
-  }, [medicineId, highlightBatchId]);
+  }, [batchId]);
 
   const fetchMedicineBatches = async () => {
     try {
       setLoading(true);
-      // Clear stale data immediately to prevent showing wrong medicine
-      setData(null);
-      const response = await axios.get(`/api/inventory/medicine-batches/${medicineId}`, {
-        params: { highlightBatchId },
+      setData(null); // clear stale data immediately
+      // Use batchId-only endpoint — backend resolves the correct medicine itself
+      const response = await axios.get('/api/inventory/batch-details', {
+        params: { batchId },
       });
       if (response.data.success) {
         setData(response.data.data);
