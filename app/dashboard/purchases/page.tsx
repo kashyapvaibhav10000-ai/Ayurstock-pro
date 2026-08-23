@@ -39,6 +39,7 @@ interface MedicineOption {
   id: string;
   name: string;
   company: string;
+  category?: string;
 }
 
 interface PurchaseItemForm {
@@ -81,6 +82,11 @@ interface PurchaseHistoryItem {
     name: string;
     phone: string;
   };
+}
+
+interface CompanyOption {
+  id: string;
+  name: string;
 }
 
 interface PurchaseReturn {
@@ -150,12 +156,20 @@ export default function PurchasesPage() {
   const [stats, setStats] = useState<PurchaseStats | null>(null);
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
   const [medicines, setMedicines] = useState<MedicineOption[]>([]);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [categories, setCategories] = useState<string[]>([]);
   const [history, setHistory] = useState<PurchaseHistoryItem[]>([]);
   const [returns, setReturns] = useState<PurchaseReturn[]>([]);
   const [selectedPurchase, setSelectedPurchase] = useState<PurchaseDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [showNewMedicineDialog, setShowNewMedicineDialog] = useState(false);
+  const [newMedicineName, setNewMedicineName] = useState('');
+  const [newMedicineCategory, setNewMedicineCategory] = useState('');
+  const [newMedicineForRow, setNewMedicineForRow] = useState<string | null>(null);
+  const [creatingMedicine, setCreatingMedicine] = useState(false);
   // setMessage and setError removed in favor of toast
   const [scanPreview, setScanPreview] = useState<ScanPreviewItem[]>([]);
   const [scanSummary, setScanSummary] = useState({
@@ -199,11 +213,12 @@ export default function PurchasesPage() {
   const loadAll = async () => {
     try {
       setLoading(true);
-      const [statsResponse, suppliersResponse, medicinesResponse, historyResponse, returnsResponse] =
+      const [statsResponse, suppliersResponse, medicinesResponse, companiesResponse, historyResponse, returnsResponse] =
         await Promise.all([
           axios.get('/api/purchases', { params: { view: 'stats' } }),
           axios.get('/api/suppliers', { params: { limit: 200 } }),
-          axios.get('/api/medicines/search', { params: { query: '', limit: 200 } }),
+          axios.get('/api/medicines/search', { params: { query: '', limit: 500 } }),
+          axios.get('/api/companies'),
           axios.get('/api/purchases'),
           axios.get('/api/purchases/returns'),
         ]);
@@ -216,6 +231,14 @@ export default function PurchasesPage() {
       }
       if (medicinesResponse.data.success) {
         setMedicines(medicinesResponse.data.data);
+        // Extract unique categories
+        const uniqueCategories = Array.from(
+          new Set(medicinesResponse.data.data.map((m: MedicineOption) => m.category || '').filter(Boolean))
+        ).sort();
+        setCategories(uniqueCategories as string[]);
+      }
+      if (companiesResponse.data.success) {
+        setCompanies(companiesResponse.data.data);
       }
       if (historyResponse.data.success) {
         setHistory(historyResponse.data.data);
@@ -312,6 +335,22 @@ export default function PurchasesPage() {
         return;
       }
 
+      // Check for duplicate batches (same medicineId + batchNumber)
+      const batchMap = new Map<string, number>();
+      for (let i = 0; i < purchaseForm.items.length; i++) {
+        const item = purchaseForm.items[i];
+        const batchKey = `${item.medicineId}:${item.batchNumber.trim()}`;
+        if (batchMap.has(batchKey)) {
+          const firstIndex = batchMap.get(batchKey)!;
+          toast.error(
+            `Duplicate batch detected: Same medicine with batch "${item.batchNumber}" appears in row ${firstIndex + 1} and row ${i + 1}`
+          );
+          setSaving(false);
+          return;
+        }
+        batchMap.set(batchKey, i);
+      }
+
       const response = await axios.post('/api/purchases', {
         ...purchaseForm,
         items: purchaseForm.items.map(({ tempId, ...item }) => item),
@@ -332,6 +371,7 @@ export default function PurchasesPage() {
         notes: '',
         items: [createEmptyPurchaseItem()],
       });
+      setSelectedCompany('');
       await loadAll();
     } catch (saveError) {
       const messageText = axios.isAxiosError(saveError)
@@ -463,6 +503,72 @@ export default function PurchasesPage() {
     setAppliedScanMeta({});
     toast.info('OCR results discarded.');
   };
+
+  const handleCreateNewMedicine = async () => {
+    if (!newMedicineName.trim()) {
+      toast.error('Medicine name is required');
+      return;
+    }
+    if (!selectedCompany) {
+      toast.error('Please select a company first');
+      return;
+    }
+    if (!newMedicineCategory.trim()) {
+      toast.error('Category is required');
+      return;
+    }
+
+    try {
+      setCreatingMedicine(true);
+      const response = await axios.post('/api/medicines/search', {
+        name: newMedicineName.trim(),
+        company: selectedCompany,
+        category: newMedicineCategory.trim(),
+        hsn: '',
+        barcode: '',
+      });
+
+      if (response.data.success) {
+        const newMedicine = response.data.data;
+        toast.success(`Medicine "${newMedicine.name}" created successfully`);
+        
+        // Add to medicines list
+        setMedicines((prev) => [...prev, {
+          id: newMedicine.id,
+          name: newMedicine.name,
+          company: newMedicine.company,
+        }]);
+
+        // Update the row with the new medicine
+        if (newMedicineForRow) {
+          handlePurchaseItemChange(newMedicineForRow, 'medicineId', newMedicine.id);
+        }
+
+        // Reset dialog
+        setShowNewMedicineDialog(false);
+        setNewMedicineName('');
+        setNewMedicineCategory('');
+        setNewMedicineForRow(null);
+      }
+    } catch (error) {
+      console.error('Failed to create medicine:', error);
+      toast.error('Failed to create medicine');
+    } finally {
+      setCreatingMedicine(false);
+    }
+  };
+
+  const handleMedicineNotFound = (tempId: string, searchValue: string) => {
+    setNewMedicineName(searchValue);
+    setNewMedicineForRow(tempId);
+    setShowNewMedicineDialog(true);
+  };
+
+  // Filter medicines by selected company
+  const filteredMedicines = useMemo(() => {
+    if (!selectedCompany) return medicines;
+    return medicines.filter((m) => m.company === selectedCompany);
+  }, [medicines, selectedCompany]);
 
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">Loading purchases...</div>;
@@ -602,6 +708,7 @@ export default function PurchasesPage() {
                   <div className="mt-1 space-y-1">
                     <p>Enter distributor invoice details manually using the form below:</p>
                     <ul className="list-disc list-inside ml-2 text-xs space-y-0.5">
+                      <li>Select a company to filter medicines</li>
                       <li>Fill in supplier and invoice header details</li>
                       <li>Add medicine rows and enter batch, expiry, quantity, and pricing</li>
                       <li>Or click "Scan Invoice" above to extract data from a PDF/image automatically</li>
@@ -609,6 +716,28 @@ export default function PurchasesPage() {
                   </div>
                 </div>
               ) : null}
+
+              {/* Company Selection */}
+              <div className="rounded-2xl border border-border bg-surface-muted/30 p-4">
+                <Label className="text-sm font-bold mb-2 block">Select Company (Optional - filters medicine list)</Label>
+                <select
+                  className="h-10 w-full md:w-1/3 rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                  value={selectedCompany}
+                  onChange={(event) => setSelectedCompany(event.target.value)}
+                >
+                  <option value="">All Companies</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.name}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedCompany && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Showing medicines from: <span className="font-semibold text-foreground">{selectedCompany}</span>
+                  </p>
+                )}
+              </div>
               
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
@@ -730,16 +859,12 @@ export default function PurchasesPage() {
                   <TableHeader className="bg-surface-muted/50 border-b border-border">
                     <TableRow className="border-border hover:bg-transparent">
                       <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Medicine</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Status</TableHead>
                       <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Batch</TableHead>
                       <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Expiry</TableHead>
                       <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Qty</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Free</TableHead>
                       <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Rate</TableHead>
                       <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">MRP</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Discount</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">GST</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Rack</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Rack (Optional)</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -748,7 +873,7 @@ export default function PurchasesPage() {
                       const meta = appliedScanMeta[item.tempId];
                       return (
                       <TableRow key={item.tempId} className="border-border">
-                        <TableCell>
+                        <TableCell className="min-w-[250px]">
                           <select
                             className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                             value={item.medicineId}
@@ -757,34 +882,28 @@ export default function PurchasesPage() {
                             }
                           >
                             <option value="">Select medicine</option>
-                            {medicines.map((medicine) => (
+                            {filteredMedicines.map((medicine) => (
                               <option key={medicine.id} value={medicine.id}>
-                                {medicine.name}
+                                {medicine.name} ({medicine.company})
                               </option>
                             ))}
                           </select>
-                        </TableCell>
-                        <TableCell>
-                          {meta ? (
-                            <span
-                              className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide shadow-sm ${
-                                meta.status === 'matched'
-                                  ? 'bg-primary/20 text-primary'
-                                  : meta.status === 'possible'
-                                    ? 'bg-amber-400/20 text-amber-400'
-                                    : 'bg-muted-foreground/20 text-muted-foreground'
-                              }`}
+                          {selectedCompany && filteredMedicines.length === 0 && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="mt-1 h-auto p-0 text-xs text-primary"
+                              onClick={() => handleMedicineNotFound(item.tempId, '')}
                             >
-                              {meta.status}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40">Manual</span>
+                              + Add as New Medicine
+                            </Button>
                           )}
                         </TableCell>
                         <TableCell>
                           <Input
                             value={item.batchNumber}
                             className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
+                            placeholder="Batch number"
                             onChange={(event) =>
                               handlePurchaseItemChange(item.tempId, 'batchNumber', event.target.value)
                             }
@@ -819,21 +938,7 @@ export default function PurchasesPage() {
                           <Input
                             type="number"
                             min={0}
-                            value={item.freeQty}
-                            className="w-16 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
-                            onChange={(event) =>
-                              handlePurchaseItemChange(
-                                item.tempId,
-                                'freeQty',
-                                Number(event.target.value)
-                              )
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            min={0}
+                            step="0.01"
                             value={item.purchaseRate}
                             className="w-24 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
                             onChange={(event) =>
@@ -849,6 +954,7 @@ export default function PurchasesPage() {
                           <Input
                             type="number"
                             min={0}
+                            step="0.01"
                             value={item.mrp}
                             className="w-24 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
                             onChange={(event) =>
@@ -856,35 +962,10 @@ export default function PurchasesPage() {
                             }
                           />
                         </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            min={0}
-                            value={item.discount}
-                            className="w-20 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
-                            onChange={(event) =>
-                              handlePurchaseItemChange(
-                                item.tempId,
-                                'discount',
-                                Number(event.target.value)
-                              )
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            min={0}
-                            value={item.gst}
-                            className="w-20 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
-                            onChange={(event) =>
-                              handlePurchaseItemChange(item.tempId, 'gst', Number(event.target.value))
-                            }
-                          />
-                        </TableCell>
                         <TableCell>
                           <Input
                             value={item.rackLocation}
+                            placeholder="Optional"
                             className="w-24 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                             onChange={(event) =>
                               handlePurchaseItemChange(item.tempId, 'rackLocation', event.target.value)
@@ -1135,6 +1216,80 @@ export default function PurchasesPage() {
           await loadAll();
         }}
       />
+
+      {/* New Medicine Dialog */}
+      {showNewMedicineDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-surface p-6 shadow-lg">
+            <h3 className="text-xl font-extrabold text-foreground mb-4">Add New Medicine</h3>
+            <div className="space-y-4">
+              <div>
+                <Label>Medicine Name</Label>
+                <Input
+                  value={newMedicineName}
+                  onChange={(e) => setNewMedicineName(e.target.value)}
+                  className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
+                  placeholder="Enter medicine name"
+                />
+              </div>
+              <div>
+                <Label>Company</Label>
+                <Input
+                  value={selectedCompany}
+                  disabled
+                  className="rounded-xl border-border bg-surface-muted focus-visible:ring-primary/20"
+                />
+              </div>
+              <div>
+                <Label>Category</Label>
+                <select
+                  value={newMedicineCategory}
+                  onChange={(e) => setNewMedicineCategory(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                >
+                  <option value="">Select category</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Or type a new category name in the field above
+                </p>
+                <Input
+                  value={newMedicineCategory}
+                  onChange={(e) => setNewMedicineCategory(e.target.value)}
+                  className="rounded-xl border-border bg-surface focus-visible:ring-primary/20 mt-2"
+                  placeholder="Or enter new category"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl"
+                onClick={() => {
+                  setShowNewMedicineDialog(false);
+                  setNewMedicineName('');
+                  setNewMedicineCategory('');
+                  setNewMedicineForRow(null);
+                }}
+                disabled={creatingMedicine}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 rounded-xl"
+                onClick={handleCreateNewMedicine}
+                disabled={creatingMedicine}
+              >
+                {creatingMedicine ? 'Creating...' : 'Add Medicine'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

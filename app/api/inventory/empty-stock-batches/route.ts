@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
+    const company = searchParams.get('company') || '';
 
     // Get all zero-stock batches with medicine info
     const emptyBatches = await prisma.inventoryBatch.findMany({
@@ -25,6 +26,11 @@ export async function GET(req: NextRequest) {
                 { batchNumber: { contains: search, mode: 'insensitive' } },
                 { medicine: { company: { contains: search, mode: 'insensitive' } } },
               ],
+            }
+          : {}),
+        ...(company
+          ? {
+              medicine: { company: { equals: company, mode: 'insensitive' } },
             }
           : {}),
       },
