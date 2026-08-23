@@ -474,25 +474,13 @@ export default function PurchasesPage() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Purchases</h1>
           <p className="mt-1 text-sm font-medium text-muted-foreground">
-            Capture distributor invoices, increase stock, and manage supplier returns.
+            Create distributor invoices manually or scan them automatically.
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="gap-2" onClick={() => void loadAll()}>
             <RefreshCw className="h-4 w-4" />
             Refresh
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => setShowPriceListModal(true)}
-          >
-            <FileScan className="h-4 w-4" />
-            Upload Distributor Invoice
-          </Button>
-          <Button className="gap-2" onClick={addPurchaseRow}>
-            <Plus className="h-4 w-4" />
-            New Purchase Row
           </Button>
         </div>
       </div>
@@ -551,10 +539,10 @@ export default function PurchasesPage() {
       <Tabs defaultValue="new" className="space-y-6">
         <TabsList className="grid w-full rounded-2xl bg-surface-muted/50 p-1.5 md:grid-cols-3 shadow-inner">
           <TabsTrigger value="new" className="rounded-xl font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
-            New Purchase
+            New Invoice
           </TabsTrigger>
           <TabsTrigger value="history" className="rounded-xl font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
-            Purchase History
+            Invoice History
           </TabsTrigger>
           <TabsTrigger value="returns" className="rounded-xl font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
             Returns
@@ -564,8 +552,28 @@ export default function PurchasesPage() {
         <TabsContent value="new">
           <Card className="rounded-[24px] shadow-soft border-border bg-surface">
             <CardHeader>
-              <CardTitle className="text-xl font-extrabold text-foreground">Create Purchase</CardTitle>
-              <CardDescription className="font-medium text-muted-foreground">Enter distributor invoice details and stock items.</CardDescription>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="text-xl font-extrabold text-foreground">Distributor Invoice Entry</CardTitle>
+                  <CardDescription className="font-medium text-muted-foreground">
+                    Create invoices manually or scan them automatically
+                  </CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => setShowPriceListModal(true)}
+                  >
+                    <FileScan className="h-4 w-4" />
+                    Scan Invoice
+                  </Button>
+                  <Button className="gap-2" onClick={addPurchaseRow}>
+                    <Plus className="h-4 w-4" />
+                    Add Medicine Row
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {scanPreview.length > 0 ? (
@@ -587,6 +595,21 @@ export default function PurchasesPage() {
                   </div>
                 </div>
               ) : null}
+              
+              {scanPreview.length === 0 && purchaseForm.items.length === 1 && !purchaseForm.items[0].medicineId && !purchaseForm.supplierId ? (
+                <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 text-sm text-blue-600 dark:text-blue-400">
+                  <div className="font-semibold">Manual Invoice Entry</div>
+                  <div className="mt-1 space-y-1">
+                    <p>Enter distributor invoice details manually using the form below:</p>
+                    <ul className="list-disc list-inside ml-2 text-xs space-y-0.5">
+                      <li>Fill in supplier and invoice header details</li>
+                      <li>Add medicine rows and enter batch, expiry, quantity, and pricing</li>
+                      <li>Or click "Scan Invoice" above to extract data from a PDF/image automatically</li>
+                    </ul>
+                  </div>
+                </div>
+              ) : null}
+              
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Supplier</Label>
