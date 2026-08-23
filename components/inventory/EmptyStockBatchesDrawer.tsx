@@ -58,8 +58,10 @@ export default function EmptyStockBatchesDrawer({
   onArchiveSuccess,
 }: EmptyStockBatchesDrawerProps) {
   const [batches, setBatches] = useState<EmptyBatch[]>([]);
+  const [companies, setCompanies] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('all');
   const [selectedMedicineId, setSelectedMedicineId] = useState<string | null>(null);
   const [highlightBatchId, setHighlightBatchId] = useState<string | null>(null);
 
@@ -67,16 +69,24 @@ export default function EmptyStockBatchesDrawer({
     if (isOpen) {
       void fetchEmptyBatches();
     }
-  }, [isOpen, search]);
+  }, [isOpen, search, companyFilter]);
 
   const fetchEmptyBatches = async () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/inventory/empty-stock-batches', {
-        params: { search },
+        params: { 
+          search,
+          company: companyFilter !== 'all' ? companyFilter : undefined,
+        },
       });
       if (response.data.success) {
         setBatches(response.data.data);
+        // Extract unique companies from batches
+        const uniqueCompanies = Array.from(
+          new Set(response.data.data.map((b: EmptyBatch) => b.medicine.company))
+        ).sort();
+        setCompanies(uniqueCompanies as string[]);
       }
     } catch (error) {
       console.error('Failed to fetch empty batches:', error);
@@ -130,15 +140,29 @@ export default function EmptyStockBatchesDrawer({
         </SheetHeader>
 
         <div className="mt-6 space-y-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search medicine or batch number..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
-            />
+          {/* Search and Company Filter */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search medicine or batch number..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
+              />
+            </div>
+            <select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="h-10 rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+            >
+              <option value="all">All Companies</option>
+              {companies.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Count Badge */}

@@ -81,6 +81,8 @@ export default function MedicineBatchDetailsView({
   const fetchMedicineBatches = async () => {
     try {
       setLoading(true);
+      // Clear stale data immediately to prevent showing wrong medicine
+      setData(null);
       const response = await axios.get(`/api/inventory/medicine-batches/${medicineId}`, {
         params: { highlightBatchId },
       });
