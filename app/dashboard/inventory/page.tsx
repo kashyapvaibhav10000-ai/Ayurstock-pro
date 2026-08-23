@@ -16,6 +16,7 @@ import {
   Package,
   Pencil,
   Plus,
+  Printer,
   Search,
   ShieldAlert,
   Clock,
@@ -579,6 +580,24 @@ export default function InventoryPage() {
           >
             <ArrowDownUp className="h-3.5 w-3.5" />
             Expiry
+          </Button>
+
+          {/* print inventory */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-xl gap-1.5 hover:border-primary hover:text-primary"
+            onClick={() => {
+              const printUrl = new URL('/dashboard/inventory/print', window.location.origin);
+              if (companyFilter && companyFilter !== 'all') {
+                printUrl.searchParams.set('company', companyFilter);
+                printUrl.searchParams.set('companyName', companyFilter);
+              }
+              window.open(printUrl.toString(), '_blank');
+            }}
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Print
           </Button>
 
           {/* download excel */}
