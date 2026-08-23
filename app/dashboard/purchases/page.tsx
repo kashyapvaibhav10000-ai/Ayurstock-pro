@@ -45,6 +45,7 @@ interface MedicineOption {
 interface PurchaseItemForm {
   tempId: string;
   medicineId: string;
+  medicineSearch?: string;
   batchNumber: string;
   expiryDate: string;
   quantity: number;
@@ -129,6 +130,7 @@ interface PurchaseDetail {
 const createEmptyPurchaseItem = (): PurchaseItemForm => ({
   tempId: crypto.randomUUID(),
   medicineId: '',
+  medicineSearch: '',
   batchNumber: '',
   expiryDate: '',
   quantity: 1,
@@ -213,11 +215,11 @@ export default function PurchasesPage() {
   const loadAll = async () => {
     try {
       setLoading(true);
-      const [statsResponse, suppliersResponse, medicinesResponse, companiesResponse, historyResponse, returnsResponse] =
+      const [statsResponse, suppliersResponse, medicinesList, companiesResponse, historyResponse, returnsResponse] =
         await Promise.all([
           axios.get('/api/purchases', { params: { view: 'stats' } }),
           axios.get('/api/suppliers', { params: { limit: 200 } }),
-          axios.get('/api/medicines/search', { params: { query: '', limit: 500 } }),
+          loadAllMedicines(),
           axios.get('/api/companies'),
           axios.get('/api/purchases'),
           axios.get('/api/purchases/returns'),
@@ -229,11 +231,11 @@ export default function PurchasesPage() {
       if (suppliersResponse.data.success) {
         setSuppliers(suppliersResponse.data.data);
       }
-      if (medicinesResponse.data.success) {
-        setMedicines(medicinesResponse.data.data);
+      if (medicinesList) {
+        setMedicines(medicinesList);
         // Extract unique categories
         const uniqueCategories = Array.from(
-          new Set(medicinesResponse.data.data.map((m: MedicineOption) => m.category || '').filter(Boolean))
+          new Set(medicinesList.map((m: MedicineOption) => m.category || '').filter(Boolean))
         ).sort();
         setCategories(uniqueCategories as string[]);
       }
@@ -252,6 +254,35 @@ export default function PurchasesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadAllMedicines = async (): Promise<MedicineOption[]> => {
+    const limit = 500;
+    let offset = 0;
+    let total = Number.POSITIVE_INFINITY;
+    const allMedicines: MedicineOption[] = [];
+
+    while (offset < total) {
+      const response = await axios.get('/api/medicines/search', {
+        params: { query: '', limit, offset },
+      });
+
+      if (!response.data.success) {
+        throw new Error('Failed to load medicines');
+      }
+
+      const pageMedicines: MedicineOption[] = response.data.data || [];
+      allMedicines.push(...pageMedicines);
+      total = Number(response.data.total || pageMedicines.length);
+
+      if (pageMedicines.length === 0) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return allMedicines;
   };
 
   const filteredHistory = useMemo(() => {
@@ -291,6 +322,37 @@ export default function PurchasesPage() {
       items: current.items.map((item) =>
         item.tempId === tempId ? { ...item, [field]: value } : item
       ),
+    }));
+  };
+
+  const handleMedicineSelect = (tempId: string, medicineId: string) => {
+    const selectedMedicine = medicines.find((medicine) => medicine.id === medicineId);
+
+    setPurchaseForm((current) => ({
+      ...current,
+      items: current.items.map((item) =>
+        item.tempId === tempId
+          ? {
+              ...item,
+              medicineId,
+              medicineSearch: selectedMedicine ? selectedMedicine.name : item.medicineSearch,
+            }
+          : item
+      ),
+    }));
+  };
+
+  const handleCompanyChange = (companyName: string) => {
+    setSelectedCompany(companyName);
+    setPurchaseForm((current) => ({
+      ...current,
+      items: current.items.map((item) => {
+        const selectedMedicine = medicines.find((medicine) => medicine.id === item.medicineId);
+        const keepSelected =
+          !companyName || !selectedMedicine || selectedMedicine.company === companyName;
+
+        return keepSelected ? item : { ...item, medicineId: '', medicineSearch: '' };
+      }),
     }));
   };
 
@@ -353,7 +415,7 @@ export default function PurchasesPage() {
 
       const response = await axios.post('/api/purchases', {
         ...purchaseForm,
-        items: purchaseForm.items.map(({ tempId, ...item }) => item),
+        items: purchaseForm.items.map(({ tempId, medicineSearch, ...item }) => item),
       });
 
       if (!response.data.success) {
@@ -478,6 +540,7 @@ export default function PurchasesPage() {
       items: scanPreview.map((item) => ({
         tempId: item.tempId,
         medicineId: item.medicineId,
+        medicineSearch: item.medicineName || '',
         batchNumber: item.batchNumber,
         expiryDate: item.expiryDate,
         quantity: item.quantity,
@@ -537,11 +600,23 @@ export default function PurchasesPage() {
           id: newMedicine.id,
           name: newMedicine.name,
           company: newMedicine.company,
+          category: newMedicine.category,
         }]);
 
         // Update the row with the new medicine
         if (newMedicineForRow) {
-          handlePurchaseItemChange(newMedicineForRow, 'medicineId', newMedicine.id);
+          setPurchaseForm((current) => ({
+            ...current,
+            items: current.items.map((item) =>
+              item.tempId === newMedicineForRow
+                ? {
+                    ...item,
+                    medicineId: newMedicine.id,
+                    medicineSearch: newMedicine.name,
+                  }
+                : item
+            ),
+          }));
         }
 
         // Reset dialog
@@ -565,10 +640,33 @@ export default function PurchasesPage() {
   };
 
   // Filter medicines by selected company
-  const filteredMedicines = useMemo(() => {
+  const companyFilteredMedicines = useMemo(() => {
     if (!selectedCompany) return medicines;
     return medicines.filter((m) => m.company === selectedCompany);
   }, [medicines, selectedCompany]);
+
+  const getMedicineOptionsForRow = (item: PurchaseItemForm) => {
+    const query = item.medicineSearch?.trim().toLowerCase() || '';
+
+    if (!query) {
+      return companyFilteredMedicines;
+    }
+
+    return companyFilteredMedicines.filter(
+      (medicine) =>
+        medicine.name.toLowerCase().includes(query) ||
+        medicine.company.toLowerCase().includes(query)
+    );
+  };
+
+  const hasExactMedicineName = (name: string) => {
+    const normalized = name.trim().toLowerCase();
+    if (!normalized) return false;
+
+    return companyFilteredMedicines.some(
+      (medicine) => medicine.name.trim().toLowerCase() === normalized
+    );
+  };
 
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">Loading purchases...</div>;
@@ -723,7 +821,7 @@ export default function PurchasesPage() {
                 <select
                   className="h-10 w-full md:w-1/3 rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                   value={selectedCompany}
-                  onChange={(event) => setSelectedCompany(event.target.value)}
+                  onChange={(event) => handleCompanyChange(event.target.value)}
                 >
                   <option value="">All Companies</option>
                   {companies.map((company) => (
@@ -871,31 +969,66 @@ export default function PurchasesPage() {
                   <TableBody>
                     {purchaseForm.items.map((item) => {
                       const meta = appliedScanMeta[item.tempId];
+                      const rowMedicineOptions = getMedicineOptionsForRow(item);
+                      const rowSearch = item.medicineSearch?.trim() || '';
+                      const canCreateMedicine =
+                        Boolean(selectedCompany) &&
+                        Boolean(rowSearch) &&
+                        !hasExactMedicineName(rowSearch);
                       return (
                       <TableRow key={item.tempId} className="border-border">
                         <TableCell className="min-w-[250px]">
+                          <Input
+                            value={item.medicineSearch || ''}
+                            className="mb-2 h-9 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
+                            placeholder="Search or type medicine name"
+                            onChange={(event) =>
+                              setPurchaseForm((current) => ({
+                                ...current,
+                                items: current.items.map((row) =>
+                                  row.tempId === item.tempId
+                                    ? {
+                                        ...row,
+                                        medicineSearch: event.target.value,
+                                        medicineId: '',
+                                      }
+                                    : row
+                                ),
+                              }))
+                            }
+                          />
                           <select
                             className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                             value={item.medicineId}
                             onChange={(event) =>
-                              handlePurchaseItemChange(item.tempId, 'medicineId', event.target.value)
+                              handleMedicineSelect(item.tempId, event.target.value)
                             }
                           >
                             <option value="">Select medicine</option>
-                            {filteredMedicines.map((medicine) => (
+                            {rowMedicineOptions.map((medicine) => (
                               <option key={medicine.id} value={medicine.id}>
                                 {medicine.name} ({medicine.company})
                               </option>
                             ))}
                           </select>
-                          {selectedCompany && filteredMedicines.length === 0 && (
+                          {meta && (
+                            <div className="mt-1 text-[11px] font-medium text-muted-foreground">
+                              OCR: {meta.status} ({Math.round(meta.score)}%)
+                            </div>
+                          )}
+                          {!selectedCompany && rowSearch && (
+                            <div className="mt-1 text-[11px] font-medium text-muted-foreground">
+                              Select a company before adding a new medicine.
+                            </div>
+                          )}
+                          {canCreateMedicine && (
                             <Button
                               variant="link"
                               size="sm"
                               className="mt-1 h-auto p-0 text-xs text-primary"
-                              onClick={() => handleMedicineNotFound(item.tempId, '')}
+                              onClick={() => handleMedicineNotFound(item.tempId, rowSearch)}
                             >
-                              + Add as New Medicine
+                              + Add "{rowSearch}" as New Medicine
                             </Button>
                           )}
                         </TableCell>
@@ -992,10 +1125,18 @@ export default function PurchasesPage() {
               <div className="flex flex-col items-end gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3 text-sm text-muted-foreground">
                   Subtotal: <span className="font-semibold text-foreground">₹{totals.subtotal.toFixed(2)}</span>
-                  {' · '}
-                  Discount: <span className="font-semibold text-foreground">₹{totals.discountTotal.toFixed(2)}</span>
-                  {' · '}
-                  GST: <span className="font-semibold text-foreground">₹{totals.gstTotal.toFixed(2)}</span>
+                  {totals.discountTotal > 0 && (
+                    <>
+                      {' · '}
+                      Discount: <span className="font-semibold text-foreground">₹{totals.discountTotal.toFixed(2)}</span>
+                    </>
+                  )}
+                  {totals.gstTotal > 0 && (
+                    <>
+                      {' · '}
+                      GST: <span className="font-semibold text-foreground">₹{totals.gstTotal.toFixed(2)}</span>
+                    </>
+                  )}
                   {' · '}
                   Grand Total:{' '}
                   <span className="font-semibold text-foreground">₹{totals.grandTotal.toFixed(2)}</span>

@@ -15,7 +15,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!['ADMIN', 'MANAGER'].includes(auth.user.role)) {
+    const user = auth.user;
+
+    if (!['ADMIN', 'MANAGER'].includes(user.role)) {
       return NextResponse.json(
         { success: false, message: 'Insufficient permissions' },
         { status: 403 }
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
       const batch = await tx.inventoryBatch.findFirst({
         where: {
           id: batchId,
-          shopId: auth.user.shopId, // Tenant isolation
+          shopId: user.shopId, // Tenant isolation
           stockQty: 0, // Must still be zero
           deletedAt: null, // Not already archived
         },
@@ -68,8 +70,8 @@ export async function POST(req: NextRequest) {
       // Create activity log entry
       const activityLog = await tx.activityLog.create({
         data: {
-          shopId: auth.user.shopId,
-          userId: auth.user.id,
+          shopId: user.shopId,
+          userId: user.id,
           action: 'BATCH_ARCHIVE',
           meta: JSON.stringify({
             type: 'MANUAL_ARCHIVE',
