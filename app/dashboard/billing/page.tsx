@@ -2,11 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
-import { Search, ScanLine, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { CartItem } from '@/types';
 import ItemDetailPopup, { ItemDetailSuggestion } from '@/components/billing/ItemDetailPopup';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const GST_OPTIONS = [
   { value: 5, label: '5%', category: 'Standard' },
@@ -39,6 +44,7 @@ export default function BillingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<BillingSuggestion[]>([]);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const [isMedicineSearchOpen, setIsMedicineSearchOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   // Company filter (Requirement 1/2/16) — "" means "All Companies"
   const [companies, setCompanies] = useState<string[]>([]);
@@ -57,6 +63,7 @@ export default function BillingPage() {
   const [customerGstin, setCustomerGstin] = useState<string>('');
   const [customerDrugLicense, setCustomerDrugLicense] = useState<string>('');
   const [customerPan, setCustomerPan] = useState<string>('');
+  const [customerInfoExpanded, setCustomerInfoExpanded] = useState(false);
   const [orderId, setOrderId] = useState<string>('');
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -186,6 +193,27 @@ export default function BillingPage() {
     }
   }, [companies, companyFilter]);
 
+  const openMedicineSearch = useCallback(() => {
+    setSearchQuery('');
+    setSuggestions([]);
+    setActiveSuggestionIndex(0);
+    setIsMedicineSearchOpen(true);
+  }, []);
+
+  const clearMedicineSearchFilters = () => {
+    setSearchQuery('');
+    setSuggestions([]);
+    setActiveSuggestionIndex(0);
+    setCompanyFilter('');
+    searchInputRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!isMedicineSearchOpen || isDetailPopupOpen) return;
+    const focusTimer = setTimeout(() => searchInputRef.current?.focus(), 50);
+    return () => clearTimeout(focusTimer);
+  }, [isMedicineSearchOpen, isDetailPopupOpen]);
+
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -285,9 +313,6 @@ export default function BillingPage() {
     setSearchQuery('');
     setSuggestions([]);
     setActiveSuggestionIndex(0);
-    // Keep Company_Filter behavior consistent regardless of how the item was
-    // added (barcode scan / exact-match Enter also land here).
-    setCompanyFilter('');
   };
 
   // Requirement 4.1: manual selection (click, or Enter on a highlighted
@@ -296,6 +321,7 @@ export default function BillingPage() {
   // continue to call addSuggestionToCart() directly.
   const openItemDetailPopup = (suggestion: BillingSuggestion) => {
     setDetailSuggestion(suggestion);
+    setIsMedicineSearchOpen(false);
     setIsDetailPopupOpen(true);
   };
 
@@ -307,9 +333,7 @@ export default function BillingPage() {
     setSearchQuery('');
     setSuggestions([]);
     setActiveSuggestionIndex(0);
-    // Auto-reset the Company_Filter back to "All Companies" once an item has
-    // been added, so it doesn't silently keep narrowing the next search.
-    setCompanyFilter('');
+    setIsMedicineSearchOpen(true);
     searchInputRef.current?.focus();
   };
 
@@ -319,6 +343,7 @@ export default function BillingPage() {
     setSearchQuery('');
     setSuggestions([]);
     setActiveSuggestionIndex(0);
+    setIsMedicineSearchOpen(true);
     searchInputRef.current?.focus();
   };
 
@@ -457,6 +482,23 @@ export default function BillingPage() {
     }
   }, [cart, gstMode]);
 
+  const totalMrp = useMemo(
+    () => Math.round(cart.reduce((sum, item) => sum + Number(item.mrp || 0) * item.quantity, 0) * 100) / 100,
+    [cart]
+  );
+
+  const hasCustomerInfo = useMemo(() => {
+    const hasName = customerName.trim() && customerName.trim() !== 'Walk-in Customer';
+    return Boolean(
+      hasName ||
+      customerPhone.trim() ||
+      customerAddress.trim() ||
+      customerGstin.trim() ||
+      customerDrugLicense.trim() ||
+      customerPan.trim()
+    );
+  }, [customerName, customerPhone, customerAddress, customerGstin, customerDrugLicense, customerPan]);
+
   const balance = receivedAmount - totals.grandTotal;
 
   const resetBill = useCallback(() => {
@@ -469,6 +511,12 @@ export default function BillingPage() {
     setCustomerGstin('');
     setCustomerDrugLicense('');
     setCustomerPan('');
+    setCustomerInfoExpanded(false);
+    setPaymentMode('CASH');
+    setSearchQuery('');
+    setSuggestions([]);
+    setActiveSuggestionIndex(0);
+    setIsMedicineSearchOpen(false);
     setCompanyFilter('');
     
     // Clear localStorage
@@ -583,6 +631,7 @@ export default function BillingPage() {
         } else if (results.length > 1) {
           setSearchQuery(barcode.trim());
           setSuggestions(results);
+          setIsMedicineSearchOpen(true);
           searchInputRef.current?.focus();
         } else {
           toast.error(`No match found for barcode: ${barcode.trim()}`);
@@ -635,7 +684,7 @@ export default function BillingPage() {
 
       if (event.key === 'F1') {
         event.preventDefault();
-        searchInputRef.current?.focus();
+        openMedicineSearch();
         return;
       }
 
@@ -647,8 +696,7 @@ export default function BillingPage() {
 
       if (event.key === 'F2') {
         event.preventDefault();
-        resetBill();
-        searchInputRef.current?.focus();
+        openMedicineSearch();
         return;
       }
 
@@ -656,19 +704,21 @@ export default function BillingPage() {
         event.preventDefault();
         setSearchQuery('');
         setSuggestions([]);
-        searchInputRef.current?.focus();
+        if (isMedicineSearchOpen) {
+          setIsMedicineSearchOpen(false);
+        }
         return;
       }
 
       // Auto-focus search on alphanumeric when not in an input
       if (!isInput && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.length === 1 && /[a-zA-Z0-9]/.test(event.key)) {
-        searchInputRef.current?.focus();
+        openMedicineSearch();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCheckout, handleBarcodeInput, loading, resetBill, isDetailPopupOpen]);
+  }, [handleCheckout, handleBarcodeInput, loading, openMedicineSearch, isDetailPopupOpen, isMedicineSearchOpen, enableBarcode]);
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col min-h-[calc(100vh-4rem)] relative font-sans">
@@ -681,108 +731,8 @@ export default function BillingPage() {
 
       <main className="flex-1 p-3 sm:p-4 grid grid-cols-12 gap-3 sm:gap-4 w-full lg:overflow-hidden lg:h-full xl:h-[calc(100vh-6rem)]">
         
-        {/* LEFT PANEL: INVENTORY SEARCH */}
-        <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 lg:overflow-hidden lg:h-full">
-          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 flex items-center gap-3 shadow-sm shrink-0">
-            <span className="material-symbols-outlined text-primary text-2xl">search</span>
-            <input 
-              className="flex-1 bg-transparent border-none focus:ring-0 text-[15px] font-medium placeholder:text-slate-400 p-0" 
-              placeholder="Medication, SKU, Barcode..." 
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              ref={searchInputRef}
-              autoFocus
-            />
-            <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-600 pl-2">
-              <span className={`material-symbols-outlined text-2xl transition-all duration-200 cursor-pointer ${scannerActive ? 'text-primary scale-125 animate-pulse' : 'text-slate-400 hover:text-primary'}`}>qr_code_scanner</span>
-            </div>
-          </div>
-
-          {/* Company Filter — Requirement 1 */}
-          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 flex items-center gap-2 shadow-sm shrink-0">
-            <span className="material-symbols-outlined text-slate-400 text-xl shrink-0">apartment</span>
-            <select
-              value={companyFilter}
-              onChange={(e) => setCompanyFilter(e.target.value)}
-              className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 text-[13px] font-bold text-slate-700 dark:text-slate-200 py-1"
-              aria-label="Filter by company"
-            >
-              <option value="">All Companies</option>
-              {companies.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <section className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-1 flex flex-col overflow-hidden max-h-[45vh] lg:max-h-none">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
-              <h2 className="text-[13px] font-bold uppercase tracking-widest text-slate-500">Inventory Items</h2>
-              {searchQuery && (
-                <button onClick={() => { setSearchQuery(''); setSuggestions([]); }} className="text-[13px] font-bold text-red-500 hover:text-red-600 flex items-center gap-1 uppercase transition-colors">
-                  <span className="material-symbols-outlined text-[17px]">close</span> Clear
-                </button>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1 no-scrollbar flex flex-col">
-              {suggestions.length === 0 ? (
-                <div className="p-4 text-center text-[13px] text-slate-400 font-medium my-auto">
-                  {searchQuery.trim()
-                    ? companyFilter
-                      ? `No results for "${companyFilter}".`
-                      : 'No matching medicines found.'
-                    : 'Search inventory to begin.'}
-                </div>
-              ) : (
-                suggestions.map((suggestion, index) => (
-                  <div 
-                    key={`${suggestion.batchId}-${index}`}
-                    onClick={() => openItemDetailPopup(suggestion)}
-                    className={`group p-3 rounded-md border cursor-pointer transition-all ${index === activeSuggestionIndex ? 'border-primary/40 bg-slate-50 dark:bg-slate-900/50' : 'border-transparent hover:border-primary/20 hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="text-[15px] font-semibold text-slate-900 dark:text-white">{suggestion.name}</h4>
-                        <p className="text-[13px] text-slate-500 mt-0.5">
-                          {suggestion.company}
-                          {suggestion.packing ? ` • Pack: ${suggestion.packing}` : ''}
-                          {suggestion.rackLocation ? ` • ${suggestion.rackLocation}` : ''}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[13px] font-mono font-bold text-slate-900 dark:text-white">₹{suggestion.mrp.toFixed(2)}</p>
-                        <p className={`text-[13px] font-bold uppercase ${suggestion.stockQty > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                          {suggestion.stockQty > 0 ? `Stock: ${suggestion.stockQty}` : 'Out of Stock'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="hidden lg:block p-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 shrink-0">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="flex flex-col items-center py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded shadow-sm">
-                  <span className="text-[10px] font-black text-slate-400">ESC</span>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Clear</span>
-                </div>
-                <div className="flex flex-col items-center py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded shadow-sm">
-                  <span className="text-[10px] font-black text-slate-400">ENT</span>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Add</span>
-                </div>
-                <div className="flex flex-col items-center py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded shadow-sm">
-                  <span className="text-[10px] font-black text-slate-400">F12</span>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Pay</span>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-
         {/* CENTER PANEL: CURRENT ORDER */}
-        <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 lg:overflow-hidden lg:h-full">
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 lg:overflow-hidden lg:h-full">
           <section className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-1 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
               <div>
@@ -793,22 +743,47 @@ export default function BillingPage() {
                   <span className="text-[13px] font-bold text-primary uppercase">{cart.length} Item{cart.length !== 1 && 's'} in Cart</span>
                 </div>
               </div>
-              <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-md">
-                {(['RETAIL', 'WHOLESALE', 'TRANSFER'] as const)
-                  .filter((mode) => {
-                    if (mode === 'RETAIL' && !enableRetail) return false;
-                    if (mode === 'WHOLESALE' && !enableWholesale) return false;
-                    return true;
-                  })
-                  .map((mode) => (
-                  <button key={mode} onClick={() => setSaleType(mode)} className={`px-3 py-1 text-[12px] font-bold rounded shadow-sm hover:shadow uppercase tracking-wider transition-all ${saleType === mode ? 'bg-primary text-white shadow-primary/20' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                    {mode}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={openMedicineSearch}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-[12px] font-black uppercase tracking-widest text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-dark"
+                >
+                  <span className="material-symbols-outlined text-[18px]">search</span>
+                  Add Medicine
+                  <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px]">F2</span>
+                </button>
+                <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-md">
+                  {(['RETAIL', 'WHOLESALE', 'TRANSFER'] as const)
+                    .filter((mode) => {
+                      if (mode === 'RETAIL' && !enableRetail) return false;
+                      if (mode === 'WHOLESALE' && !enableWholesale) return false;
+                      return true;
+                    })
+                    .map((mode) => (
+                    <button key={mode} onClick={() => setSaleType(mode)} className={`px-3 py-1 text-[12px] font-bold rounded shadow-sm hover:shadow uppercase tracking-wider transition-all ${saleType === mode ? 'bg-primary text-white shadow-primary/20' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                      {mode}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar min-h-[30vh]">
-              {cart.map((item, index) => (
+              {cart.length === 0 ? (
+                <div className="h-full min-h-[320px] rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/30 flex flex-col items-center justify-center text-center p-8">
+                  <span className="material-symbols-outlined text-5xl text-primary/70 mb-3">add_shopping_cart</span>
+                  <p className="text-[15px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">No medicines added</p>
+                  <p className="text-[13px] font-semibold text-slate-400 mt-2">Press F2 to open medicine search</p>
+                  <button
+                    type="button"
+                    onClick={openMedicineSearch}
+                    className="mt-5 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-[12px] font-black uppercase tracking-widest text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-dark"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">search</span>
+                    Add Medicine / F2
+                  </button>
+                </div>
+              ) : cart.map((item, index) => (
                 <div key={`${item.batchId}-${index}`} className="p-4 rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 group hover:border-primary/30 transition-all shadow-sm">
                   <div className="flex justify-between items-start mb-4">
                     <div>
@@ -877,15 +852,88 @@ export default function BillingPage() {
         </div>
 
         {/* RIGHT PANEL: CHECKOUT SUMMARY */}
-        <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 lg:overflow-hidden lg:h-full pb-4 lg:pb-0">
+        <div className="col-span-12 lg:col-span-4 flex flex-col gap-4 lg:overflow-hidden lg:h-full pb-4 lg:pb-0">
           <section className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex-1 flex flex-col lg:overflow-y-auto no-scrollbar">
-            
-            <div className="p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 shrink-0">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-[19px]">person</span>
+                  <h2 className="text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">Customer</h2>
+                </div>
+                {customerInfoExpanded ? (
+                  <button type="button" onClick={() => setCustomerInfoExpanded(false)} className="text-[11px] font-black uppercase tracking-wider text-slate-400 hover:text-primary">
+                    Collapse ^
+                  </button>
+                ) : hasCustomerInfo ? (
+                  <button type="button" onClick={() => setCustomerInfoExpanded(true)} className="text-[11px] font-black uppercase tracking-wider text-primary">
+                    Edit
+                  </button>
+                ) : null}
+              </div>
+
+              {customerInfoExpanded ? (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">person</span>
+                    <input className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all uppercase placeholder:text-slate-400 shadow-sm" type="text" placeholder="Customer Name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                  </div>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">smartphone</span>
+                    <input className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400 shadow-sm" type="text" placeholder="Contact Number (Optional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+                  </div>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">location_on</span>
+                    <input className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400 shadow-sm" type="text" placeholder="Address (Optional)" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} />
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pt-1">B2B Details (Optional)</p>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">receipt_long</span>
+                    <input className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all uppercase placeholder:text-slate-400 placeholder:normal-case shadow-sm font-mono" type="text" placeholder="GSTIN (Optional)" value={customerGstin} onChange={(e) => setCustomerGstin(e.target.value)} />
+                  </div>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">medication</span>
+                    <input className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400 shadow-sm font-mono" type="text" placeholder="Drug License No. (Optional)" value={customerDrugLicense} onChange={(e) => setCustomerDrugLicense(e.target.value)} />
+                  </div>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">badge</span>
+                    <input className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all uppercase placeholder:text-slate-400 placeholder:normal-case shadow-sm font-mono" type="text" placeholder="PAN No. (Optional)" value={customerPan} onChange={(e) => setCustomerPan(e.target.value)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button type="button" onClick={() => setCustomerInfoExpanded(false)} className="rounded bg-primary px-3 py-2 text-[11px] font-black uppercase tracking-widest text-white hover:bg-primary-dark">
+                      Save
+                    </button>
+                    <button type="button" onClick={() => setCustomerInfoExpanded(false)} className="rounded border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-primary">
+                      Collapse ^
+                    </button>
+                  </div>
+                </div>
+              ) : hasCustomerInfo ? (
+                <div className="rounded border border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/30 p-3 space-y-1">
+                  {customerName.trim() && customerName.trim() !== 'Walk-in Customer' && <p className="text-[14px] font-black text-slate-900 dark:text-white uppercase">{customerName}</p>}
+                  {customerPhone.trim() && <p className="text-[12px] font-bold text-slate-500 dark:text-slate-400">{customerPhone}</p>}
+                  {customerAddress.trim() && <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{customerAddress}</p>}
+                  {customerGstin.trim() && <p className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400">GSTIN: {customerGstin}</p>}
+                  {customerDrugLicense.trim() && <p className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400">DL: {customerDrugLicense}</p>}
+                  {customerPan.trim() && <p className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400">PAN: {customerPan}</p>}
+                </div>
+              ) : (
+                <button type="button" onClick={() => setCustomerInfoExpanded(true)} className="w-full rounded border border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-left text-[13px] font-black uppercase tracking-wider text-primary transition-colors hover:bg-primary/10">
+                  <span className="material-symbols-outlined align-middle text-[18px] mr-2">add</span>
+                  Add Customer Info
+                </button>
+              )}
+            </div>
+
+            <div className="sticky top-0 z-10 p-4 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-1 h-3.5 bg-primary rounded-full"></div>
                 <h2 className="text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-300">Transaction Summary</h2>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400 uppercase">Total MRP</span>
+                  <span className="text-[13px] font-mono font-bold text-slate-700 dark:text-slate-200">₹{totalMrp.toFixed(2)}</span>
+                </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400 uppercase">Subtotal</span>
                   <span className="text-[13px] font-mono font-bold text-slate-700 dark:text-slate-200">₹{totals.subtotal.toFixed(2)}</span>
@@ -899,30 +947,20 @@ export default function BillingPage() {
                   <span className="text-[13px] font-mono font-bold text-red-600 dark:text-red-400">-₹{totals.discountTotal.toFixed(2)}</span>
                 </div>
               </div>
-            </div>
-
-            <div className="p-5 bg-slate-50/50 dark:bg-slate-900/20 shrink-0">
-              <div className="bg-primary p-5 rounded-lg border border-primary/20 shadow-[0_4px_14px_0_rgba(45,122,77,0.2)] text-center relative overflow-hidden">
-                <span className="material-symbols-outlined absolute right-0 top-0 opacity-[0.05] text-white text-[120px] -translate-y-4 translate-x-4">payments</span>
-                <p className="text-[13px] font-bold text-emerald-50 opacity-90 uppercase tracking-widest mb-1 relative z-10">Total Payable</p>
-                <p className="text-5xl font-black text-white font-mono tracking-tighter relative z-10">₹{totals.grandTotal.toFixed(2)}</p>
-                <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 bg-white/15 rounded-full relative z-10">
-                  <span className="material-symbols-outlined text-[12px] text-white">verified_user</span>
-                  <span className="text-[10px] font-bold text-white uppercase tracking-wider">Secured</span>
-                </div>
+              <div className="mt-4 bg-primary p-4 rounded-lg border border-primary/20 shadow-[0_4px_14px_0_rgba(45,122,77,0.2)] text-center relative overflow-hidden">
+                <span className="material-symbols-outlined absolute right-0 top-0 opacity-[0.05] text-white text-[110px] -translate-y-4 translate-x-4">payments</span>
+                <p className="text-[12px] font-bold text-emerald-50 opacity-90 uppercase tracking-widest mb-1 relative z-10">Total Payable</p>
+                <p className="text-4xl font-black text-white font-mono tracking-tighter relative z-10">₹{totals.grandTotal.toFixed(2)}</p>
               </div>
             </div>
 
-            <div className="p-5 border-t border-slate-100 dark:border-slate-700 shrink-0">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 shrink-0">
               <p className="text-[13px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Payment Mode</p>
               <div className="grid grid-cols-2 gap-2">
                 {(['CASH', 'CARD', 'UPI', 'CREDIT'] as const).map(mode => {
                   const icons = { 'CASH': 'payments', 'CARD': 'credit_card', 'UPI': 'qr_code_2', 'CREDIT': 'history_edu' };
                   return (
-                    <button 
-                      key={mode} onClick={() => setPaymentMode(mode)}
-                      className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded border-2 transition-all shadow-sm ${paymentMode === mode ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:border-primary/40 hover:text-primary dark:text-slate-400 dark:hover:text-primary'}`}
-                    >
+                    <button key={mode} onClick={() => setPaymentMode(mode)} className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded border-2 transition-all shadow-sm ${paymentMode === mode ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:border-primary/40 hover:text-primary dark:text-slate-400 dark:hover:text-primary'}`}>
                       <span className="material-symbols-outlined text-2xl">{icons[mode]}</span>
                       <span className="text-[10px] font-bold uppercase tracking-wider">{mode}</span>
                     </button>
@@ -931,77 +969,31 @@ export default function BillingPage() {
               </div>
             </div>
 
-            <div className="p-5 space-y-3 shrink-0">
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">person</span>
-                <input 
-                  className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all uppercase placeholder:text-slate-400 shadow-sm" 
-                  type="text" placeholder="Walk-in Customer" value={customerName} onChange={(e) => setCustomerName(e.target.value)}
-                />
-              </div>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">smartphone</span>
-                <input 
-                  className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400 shadow-sm" 
-                  type="text" placeholder="Contact Number (Optional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
-                />
-              </div>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">location_on</span>
-                <input 
-                  className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400 shadow-sm" 
-                  type="text" placeholder="Address (Optional)" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)}
-                />
-              </div>
-
-              {/* B2B / GST details — always available, never mandatory, for both RETAIL and WHOLESALE/TRANSFER */}
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pt-1">B2B Details (Optional)</p>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">receipt_long</span>
-                <input 
-                  className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all uppercase placeholder:text-slate-400 placeholder:normal-case shadow-sm font-mono" 
-                  type="text" placeholder="GSTIN (Optional)" value={customerGstin} onChange={(e) => setCustomerGstin(e.target.value)}
-                />
-              </div>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">medication</span>
-                <input 
-                  className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all placeholder:text-slate-400 shadow-sm font-mono" 
-                  type="text" placeholder="Drug License No. (Optional)" value={customerDrugLicense} onChange={(e) => setCustomerDrugLicense(e.target.value)}
-                />
-              </div>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px]">badge</span>
-                <input 
-                  className="w-full pl-9 pr-3 py-2.5 text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all uppercase placeholder:text-slate-400 placeholder:normal-case shadow-sm font-mono" 
-                  type="text" placeholder="PAN No. (Optional)" value={customerPan} onChange={(e) => setCustomerPan(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {paymentMode === 'CASH' && (
-              <div className="p-5 border-t border-slate-100 dark:border-slate-700 shrink-0">
-                <p className="flex items-center justify-between text-[13px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">
-                  <span>Cash Received</span>
-                  <span className="bg-slate-100 dark:bg-slate-700 px-1 py-0.5 rounded text-[10px] text-slate-500 dark:text-slate-400">F7</span>
-                </p>
-                <div className="relative">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 shrink-0 space-y-3">
+              {paymentMode === 'CASH' && (
+                <div>
+                  <p className="flex items-center justify-between text-[13px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">
+                    <span>Cash Received</span>
+                    <span className="bg-slate-100 dark:bg-slate-700 px-1 py-0.5 rounded text-[10px] text-slate-500 dark:text-slate-400">F7</span>
+                  </p>
+                  <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[15px] font-black">₹</span>
                     <input type="number" value={receivedAmount || ''} onChange={(e) => setReceivedAmount(parseFloat(e.target.value) || 0)} ref={receivedAmountRef} placeholder="0.00" className="w-full pl-8 pr-3 py-2.5 text-[15px] font-black bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-primary transition-all shadow-sm" />
+                  </div>
                 </div>
-              </div>
-            )}
-
-            <div className="mt-auto p-5 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 space-y-3 shrink-0">
-              <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded shadow-sm">
+              )}
+              <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded shadow-sm">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-tight">Return Change</span>
                   <span className={`text-2xl font-mono font-black tracking-tighter ${balance >= 0 ? 'text-primary' : 'text-red-500'}`}>₹{(paymentMode === 'CASH' ? balance : 0).toFixed(2)}</span>
                 </div>
-                <div className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 rounded">
+                <div className="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 rounded">
                   <span className="material-symbols-outlined text-[19px]">currency_exchange</span>
                 </div>
               </div>
+            </div>
+
+            <div className="mt-auto p-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 space-y-3 shrink-0">
               <button onClick={handleCheckout} disabled={loading || cart.length === 0} className="w-full bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary text-white py-4 rounded font-bold uppercase tracking-widest text-[13px] shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2">
                 <span className="material-symbols-outlined text-[19px]">receipt_long</span>
                 {loading ? 'Processing...' : 'Generate Invoice'}
@@ -1014,6 +1006,109 @@ export default function BillingPage() {
           </section>
         </div>
       </main>
+
+      <Dialog open={isMedicineSearchOpen} onOpenChange={setIsMedicineSearchOpen}>
+        <DialogContent className="p-0 gap-0 overflow-hidden max-w-2xl w-[calc(100vw-1.5rem)] sm:w-full max-h-[85vh] bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+          <DialogHeader className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700">
+            <DialogTitle className="flex items-center gap-2 text-[17px] font-black uppercase tracking-tight text-slate-900 dark:text-white">
+              <span className="material-symbols-outlined text-primary text-[22px]">search</span>
+              Add Medicine
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700 space-y-3">
+            <div className="bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 p-3 flex items-center gap-3 shadow-sm">
+              <span className="material-symbols-outlined text-primary text-2xl">search</span>
+              <input
+                className="flex-1 bg-transparent border-none focus:ring-0 text-[15px] font-medium placeholder:text-slate-400 p-0"
+                placeholder="Search medicine, SKU, barcode..."
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                ref={searchInputRef}
+              />
+              <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-2">
+                <span className={`material-symbols-outlined text-2xl transition-all duration-200 ${scannerActive ? 'text-primary scale-125 animate-pulse' : 'text-slate-400'}`}>qr_code_scanner</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 flex items-center gap-2 shadow-sm">
+                <span className="material-symbols-outlined text-slate-400 text-xl shrink-0">apartment</span>
+                <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">Company</span>
+                <select
+                  value={companyFilter}
+                  onChange={(e) => setCompanyFilter(e.target.value)}
+                  className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 text-[13px] font-bold text-slate-700 dark:text-slate-200 py-1"
+                  aria-label="Filter by company"
+                >
+                  <option value="">All Companies</option>
+                  {companies.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={clearMedicineSearchFilters}
+                className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[12px] font-black uppercase tracking-widest text-slate-500 transition-colors hover:border-primary/40 hover:text-primary"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+
+          <section className="flex min-h-[260px] flex-col overflow-hidden">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0">
+              <h2 className="text-[13px] font-bold uppercase tracking-widest text-slate-500">Search Results</h2>
+              <div className="hidden sm:grid grid-cols-3 gap-2 text-center">
+                <span className="rounded border border-slate-200 dark:border-slate-700 px-2 py-1 text-[10px] font-black text-slate-400">ESC</span>
+                <span className="rounded border border-slate-200 dark:border-slate-700 px-2 py-1 text-[10px] font-black text-slate-400">ENT</span>
+                <span className="rounded border border-slate-200 dark:border-slate-700 px-2 py-1 text-[10px] font-black text-slate-400">F2</span>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1 no-scrollbar flex flex-col">
+              {suggestions.length === 0 ? (
+                <div className="p-6 text-center text-[13px] text-slate-400 font-medium my-auto">
+                  {searchQuery.trim()
+                    ? companyFilter
+                      ? `No results for "${searchQuery}" in ${companyFilter}.`
+                      : 'No matching medicines found.'
+                    : 'Search inventory to begin.'}
+                </div>
+              ) : (
+                suggestions.map((suggestion, index) => (
+                  <div
+                    key={`${suggestion.batchId}-${index}`}
+                    onClick={() => openItemDetailPopup(suggestion)}
+                    className={`group p-3 rounded-md border cursor-pointer transition-all ${index === activeSuggestionIndex ? 'border-primary/40 bg-slate-50 dark:bg-slate-900/50' : 'border-transparent hover:border-primary/20 hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+                  >
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="min-w-0">
+                        <h4 className="text-[15px] font-semibold text-slate-900 dark:text-white">{suggestion.name}</h4>
+                        <p className="text-[13px] text-slate-500 mt-0.5">
+                          {suggestion.company}
+                          {suggestion.packing ? ` • Pack: ${suggestion.packing}` : ''}
+                          {suggestion.rackLocation ? ` • ${suggestion.rackLocation}` : ''}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[13px] font-mono font-bold text-slate-900 dark:text-white">₹{suggestion.mrp.toFixed(2)}</p>
+                        <p className={`text-[13px] font-bold uppercase ${suggestion.stockQty > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {suggestion.stockQty > 0 ? `Stock: ${suggestion.stockQty}` : 'Out of Stock'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </DialogContent>
+      </Dialog>
 
       {/* Item Detail Popup — Requirements 4-14 */}
       <ItemDetailPopup

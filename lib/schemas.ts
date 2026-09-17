@@ -1,5 +1,21 @@
 import { z } from 'zod';
 
+const optionalTrimmedString = (maxLength = 255) =>
+  z
+    .string()
+    .trim()
+    .max(maxLength, `Must be ${maxLength} characters or less`)
+    .optional()
+    .nullable()
+    .or(z.literal(''));
+
+const optionalGstin = optionalTrimmedString(15).refine(
+  (value) =>
+    !value ||
+    /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(value.toUpperCase()),
+  'Invalid GSTIN'
+);
+
 // Auth Schemas
 export const LoginSchema = z.object({
   email: z.string().email('Invalid email'),
@@ -149,12 +165,15 @@ export const CreateSaleSchema = z.object({
   customerId: z.string().optional().nullable(),
   customer: z
     .object({
-      name: z.string().min(1, 'Customer name is required'),
-      phone: z.string().optional().nullable().or(z.literal('')),
-      address: z.string().optional().nullable().or(z.literal('')),
-      gstin: z.string().optional().nullable().or(z.literal('')),
-      drugLicense: z.string().optional().nullable().or(z.literal('')),
-      pan: z.string().optional().nullable().or(z.literal('')),
+      name: optionalTrimmedString(120),
+      phone: optionalTrimmedString(30),
+      address: optionalTrimmedString(500),
+      gstin: optionalGstin,
+      drugLicense: optionalTrimmedString(80),
+      pan: optionalTrimmedString(10).refine(
+        (value) => !value || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(value.toUpperCase()),
+        'Invalid PAN'
+      ),
     })
     .optional(),
   saleType: z.enum(['RETAIL', 'WHOLESALE', 'TRANSFER']),

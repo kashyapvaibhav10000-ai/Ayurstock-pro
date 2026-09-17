@@ -106,10 +106,12 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="relative hidden md:block w-[280px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search everything..." className="rounded-2xl border-border bg-surface shadow-soft pl-9 h-10 transition-shadow focus-visible:shadow-bento text-foreground" />
-          </div>
+          {pathname !== '/dashboard/billing' && (
+            <div className="relative hidden md:block w-[280px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search everything..." className="rounded-2xl border-border bg-surface shadow-soft pl-9 h-10 transition-shadow focus-visible:shadow-bento text-foreground" />
+            </div>
+          )}
 
           {/* Theme toggle: available to every role (Admin, Manager, Cashier), on every
               device including mobile — this is the fix for the "stuck theme" bug. */}

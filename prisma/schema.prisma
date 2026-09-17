@@ -206,8 +206,8 @@ model Customer {
   id        String   @id @default(cuid())
   shopId    String
   name      String
-  phone     String
-  address   String
+  phone     String   @default("")
+  address   String   @default("")
   gstin     String   @default("")
   drugLicense String @default("")
   pan       String   @default("")

@@ -4,6 +4,45 @@ import { CreateSaleSchema } from '@/lib/schemas';
 import { createSale } from '@/services/billing';
 import { prisma } from '@/lib/db';
 
+type SaleCustomerInput = {
+  name?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  gstin?: string | null;
+  drugLicense?: string | null;
+  pan?: string | null;
+};
+
+function normalizeSaleCustomer(customer?: SaleCustomerInput) {
+  const normalizedName = customer?.name?.trim() || "";
+  const normalizedPhone = customer?.phone?.trim() || "";
+  const normalizedAddress = customer?.address?.trim() || "";
+  const normalizedGstin = customer?.gstin?.trim().toUpperCase() || "";
+  const normalizedDrugLicense = customer?.drugLicense?.trim().toUpperCase() || "";
+  const normalizedPan = customer?.pan?.trim().toUpperCase() || "";
+  const hasNamedCustomer = normalizedName && normalizedName.toLowerCase() !== "walk-in customer";
+  const hasAddress = normalizedAddress && normalizedAddress.toLowerCase() !== "walk-in";
+
+  return {
+    name: normalizedName,
+    phone: normalizedPhone,
+    address: normalizedAddress,
+    gstin: normalizedGstin,
+    drugLicense: normalizedDrugLicense,
+    pan: normalizedPan,
+    hasNamedCustomer: Boolean(hasNamedCustomer),
+    hasAddress: Boolean(hasAddress),
+    shouldSaveCustomer: Boolean(
+      normalizedPhone ||
+        hasNamedCustomer ||
+        hasAddress ||
+        normalizedGstin ||
+        normalizedDrugLicense ||
+        normalizedPan
+    ),
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Authenticate
@@ -27,16 +66,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { customerId, customer, saleType, items, paymentMode, discountTotal, gstMode, creditDue } = validation.data;
+    const normalizedCustomer = normalizeSaleCustomer(customer);
 
     // Credit sales create an outstanding balance, so they must be attributable to
     // a real customer. Otherwise every walk-in credit collapses into one
     // anonymous bucket and the money owed can never be traced back.
     if (paymentMode === 'CREDIT') {
       const hasNamedCustomer =
-        customer &&
-        customer.name &&
-        customer.name.trim().toLowerCase() !== 'walk-in customer' &&
-        (customer.phone?.trim() || customer.address?.trim());
+        normalizedCustomer.hasNamedCustomer &&
+        (normalizedCustomer.phone || normalizedCustomer.address);
       if (!customerId && !hasNamedCustomer) {
         return createErrorResponse(
           'Credit sales require a customer name with a phone number or address.',
@@ -48,26 +86,14 @@ export async function POST(request: NextRequest) {
     let resolvedCustomerId = customerId || null;
 
     if (!resolvedCustomerId && customer) {
-      const normalizedPhone = customer.phone?.trim() || "";
-      const normalizedName = customer.name?.trim() || "";
-      const normalizedAddress = customer.address?.trim() || "";
-      const normalizedGstin = customer.gstin?.trim() || "";
-      const normalizedDrugLicense = customer.drugLicense?.trim() || "";
-      const normalizedPan = customer.pan?.trim() || "";
-      const hasNamedCustomer = normalizedName && normalizedName.toLowerCase() !== "walk-in customer";
-      const hasAddress = normalizedAddress && normalizedAddress.toLowerCase() !== "walk-in";
-      const shouldSaveCustomer = Boolean(
-        normalizedPhone || hasNamedCustomer || hasAddress || normalizedGstin || normalizedDrugLicense || normalizedPan
-      );
-
       // Save customer details when the cashier entered a real name/address, even without a phone.
       // Pure walk-in sales stay anonymous and the invoice will not print fake fallback details.
-      if (shouldSaveCustomer) {
-        const existingCustomer = normalizedPhone
+      if (normalizedCustomer.shouldSaveCustomer) {
+        const existingCustomer = normalizedCustomer.phone
           ? await prisma.customer.findFirst({
               where: {
                 shopId: auth.user.shopId,
-                phone: normalizedPhone,
+                phone: normalizedCustomer.phone,
               },
             })
           : null;
@@ -77,23 +103,23 @@ export async function POST(request: NextRequest) {
           await prisma.customer.update({
             where: { id: existingCustomer.id },
             data: {
-              name: normalizedName || existingCustomer.name,
-              address: normalizedAddress,
-              gstin: normalizedGstin || existingCustomer.gstin,
-              drugLicense: normalizedDrugLicense || existingCustomer.drugLicense,
-              pan: normalizedPan || existingCustomer.pan,
+              name: normalizedCustomer.name || existingCustomer.name,
+              address: normalizedCustomer.address || existingCustomer.address,
+              gstin: normalizedCustomer.gstin || existingCustomer.gstin,
+              drugLicense: normalizedCustomer.drugLicense || existingCustomer.drugLicense,
+              pan: normalizedCustomer.pan || existingCustomer.pan,
             },
           });
         } else {
           const createdCustomer = await prisma.customer.create({
             data: {
               shopId: auth.user.shopId,
-              name: normalizedName || 'Walk-in Customer',
-              phone: normalizedPhone,
-              address: normalizedAddress,
-              gstin: normalizedGstin,
-              drugLicense: normalizedDrugLicense,
-              pan: normalizedPan,
+              name: normalizedCustomer.name || 'Walk-in Customer',
+              phone: normalizedCustomer.phone,
+              address: normalizedCustomer.address,
+              gstin: normalizedCustomer.gstin,
+              drugLicense: normalizedCustomer.drugLicense,
+              pan: normalizedCustomer.pan,
             },
           });
           resolvedCustomerId = createdCustomer.id;

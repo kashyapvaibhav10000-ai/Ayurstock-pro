@@ -88,6 +88,9 @@ export interface BillingRequest {
     name: string;
     phone: string;
     address: string;
+    gstin?: string;
+    drugLicense?: string;
+    pan?: string;
   };
   saleType: SaleType;
   items: {
