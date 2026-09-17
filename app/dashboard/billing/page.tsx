@@ -23,6 +23,7 @@ interface BillingSuggestion {
   barcode?: string;
   gstPercent: number;
   hsn?: string;
+  packing?: string;
   batchNumber: string;
   stockQty: number;
   mrp: number;
@@ -744,7 +745,11 @@ export default function BillingPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="text-[15px] font-semibold text-slate-900 dark:text-white">{suggestion.name}</h4>
-                        <p className="text-[13px] text-slate-500 mt-0.5">{suggestion.company} {suggestion.rackLocation ? `• ${suggestion.rackLocation}` : ''}</p>
+                        <p className="text-[13px] text-slate-500 mt-0.5">
+                          {suggestion.company}
+                          {suggestion.packing ? ` • Pack: ${suggestion.packing}` : ''}
+                          {suggestion.rackLocation ? ` • ${suggestion.rackLocation}` : ''}
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className="text-[13px] font-mono font-bold text-slate-900 dark:text-white">₹{suggestion.mrp.toFixed(2)}</p>

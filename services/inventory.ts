@@ -12,6 +12,7 @@ export interface AvailableBatch {
   mrp: number;
   purchaseRate: number;
   sellingRate: number;
+  packing?: string | null;
   daysToExpiry: number;
 }
 

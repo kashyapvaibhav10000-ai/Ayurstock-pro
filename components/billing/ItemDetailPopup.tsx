@@ -4,7 +4,7 @@
  * Item Detail Popup — opens when a cashier manually selects a medicine from
  * Billing_Page search results (click, or Enter on a highlighted suggestion).
  *
- * All displayed data (batch, expiry, MRP, rate, stock, rack, GST, HSN) comes
+ * All displayed data (batch, expiry, MRP, rate, stock, packaging, rack, GST, HSN) comes
  * straight from the Medicine + InventoryBatch records returned by
  * /api/billing/search and /api/inventory/batches — nothing here is
  * fabricated. Quantity/GST/Discount edits reuse the exact same GST-mode and
@@ -43,6 +43,7 @@ export interface ItemDetailSuggestion {
   barcode?: string;
   gstPercent: number;
   hsn?: string;
+  packing?: string;
   batchNumber: string;
   stockQty: number;
   mrp: number;
@@ -61,6 +62,7 @@ interface AvailableBatchOption {
   purchaseRate: number;
   sellingRate: number;
   rackLocation?: string | null;
+  packing?: string | null;
   daysToExpiry: number;
 }
 
@@ -151,6 +153,7 @@ export default function ItemDetailPopup({
         rate: fromList.sellingRate,
         purchaseRate: fromList.purchaseRate,
         rackLocation: fromList.rackLocation || '',
+        packing: fromList.packing || suggestion.packing || '',
       };
     }
     // Fall back to the originally selected suggestion until batches load.
@@ -163,6 +166,7 @@ export default function ItemDetailPopup({
       rate: suggestion.rate,
       purchaseRate: suggestion.purchaseRate,
       rackLocation: suggestion.rackLocation,
+      packing: suggestion.packing || '',
     };
   }, [suggestion, batches, selectedBatchId]);
 
@@ -356,8 +360,9 @@ export default function ItemDetailPopup({
                   return (
                     <option key={b.id} value={b.id}>
                       {b.batchNumber} · Exp {new Date(b.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })} · Stock {b.stockQty}
+                      {b.packing ? ` · Pack ${b.packing}` : ''}
                       {idx === 0 ? ' (recommended)' : ''}
-                      {bDays <= nearExpiryDays ? ' ⚠️' : ''}
+                      {bDays <= nearExpiryDays ? ' !' : ''}
                     </option>
                   );
                 })}
@@ -374,6 +379,7 @@ export default function ItemDetailPopup({
             />
             <DetailField label="MRP" value={activeBatch ? `₹${activeBatch.mrp.toFixed(2)}` : '—'} />
             <DetailField label="Selling Rate" value={`₹${unitPrice.toFixed(2)}`} />
+            <DetailField label="Packaging" value={activeBatch?.packing || '—'} />
             <DetailField label="Rack Location" value={activeBatch?.rackLocation || '—'} />
             <DetailField label="HSN Code" value={suggestion.hsn || '—'} mono />
           </div>
