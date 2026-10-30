@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
 import { CreatePurchaseSchema } from '@/lib/schemas';
@@ -201,10 +202,13 @@ export async function POST(req: NextRequest) {
       const lines: InflowLine[] = [];
 
       for (const item of items) {
-        const qty = Number(item.quantity);
-        const freeQty = Number(item.freeQty || 0);
-        const purchaseRate = Number(item.purchaseRate);
-        const mrp = Number(item.mrp);
+        // Invoice lines may be in packs; stock and the ledger are in base units.
+        const unitsPerPack = item.unitsPerPack ?? 1;
+        const qty = Number(item.quantity) * unitsPerPack;
+        const freeQty = Number(item.freeQty || 0) * unitsPerPack;
+        const pricePerPack = new Prisma.Decimal(item.pricePerPack ?? item.purchaseRate ?? 0);
+        const purchaseRate = pricePerPack.dividedBy(unitsPerPack);
+        const mrp = Number(item.mrp); // MRP is entered per base unit
 
         // Batch identity = medicine + batch number + expiry. Same number with a
         // different expiry becomes a separate batch.
@@ -228,6 +232,9 @@ export async function POST(req: NextRequest) {
           discount: Number(item.discount || 0),
           gst: Number(item.gst || 0),
           expiryDate,
+          packType: item.packType ?? null,
+          unitsPerPack,
+          pricePerPack: unitsPerPack > 1 || (item.pricePerPack !== undefined && item.pricePerPack !== null) ? pricePerPack : null,
         });
       }
 

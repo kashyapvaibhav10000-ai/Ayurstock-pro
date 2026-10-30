@@ -22,6 +22,7 @@ import {
 import ImportPriceList from '@/components/medicine/import-price-list';
 
 import { batchIdentityKey, batchLabel } from '@/lib/batch';
+import { normalizeUnitsPerPack, PACK_TYPE_LABEL, PACK_TYPES, PackTypeValue, packPreview } from '@/lib/packaging';
 interface PurchaseStats {
   todayPurchases: number;
   monthPurchases: number;
@@ -57,6 +58,10 @@ interface PurchaseItemForm {
   gst: number;
   scheme: string;
   rackLocation: string;
+  // Packaging: quantity / freeQty are packs and purchaseRate is the price
+  // per pack. Stock is stored as quantity x unitsPerPack base units.
+  packType: PackTypeValue;
+  unitsPerPack: number;
 }
 
 interface ScanPreviewItem extends PurchaseItemForm {
@@ -142,6 +147,8 @@ const createEmptyPurchaseItem = (): PurchaseItemForm => ({
   gst: 0,
   scheme: '',
   rackLocation: '',
+  packType: 'STRIP',
+  unitsPerPack: 1,
 });
 
 export default function PurchasesPage() {
@@ -421,7 +428,11 @@ export default function PurchasesPage() {
       const response = await axios.post('/api/purchases', {
         ...purchaseForm,
         documentId: appliedDocumentId,
-        items: purchaseForm.items.map(({ tempId, medicineSearch, ...item }) => item),
+        items: purchaseForm.items.map(({ tempId, medicineSearch, purchaseRate, ...item }) => ({
+          ...item,
+          unitsPerPack: normalizeUnitsPerPack(item.unitsPerPack),
+          pricePerPack: purchaseRate,
+        })),
       });
 
       if (!response.data.success) {
@@ -560,6 +571,8 @@ export default function PurchasesPage() {
         gst: item.gst,
         scheme: item.scheme,
         rackLocation: item.rackLocation,
+        packType: 'STRIP' as PackTypeValue,
+        unitsPerPack: 1,
       })),
     }));
 
@@ -970,9 +983,10 @@ export default function PurchasesPage() {
                       <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Medicine</TableHead>
                       <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Batch</TableHead>
                       <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Expiry</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Qty</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Rate</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">MRP</TableHead>
+                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Pack</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Qty (packs)</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Price / Pack</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">MRP / Unit</TableHead>
                       <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Rack (Optional)</TableHead>
                       <TableHead />
                     </TableRow>
@@ -1063,20 +1077,62 @@ export default function PurchasesPage() {
                             }
                           />
                         </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={item.packType}
+                              aria-label="Pack type"
+                              className="h-9 rounded-xl border border-border bg-surface px-2 text-sm font-medium focus:ring-2 focus:ring-primary/20"
+                              onChange={(event) => {
+                                const packType = event.target.value as PackTypeValue;
+                                handlePurchaseItemChange(item.tempId, 'packType', packType);
+                                if (packType === 'LOOSE') handlePurchaseItemChange(item.tempId, 'unitsPerPack', 1);
+                              }}
+                            >
+                              {PACK_TYPES.map((type) => (
+                                <option key={type} value={type}>
+                                  {PACK_TYPE_LABEL[type]}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="text-xs text-muted-foreground">×</span>
+                            <Input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={item.unitsPerPack}
+                              aria-label="Units per pack"
+                              title="Units per pack"
+                              disabled={item.packType === 'LOOSE'}
+                              className="w-16 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
+                              onChange={(event) =>
+                                handlePurchaseItemChange(
+                                  item.tempId,
+                                  'unitsPerPack',
+                                  Math.floor(Number(event.target.value)) || 1
+                                )
+                              }
+                            />
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <Input
                             type="number"
                             min={0}
+                            step={1}
                             value={item.quantity}
-                            className="w-20 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
+                            className="w-20 ml-auto rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
                             onChange={(event) =>
                               handlePurchaseItemChange(
                                 item.tempId,
                                 'quantity',
-                                Number(event.target.value)
+                                Math.floor(Number(event.target.value))
                               )
                             }
                           />
+                          <div className="mt-1 text-[10px] font-bold text-muted-foreground whitespace-nowrap">
+                            {packPreview(item.quantity, item.unitsPerPack, item.purchaseRate)}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <Input

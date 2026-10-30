@@ -340,6 +340,12 @@ model PurchaseItem {
   discount     Decimal        @default(0)
   gst          Decimal        @default(0)
   expiryDate   DateTime
+  // Packaging as entered on the invoice. quantity / freeQty / purchaseRate
+  // stay in base units (quantity = packs x unitsPerPack); unitsPerPack = 1
+  // means the line was entered in units.
+  packType     PackType?
+  unitsPerPack Int            @default(1)
+  pricePerPack Decimal?
   batch        InventoryBatch @relation(fields: [batchId], references: [id])
   medicine     Medicine       @relation(fields: [medicineId], references: [id])
   purchase     Purchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
@@ -641,4 +647,13 @@ model PurchaseDocument {
   purchase         Purchase?
 
   @@index([shopId, createdAt])
+}
+
+enum PackType {
+  BOX
+  STRIP
+  BOTTLE
+  JAR
+  PACKET
+  LOOSE
 }

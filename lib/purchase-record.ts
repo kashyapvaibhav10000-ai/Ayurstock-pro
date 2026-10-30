@@ -1,4 +1,4 @@
-import { Prisma, PurchaseSource } from '@prisma/client';
+import { PackType, Prisma, PurchaseSource } from '@prisma/client';
 import { recordMovement } from '@/lib/stock-movement';
 
 type Tx = Prisma.TransactionClient;
@@ -107,6 +107,10 @@ export interface InflowLine {
   discount?: Money;
   gst?: Money;
   expiryDate: Date;
+  packType?: PackType | null;
+  /** quantity and freeQty are multiples of this. Defaults to 1. */
+  unitsPerPack?: number | null;
+  pricePerPack?: Money | null;
 }
 
 export interface InflowPurchaseInput {
@@ -131,7 +135,13 @@ function lineTotals(lines: InflowLine[]) {
   let discountTotal = new Prisma.Decimal(0);
   let gstTotal = new Prisma.Decimal(0);
   for (const line of lines) {
-    subtotal = subtotal.plus(dec(line.purchaseRate).times(line.quantity));
+    // Price from the pack price when given so the total is exact
+    // (pricePerPack / unitsPerPack may not terminate).
+    const lineSubtotal =
+      line.pricePerPack !== null && line.pricePerPack !== undefined
+        ? dec(line.pricePerPack).times(line.quantity).dividedBy(line.unitsPerPack || 1)
+        : dec(line.purchaseRate).times(line.quantity);
+    subtotal = subtotal.plus(lineSubtotal);
     discountTotal = discountTotal.plus(dec(line.discount));
     gstTotal = gstTotal.plus(dec(line.gst));
   }
@@ -150,6 +160,9 @@ function lineCreateData(line: InflowLine) {
     discount: dec(line.discount),
     gst: dec(line.gst),
     expiryDate: line.expiryDate,
+    packType: line.packType ?? null,
+    unitsPerPack: line.unitsPerPack || 1,
+    pricePerPack: line.pricePerPack === null || line.pricePerPack === undefined ? null : dec(line.pricePerPack),
   };
 }
 

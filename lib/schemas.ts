@@ -163,6 +163,11 @@ export const CreatePurchaseSchema = z.object({
       discount: z.number().min(0).default(0),
       gst: z.number().min(0).default(0),
       rackLocation: z.string().trim().optional(),
+      // Packaging: quantity / freeQty are in packs and pricePerPack is per
+      // pack when unitsPerPack > 1. Omitted = entered in base units.
+      packType: z.enum(['BOX', 'STRIP', 'BOTTLE', 'JAR', 'PACKET', 'LOOSE']).optional().nullable(),
+      unitsPerPack: z.number().int().min(1).max(100000).default(1),
+      pricePerPack: z.number().positive().optional().nullable(),
     })
   ).min(1, 'At least one item is required'),
 });

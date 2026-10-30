@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { batchLabel } from '@/lib/batch';
+import { PACK_TYPE_LABEL, PackTypeValue } from '@/lib/packaging';
 import { cn } from '@/lib/utils';
 
 type Source = 'INVOICE' | 'AI_IMPORT' | 'MANUAL';
@@ -61,11 +62,13 @@ function dayBoundIso(date: string, end: boolean): string | undefined {
 }
 
 function packInfo(line: PurchaseLine): string {
-  if (line.packType && line.unitsPerPack && line.unitsPerPack > 1) {
+  const type = line.packType ? PACK_TYPE_LABEL[line.packType as PackTypeValue] ?? line.packType : null;
+  if (line.unitsPerPack && line.unitsPerPack > 1) {
     const packs = line.quantity / line.unitsPerPack;
-    return `${Number.isInteger(packs) ? packs : packs.toFixed(2)} × ${line.packType} of ${line.unitsPerPack}`;
+    const price = line.pricePerPack ? ` @ ${inr(line.pricePerPack)}` : '';
+    return `${Number.isInteger(packs) ? packs : packs.toFixed(2)} × ${type || 'Pack'} of ${line.unitsPerPack}${price}`;
   }
-  if (line.packType) return line.packType;
+  if (type) return type;
   return line.packing || '—';
 }
 
@@ -116,7 +119,11 @@ function LineItems({ purchaseId }: { purchaseId: string }) {
               <td className="py-2 px-3 whitespace-nowrap">{packInfo(line)}</td>
               <td className="py-2 px-3 text-right font-bold font-mono">{line.quantity}</td>
               <td className="py-2 px-3 text-right font-mono">{line.freeQty || '—'}</td>
-              <td className="py-2 px-3 text-right font-mono">{line.purchaseRate ? inr(line.purchaseRate) : '—'}</td>
+              <td className="py-2 px-3 text-right font-mono">
+                {line.purchaseRate
+                  ? `₹${Number(line.purchaseRate).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
+                  : '—'}
+              </td>
               <td className="py-2 px-3 text-right font-mono">{inr(line.mrp)}</td>
               <td className="py-2 px-3 text-right font-mono">{inr(line.gst)}</td>
             </tr>
