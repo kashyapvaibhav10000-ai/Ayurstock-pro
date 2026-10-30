@@ -17,8 +17,8 @@ npm install
 echo "Generating Prisma client..."
 npx prisma generate
 
-echo "Applying schema changes to database..."
-npx prisma db push --accept-data-loss=false
+echo "Applying database migrations..."
+npx prisma migrate deploy || { echo "Migration failed, aborting deploy."; exit 1; }
 
 echo "Building..."
 npm run build
