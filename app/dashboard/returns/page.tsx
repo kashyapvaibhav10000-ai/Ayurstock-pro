@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import AddReturnModal from '@/components/AddReturnModal';
+import { batchLabel } from '@/lib/batch';
 
 export default function ReturnsPage() {
   const [returns, setReturns] = useState<any[]>([]);
@@ -150,7 +151,7 @@ export default function ReturnsPage() {
                       {ret.medicine?.name || 'Unknown'}
                     </td>
                     <td className="px-6 py-4 font-bold text-muted-foreground">
-                      {ret.batchNumber || '-'}
+                      {ret.batchNumber ? batchLabel(ret) : '-'}
                     </td>
                     <td className="px-6 py-4 font-bold text-muted-foreground">
                       {format(new Date(ret.expiryDate), 'MM/yyyy')}

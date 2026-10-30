@@ -31,6 +31,7 @@ import InventoryEditModal, { EditableInventoryBatch } from '@/components/Invento
 import AddInventoryModal from '@/components/AddInventoryModal';
 import EmptyStockBatchesDrawer from '@/components/inventory/EmptyStockBatchesDrawer';
 
+import { batchLabel } from '@/lib/batch';
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -778,7 +779,7 @@ export default function InventoryPage() {
                           {/* Batch */}
                           <td className="px-4 py-3">
                             <span className="inline-block rounded-md bg-surface-muted px-2 py-0.5 font-mono text-xs tracking-wide">
-                              {batch.batchNumber}
+                              {batchLabel(batch)}
                             </span>
                           </td>
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
+import { changeBatchStock, findOrCreateBatch } from '@/services/inventory';
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,16 +37,32 @@ export async function POST(req: NextRequest) {
       let createdCount = 0;
 
       for (const item of items) {
-        await tx.inventoryBatch.create({
-          data: {
+        const medicine = await tx.medicine.findFirst({
+          where: { id: item.medicineId, shopId: user.shopId },
+          select: { id: true },
+        });
+        if (!medicine) {
+          throw new Error('Medicine not found');
+        }
+
+        const quantity = Number(item.quantity);
+        if (!item.batchNumber || !item.expiryDate || !Number.isInteger(quantity) || quantity < 0) {
+          throw new Error('Each item needs batch number, expiry and a whole-number quantity');
+        }
+
+        // Same medicine + batch number + expiry adds to the existing batch.
+        const { batch } = await findOrCreateBatch(
+          tx,
+          {
             shopId: user.shopId,
             medicineId: item.medicineId,
-            batchNumber: item.batchNumber,
-            expiryDate: new Date(item.expiryDate),
-            stockQty: item.quantity,
-            mrp: item.mrp,
-            purchaseRate: item.purchaseRate,
-            sellingRate: item.mrp,
+            batchNumber: String(item.batchNumber),
+            expiryDate: item.expiryDate,
+          },
+          {
+            mrp: Number(item.mrp),
+            purchaseRate: Number(item.purchaseRate) || null,
+            sellingRate: Number(item.mrp),
             packing:
               typeof item.packing === 'string' && item.packing.trim()
                 ? item.packing.trim()
@@ -54,8 +71,9 @@ export async function POST(req: NextRequest) {
               typeof item.rackLocation === 'string' && item.rackLocation.trim()
                 ? item.rackLocation.trim()
                 : null,
-          },
-        });
+          }
+        );
+        await changeBatchStock(tx, batch.id, quantity);
 
         createdCount += 1;
       }

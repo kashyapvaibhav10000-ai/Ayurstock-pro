@@ -278,7 +278,9 @@ model InventoryBatch {
   medicineReturns MedicineReturn[]
   stockAdjustments StockAdjustment[]
 
-  @@unique([shopId, medicineId, batchNumber])
+  // Batch identity = medicine + batch number + expiry (normalized to the last
+  // day of the month). Same number with a different expiry is a new batch.
+  @@unique([shopId, medicineId, batchNumber, expiryDate])
   @@index([shopId, medicineId, expiryDate])
   @@index([shopId, medicineId])
   @@index([expiryDate])

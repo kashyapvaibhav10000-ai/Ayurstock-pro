@@ -1,8 +1,99 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { normalizeExpiry, startOfTodayUtc } from '@/lib/batch';
 
 /**
  * Inventory Service - Handles batch-wise inventory management with FEFO
  */
+
+type Tx = Prisma.TransactionClient;
+
+export interface BatchIdentity {
+  shopId: string;
+  medicineId: string;
+  batchNumber: string;
+  expiryDate: Date | string;
+}
+
+/** Build the unique-key where clause for a batch (normalizes number + expiry). */
+export function batchIdentityWhere(key: BatchIdentity): Prisma.InventoryBatchWhereUniqueInput {
+  return {
+    shopId_medicineId_batchNumber_expiryDate: {
+      shopId: key.shopId,
+      medicineId: key.medicineId,
+      batchNumber: key.batchNumber.trim(),
+      expiryDate: normalizeExpiry(key.expiryDate),
+    },
+  };
+}
+
+export function findBatchByIdentity(tx: Tx, key: BatchIdentity) {
+  return tx.inventoryBatch.findUnique({ where: batchIdentityWhere(key) });
+}
+
+/**
+ * Find the batch matching all four identity fields, or create it with zero
+ * stock. Callers add stock afterwards so every quantity change goes through
+ * the same path. `update` is applied only to an existing batch (e.g. latest
+ * purchase rate); expiry is never rewritten since it is part of the key.
+ */
+export async function findOrCreateBatch(
+  tx: Tx,
+  key: BatchIdentity,
+  data: {
+    mrp: Prisma.Decimal | number;
+    sellingRate: Prisma.Decimal | number;
+    purchaseRate?: Prisma.Decimal | number | null;
+    rackLocation?: string | null;
+    packing?: string | null;
+  },
+  update?: Prisma.InventoryBatchUpdateInput
+) {
+  const existing = await findBatchByIdentity(tx, key);
+  if (existing) {
+    const batch =
+      update && Object.keys(update).length > 0
+        ? await tx.inventoryBatch.update({ where: { id: existing.id }, data: update })
+        : existing;
+    return { batch, created: false };
+  }
+
+  const batch = await tx.inventoryBatch.create({
+    data: {
+      shopId: key.shopId,
+      medicineId: key.medicineId,
+      batchNumber: key.batchNumber.trim(),
+      expiryDate: normalizeExpiry(key.expiryDate),
+      stockQty: 0,
+      mrp: data.mrp,
+      sellingRate: data.sellingRate,
+      purchaseRate: data.purchaseRate ?? null,
+      rackLocation: data.rackLocation ?? null,
+      packing: data.packing ?? '',
+    },
+  });
+  return { batch, created: true };
+}
+
+/**
+ * Apply a signed stock change to a batch. Decrements are guarded so stock can
+ * never go negative under concurrency. Returns the new balance.
+ */
+export async function changeBatchStock(tx: Tx, batchId: string, delta: number): Promise<number> {
+  if (delta < 0) {
+    const result = await tx.inventoryBatch.updateMany({
+      where: { id: batchId, stockQty: { gte: -delta } },
+      data: { stockQty: { increment: delta } },
+    });
+    if (result.count === 0) {
+      throw new Error('Insufficient stock in batch');
+    }
+  } else if (delta > 0) {
+    await tx.inventoryBatch.update({ where: { id: batchId }, data: { stockQty: { increment: delta } } });
+  }
+  const batch = await tx.inventoryBatch.findUniqueOrThrow({ where: { id: batchId }, select: { stockQty: true } });
+  return batch.stockQty;
+}
 
 export interface AvailableBatch {
   id: string;
@@ -29,12 +120,13 @@ export async function getAvailableBatches(
       shopId,
       medicineId,
       stockQty: { gt: 0 },
-      expiryDate: { gt: new Date() },
+      expiryDate: { gte: startOfTodayUtc() },
       deletedAt: null,
     },
-    orderBy: {
-      expiryDate: 'asc', // FEFO - earliest expiry first
-    },
+    orderBy: [
+      { expiryDate: 'asc' }, // FEFO - earliest expiry first
+      { createdAt: 'asc' },
+    ],
   });
 
   return batches.map((batch: any) => ({

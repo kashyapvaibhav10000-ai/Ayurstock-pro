@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
 import Papa from 'papaparse';
+import { normalizeExpiry } from '@/lib/batch';
+import { changeBatchStock, findOrCreateBatch } from '@/services/inventory';
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,7 +70,10 @@ export async function POST(req: NextRequest) {
 
     const existingBatches = await prisma.inventoryBatch.findMany({ where: { shopId } });
     const batchMap = new Map();
-    existingBatches.forEach(b => batchMap.set(`${b.medicineId}|${b.batchNumber.toLowerCase().trim()}`, b));
+    // Batch identity includes expiry: same number + different expiry = new batch.
+    const csvBatchKey = (medicineId: string, batchNumber: string, expiry: Date) =>
+      `${medicineId}|${batchNumber.toLowerCase().trim()}|${normalizeExpiry(expiry).toISOString().slice(0, 10)}`;
+    existingBatches.forEach(b => batchMap.set(csvBatchKey(b.medicineId, b.batchNumber, b.expiryDate), b));
 
     const transactions = [];
 
@@ -160,10 +165,10 @@ export async function POST(req: NextRequest) {
       
       // Analyze Batch logical bounds
       const mBatch = row['Batch Number'].trim();
-      const batchKey = `${medId}|${mBatch.toLowerCase()}`;
+      const mExpiry = normalizeExpiry(row['Expiry Date']);
+      const batchKey = csvBatchKey(medId, mBatch, mExpiry);
       const existingBatch = batchMap.get(batchKey);
 
-      const mExpiry = new Date(row['Expiry Date']);
       const mQty = parseInt(row['Quantity']);
       const mPr = parseFloat(row['Purchase Rate']);
       const mMrp = parseFloat(row['MRP']);
@@ -172,42 +177,35 @@ export async function POST(req: NextRequest) {
       if (existingBatch) {
         // Did anything actually change requiring an update?
         if (
-          existingBatch.stockQty === mQty && 
-          existingBatch.mrp === mMrp && 
-          existingBatch.purchaseRate === mPr &&
-          existingBatch.rackLocation === mRack &&
-          new Date(existingBatch.expiryDate).getTime() === mExpiry.getTime()
+          existingBatch.stockQty === mQty &&
+          Number(existingBatch.mrp) === mMrp &&
+          Number(existingBatch.purchaseRate) === mPr &&
+          existingBatch.rackLocation === mRack
         ) {
           skipped++;
         } else {
-          // Execute isolated relational update
-          await prisma.inventoryBatch.update({
-            where: { id: existingBatch.id },
-            data: {
-              stockQty: mQty,
-              purchaseRate: mPr,
-              mrp: mMrp,
-              sellingRate: mMrp,
-              rackLocation: mRack,
-              expiryDate: mExpiry
-            }
+          // CSV rows carry the absolute on-hand quantity; apply the difference.
+          const updatedBatch = await prisma.$transaction(async (tx) => {
+            await tx.inventoryBatch.update({
+              where: { id: existingBatch.id },
+              data: { purchaseRate: mPr, mrp: mMrp, sellingRate: mMrp, rackLocation: mRack },
+            });
+            const current = await tx.inventoryBatch.findUniqueOrThrow({ where: { id: existingBatch.id } });
+            await changeBatchStock(tx, existingBatch.id, mQty - current.stockQty);
+            return tx.inventoryBatch.findUniqueOrThrow({ where: { id: existingBatch.id } });
           });
+          batchMap.set(batchKey, updatedBatch);
           updated++;
         }
       } else {
-        // Execute physical insert
-        const newBatch = await prisma.inventoryBatch.create({
-           data: {
-             shopId,
-             medicineId: medId,
-             batchNumber: mBatch,
-             expiryDate: mExpiry,
-             stockQty: mQty,
-             mrp: mMrp,
-             purchaseRate: mPr,
-             sellingRate: mMrp,
-             rackLocation: mRack
-           }
+        const newBatch = await prisma.$transaction(async (tx) => {
+          const { batch } = await findOrCreateBatch(
+            tx,
+            { shopId, medicineId: medId, batchNumber: mBatch, expiryDate: mExpiry },
+            { mrp: mMrp, purchaseRate: mPr, sellingRate: mMrp, rackLocation: mRack }
+          );
+          await changeBatchStock(tx, batch.id, mQty);
+          return tx.inventoryBatch.findUniqueOrThrow({ where: { id: batch.id } });
         });
         batchMap.set(batchKey, newBatch);
       }

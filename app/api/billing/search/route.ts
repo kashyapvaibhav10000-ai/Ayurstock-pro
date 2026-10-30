@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest, createErrorResponse } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
+import { startOfTodayUtc } from '@/lib/batch';
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
         where: {
           shopId: auth.user.shopId,
           stockQty: { gt: 0 },
-          expiryDate: { gt: new Date() },
+          expiryDate: { gte: startOfTodayUtc() },
           deletedAt: null,
           AND: [
             {
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
       where: {
         shopId: auth.user.shopId,
         stockQty: { gt: 0 },
-        expiryDate: { gt: new Date() },
+        expiryDate: { gte: startOfTodayUtc() },
         deletedAt: null,
         AND: [
           {
@@ -139,7 +140,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: [{ expiryDate: 'asc' }, { stockQty: 'desc' }],
+      orderBy: [{ expiryDate: 'asc' }, { createdAt: 'asc' }],
       take: limit,
     });
 

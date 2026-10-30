@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
         batch: {
           select: {
             batchNumber: true,
+            expiryDate: true,
           },
         },
         createdByUser: {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
+import { batchLabel, normalizeExpiry } from '@/lib/batch';
+import { changeBatchStock, findBatchByIdentity } from '@/services/inventory';
 
 export async function PUT(req: NextRequest) {
   try {
@@ -47,13 +49,43 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    const nextQty = Number(stockQty);
+    if (!Number.isInteger(nextQty) || nextQty < 0) {
+      return NextResponse.json(
+        { success: false, message: 'Stock quantity must be a whole number ≥ 0' },
+        { status: 400 }
+      );
+    }
+
+    const nextBatchNumber = String(batchNumber).trim();
+    const nextExpiry = normalizeExpiry(expiryDate);
+
+    // Batch identity is medicine + batch number + expiry; editing either must
+    // not collide with another existing batch.
+    const conflict = await findBatchByIdentity(prisma, {
+      shopId: authResult.user.shopId,
+      medicineId: existingBatch.medicineId,
+      batchNumber: nextBatchNumber,
+      expiryDate: nextExpiry,
+    });
+    if (conflict && conflict.id !== id) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Another batch ${batchLabel(conflict)} already exists for this medicine. Adjust that batch instead.`,
+        },
+        { status: 409 }
+      );
+    }
+
     const updatedBatch = await prisma.$transaction(async (tx) => {
+      const current = await tx.inventoryBatch.findUniqueOrThrow({ where: { id }, select: { stockQty: true } });
+      await changeBatchStock(tx, id, nextQty - current.stockQty);
       return tx.inventoryBatch.update({
         where: { id },
         data: {
-          batchNumber: String(batchNumber).trim(),
-          expiryDate: new Date(expiryDate),
-          stockQty: Number(stockQty),
+          batchNumber: nextBatchNumber,
+          expiryDate: nextExpiry,
           purchaseRate: Number(purchaseRate),
           mrp: Number(mrp),
           sellingRate: Number(mrp),

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
 import { CreatePurchaseSchema } from '@/lib/schemas';
-import { getLowStockMedicines } from '@/services/inventory';
+import { changeBatchStock, findOrCreateBatch, getLowStockMedicines } from '@/services/inventory';
+import { normalizeExpiry } from '@/lib/batch';
 
 export async function GET(req: NextRequest) {
   try {
@@ -97,6 +98,7 @@ export async function GET(req: NextRequest) {
               select: {
                 id: true,
                 batchNumber: true,
+                expiryDate: true,
                 rackLocation: true,
               },
             },
@@ -233,49 +235,22 @@ export async function POST(req: NextRequest) {
         discountTotal += lineDiscount;
         gstTotal += lineGst;
 
-        const existingBatch = await tx.inventoryBatch.findFirst({
-          where: {
-            shopId: shopId,
-            medicineId: item.medicineId,
-            batchNumber: item.batchNumber.trim(),
-          },
-        });
-
-        let batchId = existingBatch?.id;
-
-        if (existingBatch) {
-          const updated = await tx.inventoryBatch.update({
-            where: { id: existingBatch.id },
-            data: {
-              expiryDate: new Date(item.expiryDate),
-              stockQty: { increment: qty + freeQty },
-              purchaseRate,
-              mrp,
-              sellingRate: mrp,
-              rackLocation: item.rackLocation?.trim() || existingBatch.rackLocation || null,
-            },
-          });
-          batchId = updated.id;
-        } else {
-          const createdBatch = await tx.inventoryBatch.create({
-            data: {
-              shopId: shopId,
-              medicineId: item.medicineId,
-              batchNumber: item.batchNumber.trim(),
-              expiryDate: new Date(item.expiryDate),
-              stockQty: qty + freeQty,
-              purchaseRate,
-              mrp,
-              sellingRate: mrp,
-              rackLocation: item.rackLocation?.trim() || null,
-            },
-          });
-          batchId = createdBatch.id;
-        }
+        // Batch identity = medicine + batch number + expiry. Same number with a
+        // different expiry becomes a separate batch.
+        const expiryDate = normalizeExpiry(item.expiryDate);
+        const rackLocation = item.rackLocation?.trim() || null;
+        const { batch } = await findOrCreateBatch(
+          tx,
+          { shopId, medicineId: item.medicineId, batchNumber: item.batchNumber, expiryDate },
+          { mrp, sellingRate: mrp, purchaseRate, rackLocation },
+          { purchaseRate, mrp, sellingRate: mrp, ...(rackLocation ? { rackLocation } : {}) }
+        );
+        await changeBatchStock(tx, batch.id, qty + freeQty);
+        const batchId = batch.id;
 
         itemPayloads.push({
           medicineId: item.medicineId,
-          batchId: batchId!,
+          batchId,
           quantity: qty,
           freeQty,
           scheme: item.scheme?.trim() || undefined,
@@ -283,7 +258,7 @@ export async function POST(req: NextRequest) {
           mrp,
           discount: lineDiscount,
           gst: lineGst,
-          expiryDate: new Date(item.expiryDate),
+          expiryDate,
         });
       }
 

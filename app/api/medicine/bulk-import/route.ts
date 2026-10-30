@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { splitMedicineNameAndPacking } from '@/lib/medicine-importer';
+import { changeBatchStock, findOrCreateBatch } from '@/services/inventory';
 
 interface MedicineData {
   code?: string;
@@ -60,7 +61,7 @@ function parseExpiryDate(dateStr?: string): Date {
     }
   }
 
-  return new Date(year, month, 1);
+  return new Date(Date.UTC(year, month, 1));
 }
 
 // ── Upgrade 2: Row-level validation ─────────────────────────────────────
@@ -266,31 +267,19 @@ export async function POST(req: NextRequest) {
       if (medicineRecord && medicine.batchNo && medicine.quantity) {
         const expiryDate = parseExpiryDate(medicine.expiryDate);
 
-        await prisma.inventoryBatch.upsert({
-          where: {
-            shopId_medicineId_batchNumber: {
-              shopId: user.shopId,
-              medicineId: medicineRecord.id,
-              batchNumber: medicine.batchNo.trim(),
-            }
-          },
-          update: {
-            stockQty: { increment: medicine.quantity },
-            mrp: mrp as any,
-            purchaseRate: (purchaseRate || null) as any,
-            sellingRate: mrp as any,
-            expiryDate: expiryDate,
-          },
-          create: {
-            shopId: user.shopId,
-            medicineId: medicineRecord.id,
-            batchNumber: medicine.batchNo.trim(),
-            expiryDate: expiryDate,
-            stockQty: medicine.quantity,
-            mrp: mrp as any,
-            purchaseRate: (purchaseRate || null) as any,
-            sellingRate: mrp as any,
-          }
+        const medicineId = medicineRecord.id;
+        const batchNo = medicine.batchNo;
+        const quantity = medicine.quantity;
+        // Same medicine + batch number + expiry adds stock; a different expiry
+        // is a separate batch.
+        await prisma.$transaction(async (tx) => {
+          const { batch } = await findOrCreateBatch(
+            tx,
+            { shopId: user.shopId, medicineId, batchNumber: batchNo, expiryDate },
+            { mrp, sellingRate: mrp, purchaseRate: purchaseRate || null },
+            { mrp, sellingRate: mrp, purchaseRate: purchaseRate || null }
+          );
+          await changeBatchStock(tx, batch.id, quantity);
         });
         batchCount++;
         totalStockAdded += medicine.quantity;

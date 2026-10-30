@@ -24,6 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import MedicineBatchDetailsView from './MedicineBatchDetailsView';
+import { batchLabel } from '@/lib/batch';
 
 interface EmptyBatch {
   id: string;
@@ -223,7 +224,7 @@ export default function EmptyStockBatchesDrawer({
                               {batch.medicine.company}
                             </TableCell>
                             <TableCell className="font-medium text-foreground">
-                              {batch.batchNumber}
+                              {batchLabel(batch)}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {new Date(batch.expiryDate).toLocaleDateString('en-GB', {
@@ -268,7 +269,7 @@ export default function EmptyStockBatchesDrawer({
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
                               <span className="text-muted-foreground">Batch:</span>{' '}
-                              <span className="font-medium">{batch.batchNumber}</span>
+                              <span className="font-medium">{batchLabel(batch)}</span>
                             </div>
                             <div>
                               <span className="text-muted-foreground">Expiry:</span>{' '}

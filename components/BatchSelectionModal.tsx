@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { AvailableBatch } from '@/services/inventory';
 
+import { batchLabel } from '@/lib/batch';
 interface BatchSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -35,7 +36,7 @@ export default function BatchSelectionModal({ isOpen, onClose, batches, selected
                 const days = Math.ceil((new Date(batch.expiryDate).getTime() - new Date().getTime())/(1000*60*60*24));
                 return (
                   <TableRow key={batch.id} className={`${batch.id === selectedId ? 'bg-blue-50' : ''} hover:bg-gray-100 cursor-pointer`} onClick={() => onSelect(batch)}>
-                    <TableCell>{batch.batchNumber}{batch.id === selectedId && ' (recommended)'}</TableCell>
+                    <TableCell>{batchLabel(batch, batch.stockQty)}{batch.id === selectedId && ' (recommended)'}</TableCell>
                     <TableCell>{new Date(batch.expiryDate).toLocaleDateString()} {days<0? '(expired)': days<=30?`(${days}d)`:''}</TableCell>
                     <TableCell>{batch.stockQty}</TableCell>
                     <TableCell>₹{batch.mrp.toFixed(2)}</TableCell>

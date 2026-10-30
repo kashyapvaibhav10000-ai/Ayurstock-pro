@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
+import { batchLabel } from "@/lib/batch";
 interface BatchOption {
   batchId: string;
   medicineId: string;
@@ -329,7 +330,7 @@ export default function StockAdjustmentPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-black text-foreground truncate">{batch.medicineName}</div>
                         <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">
-                          {batch.company} • Batch: {batch.batchNumber}
+                          {batch.company} • {batchLabel(batch)}
                         </div>
                       </div>
                       <div className="text-right shrink-0 ml-3">
@@ -353,7 +354,7 @@ export default function StockAdjustmentPage() {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
                   <div>
                     <span className="font-bold text-muted-foreground uppercase tracking-wider">Batch: </span>
-                    <span className="font-black text-foreground">{selectedBatch.batchNumber}</span>
+                    <span className="font-black text-foreground">{batchLabel(selectedBatch)}</span>
                   </div>
                   <div>
                     <span className="font-bold text-muted-foreground uppercase tracking-wider">Stock: </span>

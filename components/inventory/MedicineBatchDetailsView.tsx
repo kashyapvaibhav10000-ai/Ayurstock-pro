@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { batchLabel } from '@/lib/batch';
 
 interface Batch {
   id: string;
@@ -209,7 +210,7 @@ export default function MedicineBatchDetailsView({
               >
                 <TableCell className="font-bold text-foreground">
                   {batch.isHighlighted && <span className="text-amber-500 mr-2">🔸</span>}
-                  {batch.batchNumber}
+                  {batchLabel(batch)}
                   {batch.isHighlighted && (
                     <Badge variant="outline" className="ml-2 text-[10px] border-amber-500 text-amber-600">
                       From List
@@ -275,7 +276,7 @@ export default function MedicineBatchDetailsView({
                 <div>
                   <div className="font-bold text-foreground text-base flex items-center gap-2">
                     {batch.isHighlighted && <span className="text-amber-500">🔸</span>}
-                    {batch.batchNumber}
+                    {batchLabel(batch)}
                   </div>
                   {batch.isHighlighted && (
                     <Badge variant="outline" className="mt-1 text-[10px] border-amber-500 text-amber-600">
@@ -356,7 +357,7 @@ export default function MedicineBatchDetailsView({
                     <div>
                       <span className="text-muted-foreground">Batch:</span>{' '}
                       <span className="font-semibold text-foreground">
-                        {selectedBatch.batchNumber}
+                        {batchLabel(selectedBatch)}
                       </span>
                     </div>
                     <div>

@@ -33,6 +33,7 @@ export async function GET(
               select: {
                 id: true,
                 batchNumber: true,
+                expiryDate: true,
                 rackLocation: true,
                 stockQty: true,
               },

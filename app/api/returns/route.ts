@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
+import { normalizeExpiry } from '@/lib/batch';
+import { changeBatchStock, findBatchByIdentity, findOrCreateBatch } from '@/services/inventory';
 
 export async function GET(req: NextRequest) {
   try {
@@ -110,8 +112,10 @@ export async function POST(req: NextRequest) {
       verifiedBatchId = saleItem.batchId;
     }
 
+    const returnExpiry = normalizeExpiry(expiryDate);
+
     // Execute the return registration and stock logic transactionally
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx) => {
       // 1. Log the return
       const medReturn = await tx.medicineReturn.create({
         data: {
@@ -120,7 +124,7 @@ export async function POST(req: NextRequest) {
           companyId,
           batchNumber: batchNumber || 'RETURN_BATCH',
           batchId: verifiedBatchId,
-          expiryDate: new Date(expiryDate),
+          expiryDate: returnExpiry,
           mrp: Number(mrp),
           quantity: q,
           reason,
@@ -140,37 +144,34 @@ export async function POST(req: NextRequest) {
         stockQuantityAdjustment = -q; // Remove stock
       }
 
-      // Priority: Find by verifiedBatchId, fallback to batchNumber
+      // Priority: find by verifiedBatchId, fallback to batch identity
+      // (medicine + batch number + expiry).
       let existingBatch;
       if (verifiedBatchId) {
-        existingBatch = await tx.inventoryBatch.findUnique({
-          where: { id: verifiedBatchId }
-        });
-      } else {
         existingBatch = await tx.inventoryBatch.findFirst({
-          where: {
-            shopId: auth.user.shopId,
-            medicineId,
-            batchNumber: batchNumber || 'RETURN_BATCH',
-            mrp: Number(mrp)
-          }
+          where: { id: verifiedBatchId, shopId: auth.user.shopId, medicineId }
+        });
+        if (!existingBatch) {
+          throw new Error('Batch not found for this medicine.');
+        }
+      } else {
+        existingBatch = await findBatchByIdentity(tx, {
+          shopId: auth.user.shopId,
+          medicineId,
+          batchNumber: batchNumber || 'RETURN_BATCH',
+          expiryDate: returnExpiry,
         });
       }
 
       let assignedBatchId = '';
 
       if (existingBatch) {
-        const newStock = existingBatch.stockQty + stockQuantityAdjustment;
-        
-        if (newStock < 0) {
+        if (existingBatch.stockQty + stockQuantityAdjustment < 0) {
           throw new Error('Insufficient stock to execute Supplier Return of this batch magnitude.');
         }
 
-        const updatedBatch = await tx.inventoryBatch.update({
-          where: { id: existingBatch.id },
-          data: { stockQty: newStock }
-        });
-        assignedBatchId = updatedBatch.id;
+        await changeBatchStock(tx, existingBatch.id, stockQuantityAdjustment);
+        assignedBatchId = existingBatch.id;
 
       } else {
         if (type === 'SUPPLIER') {
@@ -186,18 +187,21 @@ export async function POST(req: NextRequest) {
           select: { purchaseRate: true },
         });
 
-        const newBatch = await tx.inventoryBatch.create({
-          data: {
+        const { batch: newBatch } = await findOrCreateBatch(
+          tx,
+          {
             shopId: auth.user.shopId,
             medicineId,
             batchNumber: batchNumber || 'RETURN_BATCH',
-            expiryDate: new Date(expiryDate),
-            stockQty: stockQuantityAdjustment,
+            expiryDate: returnExpiry,
+          },
+          {
             mrp: Number(mrp),
             purchaseRate: referenceBatch?.purchaseRate ?? null,
-            sellingRate: Number(mrp)
+            sellingRate: Number(mrp),
           }
-        });
+        );
+        await changeBatchStock(tx, newBatch.id, stockQuantityAdjustment);
         assignedBatchId = newBatch.id;
       }
 

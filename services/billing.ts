@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PaymentMode, SaleType } from '@/types';
+import { batchLabel, isBatchExpired, startOfTodayUtc } from '@/lib/batch';
 
 /**
  * Billing Service - Handles sale/invoice creation and calculations
@@ -196,7 +197,7 @@ export async function createSale(params: {
 
     const reservedQty = new Map<string, number>();
     const expandedItems: BillingItem[] = [];
-    const now = new Date();
+    const sellableFrom = startOfTodayUtc();
 
     for (const item of params.items) {
       const totalQty = item.quantity;
@@ -212,6 +213,8 @@ export async function createSale(params: {
           select: {
             id: true,
             medicineId: true,
+            batchNumber: true,
+            expiryDate: true,
             stockQty: true,
             mrp: true,
             purchaseRate: true,
@@ -225,6 +228,10 @@ export async function createSale(params: {
 
         if (preferredBatch.medicineId !== item.medicineId) {
           throw new Error(`Batch ${item.batchId} does not belong to medicine ${item.medicineId}`);
+        }
+
+        if (isBatchExpired(preferredBatch.expiryDate)) {
+          throw new Error(`Batch ${batchLabel(preferredBatch)} is expired and cannot be billed`);
         }
 
         const alreadyReserved = reservedQty.get(preferredBatch.id) || 0;
@@ -254,7 +261,7 @@ export async function createSale(params: {
             shopId: params.shopId,
             medicineId: item.medicineId,
             stockQty: { gt: 0 },
-            expiryDate: { gt: now },
+            expiryDate: { gte: sellableFrom },
             deletedAt: null,
             ...(item.batchId ? { NOT: { id: item.batchId } } : {}),
           },
@@ -265,7 +272,8 @@ export async function createSale(params: {
             purchaseRate: true,
             sellingRate: true,
           },
-          orderBy: [{ expiryDate: 'asc' }, { stockQty: 'desc' }],
+          // FEFO: earliest expiry first.
+          orderBy: [{ expiryDate: 'asc' }, { createdAt: 'asc' }],
         });
 
         for (const batch of otherBatches) {

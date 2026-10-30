@@ -11,6 +11,7 @@ import { Search, ChevronRight, ArrowLeft, Package, User, Calendar, Receipt, Info
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
+import { batchLabel } from '@/lib/batch';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -307,7 +308,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
                               <p className="text-sm font-black text-foreground">{item.medicine.name}</p>
                               <div className="flex items-center gap-3 mt-1">
                                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                  Batch: {item.batch.batchNumber}
+                                  {batchLabel(item.batch)}
                                 </span>
                                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                                   Qty: {item.quantity} Sold
@@ -331,7 +332,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
                     </Button>
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Returning Item from {selectedSale.invoiceNumber}</p>
-                      <p className="text-sm font-black text-foreground">{selectedItem.medicine.name} — <span className="text-primary">{selectedItem.batch.batchNumber}</span></p>
+                      <p className="text-sm font-black text-foreground">{selectedItem.medicine.name} — <span className="text-primary">{batchLabel(selectedItem.batch)}</span></p>
                     </div>
                   </div>
 

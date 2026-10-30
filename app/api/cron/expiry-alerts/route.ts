@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import * as nodemailer from 'nodemailer';
 import { addMonths, differenceInDays } from 'date-fns';
+import { batchLabel } from '@/lib/batch';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
         where: {
           shopId: settings.shopId,
           stockQty: { gt: 0 },
+          deletedAt: null,
           expiryDate: { lte: sixMonthsFromNow },
         },
         include: {
@@ -62,7 +64,9 @@ export async function GET(request: NextRequest) {
 
       for (const batch of batches) {
         const daysDiff = differenceInDays(new Date(batch.expiryDate), today);
-        const itemText = `- ${batch.medicine.name} | ${batch.medicine.company} | ₹${Number(batch.medicine.mrp || 0).toFixed(2)}`;
+        // One line per batch row: same batch number with different expiries
+        // are separate batches and are listed separately.
+        const itemText = `- ${batch.medicine.name} | ${batch.medicine.company} | ${batchLabel(batch, batch.stockQty)} | ₹${Number(batch.mrp || batch.medicine.mrp || 0).toFixed(2)}`;
         
         if (daysDiff < 0) buckets.expired.push(itemText);
         else if (daysDiff <= 30) buckets.month1.push(itemText);

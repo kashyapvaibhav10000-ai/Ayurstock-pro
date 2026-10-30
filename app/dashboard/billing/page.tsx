@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { CartItem } from '@/types';
 import ItemDetailPopup, { ItemDetailSuggestion } from '@/components/billing/ItemDetailPopup';
+import CartBatchSelect, { CartBatchOption, invalidateCartBatchCache } from '@/components/billing/CartBatchSelect';
+import { batchLabel, isBatchExpired } from '@/lib/batch';
 import {
   Dialog,
   DialogContent,
@@ -259,11 +261,7 @@ export default function BillingPage() {
   };
 
   const addSuggestionToCart = (suggestion: BillingSuggestion) => {
-    const daysToExpiry = Math.ceil(
-      (new Date(suggestion.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    );
-
-    if (daysToExpiry < 0) {
+    if (isBatchExpired(suggestion.expiryDate)) {
       toast.error('This batch is expired and cannot be billed.');
       return;
     }
@@ -462,6 +460,42 @@ export default function BillingPage() {
     );
   };
 
+  // User override of the FEFO-picked batch for a cart line. Price follows the
+  // newly selected batch; quantity and discount stay as entered.
+  const changeCartItemBatch = (index: number, batch: CartBatchOption) => {
+    setCart((current) =>
+      current.map((item, i) => {
+        if (i !== index) return item;
+        const rate = getBillingRate({
+          purchaseRate: batch.purchaseRate,
+          rate: batch.sellingRate,
+          mrp: batch.mrp,
+        } as BillingSuggestion);
+        let gst: number;
+        let amount: number;
+        if (gstMode === 'inclusive') {
+          amount = Math.round((rate * item.quantity - item.discount) * 100) / 100;
+          const basePrice = Math.round((amount / (1 + item.gstPercent / 100)) * 100) / 100;
+          gst = Math.round((amount - basePrice) * 100) / 100;
+        } else {
+          const afterDiscount = item.quantity * rate - item.discount;
+          gst = Math.round(((afterDiscount * item.gstPercent) / 100) * 100) / 100;
+          amount = afterDiscount + gst;
+        }
+        return {
+          ...item,
+          batchId: batch.id,
+          batchNumber: batch.batchNumber,
+          expiryDate: new Date(batch.expiryDate),
+          mrp: batch.mrp,
+          rate,
+          gst,
+          amount,
+        };
+      })
+    );
+  };
+
   const removeFromCart = (index: number) => {
     setCart((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
@@ -503,6 +537,7 @@ export default function BillingPage() {
 
   const resetBill = useCallback(() => {
     setCart([]);
+    invalidateCartBatchCache();
     setReceivedAmount(0);
     setOrderId(`#POS-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`);
     setCustomerName('Walk-in Customer');
@@ -789,8 +824,12 @@ export default function BillingPage() {
                     <div>
                       <h3 className="font-bold text-[15px] text-slate-900 dark:text-white uppercase tracking-tight pr-4">{item.medicineName}</h3>
                       <div className="flex flex-wrap gap-2 mt-1.5">
-                        <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded uppercase">B:{item.batchNumber}</span>
-                        <span className="text-[10px] font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-600 px-1.5 py-0.5 rounded uppercase">Exp: {new Date(item.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })}</span>
+                        <CartBatchSelect
+                          medicineId={item.medicineId}
+                          value={item.batchId}
+                          fallbackLabel={batchLabel(item)}
+                          onChange={(batch) => changeCartItemBatch(index, batch)}
+                        />
                         <span className="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase">₹{getItemUnitPrice(item).toFixed(2)}/U</span>
                       </div>
                     </div>

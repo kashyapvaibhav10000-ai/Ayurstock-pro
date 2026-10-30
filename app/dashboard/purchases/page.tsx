@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/table';
 import ImportPriceList from '@/components/medicine/import-price-list';
 
+import { batchIdentityKey, batchLabel } from '@/lib/batch';
 interface PurchaseStats {
   todayPurchases: number;
   monthPurchases: number;
@@ -397,15 +398,16 @@ export default function PurchasesPage() {
         return;
       }
 
-      // Check for duplicate batches (same medicineId + batchNumber)
+      // Check for duplicate batches (same medicine + batch number + expiry).
+      // Same batch number with a different expiry is a separate batch.
       const batchMap = new Map<string, number>();
       for (let i = 0; i < purchaseForm.items.length; i++) {
         const item = purchaseForm.items[i];
-        const batchKey = `${item.medicineId}:${item.batchNumber.trim()}`;
+        const batchKey = batchIdentityKey(item.medicineId, item.batchNumber, item.expiryDate);
         if (batchMap.has(batchKey)) {
           const firstIndex = batchMap.get(batchKey)!;
           toast.error(
-            `Duplicate batch detected: Same medicine with batch "${item.batchNumber}" appears in row ${firstIndex + 1} and row ${i + 1}`
+            `Duplicate batch detected: ${batchLabel(item)} for the same medicine appears in row ${firstIndex + 1} and row ${i + 1}`
           );
           setSaving(false);
           return;
@@ -1265,7 +1267,7 @@ export default function PurchasesPage() {
                         <option value="">Select batch</option>
                         {selectedPurchase.purchaseItems.map((item) => (
                           <option key={item.batchId} value={item.batchId}>
-                            {item.medicine.name} · {item.batch.batchNumber}
+                            {item.medicine.name} · {batchLabel(item.batch)}
                           </option>
                         ))}
                       </select>
@@ -1334,7 +1336,7 @@ export default function PurchasesPage() {
                         <TableRow key={entry.id} className="hover:bg-primary/5 transition-colors border-border">
                           <TableCell className="text-sm font-medium text-muted-foreground">{new Date(entry.createdAt).toLocaleDateString('en-GB')}</TableCell>
                           <TableCell className="font-bold text-foreground">{entry.medicine.name}</TableCell>
-                          <TableCell className="font-bold text-muted-foreground">{entry.batch.batchNumber}</TableCell>
+                          <TableCell className="font-bold text-muted-foreground">{batchLabel(entry.batch)}</TableCell>
                           <TableCell className="text-right font-bold text-foreground">{entry.quantity}</TableCell>
                           <TableCell className="text-sm font-medium text-muted-foreground">{entry.reason}</TableCell>
                         </TableRow>

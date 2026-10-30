@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { batchLabel } from '@/lib/batch';
 
 interface BatchRow {
   id: string;
@@ -88,7 +89,7 @@ export default function MedicineBatchesModal({
               ) : (
                 batches.map((batch) => (
                   <TableRow key={batch.id}>
-                    <TableCell className="font-medium">{batch.batchNumber}</TableCell>
+                    <TableCell className="font-medium">{batchLabel(batch)}</TableCell>
                     <TableCell>{new Date(batch.expiryDate).toLocaleDateString()}</TableCell>
                     <TableCell>{batch.stockQty}</TableCell>
                     <TableCell>Rs. {Number(batch.mrp).toFixed(2)}</TableCell>

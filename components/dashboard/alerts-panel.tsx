@@ -15,6 +15,7 @@ import {
 import { useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+import { batchLabel } from "@/lib/batch"
 // ── Single alert row ────────────────────────────────────────────────────────
 function AlertRow({
   color,
@@ -147,7 +148,7 @@ export function AlertsPanel() {
                         color="red"
                         icon={Clock}
                         title={item.medicine.name}
-                        sub={days < 0 ? `Expired ${Math.abs(days)}d ago · Batch ${item.batchNumber}` : `Expires in ${days}d · Batch ${item.batchNumber}`}
+                        sub={days < 0 ? `Expired ${Math.abs(days)}d ago · ${batchLabel(item)}` : `Expires in ${days}d · ${batchLabel(item)}`}
                       />
                     )
                   })}
@@ -191,13 +192,13 @@ export function AlertsPanel() {
                   {healthAlerts.negativeStockBatches.map((b: any) => (
                     <AlertRow key={b.id} color="red" icon={TrendingDown}
                       title={`${b.medicine?.name} — Negative Stock`}
-                      sub={`Batch ${b.batchNumber || "N/A"} · Qty ${b.stockQty}`}
+                      sub={batchLabel(b, b.stockQty)}
                     />
                   ))}
                   {healthAlerts.expiredBatches.map((b: any) => (
                     <AlertRow key={b.id} color="amber" icon={AlertTriangle}
                       title={`${b.medicine?.name} — Expired Batch`}
-                      sub={`Batch ${b.batchNumber || "N/A"} · ${new Date(b.expiryDate).toLocaleDateString('en-IN')}`}
+                      sub={batchLabel(b)}
                     />
                   ))}
                   {healthAlerts.missingBatchNumbers.map((b: any) => (

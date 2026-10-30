@@ -17,6 +17,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import { batchLabel, formatExpiryShort } from '@/lib/batch';
 import { AlertTriangle, Loader2, PackageSearch } from 'lucide-react';
 import {
   Dialog,
@@ -359,7 +360,7 @@ export default function ItemDetailPopup({
                   );
                   return (
                     <option key={b.id} value={b.id}>
-                      {b.batchNumber} · Exp {new Date(b.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })} · Stock {b.stockQty}
+                      {batchLabel(b, b.stockQty)}
                       {b.packing ? ` · Pack ${b.packing}` : ''}
                       {idx === 0 ? ' (recommended)' : ''}
                       {bDays <= nearExpiryDays ? ' !' : ''}
@@ -375,7 +376,7 @@ export default function ItemDetailPopup({
             <DetailField label="Batch No." value={activeBatch?.batchNumber || '—'} mono />
             <DetailField
               label="Expiry Date"
-              value={activeBatch ? new Date(activeBatch.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) : '—'}
+              value={activeBatch ? formatExpiryShort(activeBatch.expiryDate) : '—'}
             />
             <DetailField label="MRP" value={activeBatch ? `₹${activeBatch.mrp.toFixed(2)}` : '—'} />
             <DetailField label="Selling Rate" value={`₹${unitPrice.toFixed(2)}`} />

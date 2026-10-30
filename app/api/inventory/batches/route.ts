@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, createApiResponse, createErrorResponse, createPaginatedResponse } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
-import { getAvailableBatches, getLowStockMedicines, getNearExpiryMedicines } from '@/services/inventory';
+import { changeBatchStock, findOrCreateBatch, getAvailableBatches, getLowStockMedicines, getNearExpiryMedicines } from '@/services/inventory';
 import { CreateBatchSchema } from '@/lib/schemas';
 
 export async function GET(request: NextRequest) {
@@ -202,49 +202,36 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check if batch already exists
-    const existingBatch = await prisma.inventoryBatch.findUnique({
-      where: {
-        shopId_medicineId_batchNumber: {
-          shopId: auth.user.shopId,
-          medicineId,
-          batchNumber,
+    // Same medicine + batch number + expiry adds to the existing batch; a
+    // different expiry creates a new batch.
+    const batch = await prisma.$transaction(async (tx) => {
+      const { batch: target, created } = await findOrCreateBatch(
+        tx,
+        { shopId: auth.user.shopId, medicineId, batchNumber, expiryDate },
+        {
+          mrp,
+          purchaseRate,
+          sellingRate,
+          rackLocation: rackLocation?.trim() || null,
+          packing: packing?.trim() || '',
         }
-      }
-    });
+      );
+      await changeBatchStock(tx, target.id, stockQty);
 
-    if (existingBatch) {
-      return createErrorResponse('A batch with this number already exists for this medicine', 400);
-    }
+      await tx.activityLog.create({
+        data: {
+          shopId: auth.user.shopId,
+          userId: auth.user.id,
+          action: created ? 'CREATE_BATCH' : 'ADD_TO_BATCH',
+          meta: JSON.stringify({
+            batchId: target.id,
+            batchNumber: target.batchNumber,
+            quantity: stockQty,
+          }),
+        },
+      });
 
-    // Create batch
-    const batch = await prisma.inventoryBatch.create({
-      data: {
-        shopId: auth.user.shopId,
-        medicineId,
-        batchNumber,
-        expiryDate: new Date(expiryDate),
-        stockQty,
-        mrp,
-        purchaseRate,
-        sellingRate,
-        rackLocation: rackLocation?.trim() || null,
-        packing: packing?.trim() || '',
-      },
-    });
-
-    // Log activity
-    await prisma.activityLog.create({
-      data: {
-        shopId: auth.user.shopId,
-        userId: auth.user.id,
-        action: 'CREATE_BATCH',
-        meta: JSON.stringify({
-          batchId: batch.id,
-          batchNumber: batch.batchNumber,
-          quantity: stockQty,
-        }),
-      },
+      return tx.inventoryBatch.findUniqueOrThrow({ where: { id: target.id } });
     });
 
     return createApiResponse(true, batch, undefined, 201);
