@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import DashboardClientWrapper from '@/components/DashboardClientWrapper';
 import { getAuthUserFromToken } from '@/lib/auth';
+import { isSuperAdmin } from '@/lib/super-admin';
 
 export default async function DashboardLayout({
   children,
@@ -21,7 +22,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <DashboardClientWrapper user={user}>
+    <DashboardClientWrapper user={{ ...user, isSuperAdmin: isSuperAdmin(user) }}>
       {children}
     </DashboardClientWrapper>
   );

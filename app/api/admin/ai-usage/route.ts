@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { verifyAuth } from '@/lib/auth';
+import { requireSuperAdmin } from '@/lib/super-admin';
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await verifyAuth(req);
-    if (!auth.authenticated || !auth.user || auth.user.role !== 'ADMIN') {
-      return NextResponse.json({ success: false, message: 'ADMIN only' }, { status: 403 });
+    // Part of Settings > AI, which is super-admin only.
+    const user = await requireSuperAdmin(req);
+    if (!user) {
+      return NextResponse.json({ success: false, message: 'Not found' }, { status: 404 });
     }
 
     const usage = await prisma.apiUsageCounter.findMany({

@@ -657,3 +657,47 @@ enum PackType {
   PACKET
   LOOSE
 }
+
+enum AiProvider {
+  GEMINI
+  GROQ
+  MISTRAL
+  OPENROUTER
+}
+
+// Platform-wide AI provider keys (not shop-scoped: the AI parser is shared).
+// Managed by super-admins only. The key is AES-256-GCM encrypted with
+// AI_ENCRYPTION_KEY (env, never stored); the API only ever returns last4.
+// One row per provider; key fields are null after a revoke so priority and
+// enabled survive. Lower priority = tried first.
+model AiProviderKey {
+  id            String     @id @default(cuid())
+  provider      AiProvider @unique
+  encryptedKey  String?
+  iv            String?
+  authTag       String?
+  last4         String?
+  enabled       Boolean    @default(true)
+  priority      Int        @default(0)
+  lastTestedAt  DateTime?
+  lastTestOk    Boolean?
+  lastLatencyMs Int?
+  lastError     String?
+  createdBy     String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+// Who did what to which provider key. Never contains key material.
+model AiKeyAuditLog {
+  id        String     @id @default(cuid())
+  provider  AiProvider
+  action    String
+  detail    String?
+  userId    String?
+  userEmail String?
+  createdAt DateTime   @default(now())
+
+  @@index([createdAt])
+  @@index([provider, createdAt])
+}

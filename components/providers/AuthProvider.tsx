@@ -8,6 +8,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isManager: boolean;
   isCashier: boolean;
+  isSuperAdmin: boolean;
   hasRole: (roles: UserRole[]) => boolean;
 }
 
@@ -23,6 +24,7 @@ export function AuthProvider({
   const isAdmin = user.role === 'ADMIN';
   const isManager = user.role === 'MANAGER';
   const isCashier = user.role === 'CASHIER';
+  const isSuperAdmin = Boolean(user.isSuperAdmin);
 
   const hasRole = (roles: UserRole[]) => {
     return roles.includes(user.role);
@@ -33,6 +35,7 @@ export function AuthProvider({
     isAdmin,
     isManager,
     isCashier,
+    isSuperAdmin,
     hasRole,
   };
 

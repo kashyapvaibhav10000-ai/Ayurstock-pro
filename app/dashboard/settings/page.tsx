@@ -18,7 +18,7 @@ import RackLocationsSettings from '@/components/settings/rack-locations-settings
 import DataImportSettings from '@/components/settings/data-import-settings';
 import DatabaseAdmin from '@/components/settings/database-admin';
 import ActivityLogTab from '@/components/settings/activity-log-tab';
-import AiUsageTab from '@/components/settings/ai-usage-tab';
+import AiSettingsTab from '@/components/settings/ai-settings-tab';
 import LoginHistoryTab from '@/components/settings/login-history-tab';
 import ExpiryAlertSettings from '@/components/settings/expiry-alert-settings';
 import GstCategorySettings from '@/components/settings/gst-category-settings';
@@ -44,13 +44,14 @@ const SETTINGS_CATEGORIES = [
   { id: 'import', label: 'Bulk Import Data', icon: UploadCloud, group: 'Advanced' },
   { id: 'database', label: 'Database Admin', icon: Database, group: 'Advanced' },
   { id: 'activity', label: 'Activity Log', icon: FileText, group: 'Advanced' },
-  { id: 'ai-usage', label: 'AI Usage', icon: Sparkles, group: 'Advanced' },
+  // Super-admin only (filtered below; API enforces it too).
+  { id: 'ai', label: 'AI', icon: Sparkles, group: 'Advanced', superAdminOnly: true },
   { id: 'login-history', label: 'Login History', icon: ShieldCheck, group: 'Advanced' },
 ];
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
 
   useEffect(() => {
     if (!isAdmin) {
@@ -100,7 +101,9 @@ export default function SettingsPage() {
       case 'import': return <DataImportSettings />;
       case 'database': return <DatabaseAdmin />;
       case 'activity': return <ActivityLogTab />;
-      case 'ai-usage': return <AiUsageTab />;
+      case 'ai':
+      case 'ai-usage':
+        return isSuperAdmin ? <AiSettingsTab /> : <ShopSettings />;
       case 'login-history': return <LoginHistoryTab />;
       case 'system': return <SystemSettings />;
       case 'gst-categories': return <GstCategorySettings />;
@@ -126,7 +129,7 @@ export default function SettingsPage() {
                 <h4 className="hidden lg:block mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {group}
                 </h4>
-                {SETTINGS_CATEGORIES.filter(c => c.group === group).map(category => {
+                {SETTINGS_CATEGORIES.filter(c => c.group === group && (!('superAdminOnly' in c) || isSuperAdmin)).map(category => {
                   const Icon = category.icon;
                   return (
                     <button

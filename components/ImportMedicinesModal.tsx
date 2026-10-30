@@ -90,7 +90,7 @@ function ErrorBanner({ errorCode, message }: { errorCode?: string; message: stri
       case 'AI_FAILED':
         return 'The AI parsing service failed. This might be a temporary issue — please try again in a moment.';
       case 'NO_API_KEY':
-        return 'The AI API key is not configured. Please contact your administrator to set up the OPENROUTER_API_KEY.';
+        return 'No AI provider key is configured. Ask a super-admin to add one in Settings > AI.';
       case 'TIMEOUT':
         return 'The request timed out. Try a smaller PDF or try again later.';
       default:

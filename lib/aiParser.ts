@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/db';
+import { AiProvider } from '@prisma/client';
+import { aiKey, aiProviderOrder, loadAiKeys, orderByPriority } from '@/lib/ai-keys';
 // pdf-parse will be loaded locally to avoid build-time ReferenceErrors (DOMMatrix is not defined)
 
 
@@ -509,7 +511,7 @@ async function processChunks(
 
 // ─── TIER 1: Gemini ───────────────────────────────────────────────────────────
 async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey('GEMINI');
   if (!apiKey) throw new Error('NO_API_KEY');
 
   const base64Pdf = pdfBuffer.toString('base64');
@@ -617,60 +619,62 @@ Set overall to the LOWEST of all field confidences.
 Return ONLY valid JSON. NO explanation. NO markdown.`;
 
 export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: string): Promise<ParseResult> {
+  await loadAiKeys();
   const base64Image = imageBuffer.toString('base64');
   const errors: string[] = [];
 
-  // ── TIER 1: Gemini Vision ────────────────────────────────────────────
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      console.log(`🖼️ [Tier 1] Gemini Vision (${imageBuffer.length} bytes)...`);
-      const result = await callGeminiVision(base64Image, mimeType);
-      if (result.medicines.length > 0) return result;
-      errors.push('Gemini: no medicines extracted');
-    } catch (err: any) {
-      const msg = err?.message || String(err);
-      console.warn(`  ❌ Gemini Vision failed: ${msg}`);
-      errors.push(`Gemini: ${msg}`);
-    }
-  } else {
-    errors.push('Gemini: no API key');
-  }
+  // Vision-capable providers, tried in the configured priority order.
+  const tiers: Array<{ provider: AiProvider; label: string; run: () => Promise<ParseResult | null> }> = [
+    {
+      provider: 'GEMINI',
+      label: 'Gemini',
+      run: async () => {
+        const result = await callGeminiVision(base64Image, mimeType);
+        if (result.medicines.length > 0) return result;
+        errors.push('Gemini: no medicines extracted');
+        return null;
+      },
+    },
+    {
+      provider: 'GROQ',
+      label: 'Groq',
+      run: async () => {
+        const result = await callGroqVision(base64Image, mimeType);
+        // QUALITY CHECK: If more than 40% of rows have "NA" batch/qty, it's low quality
+        const lowQuality = result.medicines.filter(m => !m.batchNo || m.batchNo === 'NA' || !m.quantity).length / (result.medicines.length || 1) > 0.4;
+        if (result.medicines.length > 0 && !lowQuality) return result;
+        console.warn(`  ⚠️ Groq result was low quality (${result.medicines.length} meds), falling back...`);
+        errors.push('Groq: low quality extraction');
+        return null;
+      },
+    },
+    {
+      provider: 'OPENROUTER',
+      label: 'OpenRouter',
+      run: async () => {
+        const result = await callOpenRouterVision(base64Image, mimeType);
+        if (result.medicines.length > 0) return result;
+        errors.push('OpenRouter: no medicines extracted');
+        return null;
+      },
+    },
+  ];
 
-  // ── TIER 2: Groq Vision ──────────────────────────────────────────────
-  if (process.env.GROQ_API_KEY) {
+  const ordered = orderByPriority(tiers, (tier) => tier.provider);
+  for (const [index, tier] of ordered.entries()) {
+    if (!aiKey(tier.provider)) {
+      errors.push(`${tier.label}: no API key`);
+      continue;
+    }
     try {
-      console.log(`🖼️ [Tier 2] Groq Vision...`);
-      const result = await callGroqVision(base64Image, mimeType);
-      
-      // QUALITY CHECK: If more than 40% of rows have "NA" batch/qty, it's low quality
-      const lowQuality = result.medicines.filter(m => !m.batchNo || m.batchNo === 'NA' || !m.quantity).length / (result.medicines.length || 1) > 0.4;
-      
-      if (result.medicines.length > 0 && !lowQuality) return result;
-      console.warn(`  ⚠️ Groq result was low quality (${result.medicines.length} meds), falling back to Tier 3...`);
-      errors.push('Groq: low quality extraction');
+      console.log(`🖼️ [Tier ${index + 1}] ${tier.label} Vision (${imageBuffer.length} bytes)...`);
+      const result = await tier.run();
+      if (result) return result;
     } catch (err: any) {
       const msg = err?.message || String(err);
-      console.warn(`  ❌ Groq Vision failed: ${msg}`);
-      errors.push(`Groq: ${msg}`);
+      console.warn(`  ❌ ${tier.label} Vision failed: ${msg}`);
+      errors.push(`${tier.label}: ${msg}`);
     }
-  } else {
-    errors.push('Groq: no API key');
-  }
-
-  // ── TIER 3: OpenRouter Vision ────────────────────────────────────────
-  if (process.env.OPENROUTER_API_KEY) {
-    try {
-      console.log(`🖼️ [Tier 3] OpenRouter Vision...`);
-      const result = await callOpenRouterVision(base64Image, mimeType);
-      if (result.medicines.length > 0) return result;
-      errors.push('OpenRouter: no medicines extracted');
-    } catch (err: any) {
-      const msg = err?.message || String(err);
-      console.warn(`  ❌ OpenRouter Vision failed: ${msg}`);
-      errors.push(`OpenRouter: ${msg}`);
-    }
-  } else {
-    errors.push('OpenRouter: no API key');
   }
 
   console.error(`🖼️ All vision tiers failed: ${errors.join(' | ')}`);
@@ -780,7 +784,7 @@ function logExtractedMedicines(medicines: ParsedMedicine[], provider: string) {
 }
 
 async function callGeminiVision(base64Image: string, mimeType: string): Promise<ParseResult> {
-  const apiKey = process.env.GEMINI_API_KEY!;
+  const apiKey = aiKey('GEMINI')!;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000);
 
@@ -820,7 +824,7 @@ async function callGeminiVision(base64Image: string, mimeType: string): Promise<
 }
 
 async function callGroqVision(base64Image: string, mimeType: string): Promise<ParseResult> {
-  const apiKey = process.env.GROQ_API_KEY!;
+  const apiKey = aiKey('GROQ')!;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000);
 
@@ -881,7 +885,7 @@ async function callGroqVision(base64Image: string, mimeType: string): Promise<Pa
 }
 
 async function callOpenRouterVision(base64Image: string, mimeType: string): Promise<ParseResult> {
-  const apiKey = process.env.OPENROUTER_API_KEY!;
+  const apiKey = aiKey('OPENROUTER')!;
   const visionModels = [
     'google/gemini-2.0-flash-001',
     'google/gemini-2.0-flash-lite-001',
@@ -946,7 +950,7 @@ async function callOpenRouterVision(base64Image: string, mimeType: string): Prom
 }
 
 async function parseTextWithGemini(text: string): Promise<ParseResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKey('GEMINI');
   if (!apiKey) throw new Error('NO_API_KEY');
 
   console.log(`💎 Calling Gemini API (Text mode)...`);
@@ -982,7 +986,7 @@ async function parseTextWithGemini(text: string): Promise<ParseResult> {
 
 // ─── TIER 2: Groq ─────────────────────────────────────────────────────────────
 async function parseWithGroq(pdfBuffer: Buffer): Promise<ParseResult> {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = aiKey('GROQ');
   if (!apiKey) throw new Error('NO_API_KEY');
 
   let text = '';
@@ -999,7 +1003,7 @@ async function parseWithGroq(pdfBuffer: Buffer): Promise<ParseResult> {
 }
 
 async function parseTextWithGroq(text: string, pdfType: PdfType = 'scanned'): Promise<ParseResult> {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = aiKey('GROQ');
   if (!apiKey) throw new Error('NO_API_KEY');
   if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
 
@@ -1136,7 +1140,7 @@ async function parseWithCloudflare(text: string, pdfType: PdfType = 'scanned'): 
 
 // ─── TIER 4: Mistral AI ───────────────────────────────────────────────────────
 async function parseWithMistral(text: string, pdfType: PdfType = 'scanned'): Promise<ParseResult> {
-  const apiKey = process.env.MISTRAL_API_KEY;
+  const apiKey = aiKey('MISTRAL');
   if (!apiKey) throw new Error('NO_API_KEY');
 
   console.log('🌟 Calling Mistral AI...');
@@ -1216,7 +1220,7 @@ async function findWorkingOpenRouterModel(apiKey: string): Promise<string> {
 }
 
 async function parseWithOpenRouter(text: string, pdfType: PdfType = 'scanned'): Promise<ParseResult> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = aiKey('OPENROUTER');
   if (!apiKey) throw new Error('NO_API_KEY');
 
   console.log('🔄 Calling OpenRouter...');
@@ -1337,21 +1341,33 @@ async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
 // ─── MAIN: parsePDFWithAI ─────────────────────────────────────────────────────
 export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
   console.log('\n📖 Starting 5-Tier PDF parsing sequence...');
+  await loadAiKeys();
   const usage = await getDailyUsage();
 
-  // TIER 1 — Gemini (sends whole PDF natively)
-  try {
-    if (!process.env.GEMINI_API_KEY) {
-      console.log('⚠️ GEMINI_API_KEY not found in environment. Skipping Gemini.');
-    } else if (usage.gemini >= GEMINI_DAILY_LIMIT) {
-      console.log('Gemini daily limit reached. Skipping Tier 1.');
-    } else {
-      const result = await parseWithGemini(pdfBuffer);
-      if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
+  // Gemini reads the whole PDF natively. It runs first when it heads the
+  // configured priority order; otherwise it is the fallback after the
+  // text relay (and the only option for scanned PDFs).
+  const tryGeminiPdf = async (): Promise<ParseResult | null> => {
+    try {
+      if (!aiKey('GEMINI')) {
+        console.log('⚠️ No Gemini key configured. Skipping Gemini.');
+      } else if (usage.gemini >= GEMINI_DAILY_LIMIT) {
+        console.log('Gemini daily limit reached. Skipping Gemini.');
+      } else {
+        const result = await parseWithGemini(pdfBuffer);
+        if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
+      }
+    } catch (error: any) {
+      if (error?.status === 429) console.log('Gemini rate limited, trying next tier...');
+      else console.error('Gemini error:', error?.message || error);
     }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Gemini rate limited, trying next tier...');
-    else console.error('Gemini error:', error?.message || error);
+    return null;
+  };
+
+  const geminiFirst = geminiLeadsChain();
+  if (geminiFirst) {
+    const result = await tryGeminiPdf();
+    if (result) return result;
   }
 
   // Extract text for Tiers 2-5
@@ -1359,6 +1375,10 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
   const extractedText = await extractTextFromPDF(pdfBuffer);
 
   if (!extractedText.trim()) {
+    if (!geminiFirst) {
+      const result = await tryGeminiPdf();
+      if (result) return result;
+    }
     return {
       medicines: [], pdfType: 'scanned', errorCode: 'NO_TEXT',
       errorMessage: 'This PDF appears to be scanned/image-based. Use the "Run OCR" button.',
@@ -1369,21 +1389,41 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
 
   // ─── RELAY MODE: Tiers 2-5 share remaining text ───────────────────
   const usage2 = await getDailyUsage(); // refresh usage
-  return relayParseText(extractedText, buildTextTiers(usage2), 'searchable');
+  const relayed = await relayParseText(extractedText, buildTextTiers(usage2), 'searchable');
+  if (relayed.medicines.length > 0 || geminiFirst) return relayed;
+  return (await tryGeminiPdf()) ?? relayed;
 }
+
+/** True when Gemini is the first managed provider with a usable key. */
+function geminiLeadsChain(): boolean {
+  const firstAvailable = aiProviderOrder().find((provider) => aiKey(provider));
+  return firstAvailable === 'GEMINI' || firstAvailable === undefined;
+}
+
+const TEXT_TIER_PROVIDER: Record<string, AiProvider | null> = {
+  mistral: 'MISTRAL',
+  groq: 'GROQ',
+  openrouter: 'OPENROUTER',
+  cerebras: null, // env-only providers keep their slot in the chain
+  cloudflare: null,
+};
 
 // ─── Build tier configs ───────────────────────────────────────────────────────
 function buildTextTiers(usage: any): TextTierConfig[] {
+  return orderByPriority(buildDefaultTextTiers(usage), (tier) => TEXT_TIER_PROVIDER[tier.name] ?? null);
+}
+
+function buildDefaultTextTiers(usage: any): TextTierConfig[] {
   // Mistral first — best quality (2100+ medicines vs 1200 from Cerebras)
   return [
     {
       name: 'mistral',
       chunkSize: MISTRAL_CHUNK_SIZE,
       delayMs: REQUEST_INTERVAL_MS,
-      available: () => !!(process.env.MISTRAL_API_KEY && usage.mistral < MISTRAL_DAILY_LIMIT),
+      available: () => !!(aiKey('MISTRAL') && usage.mistral < MISTRAL_DAILY_LIMIT),
       processFn: async (chunk, i, total) => {
         console.log(`  🌟 Mistral chunk ${i + 1}/${total} (${chunk.length} chars)`);
-        const apiKey = process.env.MISTRAL_API_KEY!;
+        const apiKey = aiKey('MISTRAL')!;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
         try {
@@ -1441,10 +1481,10 @@ function buildTextTiers(usage: any): TextTierConfig[] {
       name: 'groq',
       chunkSize: GROQ_CHUNK_SIZE,
       delayMs: 3000,
-      available: () => !!(process.env.GROQ_API_KEY && usage.groq < GROQ_DAILY_LIMIT),
+      available: () => !!(aiKey('GROQ') && usage.groq < GROQ_DAILY_LIMIT),
       processFn: async (chunk, i, total) => {
         console.log(`  ⚡ Groq chunk ${i + 1}/${total} (${chunk.length} chars)`);
-        const apiKey = process.env.GROQ_API_KEY!;
+        const apiKey = aiKey('GROQ')!;
         const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -1501,10 +1541,10 @@ function buildTextTiers(usage: any): TextTierConfig[] {
       name: 'openrouter',
       chunkSize: OPENROUTER_CHUNK_SIZE,
       delayMs: REQUEST_INTERVAL_MS,
-      available: () => !!process.env.OPENROUTER_API_KEY,
+      available: () => !!aiKey('OPENROUTER'),
       processFn: async (chunk, i, total) => {
         console.log(`  🔄 OpenRouter chunk ${i + 1}/${total} (${chunk.length} chars)`);
-        const apiKey = process.env.OPENROUTER_API_KEY!;
+        const apiKey = aiKey('OPENROUTER')!;
         const model = await findWorkingOpenRouterModel(apiKey);
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -1542,27 +1582,40 @@ export async function parseTextWithAI(extractedText: string): Promise<ParseResul
     return { medicines: [], pdfType: 'scanned', errorCode: 'NO_TEXT', errorMessage: 'The provided text is empty.' };
   }
 
+  await loadAiKeys();
   const usage = await getDailyUsage();
   const cleanedText = cleanOcrText(extractedText);
 
-  // TIER 1 — Gemini
-  try {
-    if (!process.env.GEMINI_API_KEY) {
-      console.log('⚠️ GEMINI_API_KEY not found in environment. Skipping Gemini.');
-    } else if (usage.gemini >= GEMINI_DAILY_LIMIT) {
-      console.log('Gemini daily limit reached. Skipping Tier 1.');
-    } else {
-      const result = await parseTextWithGemini(cleanedText);
-      if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
+  const tryGeminiText = async (): Promise<ParseResult | null> => {
+    try {
+      if (!aiKey('GEMINI')) {
+        console.log('⚠️ No Gemini key configured. Skipping Gemini.');
+      } else if (usage.gemini >= GEMINI_DAILY_LIMIT) {
+        console.log('Gemini daily limit reached. Skipping Gemini.');
+      } else {
+        const result = await parseTextWithGemini(cleanedText);
+        if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
+      }
+    } catch (error: any) {
+      if (error?.status === 429) console.log('Gemini rate limited, trying next tier...');
+      else console.error('Gemini error:', error?.message || error);
     }
-  } catch (error: any) {
-    if (error?.status === 429) console.log('Gemini rate limited, trying next tier...');
-    else console.error('Gemini error:', error?.message || error);
+    return null;
+  };
+
+  // Gemini handles the whole text at once; it leads when first in priority,
+  // otherwise it is the fallback after the relay.
+  const geminiFirst = geminiLeadsChain();
+  if (geminiFirst) {
+    const result = await tryGeminiText();
+    if (result) return result;
   }
 
   // ─── RELAY MODE: Tiers 2-5 share remaining text ───────────────────
   const usage2 = await getDailyUsage(); // refresh usage
-  return relayParseText(cleanedText, buildTextTiers(usage2), 'scanned');
+  const relayed = await relayParseText(cleanedText, buildTextTiers(usage2), 'scanned');
+  if (relayed.medicines.length > 0 || geminiFirst) return relayed;
+  return (await tryGeminiText()) ?? relayed;
 }
 
 // ─── Legacy export (kept for backward compatibility) ──────────────────────────

@@ -21,6 +21,8 @@ export interface AuthUser {
   avatarUrl?: string | null;
   role: UserRole;
   isActive: boolean;
+  /** Computed server-side from SUPER_ADMIN_EMAILS; UI hint only. */
+  isSuperAdmin?: boolean;
 }
 
 export interface ApiResponse<T = any> {
