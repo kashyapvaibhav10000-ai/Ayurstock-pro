@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
 import { CreatePurchaseSchema } from '@/lib/schemas';
-import { changeBatchStock, findOrCreateBatch, getLowStockMedicines } from '@/services/inventory';
+import { findOrCreateBatch, getLowStockMedicines } from '@/services/inventory';
+import { recordMovement } from '@/lib/stock-movement';
 import { normalizeExpiry } from '@/lib/batch';
 
 export async function GET(req: NextRequest) {
@@ -213,14 +214,6 @@ export async function POST(req: NextRequest) {
         gst: number;
         expiryDate: Date;
       }> = [];
-      const ledgerPayloads: Array<{
-        shopId: string;
-        medicineId: string;
-        batchId: string;
-        type: string;
-        qty: number;
-        referenceId: string;
-      }> = [];
 
       for (const item of items) {
         const qty = Number(item.quantity);
@@ -245,7 +238,6 @@ export async function POST(req: NextRequest) {
           { mrp, sellingRate: mrp, purchaseRate, rackLocation },
           { purchaseRate, mrp, sellingRate: mrp, ...(rackLocation ? { rackLocation } : {}) }
         );
-        await changeBatchStock(tx, batch.id, qty + freeQty);
         const batchId = batch.id;
 
         itemPayloads.push({
@@ -295,19 +287,18 @@ export async function POST(req: NextRequest) {
       for (const payload of itemPayloads) {
         const totalQty = payload.quantity + payload.freeQty;
         if (totalQty > 0) {
-          ledgerPayloads.push({
-            shopId: shopId,
+          await recordMovement(tx, {
+            shopId,
             medicineId: payload.medicineId,
             batchId: payload.batchId,
             type: 'PURCHASE',
-            qty: totalQty,
-            referenceId: createdPurchase.id,
+            qtyChange: totalQty,
+            refType: 'PURCHASE',
+            refId: createdPurchase.id,
+            note: payload.freeQty > 0 ? `Includes ${payload.freeQty} free` : null,
+            userId,
           });
         }
-      }
-
-      if (ledgerPayloads.length > 0) {
-        await tx.stockLedger.createMany({ data: ledgerPayloads });
       }
 
       await tx.activityLog.create({

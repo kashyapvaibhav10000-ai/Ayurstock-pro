@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
-import { changeBatchStock, findOrCreateBatch } from '@/services/inventory';
+import { findOrCreateBatch } from '@/services/inventory';
+import { recordMovement } from '@/lib/stock-movement';
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,7 +74,16 @@ export async function POST(req: NextRequest) {
                 : null,
           }
         );
-        await changeBatchStock(tx, batch.id, quantity);
+        if (quantity > 0) {
+          await recordMovement(tx, {
+            shopId: user.shopId,
+            batchId: batch.id,
+            type: 'MANUAL_ADD',
+            qtyChange: quantity,
+            note: 'Moved to inventory from medicine list',
+            userId: user.id,
+          });
+        }
 
         createdCount += 1;
       }

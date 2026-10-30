@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
+import { recordMovement } from '@/lib/stock-movement';
 
 export async function GET(req: NextRequest) {
   try {
@@ -100,14 +101,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const createdReturn = await prisma.$transaction(async (tx) => {
-      await tx.inventoryBatch.update({
-        where: { id: batch.id },
-        data: {
-          stockQty: { decrement: Number(quantity) },
-        },
-      });
+    const qty = Number(quantity);
+    if (!Number.isInteger(qty) || qty <= 0) {
+      return NextResponse.json(
+        { success: false, message: 'Quantity must be a positive whole number' },
+        { status: 400 }
+      );
+    }
 
+    const createdReturn = await prisma.$transaction(async (tx) => {
       const created = await tx.return.create({
         data: {
           shopId: auth.user!.shopId,
@@ -121,15 +123,16 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      await tx.stockLedger.create({
-        data: {
-          shopId: auth.user!.shopId,
-          medicineId,
-          batchId,
-          type: 'SUPPLIER_RETURN',
-          qty: Number(quantity),
-          referenceId: created.id,
-        },
+      await recordMovement(tx, {
+        shopId: auth.user!.shopId,
+        medicineId,
+        batchId,
+        type: 'RETURN',
+        qtyChange: -qty,
+        refType: 'SUPPLIER_RETURN',
+        refId: created.id,
+        note: `Returned to supplier: ${String(reason).trim()}`,
+        userId: auth.user!.id,
       });
 
       return created;

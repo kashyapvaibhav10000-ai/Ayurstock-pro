@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       sales, saleItems, purchases, purchaseItems,
       returns, medicineReturns,
       shopSettings, invoiceSettings, billingSettings,
-      stockLedgers,
+      stockLedgers, stockMovements,
     ] = await Promise.all([
       prisma.medicine.findMany({ where: { shopId } }),
       prisma.inventoryBatch.findMany({ where: { shopId } }),
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       prisma.invoiceSettings.findUnique({ where: { shopId } }),
       prisma.billingSettings.findUnique({ where: { shopId } }),
       prisma.stockLedger.findMany({ where: { shopId } }),
+      prisma.stockMovement.findMany({ where: { shopId }, orderBy: { createdAt: 'asc' } }),
     ]);
 
     const backupData = {
@@ -62,6 +63,7 @@ export async function GET(request: NextRequest) {
         invoiceSettings: invoiceSettings ? [invoiceSettings] : [],
         billingSettings: billingSettings ? [billingSettings] : [],
         stockLedgers,
+        stockMovements,
       },
     };
 

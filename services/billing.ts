@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PaymentMode, SaleType } from '@/types';
 import { batchLabel, isBatchExpired, startOfTodayUtc } from '@/lib/batch';
+import { recordMovement, saleMovementType } from '@/lib/stock-movement';
 
 /**
  * Billing Service - Handles sale/invoice creation and calculations
@@ -366,32 +367,21 @@ export async function createSale(params: {
       },
     });
 
-    const ledgerEntries = billing.items.map((item) => ({
-      shopId: params.shopId,
-      medicineId: item.medicineId,
-      batchId: item.batchId,
-      type: 'SALE',
-      qty: item.quantity,
-      referenceId: sale.id,
-    }));
-
-    if (ledgerEntries.length > 0) {
-      await tx.stockLedger.createMany({ data: ledgerEntries });
-    }
-
+    // One movement per batch drawn. recordMovement guards the decrement, so a
+    // competing transaction that already drew the stock down aborts the whole
+    // sale instead of pushing stock negative.
+    const movementType = saleMovementType(params.saleType);
     for (const [batchId, qty] of reservedQty.entries()) {
-      // Guard against overselling under concurrency: only decrement when the row
-      // still has enough stock. updateMany returns a count, so if a competing
-      // transaction already drew the stock down, count === 0 and we abort the
-      // whole sale instead of pushing stock negative.
-      const result = await tx.inventoryBatch.updateMany({
-        where: { id: batchId, stockQty: { gte: qty } },
-        data: { stockQty: { decrement: qty } },
+      await recordMovement(tx, {
+        shopId: params.shopId,
+        batchId,
+        type: movementType,
+        qtyChange: -qty,
+        refType: 'SALE',
+        refId: sale.id,
+        note: `Invoice ${invoiceNumber}`,
+        userId: params.createdByUserId,
       });
-
-      if (result.count === 0) {
-        throw new Error('Insufficient stock: batch was updated by another transaction. Please retry.');
-      }
     }
 
     return sale;

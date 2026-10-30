@@ -47,10 +47,10 @@ export async function GET(req: NextRequest) {
       orderBy: { expiryDate: 'asc' },
     });
 
-    // Get last activity for each batch from stock ledger
+    // Get last activity for each batch from stock movements
     const batchIds = emptyBatches.map((b) => b.id);
     const lastActivities = batchIds.length
-      ? await prisma.stockLedger.groupBy({
+      ? await prisma.stockMovement.groupBy({
           by: ['batchId'],
           where: {
             batchId: { in: batchIds },

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
 import { batchLabel, normalizeExpiry } from '@/lib/batch';
-import { changeBatchStock, findBatchByIdentity } from '@/services/inventory';
+import { findBatchByIdentity } from '@/services/inventory';
+import { recordMovement } from '@/lib/stock-movement';
 
 export async function PUT(req: NextRequest) {
   try {
@@ -80,7 +81,19 @@ export async function PUT(req: NextRequest) {
 
     const updatedBatch = await prisma.$transaction(async (tx) => {
       const current = await tx.inventoryBatch.findUniqueOrThrow({ where: { id }, select: { stockQty: true } });
-      await changeBatchStock(tx, id, nextQty - current.stockQty);
+      const delta = nextQty - current.stockQty;
+      if (delta !== 0) {
+        await recordMovement(tx, {
+          shopId: authResult.user!.shopId,
+          batchId: id,
+          type: 'ADJUSTMENT',
+          qtyChange: delta,
+          refType: 'BATCH_EDIT',
+          refId: id,
+          note: `Stock edited from ${current.stockQty} to ${nextQty}`,
+          userId: authResult.user!.id,
+        });
+      }
       return tx.inventoryBatch.update({
         where: { id },
         data: {
@@ -149,7 +162,7 @@ export async function DELETE(req: NextRequest) {
         id,
         shopId: authResult.user.shopId,
       },
-      select: { id: true },
+      select: { id: true, stockQty: true, deletedAt: true },
     });
 
     if (!batch) {
@@ -159,10 +172,23 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    await prisma.inventoryBatch.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
+    if (!batch.deletedAt) {
+      await prisma.$transaction(async (tx) => {
+        await tx.inventoryBatch.update({
+          where: { id },
+          data: { deletedAt: new Date() },
+        });
+        // Soft delete keeps stockQty; the movement records the event only.
+        await recordMovement(tx, {
+          shopId: authResult.user!.shopId,
+          batchId: id,
+          type: 'DELETE',
+          qtyChange: 0,
+          note: `Batch deleted with ${batch.stockQty} in stock`,
+          userId: authResult.user!.id,
+        });
+      });
+    }
 
     return NextResponse.json({
       success: true,

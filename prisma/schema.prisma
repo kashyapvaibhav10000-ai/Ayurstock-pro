@@ -35,6 +35,7 @@ model Shop {
   stockLedgers     StockLedger[]
   stockAdjustments StockAdjustment[]
   suppliers        Supplier[]
+  stockMovements   StockMovement[]
   users            User[]
   gstCategoryDefaults GstCategoryDefault[]
 
@@ -151,6 +152,7 @@ model User {
   sales           Sale[]
   stockAdjustments StockAdjustment[]
   shop            Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  stockMovements  StockMovement[]
 
   @@unique([shopId, email])
   @@index([shopId])
@@ -247,6 +249,7 @@ model Medicine {
   saleItems         SaleItem[]
   stockLedgers      StockLedger[]
   stockAdjustments  StockAdjustment[]
+  stockMovements    StockMovement[]
 
   @@unique([shopId, barcode])
   @@index([shopId, name])
@@ -277,6 +280,7 @@ model InventoryBatch {
   stockLedgers  StockLedger[]
   medicineReturns MedicineReturn[]
   stockAdjustments StockAdjustment[]
+  stockMovements StockMovement[]
 
   // Batch identity = medicine + batch number + expiry (normalized to the last
   // day of the month). Same number with a different expiry is a new batch.
@@ -381,6 +385,7 @@ model SaleItem {
   @@index([batchId])
 }
 
+// Legacy movement log. No longer written; superseded by StockMovement.
 model StockLedger {
   id          String         @id @default(cuid())
   shopId      String
@@ -561,4 +566,45 @@ model StockAdjustment {
   @@index([batchId])
   @@index([medicineId])
   @@index([userId])
+}
+
+enum StockMovementType {
+  PURCHASE
+  MANUAL_ADD
+  SALE
+  WHOLESALE_SALE
+  RETURN
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT
+  DELETE
+  RESTORE
+}
+
+// Append-only stock ledger. Every change to InventoryBatch.stockQty writes
+// exactly one row in the same transaction (see lib/stock-movement.ts).
+// qtyChange is signed and in base units; balanceAfter is the batch stock
+// right after the change.
+model StockMovement {
+  id           String            @id @default(cuid())
+  shopId       String
+  medicineId   String
+  batchId      String
+  type         StockMovementType
+  qtyChange    Int
+  balanceAfter Int
+  refType      String?
+  refId        String?
+  note         String?
+  userId       String?
+  createdAt    DateTime          @default(now())
+  shop         Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  medicine     Medicine          @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  batch        InventoryBatch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  user         User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([shopId, createdAt])
+  @@index([shopId, medicineId])
+  @@index([batchId])
+  @@index([shopId, type])
 }

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createErrorResponse } from '@/middleware/auth';
-import { signedLedgerQty } from '@/lib/stock-ledger';
+import { recordLedgerCorrection } from '@/lib/stock-movement';
 
+/**
+ * Compare each batch's stockQty with the sum of its StockMovement rows and
+ * post a correction movement for every mismatch. Stock itself is never
+ * changed here; the ledger is aligned to physical stock.
+ */
 export async function POST(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request);
@@ -16,26 +21,20 @@ export async function POST(request: NextRequest) {
 
     const shopId = auth.user.shopId;
 
-    const [batches, ledgerEntries] = await Promise.all([
+    const [batches, sums] = await Promise.all([
       prisma.inventoryBatch.findMany({
         where: { shopId },
         select: { id: true, stockQty: true, batchNumber: true, medicineId: true },
       }),
-      prisma.stockLedger.findMany({
+      prisma.stockMovement.groupBy({
+        by: ['batchId'],
         where: { shopId },
-        select: { batchId: true, qty: true, type: true },
+        _sum: { qtyChange: true },
       }),
     ]);
 
-    const stockMap = new Map<string, number>();
+    const ledgerByBatch = new Map(sums.map((row) => [row.batchId, row._sum.qtyChange ?? 0]));
 
-    for (const entry of ledgerEntries) {
-      const current = stockMap.get(entry.batchId) || 0;
-      stockMap.set(entry.batchId, current + signedLedgerQty(entry.type, entry.qty));
-    }
-
-    let updatedCount = 0;
-    let unchangedCount = 0;
     let negativeCount = 0;
     const mismatches: Array<{
       batchId: string;
@@ -46,42 +45,40 @@ export async function POST(request: NextRequest) {
       diff: number;
     }> = [];
 
-    const updates = batches
-      .map((batch) => {
-        const nextQty = stockMap.get(batch.id) ?? 0;
-        if (nextQty < 0) {
-          negativeCount += 1;
-        }
-        if (batch.stockQty === nextQty) {
-          unchangedCount += 1;
-          return null;
-        }
-        updatedCount += 1;
+    for (const batch of batches) {
+      const ledgerSum = ledgerByBatch.get(batch.id) ?? 0;
+      if (batch.stockQty < 0) negativeCount += 1;
+      if (ledgerSum !== batch.stockQty) {
         mismatches.push({
           batchId: batch.id,
           batchNumber: batch.batchNumber,
           medicineId: batch.medicineId,
-          expected: nextQty,
+          expected: ledgerSum,
           actual: batch.stockQty,
-          diff: nextQty - batch.stockQty,
+          diff: batch.stockQty - ledgerSum,
         });
-        return prisma.inventoryBatch.update({
-          where: { id: batch.id },
-          data: { stockQty: nextQty },
-        });
-      })
-      .filter(Boolean) as ReturnType<typeof prisma.inventoryBatch.update>[];
+      }
+    }
 
-    if (updates.length > 0) {
-      await prisma.$transaction(updates);
+    if (mismatches.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        for (const mismatch of mismatches) {
+          await recordLedgerCorrection(tx, {
+            shopId,
+            batchId: mismatch.batchId,
+            ledgerSum: mismatch.expected,
+            userId: auth.user.id,
+          });
+        }
+      });
     }
 
     return NextResponse.json({
       success: true,
       data: {
         totalBatches: batches.length,
-        updatedCount,
-        unchangedCount,
+        updatedCount: mismatches.length,
+        unchangedCount: batches.length - mismatches.length,
         negativeCount,
         mismatches,
       },

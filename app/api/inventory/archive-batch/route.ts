@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
 import { z } from 'zod';
+import { recordMovement } from '@/lib/stock-movement';
 
 const ArchiveBatchSchema = z.object({
   batchId: z.string().min(1, 'Batch ID is required'),
@@ -65,6 +66,15 @@ export async function POST(req: NextRequest) {
       await tx.inventoryBatch.update({
         where: { id: batchId },
         data: { deletedAt: now },
+      });
+
+      await recordMovement(tx, {
+        shopId: user.shopId,
+        batchId,
+        type: 'DELETE',
+        qtyChange: 0,
+        note: `Archived: ${reason}`,
+        userId: user.id,
       });
 
       // Create activity log entry

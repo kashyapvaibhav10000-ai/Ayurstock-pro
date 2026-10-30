@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
 import Papa from 'papaparse';
 import { normalizeExpiry } from '@/lib/batch';
-import { changeBatchStock, findOrCreateBatch } from '@/services/inventory';
+import { findOrCreateBatch } from '@/services/inventory';
+import { recordMovement } from '@/lib/stock-movement';
 
 export async function POST(req: NextRequest) {
   try {
@@ -191,7 +192,17 @@ export async function POST(req: NextRequest) {
               data: { purchaseRate: mPr, mrp: mMrp, sellingRate: mMrp, rackLocation: mRack },
             });
             const current = await tx.inventoryBatch.findUniqueOrThrow({ where: { id: existingBatch.id } });
-            await changeBatchStock(tx, existingBatch.id, mQty - current.stockQty);
+            if (mQty !== current.stockQty) {
+              await recordMovement(tx, {
+                shopId,
+                batchId: existingBatch.id,
+                type: 'ADJUSTMENT',
+                qtyChange: mQty - current.stockQty,
+                refType: 'CSV_IMPORT',
+                note: `CSV import set stock from ${current.stockQty} to ${mQty}`,
+                userId: auth.user.id,
+              });
+            }
             return tx.inventoryBatch.findUniqueOrThrow({ where: { id: existingBatch.id } });
           });
           batchMap.set(batchKey, updatedBatch);
@@ -204,7 +215,15 @@ export async function POST(req: NextRequest) {
             { shopId, medicineId: medId, batchNumber: mBatch, expiryDate: mExpiry },
             { mrp: mMrp, purchaseRate: mPr, sellingRate: mMrp, rackLocation: mRack }
           );
-          await changeBatchStock(tx, batch.id, mQty);
+          await recordMovement(tx, {
+            shopId,
+            batchId: batch.id,
+            type: 'MANUAL_ADD',
+            qtyChange: mQty,
+            refType: 'CSV_IMPORT',
+            note: 'CSV import',
+            userId: auth.user.id,
+          });
           return tx.inventoryBatch.findUniqueOrThrow({ where: { id: batch.id } });
         });
         batchMap.set(batchKey, newBatch);

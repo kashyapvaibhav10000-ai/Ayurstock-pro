@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { splitMedicineNameAndPacking } from '@/lib/medicine-importer';
-import { changeBatchStock, findOrCreateBatch } from '@/services/inventory';
+import { findOrCreateBatch } from '@/services/inventory';
+import { recordMovement } from '@/lib/stock-movement';
 
 interface MedicineData {
   code?: string;
@@ -279,7 +280,14 @@ export async function POST(req: NextRequest) {
             { mrp, sellingRate: mrp, purchaseRate: purchaseRate || null },
             { mrp, sellingRate: mrp, purchaseRate: purchaseRate || null }
           );
-          await changeBatchStock(tx, batch.id, quantity);
+          await recordMovement(tx, {
+            shopId: user.shopId,
+            batchId: batch.id,
+            type: 'PURCHASE',
+            qtyChange: quantity,
+            note: invoiceNumber ? `AI import · invoice ${invoiceNumber}` : 'AI import',
+            userId: user.id,
+          });
         });
         batchCount++;
         totalStockAdded += medicine.quantity;

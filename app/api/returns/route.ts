@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
 import { normalizeExpiry } from '@/lib/batch';
-import { changeBatchStock, findBatchByIdentity, findOrCreateBatch } from '@/services/inventory';
+import { findBatchByIdentity, findOrCreateBatch } from '@/services/inventory';
+import { recordMovement } from '@/lib/stock-movement';
 
 export async function GET(req: NextRequest) {
   try {
@@ -75,6 +76,10 @@ export async function POST(req: NextRequest) {
 
     if (!medicineId || !expiryDate || mrp === undefined || !quantity || !reason || !type) {
       return createErrorResponse('Missing mandatory fields', 400);
+    }
+
+    if (type !== 'CUSTOMER' && type !== 'SUPPLIER') {
+      return createErrorResponse('Return type must be CUSTOMER or SUPPLIER', 400);
     }
 
     const q = Number(quantity);
@@ -163,15 +168,22 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      let assignedBatchId = '';
-
       if (existingBatch) {
         if (existingBatch.stockQty + stockQuantityAdjustment < 0) {
           throw new Error('Insufficient stock to execute Supplier Return of this batch magnitude.');
         }
 
-        await changeBatchStock(tx, existingBatch.id, stockQuantityAdjustment);
-        assignedBatchId = existingBatch.id;
+        await recordMovement(tx, {
+          shopId: auth.user.shopId,
+          medicineId,
+          batchId: existingBatch.id,
+          type: 'RETURN',
+          qtyChange: stockQuantityAdjustment,
+          refType: 'MEDICINE_RETURN',
+          refId: medReturn.id,
+          note: `${type === 'SUPPLIER' ? 'Returned to supplier' : 'Customer return'}: ${reason}`,
+          userId: auth.user.id,
+        });
 
       } else {
         if (type === 'SUPPLIER') {
@@ -201,20 +213,18 @@ export async function POST(req: NextRequest) {
             sellingRate: Number(mrp),
           }
         );
-        await changeBatchStock(tx, newBatch.id, stockQuantityAdjustment);
-        assignedBatchId = newBatch.id;
-      }
-
-      await tx.stockLedger.create({
-        data: {
+        await recordMovement(tx, {
           shopId: auth.user.shopId,
           medicineId,
-          batchId: assignedBatchId,
-          type: type === 'CUSTOMER' ? 'RETURN_IN' : 'RETURN_OUT',
-          qty: q,
-          referenceId: medReturn.id
-        }
-      });
+          batchId: newBatch.id,
+          type: 'RETURN',
+          qtyChange: stockQuantityAdjustment,
+          refType: 'MEDICINE_RETURN',
+          refId: medReturn.id,
+          note: `${type === 'SUPPLIER' ? 'Returned to supplier' : 'Customer return'}: ${reason}`,
+          userId: auth.user.id,
+        });
+      }
 
       await tx.activityLog.create({
         data: {

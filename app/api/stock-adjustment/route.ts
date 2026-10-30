@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { recordMovement } from '@/lib/stock-movement';
 
 const CreateStockAdjustmentSchema = z.object({
   batchId: z.string().min(1, 'Batch is required'),
@@ -58,12 +59,6 @@ export async function POST(request: NextRequest) {
 
       const stockAfter = type === 'ADD' ? stockBefore + quantity : stockBefore - quantity;
 
-      // Update batch stock
-      await tx.inventoryBatch.update({
-        where: { id: batchId },
-        data: { stockQty: stockAfter },
-      });
-
       // Create StockAdjustment record
       const adjustment = await tx.stockAdjustment.create({
         data: {
@@ -80,16 +75,17 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create StockLedger entry
-      await tx.stockLedger.create({
-        data: {
-          shopId: auth.user.shopId,
-          medicineId: batch.medicine.id,
-          batchId: batchId,
-          type: type === 'ADD' ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
-          qty: quantity,
-          referenceId: adjustment.id,
-        },
+      // Apply the stock change and its ledger entry together
+      await recordMovement(tx, {
+        shopId: auth.user.shopId,
+        medicineId: batch.medicine.id,
+        batchId,
+        type: 'ADJUSTMENT',
+        qtyChange: type === 'ADD' ? quantity : -quantity,
+        refType: 'STOCK_ADJUSTMENT',
+        refId: adjustment.id,
+        note: notes ? `${reason} — ${notes}` : reason,
+        userId: auth.user.id,
       });
 
       // Log activity
@@ -117,7 +113,7 @@ export async function POST(request: NextRequest) {
     return createApiResponse(true, result, undefined, 201);
   } catch (error) {
     console.error('Stock adjustment error:', error);
-    if (error instanceof Error && (error.message.includes('Cannot remove') || error.message.includes('Batch not found'))) {
+    if (error instanceof Error && (error.message.includes('Cannot remove') || error.message.includes('Batch not found') || error.message.includes('Insufficient stock'))) {
       return createErrorResponse(error.message, 400);
     }
     return createErrorResponse('Internal server error', 500);

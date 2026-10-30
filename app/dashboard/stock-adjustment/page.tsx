@@ -16,7 +16,7 @@ import {
   FileText,
   BookOpen,
 } from 'lucide-react';
-import Link from 'next/link';
+import InventoryHistoryTable from '@/components/inventory-history/InventoryHistoryTable';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { batchLabel } from "@/lib/batch";
@@ -91,14 +91,8 @@ export default function StockAdjustmentPage() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 15;
 
-  // Ledger state
-  const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
-  const [totalLedgerEntries, setTotalLedgerEntries] = useState(0);
-  const [ledgerFilter, setLedgerFilter] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
-  const [ledgerSearch, setLedgerSearch] = useState('');
-  const [loadingLedger, setLoadingLedger] = useState(false);
-  const [ledgerPage, setLedgerPage] = useState(1);
-  const LEDGER_PAGE_SIZE = 50;
+  // Bumped after an adjustment so the history tab refetches.
+  const [ledgerVersion, setLedgerVersion] = useState(0);
 
   // Debounced batch search
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -160,29 +154,6 @@ export default function StockAdjustmentPage() {
     fetchAdjustments();
   }, [fetchAdjustments]);
 
-  // Fetch Ledger
-  const fetchLedger = useCallback(async () => {
-    setLoadingLedger(true);
-    try {
-      const params: any = { limit: LEDGER_PAGE_SIZE, page: ledgerPage };
-      if (ledgerFilter !== 'ALL') params.type = ledgerFilter;
-      if (ledgerSearch.trim()) params.search = ledgerSearch.trim();
-
-      const res = await axios.get('/api/stock-ledger', { params });
-      if (res.data.success) {
-        setLedgerEntries(res.data.data.data || []);
-        setTotalLedgerEntries(res.data.data.pagination?.total || 0);
-      }
-    } catch {
-      console.error('Failed to load ledger');
-    } finally {
-      setLoadingLedger(false);
-    }
-  }, [ledgerFilter, ledgerSearch, ledgerPage]);
-
-  useEffect(() => {
-    fetchLedger();
-  }, [fetchLedger]);
 
   // Reset reason when type changes
   useEffect(() => {
@@ -254,6 +225,7 @@ export default function StockAdjustmentPage() {
 
         // Refresh table
         fetchAdjustments();
+        setLedgerVersion((v) => v + 1);
         toast.success('Stock adjustment applied successfully');
       }
     } catch (err: any) {
@@ -629,142 +601,8 @@ export default function StockAdjustmentPage() {
         </TabsContent>
 
         <TabsContent value="ledger" className="m-0 focus-visible:outline-none focus-visible:ring-0">
-          <div className="rounded-2xl border border-border bg-surface shadow-bento overflow-hidden flex flex-col min-h-[500px]">
-            {/* Filter Bar */}
-            <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-border bg-background/50">
-              <div className="flex items-center rounded-xl border border-border overflow-hidden bg-surface shadow-sm">
-                {(['ALL', 'IN', 'OUT'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => { setLedgerFilter(t); setLedgerPage(1); }}
-                    className={`px-4 py-2 text-[10px] font-black tracking-widest uppercase transition-all ${
-                      ledgerFilter === t
-                        ? t === 'IN'
-                          ? 'bg-primary text-white'
-                          : t === 'OUT'
-                          ? 'bg-danger text-white'
-                          : 'bg-foreground text-background'
-                        : 'text-muted-foreground hover:bg-surface-muted'
-                    }`}
-                  >
-                    {t === 'ALL' ? 'All' : t === 'IN' ? 'In (+)' : 'Out (-)'}
-                  </button>
-                ))}
-              </div>
-              <div className="relative flex-1 min-w-[240px]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/40" />
-                <input
-                  type="text"
-                  value={ledgerSearch}
-                  onChange={(e) => { setLedgerSearch(e.target.value); setLedgerPage(1); }}
-                  placeholder="Search by medicine name..."
-                  className="w-full rounded-xl border border-border bg-background pl-9 pr-4 py-2 text-[11px] font-bold outline-none transition-all placeholder:text-muted-foreground/30 focus:border-primary focus:ring-2 focus:ring-primary/10 text-foreground"
-                />
-              </div>
-            </div>
-
-            {/* Table */}
-            <div className="flex-1 overflow-auto">
-              {loadingLedger ? (
-                <div className="flex items-center justify-center py-20 text-muted-foreground">
-                  <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : ledgerEntries.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-muted/50 border border-border">
-                    <BookOpen className="h-7 w-7 text-muted-foreground/30" />
-                  </div>
-                  <div className="text-sm font-black text-muted-foreground uppercase tracking-wider">No stock movements found</div>
-                  <p className="text-[11px] font-bold text-muted-foreground/60 max-w-[300px]">
-                    All global inventory changes including sales, purchases, and manual updates will be tracked here.
-                  </p>
-                </div>
-              ) : (
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-border bg-surface-muted/30">
-                      <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground whitespace-nowrap">Date & Time</th>
-                      <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Medicine</th>
-                      <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Batch</th>
-                      <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Type</th>
-                      <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Qty Moved</th>
-                      <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Running Balance</th>
-                      <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Reference</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ledgerEntries.map((entry) => {
-                      const isAdd = ['PURCHASE', 'ADJUSTMENT_IN', 'RETURN'].includes(entry.type);
-                      const isRemove = ['SALE', 'ADJUSTMENT_OUT'].includes(entry.type);
-                      
-                      let typeBadgeClass = 'bg-surface-muted';
-                      if (entry.type === 'SALE') typeBadgeClass = 'bg-danger/10 text-danger border border-danger/20';
-                      else if (entry.type === 'PURCHASE') typeBadgeClass = 'bg-primary/10 text-primary border border-primary/20';
-                      else if (entry.type === 'RETURN') typeBadgeClass = 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
-                      else if (entry.type === 'ADJUSTMENT_IN') typeBadgeClass = 'bg-primary/10 text-primary border border-primary/20';
-                      else if (entry.type === 'ADJUSTMENT_OUT') typeBadgeClass = 'bg-danger/10 text-danger border border-danger/20';
-
-                      let referenceRenderer = <span className="text-[11px] font-bold text-muted-foreground">Manual Adjustment</span>;
-                      if (entry.type === 'SALE') {
-                        referenceRenderer = <Link href={`/dashboard/billing/invoice/${entry.referenceId}`} className="text-[11px] font-bold text-blue-500 hover:underline">View Sale</Link>;
-                      } else if (entry.type === 'PURCHASE') {
-                        referenceRenderer = <Link href={`/dashboard/purchases/${entry.referenceId}`} className="text-[11px] font-bold text-blue-500 hover:underline">View Purchase</Link>;
-                      } else if (entry.type === 'RETURN') {
-                        referenceRenderer = <Link href={`/dashboard/returns/${entry.referenceId}`} className="text-[11px] font-bold text-blue-500 hover:underline">View Return</Link>;
-                      }
-
-                      return (
-                        <tr key={entry.id} className="border-b border-surface-muted hover:bg-surface-muted/30 transition-colors">
-                          <td className="px-4 py-4 text-[11px] font-bold text-muted-foreground whitespace-nowrap">
-                            {new Date(entry.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            <span className="block text-[9px] text-muted-foreground/60 mt-0.5">
-                              {new Date(entry.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-[12px] font-black text-foreground max-w-[200px] truncate">{entry.medicineName}</td>
-                          <td className="px-4 py-4 text-[12px] font-bold text-muted-foreground">{entry.batchNumber}</td>
-                          <td className="px-4 py-4">
-                            <span className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-widest ${typeBadgeClass}`}>
-                              {entry.type.replace('_', ' ')}
-                            </span>
-                          </td>
-                          <td className={`px-4 py-4 text-[13px] font-black text-right ${isAdd ? 'text-primary' : 'text-danger'}`}>
-                            {isAdd ? '+' : '-'}{entry.quantity}
-                          </td>
-                          <td className="px-4 py-4 text-[12px] font-black text-foreground text-right">{entry.runningBalance}</td>
-                          <td className="px-4 py-4">{referenceRenderer}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Pagination for Ledger */}
-            {totalLedgerEntries > LEDGER_PAGE_SIZE && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-surface-muted/30">
-                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">
-                  Page {ledgerPage} of {Math.ceil(totalLedgerEntries / LEDGER_PAGE_SIZE)}
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setLedgerPage((p) => Math.max(1, p - 1))}
-                    disabled={ledgerPage === 1}
-                    className="rounded-lg border border-border bg-surface px-4 py-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-surface-muted disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    Prev
-                  </button>
-                  <button
-                    onClick={() => setLedgerPage((p) => Math.min(Math.ceil(totalLedgerEntries / LEDGER_PAGE_SIZE), p + 1))}
-                    disabled={ledgerPage >= Math.ceil(totalLedgerEntries / LEDGER_PAGE_SIZE)}
-                    className="rounded-lg border border-border bg-surface px-4 py-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-surface-muted disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
+          <div className="rounded-2xl border border-border bg-surface shadow-bento p-6">
+            <InventoryHistoryTable key={ledgerVersion} />
           </div>
         </TabsContent>
       </Tabs>

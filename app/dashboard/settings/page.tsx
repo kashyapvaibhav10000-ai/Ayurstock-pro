@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud, Database, Sparkles, ShieldCheck, BellRing, ReceiptText } from 'lucide-react';
+import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud, Database, Sparkles, ShieldCheck, BellRing, ReceiptText, History } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,7 @@ import AiUsageTab from '@/components/settings/ai-usage-tab';
 import LoginHistoryTab from '@/components/settings/login-history-tab';
 import ExpiryAlertSettings from '@/components/settings/expiry-alert-settings';
 import GstCategorySettings from '@/components/settings/gst-category-settings';
+import InventoryHistoryTab from '@/components/settings/inventory-history-tab';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -29,6 +30,7 @@ const SETTINGS_CATEGORIES = [
   { id: 'shop', label: 'Shop Details', icon: Store, group: 'General' },
   { id: 'system', label: 'Preferences', icon: SettingsIcon, group: 'General' },
   { id: 'inventory', label: 'Inventory', icon: Package, group: 'General' },
+  { id: 'inventory-history', label: 'Inventory History', icon: History, group: 'General' },
   { id: 'racks', label: 'Rack Locations', icon: Archive, group: 'General' },
   { id: 'companies', label: 'Company', icon: Building, group: 'General' },
   { id: 'expiry-alerts', label: 'Expiry Alerts', icon: BellRing, group: 'General' },
@@ -59,6 +61,12 @@ export default function SettingsPage() {
   
   const [activeTab, setActiveTab] = useState(initialTab);
 
+  // Follow ?tab= when navigating within settings (e.g. history reference links).
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
+
   if (!isAdmin) return null;
 
   const handleLogout = async () => {
@@ -79,6 +87,7 @@ export default function SettingsPage() {
       case 'shop': return <ShopSettings />;
       case 'invoice': return <InvoiceSettings />;
       case 'inventory': return <InventorySettings />;
+      case 'inventory-history': return <InventoryHistoryTab />;
       case 'racks': return <RackLocationsSettings />;
       case 'profile': return <ProfileSettings />;
       case 'users': return <UserSettings />;

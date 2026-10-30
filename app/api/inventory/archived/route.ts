@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
+import { recordMovement } from '@/lib/stock-movement';
 
 export async function GET(req: NextRequest) {
   try {
@@ -57,10 +58,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await prisma.inventoryBatch.update({
-      where: { id, shopId: authResult.user.shopId },
-      data: { deletedAt: null },
+    const user = authResult.user;
+    const batch = await prisma.inventoryBatch.findFirst({
+      where: { id, shopId: user.shopId },
+      select: { id: true, deletedAt: true },
     });
+    if (!batch) {
+      return NextResponse.json({ success: false, message: 'Batch not found' }, { status: 404 });
+    }
+
+    if (batch.deletedAt) {
+      await prisma.$transaction(async (tx) => {
+        await tx.inventoryBatch.update({
+          where: { id: batch.id },
+          data: { deletedAt: null },
+        });
+        await recordMovement(tx, {
+          shopId: user.shopId,
+          batchId: batch.id,
+          type: 'RESTORE',
+          qtyChange: 0,
+          note: 'Batch restored from archive',
+          userId: user.id,
+        });
+      });
+    }
 
     return NextResponse.json({
       success: true,

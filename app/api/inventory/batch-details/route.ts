@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
     // Step 4: Get last activity for each batch
     const batchIds = batches.map((b) => b.id);
     const lastActivities = batchIds.length
-      ? await prisma.stockLedger.groupBy({
+      ? await prisma.stockMovement.groupBy({
           by: ['batchId'],
           where: { batchId: { in: batchIds } },
           _max: { createdAt: true },

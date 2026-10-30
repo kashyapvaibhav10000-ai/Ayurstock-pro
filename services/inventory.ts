@@ -33,8 +33,8 @@ export function findBatchByIdentity(tx: Tx, key: BatchIdentity) {
 
 /**
  * Find the batch matching all four identity fields, or create it with zero
- * stock. Callers add stock afterwards so every quantity change goes through
- * the same path. `update` is applied only to an existing batch (e.g. latest
+ * stock. Callers add stock afterwards via recordMovement()
+ * (lib/stock-movement.ts). `update` is applied only to an existing batch (e.g. latest
  * purchase rate); expiry is never rewritten since it is part of the key.
  */
 export async function findOrCreateBatch(
@@ -47,7 +47,8 @@ export async function findOrCreateBatch(
     rackLocation?: string | null;
     packing?: string | null;
   },
-  update?: Prisma.InventoryBatchUpdateInput
+  // Stock goes through recordMovement; identity fields are part of the key.
+  update?: Omit<Prisma.InventoryBatchUpdateInput, 'stockQty' | 'expiryDate' | 'batchNumber'>
 ) {
   const existing = await findBatchByIdentity(tx, key);
   if (existing) {
@@ -73,26 +74,6 @@ export async function findOrCreateBatch(
     },
   });
   return { batch, created: true };
-}
-
-/**
- * Apply a signed stock change to a batch. Decrements are guarded so stock can
- * never go negative under concurrency. Returns the new balance.
- */
-export async function changeBatchStock(tx: Tx, batchId: string, delta: number): Promise<number> {
-  if (delta < 0) {
-    const result = await tx.inventoryBatch.updateMany({
-      where: { id: batchId, stockQty: { gte: -delta } },
-      data: { stockQty: { increment: delta } },
-    });
-    if (result.count === 0) {
-      throw new Error('Insufficient stock in batch');
-    }
-  } else if (delta > 0) {
-    await tx.inventoryBatch.update({ where: { id: batchId }, data: { stockQty: { increment: delta } } });
-  }
-  const batch = await tx.inventoryBatch.findUniqueOrThrow({ where: { id: batchId }, select: { stockQty: true } });
-  return batch.stockQty;
 }
 
 export interface AvailableBatch {
@@ -177,49 +158,6 @@ export async function allocateStock(
     batchId: firstBatch.id,
     allocated: Math.min(quantity, firstBatch.stockQty),
   };
-}
-
-/**
- * Reduce stock from a batch
- */
-export async function reduceStock(
-  batchId: string,
-  quantity: number
-): Promise<boolean> {
-  const batch = await prisma.inventoryBatch.findUnique({
-    where: { id: batchId },
-    select: { stockQty: true },
-  });
-
-  if (!batch || batch.stockQty < quantity) {
-    return false; // Insufficient stock
-  }
-
-  await prisma.inventoryBatch.update({
-    where: { id: batchId },
-    data: {
-      stockQty: { decrement: quantity },
-    },
-  });
-
-  return true;
-}
-
-/**
- * Increase stock (for returns)
- */
-export async function increaseStock(
-  batchId: string,
-  quantity: number
-): Promise<boolean> {
-  await prisma.inventoryBatch.update({
-    where: { id: batchId },
-    data: {
-      stockQty: { increment: quantity },
-    },
-  });
-
-  return true;
 }
 
 /**

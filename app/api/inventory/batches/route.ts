@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, createApiResponse, createErrorResponse, createPaginatedResponse } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
-import { changeBatchStock, findOrCreateBatch, getAvailableBatches, getLowStockMedicines, getNearExpiryMedicines } from '@/services/inventory';
+import { findOrCreateBatch, getAvailableBatches, getLowStockMedicines, getNearExpiryMedicines } from '@/services/inventory';
 import { CreateBatchSchema } from '@/lib/schemas';
+import { recordMovement } from '@/lib/stock-movement';
 
 export async function GET(request: NextRequest) {
   try {
@@ -216,7 +217,16 @@ export async function POST(request: NextRequest) {
           packing: packing?.trim() || '',
         }
       );
-      await changeBatchStock(tx, target.id, stockQty);
+      if (stockQty > 0) {
+        await recordMovement(tx, {
+          shopId: auth.user.shopId,
+          batchId: target.id,
+          type: 'MANUAL_ADD',
+          qtyChange: stockQty,
+          note: created ? 'New batch added manually' : 'Added to existing batch manually',
+          userId: auth.user.id,
+        });
+      }
 
       await tx.activityLog.create({
         data: {
