@@ -3,6 +3,7 @@ import { verifyAuth } from '@/lib/auth';
 import { parseMedicineImportFile } from '@/lib/medicine-importer';
 import { parsePurchaseInvoiceText } from '@/lib/purchase-invoice-parser';
 import { prisma } from '@/lib/db';
+import { storePurchaseDocument } from '@/lib/purchase-record';
 import Tesseract from 'tesseract.js';
 
 const STOPWORDS = new Set(['tab', 'tabs', 'tablet', 'caps', 'capsule', 'strip', 'bottle', 'pack', 'syrup']);
@@ -54,6 +55,19 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    if (buffer.length > 10 * 1024 * 1024) {
+      return NextResponse.json({ success: false, message: 'File too large. Maximum size is 10MB.' }, { status: 400 });
+    }
+
+    // Keep the original invoice; the purchase saved from these lines links to it.
+    const documentId = await storePurchaseDocument(prisma, {
+      shopId: auth.user.shopId,
+      userId: auth.user.id,
+      fileName: file.name,
+      mimeType: file.type,
+      data: buffer,
+    });
 
     let parsedRows: Array<{
       name: string;
@@ -209,6 +223,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: items,
+      documentId,
       message: `Detected ${items.length} purchase lines from invoice`,
     });
   } catch (error) {

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
 import { CreatePurchaseSchema } from '@/lib/schemas';
 import { findOrCreateBatch, getLowStockMedicines } from '@/services/inventory';
-import { recordMovement } from '@/lib/stock-movement';
+import { createInflowPurchase, InflowLine } from '@/lib/purchase-record';
 import { normalizeExpiry } from '@/lib/batch';
 
 export async function GET(req: NextRequest) {
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { supplierId, invoiceNumber, invoiceDate, gstType, paymentType, status, notes, items } =
+    const { supplierId, invoiceNumber, invoiceDate, gstType, paymentType, status, notes, documentId, items } =
       validation.data;
 
     const shopId = auth.user.shopId;
@@ -198,35 +198,13 @@ export async function POST(req: NextRequest) {
     }
 
     const purchase = await prisma.$transaction(async (tx) => {
-      let subtotal = 0;
-      let discountTotal = 0;
-      let gstTotal = 0;
-
-      const itemPayloads: Array<{
-        medicineId: string;
-        batchId: string;
-        quantity: number;
-        freeQty: number;
-        scheme?: string;
-        purchaseRate: number;
-        mrp: number;
-        discount: number;
-        gst: number;
-        expiryDate: Date;
-      }> = [];
+      const lines: InflowLine[] = [];
 
       for (const item of items) {
         const qty = Number(item.quantity);
         const freeQty = Number(item.freeQty || 0);
         const purchaseRate = Number(item.purchaseRate);
         const mrp = Number(item.mrp);
-        const lineDiscount = Number(item.discount || 0);
-        const lineGst = Number(item.gst || 0);
-        const lineSubtotal = qty * purchaseRate;
-
-        subtotal += lineSubtotal;
-        discountTotal += lineDiscount;
-        gstTotal += lineGst;
 
         // Batch identity = medicine + batch number + expiry. Same number with a
         // different expiry becomes a separate batch.
@@ -238,68 +216,35 @@ export async function POST(req: NextRequest) {
           { mrp, sellingRate: mrp, purchaseRate, rackLocation },
           { purchaseRate, mrp, sellingRate: mrp, ...(rackLocation ? { rackLocation } : {}) }
         );
-        const batchId = batch.id;
 
-        itemPayloads.push({
+        lines.push({
           medicineId: item.medicineId,
-          batchId,
+          batchId: batch.id,
           quantity: qty,
           freeQty,
-          scheme: item.scheme?.trim() || undefined,
+          scheme: item.scheme,
           purchaseRate,
           mrp,
-          discount: lineDiscount,
-          gst: lineGst,
+          discount: Number(item.discount || 0),
+          gst: Number(item.gst || 0),
           expiryDate,
         });
       }
 
-      const totalAmount = subtotal - discountTotal + gstTotal;
-
-      const createdPurchase = await tx.purchase.create({
-        data: {
-          shopId: shopId,
-          supplierId,
-          invoiceNumber: invoiceNumber.trim(),
-          invoiceDate: new Date(invoiceDate),
-          gstType,
-          paymentType,
-          status,
-          subtotal,
-          discountTotal,
-          gstTotal,
-          totalAmount,
-          notes: notes?.trim() || null,
-          purchaseItems: {
-            create: itemPayloads,
-          },
-        },
-        include: {
-          supplier: {
-            select: {
-              name: true,
-            },
-          },
-          purchaseItems: true,
-        },
+      const createdPurchase = await createInflowPurchase(tx, {
+        shopId,
+        userId,
+        source: documentId ? 'AI_IMPORT' : 'INVOICE',
+        supplierId,
+        invoiceNumber: invoiceNumber.trim(),
+        invoiceDate: new Date(invoiceDate),
+        gstType,
+        paymentType,
+        status,
+        notes,
+        documentId,
+        lines,
       });
-
-      for (const payload of itemPayloads) {
-        const totalQty = payload.quantity + payload.freeQty;
-        if (totalQty > 0) {
-          await recordMovement(tx, {
-            shopId,
-            medicineId: payload.medicineId,
-            batchId: payload.batchId,
-            type: 'PURCHASE',
-            qtyChange: totalQty,
-            refType: 'PURCHASE',
-            refId: createdPurchase.id,
-            note: payload.freeQty > 0 ? `Includes ${payload.freeQty} free` : null,
-            userId,
-          });
-        }
-      }
 
       await tx.activityLog.create({
         data: {
@@ -310,7 +255,7 @@ export async function POST(req: NextRequest) {
             purchaseId: createdPurchase.id,
             invoiceNumber: createdPurchase.invoiceNumber,
             supplierId,
-            totalAmount,
+            totalAmount: Number(createdPurchase.totalAmount),
           }),
         },
       });

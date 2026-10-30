@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
 import { findOrCreateBatch } from '@/services/inventory';
-import { recordMovement } from '@/lib/stock-movement';
+import { createInflowPurchase, InflowLine, resolveSupplierId, uniqueInvoiceNumber } from '@/lib/purchase-record';
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
 
     const result = await prisma.$transaction(async (tx) => {
       let createdCount = 0;
+      const lines: InflowLine[] = [];
 
       for (const item of items) {
         const medicine = await tx.medicine.findFirst({
@@ -75,17 +76,31 @@ export async function POST(req: NextRequest) {
           }
         );
         if (quantity > 0) {
-          await recordMovement(tx, {
-            shopId: user.shopId,
+          lines.push({
+            medicineId: item.medicineId,
             batchId: batch.id,
-            type: 'MANUAL_ADD',
-            qtyChange: quantity,
-            note: 'Moved to inventory from medicine list',
-            userId: user.id,
+            quantity,
+            purchaseRate: Number(item.purchaseRate) || null,
+            mrp: Number(item.mrp),
+            expiryDate: batch.expiryDate,
           });
         }
 
         createdCount += 1;
+      }
+
+      // Record the stock as one MANUAL purchase for this batch of items.
+      if (lines.length > 0) {
+        await createInflowPurchase(tx, {
+          shopId: user.shopId,
+          userId: user.id,
+          source: 'MANUAL',
+          supplierId: await resolveSupplierId(tx, user.shopId, { fallback: 'MANUAL' }),
+          invoiceNumber: await uniqueInvoiceNumber(tx, user.shopId, 'MANUAL'),
+          invoiceDate: new Date(),
+          notes: 'Moved to inventory from medicine list',
+          lines,
+        });
       }
 
       return { createdCount };

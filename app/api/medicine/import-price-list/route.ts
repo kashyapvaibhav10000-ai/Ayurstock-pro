@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { parsePDFWithAI, parseTextWithAI, parseImageWithGeminiVision } from '@/lib/aiParser';
+import { prisma } from '@/lib/db';
+import { storePurchaseDocument } from '@/lib/purchase-record';
 
 // Dedicated Vision-based import pipeline for price lists and invoices
 
@@ -70,6 +72,17 @@ export async function POST(req: NextRequest) {
     console.log('📄 [import-price-list] Processing:', file.name, file.size, 'bytes');
     const buffer = Buffer.from(await file.arrayBuffer());
 
+    // Keep the original file so the resulting purchase can link to it. The
+    // id is returned on every response (incl. NO_TEXT, where the client
+    // retries with OCR text) and sent back with the bulk import.
+    const documentId = await storePurchaseDocument(prisma, {
+      shopId: auth.user.shopId,
+      userId: auth.user.id,
+      fileName: file.name,
+      mimeType: file.type,
+      data: buffer,
+    });
+
     if (isImage) {
       console.log('🖼️ [import-price-list] Processing with Vision API:', file.name);
       try {
@@ -90,6 +103,7 @@ export async function POST(req: NextRequest) {
           count: result.medicines.length,
           pdfType: 'scanned',
           provider: result.provider,
+          documentId,
         }, { headers: { 'X-AI-Provider': result.provider || 'gemini' } });
       } catch (err) {
         console.error('🖼️ Vision API failed:', err);
@@ -98,6 +112,7 @@ export async function POST(req: NextRequest) {
           message: 'Failed to process image. Please try again or upload a PDF instead.',
           errorCode: 'AI_FAILED',
           pdfType: 'scanned',
+          documentId,
         }, { status: 400 });
       }
     }
@@ -112,6 +127,7 @@ export async function POST(req: NextRequest) {
         message: result.errorMessage,
         errorCode: 'NO_TEXT',
         pdfType: 'scanned',
+        documentId,
       }, { status: 200 });
     }
 
@@ -121,6 +137,7 @@ export async function POST(req: NextRequest) {
         message: result.errorMessage || 'No medicines found in the file',
         errorCode: result.errorCode,
         pdfType: result.pdfType,
+        documentId,
       }, { status: 400 });
     }
 
@@ -130,6 +147,7 @@ export async function POST(req: NextRequest) {
       count: result.medicines.length,
       pdfType: result.pdfType,
       provider: result.provider,
+      documentId,
     }, { headers: { 'X-AI-Provider': result.provider || 'none' } });
   } catch (error) {
     console.error('❌ [import-price-list] Error:', error);

@@ -23,6 +23,7 @@ import LoginHistoryTab from '@/components/settings/login-history-tab';
 import ExpiryAlertSettings from '@/components/settings/expiry-alert-settings';
 import GstCategorySettings from '@/components/settings/gst-category-settings';
 import InventoryHistoryTab from '@/components/settings/inventory-history-tab';
+import PurchaseHistoryTab from '@/components/settings/purchase-history-tab';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -31,6 +32,7 @@ const SETTINGS_CATEGORIES = [
   { id: 'system', label: 'Preferences', icon: SettingsIcon, group: 'General' },
   { id: 'inventory', label: 'Inventory', icon: Package, group: 'General' },
   { id: 'inventory-history', label: 'Inventory History', icon: History, group: 'General' },
+  { id: 'purchase-history', label: 'Purchase History', icon: ReceiptText, group: 'General' },
   { id: 'racks', label: 'Rack Locations', icon: Archive, group: 'General' },
   { id: 'companies', label: 'Company', icon: Building, group: 'General' },
   { id: 'expiry-alerts', label: 'Expiry Alerts', icon: BellRing, group: 'General' },
@@ -88,6 +90,7 @@ export default function SettingsPage() {
       case 'invoice': return <InvoiceSettings />;
       case 'inventory': return <InventorySettings />;
       case 'inventory-history': return <InventoryHistoryTab />;
+      case 'purchase-history': return <PurchaseHistoryTab />;
       case 'racks': return <RackLocationsSettings />;
       case 'profile': return <ProfileSettings />;
       case 'users': return <UserSettings />;

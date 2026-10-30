@@ -112,6 +112,11 @@ export default function AddInventoryModal({
   const dropdownListRef = useRef<HTMLDivElement>(null);
 
   const [rackLocations, setRackLocations] = useState<any[]>([]);
+  // Optional purchase details; kept across adds so several items from one
+  // invoice land on the same purchase record.
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]);
+  const [purchaseSupplierId, setPurchaseSupplierId] = useState('');
+  const [purchaseInvoiceNo, setPurchaseInvoiceNo] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   
   const [isCreatingNewMedicine, setIsCreatingNewMedicine] = useState(false);
@@ -208,6 +213,10 @@ export default function AddInventoryModal({
 
     fetchCompanies();
     fetchRackLocations();
+    axios
+      .get('/api/suppliers')
+      .then((res) => setSuppliers(res.data.data || []))
+      .catch(() => setSuppliers([]));
     fetchGstDefaults();
 
     setTimeout(() => {
@@ -519,6 +528,8 @@ export default function AddInventoryModal({
         packing: formData.packing,
         rackLocation: formData.rackLocation,
         gstPercent: Number(formData.gstPercent),
+        supplierId: purchaseSupplierId || null,
+        invoiceNumber: purchaseInvoiceNo.trim() || null,
       });
 
       await onSaved();
@@ -987,6 +998,31 @@ export default function AddInventoryModal({
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-sm">Distributor <span className="text-[10px] text-gray-400 font-normal">(optional)</span></Label>
+              <select
+                className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                value={purchaseSupplierId}
+                onChange={(e) => setPurchaseSupplierId(e.target.value)}
+              >
+                <option value="">Manual entry (no distributor)</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-sm">Invoice No <span className="text-[10px] text-gray-400 font-normal">(optional)</span></Label>
+              <Input
+                value={purchaseInvoiceNo}
+                onChange={(e) => setPurchaseInvoiceNo(e.target.value)}
+                placeholder="Auto-generated if blank"
+                className="h-11"
+                maxLength={60}
+              />
             </div>
           </div>
 

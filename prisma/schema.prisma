@@ -36,6 +36,7 @@ model Shop {
   stockAdjustments StockAdjustment[]
   suppliers        Supplier[]
   stockMovements   StockMovement[]
+  purchaseDocuments PurchaseDocument[]
   users            User[]
   gstCategoryDefaults GstCategoryDefault[]
 
@@ -153,6 +154,7 @@ model User {
   stockAdjustments StockAdjustment[]
   shop            Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
   stockMovements  StockMovement[]
+  purchasesCreated Purchase[]      @relation("PurchaseCreatedBy")
 
   @@unique([shopId, email])
   @@index([shopId])
@@ -310,10 +312,19 @@ model Purchase {
   shop          Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
   supplier      Supplier       @relation(fields: [supplierId], references: [id])
   purchaseItems PurchaseItem[]
+  // How the stock arrived. Manual / AI entries without a distributor use a
+  // per-shop placeholder supplier and an auto-generated invoice number.
+  source          PurchaseSource    @default(INVOICE)
+  createdByUserId String?
+  createdByUser   User?             @relation("PurchaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  documentId      String?           @unique
+  document        PurchaseDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
 
   @@unique([shopId, invoiceNumber])
   @@index([shopId, supplierId])
   @@index([shopId])
+  @@index([shopId, invoiceDate])
+  @@index([shopId, source])
 }
 
 model PurchaseItem {
@@ -607,4 +618,27 @@ model StockMovement {
   @@index([shopId, medicineId])
   @@index([batchId])
   @@index([shopId, type])
+}
+
+enum PurchaseSource {
+  INVOICE
+  AI_IMPORT
+  MANUAL
+}
+
+// Original invoice file (image / PDF) uploaded for AI parsing. Linked to the
+// Purchase it produced; unlinked uploads are pruned after a few days.
+model PurchaseDocument {
+  id               String    @id @default(cuid())
+  shopId           String
+  fileName         String
+  mimeType         String
+  size             Int
+  data             Bytes
+  uploadedByUserId String?
+  createdAt        DateTime  @default(now())
+  shop             Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  purchase         Purchase?
+
+  @@index([shopId, createdAt])
 }

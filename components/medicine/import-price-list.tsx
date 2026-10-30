@@ -163,6 +163,8 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
   // ── New State for 7-Upgrade features ─────────────────────────────────
   const [invoiceNumber, setInvoiceNumber] = useState<string>("")
   const [invoiceDate, setInvoiceDate] = useState<string>("")
+  // Stored original file; links the resulting purchase to its invoice image.
+  const [documentId, setDocumentId] = useState<string | null>(null)
   const [duplicateWarning, setDuplicateWarning] = useState<{ isDuplicate: boolean, message: string } | null>(null)
   const [forceImport, setForceImport] = useState(false)
   const [restockData, setRestockData] = useState<Record<string, RestockData>>({})
@@ -278,6 +280,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
       setFile(selectedFile)
+      setDocumentId(null)
       setError("")
       setErrorCode("")
     }
@@ -304,6 +307,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       })
 
       const result = await response.json()
+      setDocumentId(result.documentId || null)
 
       if (result.success) {
         toast.success(`Parsed ${result.medicines?.length || 0} medicines from price list`)
@@ -447,7 +451,9 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
         body: JSON.stringify({ 
           medicines: payloadRows,
           invoiceNumber: invoiceNumber || undefined,
+          invoiceDate: invoiceDate || undefined,
           supplierName: selectedCompany || undefined,
+          documentId: documentId || undefined,
           forceImport: activeForce
         }),
       })
@@ -478,6 +484,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
         setFile(null)
         setParsedMedicines([])
         setInvoiceNumber("")
+        setDocumentId(null)
         setDuplicateWarning(null)
         setForceImport(false)
       } else {

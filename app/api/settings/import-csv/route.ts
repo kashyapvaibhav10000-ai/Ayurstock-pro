@@ -5,6 +5,7 @@ import Papa from 'papaparse';
 import { normalizeExpiry } from '@/lib/batch';
 import { findOrCreateBatch } from '@/services/inventory';
 import { recordMovement } from '@/lib/stock-movement';
+import { createInflowPurchase, InflowLine, resolveSupplierId, uniqueInvoiceNumber } from '@/lib/purchase-record';
 
 export async function POST(req: NextRequest) {
   try {
@@ -82,6 +83,15 @@ export async function POST(req: NextRequest) {
     let added = 0;
     let updated = 0;
     let skipped = 0;
+    const newBatchRows: Array<{
+      medicineId: string;
+      batchNumber: string;
+      expiryDate: Date;
+      quantity: number;
+      purchaseRate: number;
+      mrp: number;
+      rackLocation: string;
+    }> = [];
 
     // Tracking what we generated in this exact loop to map relational dependencies dynamically across the 5k bounds
     const newMedsCache = new Map();
@@ -175,7 +185,11 @@ export async function POST(req: NextRequest) {
       const mMrp = parseFloat(row['MRP']);
       const mRack = row['Rack Location'].trim();
 
-      if (existingBatch) {
+      if (existingBatch?.pendingRow) {
+        // Repeated row for a batch created by this import: last row wins.
+        Object.assign(existingBatch.pendingRow, { quantity: mQty, purchaseRate: mPr, mrp: mMrp, rackLocation: mRack });
+        updated++;
+      } else if (existingBatch) {
         // Did anything actually change requiring an update?
         if (
           existingBatch.stockQty === mQty &&
@@ -209,25 +223,42 @@ export async function POST(req: NextRequest) {
           updated++;
         }
       } else {
-        const newBatch = await prisma.$transaction(async (tx) => {
+        // New batches are collected into one MANUAL purchase below.
+        const pendingRow = { medicineId: medId, batchNumber: mBatch, expiryDate: mExpiry, quantity: mQty, purchaseRate: mPr, mrp: mMrp, rackLocation: mRack };
+        newBatchRows.push(pendingRow);
+        batchMap.set(batchKey, { pendingRow });
+      }
+    }
+
+    if (newBatchRows.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        const lines: InflowLine[] = [];
+        for (const row of newBatchRows) {
           const { batch } = await findOrCreateBatch(
             tx,
-            { shopId, medicineId: medId, batchNumber: mBatch, expiryDate: mExpiry },
-            { mrp: mMrp, purchaseRate: mPr, sellingRate: mMrp, rackLocation: mRack }
+            { shopId, medicineId: row.medicineId, batchNumber: row.batchNumber, expiryDate: row.expiryDate },
+            { mrp: row.mrp, purchaseRate: row.purchaseRate, sellingRate: row.mrp, rackLocation: row.rackLocation }
           );
-          await recordMovement(tx, {
-            shopId,
+          lines.push({
+            medicineId: row.medicineId,
             batchId: batch.id,
-            type: 'MANUAL_ADD',
-            qtyChange: mQty,
-            refType: 'CSV_IMPORT',
-            note: 'CSV import',
-            userId: auth.user.id,
+            quantity: row.quantity,
+            purchaseRate: row.purchaseRate,
+            mrp: row.mrp,
+            expiryDate: batch.expiryDate,
           });
-          return tx.inventoryBatch.findUniqueOrThrow({ where: { id: batch.id } });
+        }
+        await createInflowPurchase(tx, {
+          shopId,
+          userId: auth.user.id,
+          source: 'MANUAL',
+          supplierId: await resolveSupplierId(tx, shopId, { fallback: 'MANUAL' }),
+          invoiceNumber: await uniqueInvoiceNumber(tx, shopId, 'MANUAL'),
+          invoiceDate: new Date(),
+          notes: 'CSV inventory import',
+          lines,
         });
-        batchMap.set(batchKey, newBatch);
-      }
+      }, { timeout: 120_000 });
     }
 
     // Force Topology Sync

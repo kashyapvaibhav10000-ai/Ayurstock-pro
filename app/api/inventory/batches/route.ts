@@ -3,7 +3,8 @@ import { authenticateRequest, createApiResponse, createErrorResponse, createPagi
 import { prisma } from '@/lib/db';
 import { findOrCreateBatch, getAvailableBatches, getLowStockMedicines, getNearExpiryMedicines } from '@/services/inventory';
 import { CreateBatchSchema } from '@/lib/schemas';
-import { recordMovement } from '@/lib/stock-movement';
+import { Prisma } from '@prisma/client';
+import { addToManualPurchaseOrCreate, resolveSupplierId } from '@/lib/purchase-record';
 
 export async function GET(request: NextRequest) {
   try {
@@ -218,13 +219,32 @@ export async function POST(request: NextRequest) {
         }
       );
       if (stockQty > 0) {
-        await recordMovement(tx, {
+        // Manual stock is a purchase too (source MANUAL); distributor and
+        // invoice number are optional.
+        const supplierId = await resolveSupplierId(tx, auth.user.shopId, {
+          supplierId: validation.data.supplierId,
+          fallback: 'MANUAL',
+        });
+        const rate = purchaseRate ?? null;
+        const gstPercent = validation.data.gstPercent ?? 0;
+        await addToManualPurchaseOrCreate(tx, {
           shopId: auth.user.shopId,
-          batchId: target.id,
-          type: 'MANUAL_ADD',
-          qtyChange: stockQty,
-          note: created ? 'New batch added manually' : 'Added to existing batch manually',
           userId: auth.user.id,
+          supplierId,
+          invoiceNumber: validation.data.invoiceNumber,
+          invoiceDate: new Date(),
+          notes: created ? 'New batch added manually' : 'Added to existing batch manually',
+          lines: [
+            {
+              medicineId,
+              batchId: target.id,
+              quantity: stockQty,
+              purchaseRate: rate,
+              mrp,
+              gst: rate ? new Prisma.Decimal(rate).times(stockQty).times(gstPercent).dividedBy(100).toDecimalPlaces(2) : 0,
+              expiryDate: target.expiryDate,
+            },
+          ],
         });
       }
 

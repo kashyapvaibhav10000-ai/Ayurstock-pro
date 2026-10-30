@@ -3,7 +3,8 @@ import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { splitMedicineNameAndPacking } from '@/lib/medicine-importer';
 import { findOrCreateBatch } from '@/services/inventory';
-import { recordMovement } from '@/lib/stock-movement';
+import { createInflowPurchase, InflowLine, resolveSupplierId, uniqueInvoiceNumber } from '@/lib/purchase-record';
+import { normalizeExpiry } from '@/lib/batch';
 
 interface MedicineData {
   code?: string;
@@ -123,10 +124,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { medicines, invoiceNumber, supplierName, forceImport }: {
+    const { medicines, invoiceNumber, invoiceDate, supplierName, documentId, forceImport }: {
       medicines: MedicineData[];
       invoiceNumber?: string;
+      invoiceDate?: string;
       supplierName?: string;
+      documentId?: string;
       forceImport?: boolean;
     } = body;
 
@@ -189,6 +192,14 @@ export async function POST(req: NextRequest) {
     let batchCount = 0;
     let totalStockAdded = 0;
     let skippedCount = 0;
+    const stockLines: Array<{
+      medicineId: string;
+      batchNo: string;
+      expiryDate: Date;
+      quantity: number;
+      purchaseRate: number;
+      mrp: number;
+    }> = [];
 
     for (let i = 0; i < medicines.length; i++) {
       const medicine = medicines[i];
@@ -264,34 +275,64 @@ export async function POST(req: NextRequest) {
         updatedCount++;
       }
 
-      // 3. Create Inventory Batch if batch details exist
+      // 3. Queue stock for the purchase record if batch details exist
       if (medicineRecord && medicine.batchNo && medicine.quantity) {
-        const expiryDate = parseExpiryDate(medicine.expiryDate);
+        stockLines.push({
+          medicineId: medicineRecord.id,
+          batchNo: medicine.batchNo,
+          expiryDate: parseExpiryDate(medicine.expiryDate),
+          quantity: medicine.quantity,
+          purchaseRate,
+          mrp,
+        });
+      }
+    }
 
-        const medicineId = medicineRecord.id;
-        const batchNo = medicine.batchNo;
-        const quantity = medicine.quantity;
-        // Same medicine + batch number + expiry adds stock; a different expiry
-        // is a separate batch.
-        await prisma.$transaction(async (tx) => {
+    // 4. One AI_IMPORT purchase for the whole invoice: batches, purchase lines
+    // and stock movements commit together.
+    let purchaseId: string | null = null;
+    if (stockLines.length > 0) {
+      const purchase = await prisma.$transaction(async (tx) => {
+        const lines: InflowLine[] = [];
+        for (const line of stockLines) {
+          // Same medicine + batch number + expiry adds stock; a different
+          // expiry is a separate batch.
           const { batch } = await findOrCreateBatch(
             tx,
-            { shopId: user.shopId, medicineId, batchNumber: batchNo, expiryDate },
-            { mrp, sellingRate: mrp, purchaseRate: purchaseRate || null },
-            { mrp, sellingRate: mrp, purchaseRate: purchaseRate || null }
+            { shopId: user.shopId, medicineId: line.medicineId, batchNumber: line.batchNo, expiryDate: line.expiryDate },
+            { mrp: line.mrp, sellingRate: line.mrp, purchaseRate: line.purchaseRate || null },
+            { mrp: line.mrp, sellingRate: line.mrp, purchaseRate: line.purchaseRate || null }
           );
-          await recordMovement(tx, {
-            shopId: user.shopId,
+          lines.push({
+            medicineId: line.medicineId,
             batchId: batch.id,
-            type: 'PURCHASE',
-            qtyChange: quantity,
-            note: invoiceNumber ? `AI import · invoice ${invoiceNumber}` : 'AI import',
-            userId: user.id,
+            quantity: line.quantity,
+            purchaseRate: line.purchaseRate || null,
+            mrp: line.mrp,
+            expiryDate: normalizeExpiry(line.expiryDate),
           });
+        }
+
+        // The importer's "supplier" field is often the manufacturer, so the
+        // purchase uses the AI Import placeholder and keeps the name in notes.
+        const supplierId = await resolveSupplierId(tx, user.shopId, { fallback: 'AI_IMPORT' });
+        const parsedDate = invoiceDate && !Number.isNaN(Date.parse(invoiceDate)) ? new Date(invoiceDate) : new Date();
+
+        return createInflowPurchase(tx, {
+          shopId: user.shopId,
+          userId: user.id,
+          source: 'AI_IMPORT',
+          supplierId,
+          invoiceNumber: await uniqueInvoiceNumber(tx, user.shopId, 'AI_IMPORT', invoiceNumber),
+          invoiceDate: parsedDate,
+          notes: supplierName ? `Supplier on invoice: ${supplierName.trim()}` : null,
+          documentId: documentId || null,
+          lines,
         });
-        batchCount++;
-        totalStockAdded += medicine.quantity;
-      }
+      });
+      purchaseId = purchase.id;
+      batchCount = stockLines.length;
+      totalStockAdded = stockLines.reduce((sum, line) => sum + line.quantity, 0);
     }
 
     // ── Upgrade 1: Record the imported invoice ──────────────────────────
@@ -333,6 +374,7 @@ export async function POST(req: NextRequest) {
       batches: batchCount,
       totalStock: totalStockAdded,
       skipped: skippedCount,
+      purchaseId,
       validationErrors: allValidationErrors.length > 0 ? allValidationErrors : undefined,
       message: summaryMessage,
     });

@@ -87,6 +87,10 @@ export const CreateBatchSchema = z.object({
   rackLocation: z.string().trim().optional(),
   packing: z.string().trim().optional(),
   gstPercent: z.number().int().min(0).max(28).optional().default(0),
+  // Optional purchase details; without them a MANUAL purchase is recorded
+  // against the "Manual Entry" placeholder with an auto invoice number.
+  supplierId: z.string().trim().optional().nullable(),
+  invoiceNumber: z.string().trim().max(60).optional().nullable(),
 });
 
 export const CreateCompanySchema = z.object({
@@ -143,6 +147,9 @@ export const CreatePurchaseSchema = z.object({
   paymentType: z.string().min(1).default('CASH'),
   status: z.enum(['PAID', 'PENDING', 'PARTIAL']).default('PAID'),
   notes: z.string().trim().optional(),
+  // Set when the lines were filled from an AI-scanned invoice; links the
+  // stored file and marks the purchase source AI_IMPORT.
+  documentId: z.string().min(1).optional().nullable(),
   items: z.array(
     z.object({
       medicineId: z.string().min(1, 'Medicine is required'),

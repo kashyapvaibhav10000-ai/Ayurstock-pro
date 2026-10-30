@@ -175,6 +175,9 @@ export default function PurchasesPage() {
   const [creatingMedicine, setCreatingMedicine] = useState(false);
   // setMessage and setError removed in favor of toast
   const [scanPreview, setScanPreview] = useState<ScanPreviewItem[]>([]);
+  // Stored invoice file from the last scan; set on the form once applied.
+  const [scanDocumentId, setScanDocumentId] = useState<string | null>(null);
+  const [appliedDocumentId, setAppliedDocumentId] = useState<string | null>(null);
   const [scanSummary, setScanSummary] = useState({
     matched: 0,
     possible: 0,
@@ -417,6 +420,7 @@ export default function PurchasesPage() {
 
       const response = await axios.post('/api/purchases', {
         ...purchaseForm,
+        documentId: appliedDocumentId,
         items: purchaseForm.items.map(({ tempId, medicineSearch, ...item }) => item),
       });
 
@@ -436,6 +440,8 @@ export default function PurchasesPage() {
         items: [createEmptyPurchaseItem()],
       });
       setSelectedCompany('');
+      setAppliedDocumentId(null);
+      setAppliedScanMeta({});
       await loadAll();
     } catch (saveError) {
       const messageText = axios.isAxiosError(saveError)
@@ -515,6 +521,7 @@ export default function PurchasesPage() {
       const newItems = scanItems.filter((item) => item.matchStatus === 'new').length;
 
       setScanPreview(scanItems);
+      setScanDocumentId(response.data.documentId || null);
       setScanSummary({ matched, possible, newItems });
       toast.info('Invoice scanned. Please review and apply the results.');
     } catch (scanError) {
@@ -559,6 +566,7 @@ export default function PurchasesPage() {
     setScanPreview([]);
     setScanSummary({ matched: 0, possible: 0, newItems: 0 });
     setAppliedScanMeta(meta);
+    setAppliedDocumentId(scanDocumentId);
     toast.success('OCR results applied to purchase form. Please verify and save.');
   };
 
@@ -566,6 +574,7 @@ export default function PurchasesPage() {
     setScanPreview([]);
     setScanSummary({ matched: 0, possible: 0, newItems: 0 });
     setAppliedScanMeta({});
+    setScanDocumentId(null);
     toast.info('OCR results discarded.');
   };
 
