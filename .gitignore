@@ -40,3 +40,4 @@ Thumbs.db
 # local browser profiles / server logs (never commit)
 .gemini/
 *.log
+tsconfig.tsbuildinfo
