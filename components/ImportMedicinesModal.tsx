@@ -874,7 +874,7 @@ export default function ImportMedicinesModal({
               </div>
               {provider && (
                  <span className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium ml-auto whitespace-nowrap">
-                   {provider === 'gemini' ? 'Processed by Google Gemini ✓' : provider === 'groq' ? 'Processed by Groq ✓' : 'Processed by OpenRouter (slow mode) ✓'}
+                   {provider === 'gemini' ? 'Processed by Google Gemini ✓' : provider === 'groq' ? 'Processed by Groq ✓' : provider === 'openrouter' ? 'Processed by OpenRouter (slow mode) ✓' : `Processed by ${provider} ✓`}
                  </span>
               )}
               <div className="mt-3 sm:mt-0 whitespace-nowrap text-sm font-semibold text-primary">

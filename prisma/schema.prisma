@@ -665,39 +665,85 @@ enum AiProvider {
   OPENROUTER
 }
 
-// Platform-wide AI provider keys (not shop-scoped: the AI parser is shared).
-// Managed by super-admins only. The key is AES-256-GCM encrypted with
-// AI_ENCRYPTION_KEY (env, never stored); the API only ever returns last4.
-// One row per provider; key fields are null after a revoke so priority and
-// enabled survive. Lower priority = tried first.
+// Which product feature made an AI call (tagged on every parse request).
+enum AiFeature {
+  INVOICE_IMPORT
+  MEDICINE_IMPORT
+  MEDICINE_BATCH_REPARSE
+}
+
+// Platform-wide AI provider instances (not shop-scoped: the AI parser is
+// shared). Managed by super-admins only. The key is AES-256-GCM encrypted
+// with AI_ENCRYPTION_KEY (env, never stored); the API only ever returns last4.
+// adapter names the API format (lib/ai/providers). provider is the legacy
+// column: set only on the instance that holds one of the four original
+// providers' slot, which is also the instance that falls back to the .env
+// key. Key fields are null after a revoke so priority and enabled survive.
+// Lower priority = tried first.
 model AiProviderKey {
-  id            String     @id @default(cuid())
-  provider      AiProvider @unique
+  id            String      @id @default(cuid())
+  provider      AiProvider? @unique
+  adapter       String
+  displayName   String?
+  model         String?
+  baseUrl       String?
   encryptedKey  String?
   iv            String?
   authTag       String?
   last4         String?
-  enabled       Boolean    @default(true)
-  priority      Int        @default(0)
+  enabled       Boolean     @default(true)
+  priority      Int         @default(0)
   lastTestedAt  DateTime?
   lastTestOk    Boolean?
   lastLatencyMs Int?
   lastError     String?
   createdBy     String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
-// Who did what to which provider key. Never contains key material.
+// Who did what to which provider instance. Never contains key material.
 model AiKeyAuditLog {
-  id        String     @id @default(cuid())
-  provider  AiProvider
-  action    String
-  detail    String?
-  userId    String?
-  userEmail String?
-  createdAt DateTime   @default(now())
+  id           String      @id @default(cuid())
+  provider     AiProvider?
+  instanceId   String?
+  instanceName String?
+  action       String
+  detail       String?
+  userId       String?
+  userEmail    String?
+  createdAt    DateTime    @default(now())
 
   @@index([createdAt])
   @@index([provider, createdAt])
+}
+
+// One row per provider attempt made by the AI parser. requestId groups the
+// attempts of one parse request (a fallback chain can try several).
+// instanceId is null for env-only tiers (Cerebras, Cloudflare).
+model AiCallLog {
+  id           String    @id @default(cuid())
+  requestId    String
+  feature      AiFeature
+  instanceId   String?
+  adapter      String
+  providerName String
+  model        String?
+  success      Boolean
+  latencyMs    Int
+  error        String?
+  shopId       String?
+  createdAt    DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([feature, createdAt])
+  @@index([instanceId, createdAt])
+}
+
+// Optional per-feature provider order. No row = the global chain.
+model AiFeatureRoute {
+  feature     AiFeature @id
+  instanceIds String[]
+  updatedBy   String?
+  updatedAt   DateTime  @updatedAt
 }

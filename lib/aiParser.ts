@@ -1,8 +1,11 @@
+import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/db';
-import { AiProvider } from '@prisma/client';
-import { aiKey, aiProviderOrder, loadAiKeys, orderByPriority } from '@/lib/ai-keys';
+import { AiInstance, aiChain, aiFeatureRoute, loadAiKeys } from '@/lib/ai-keys';
+import { AiCallContext } from '@/lib/ai/features';
+import { AiFile, AiPrompt, RateLimitError, getAdapter } from '@/lib/ai/providers';
+import { fetchWithTimeout, openAiChat, scrubKey } from '@/lib/ai/providers/http';
+import { logAiCall } from '@/lib/ai/usage-log';
 // pdf-parse will be loaded locally to avoid build-time ReferenceErrors (DOMMatrix is not defined)
-
 
 export type FieldConfidence = 'high' | 'medium' | 'low';
 
@@ -46,43 +49,25 @@ export type ParseErrorCode =
 export interface ParseResult {
   medicines: ParsedMedicine[];
   pdfType: PdfType;
-  provider?: 'gemini' | 'cerebras' | 'groq' | 'cloudflare' | 'mistral' | 'openrouter';
+  /** Provider that served the result: legacy lowercase id (e.g. 'gemini') or instance name. */
+  provider?: string;
   errorCode?: ParseErrorCode;
   errorMessage?: string;
 }
 
-// ─── Chunk sizes per tier (based on each API's limits) ───────────────────────
-const GEMINI_CHUNK_SIZE = 500000  // always 1 chunk — Gemini has 1M token context
+// ─── Env-only tiers (Cerebras, Cloudflare) ───────────────────────────────────
+// Managed providers' chunk sizes, models and limits live in lib/ai/providers.
 const CEREBRAS_CHUNK_SIZE = 4000  // smaller chunks to prevent JSON output truncation
-const GROQ_CHUNK_SIZE = 5000    // smaller chunks for 70b model context limits
 const CLOUDFLARE_CHUNK_SIZE = 6000   // Reduced chunk count
-const MISTRAL_CHUNK_SIZE = 5000    // ~22 chunks for large PDFs
-const OPENROUTER_CHUNK_SIZE = 3500   // 15 chunks
-
-// ─── Cloudflare & Mistral config ─────────────────────────────────────────────
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || 'c51d5cf5c7c78d123c5ce4404d9040b1'
 const CF_MODEL = '@cf/meta/llama-3.2-3b-instruct'
-const MISTRAL_MODEL = 'mistral-small-latest'
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-
-const OPENROUTER_MODELS = [
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'mistralai/mistral-small-3.1-24b-instruct:free',
-  'google/gemma-3-27b-it:free',
-  'google/gemini-2.0-flash-lite-preview-02-05:free',
-  'deepseek/deepseek-r1-distill-llama-70b:free',
-]
+const CEREBRAS_DAILY_LIMIT = 50000  // Very generous free tier
+const CLOUDFLARE_DAILY_LIMIT = 10000
 
 const REQUEST_TIMEOUT_MS = 90000
+const PDF_TIMEOUT_MS = 180000      // whole-document reads
+const VISION_TIMEOUT_MS = 60000
 const REQUEST_INTERVAL_MS = 1000   // 1s delay between chunks
-const MAX_CONCURRENT = 1
-
-// ─── Daily usage limits ───────────────────────────────────────────────────────
-const GEMINI_DAILY_LIMIT = 1400
-const CEREBRAS_DAILY_LIMIT = 50000  // Very generous free tier
-const GROQ_DAILY_LIMIT = 14000
-const CLOUDFLARE_DAILY_LIMIT = 10000
-const MISTRAL_DAILY_LIMIT = 1000
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic/herbal medicine documents.
@@ -130,18 +115,23 @@ RULES:
 13. Medicine names are product brand names like 'TRIPHALA CHURNA', 'ADULSA SYRUP'.
 14. Price sanity: MRP must be 1–100000. TradePrice must be ≤ MRP. Skip impossible prices.`
 
-// ─── Prisma usage tracking ────────────────────────────────────────────────────
-async function getDailyUsage() {
+// ─── Prisma usage tracking (legacy daily counters) ───────────────────────────
+type UsageField = 'gemini' | 'cerebras' | 'groq' | 'cloudflare' | 'mistral' | 'openrouter';
+type DailyUsage = Record<UsageField, number>;
+
+async function getDailyUsage(): Promise<DailyUsage> {
+  const empty = { gemini: 0, cerebras: 0, groq: 0, openrouter: 0, cloudflare: 0, mistral: 0 };
   try {
     const today = new Date().toISOString().split('T')[0];
     const record = await prisma.apiUsageCounter.findUnique({ where: { date: today } });
-    return record || { gemini: 0, cerebras: 0, groq: 0, openrouter: 0, cloudflare: 0, mistral: 0 };
+    return record || empty;
   } catch (e) {
-    return { gemini: 0, cerebras: 0, groq: 0, openrouter: 0, cloudflare: 0, mistral: 0 };
+    return empty;
   }
 }
 
-async function incrementUsage(provider: 'gemini' | 'cerebras' | 'groq' | 'cloudflare' | 'mistral' | 'openrouter') {
+async function incrementUsage(provider: UsageField | null) {
+  if (!provider) return;
   try {
     const today = new Date().toISOString().split('T')[0];
     await prisma.apiUsageCounter.upsert({
@@ -414,69 +404,7 @@ type ChunkResult = {
   completedChunks: number;
   totalChunks: number;
   rateLimited: boolean;
-}
-
-type TextTierConfig = {
-  name: string;
-  chunkSize: number;
-  delayMs: number;
-  available: () => boolean;
-  processFn: (chunk: string, index: number, total: number) => Promise<ParsedMedicine[]>;
-}
-
-async function relayParseText(
-  text: string,
-  tiers: TextTierConfig[],
-  pdfType: PdfType = 'searchable'
-): Promise<ParseResult> {
-  let remainingText = text
-  const allMedicines: ParsedMedicine[] = []
-  const usedProviders: string[] = []
-
-  for (const tier of tiers) {
-    if (!remainingText.trim() || remainingText.trim().length < 50) {
-      console.log('  ✅ No remaining text. Relay complete.')
-      break
-    }
-
-    if (!tier.available()) {
-      console.log(`  ⏭️ ${tier.name}: not available, skipping.`)
-      continue
-    }
-
-    try {
-      console.log(`\n🔗 Relay → ${tier.name} (${remainingText.length} chars remaining)`);
-      const chunks = splitTextIntoChunks(remainingText, tier.chunkSize)
-      console.log(`  ${tier.name}: ${chunks.length} chunks`)
-
-      const result = await processChunks(chunks, tier.processFn, tier.delayMs)
-      allMedicines.push(...result.medicines)
-
-      if (result.medicines.length > 0) {
-        usedProviders.push(tier.name)
-        await incrementUsage(tier.name as any)
-      }
-
-      if (!result.rateLimited) {
-        console.log(`  ✅ ${tier.name} completed all ${result.totalChunks} chunks. Total: ${allMedicines.length} medicines.`)
-        break
-      }
-
-      const unprocessedChunks = chunks.slice(result.completedChunks)
-      remainingText = unprocessedChunks.join('\n')
-      console.log(`  🔄 ${tier.name} completed ${result.completedChunks}/${result.totalChunks} chunks (${result.medicines.length} medicines). Relaying ${remainingText.length} chars to next tier...`)
-
-    } catch (error: any) {
-      console.error(`  ❌ ${tier.name} error: ${error?.message || error}`)
-    }
-  }
-
-  if (allMedicines.length === 0) {
-    return { medicines: [], pdfType, errorCode: 'AI_FAILED', errorMessage: 'All AI tiers failed.' }
-  }
-
-  console.log(`\n🏁 Relay complete! ${allMedicines.length} total medicines from [${usedProviders.join(' → ')}]`)
-  return { medicines: dedup(allMedicines), pdfType, provider: usedProviders[0] as any }
+  lastError: string | null;
 }
 
 async function processChunks(
@@ -487,13 +415,16 @@ async function processChunks(
   const allMedicines: ParsedMedicine[] = []
   let completedChunks = 0
   let rateLimited = false
+  let lastError: string | null = null
   for (let i = 0; i < chunks.length; i++) {
     try {
+      console.log(`  chunk ${i + 1}/${chunks.length} (${chunks[i].length} chars)`)
       const medicines = await processFn(chunks[i], i, chunks.length)
       allMedicines.push(...medicines)
       completedChunks++
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err)
+      lastError = msg
       console.warn(`  ⚠️ Chunk ${i + 1}/${chunks.length} failed: ${msg}`)
       // On rate limit, stop sending more chunks (they'll all fail too)
       if (msg.includes('RATE_LIMIT') || err?.status === 429) {
@@ -506,45 +437,10 @@ async function processChunks(
       await new Promise(r => setTimeout(r, delayMs))
     }
   }
-  return { medicines: allMedicines, completedChunks, totalChunks: chunks.length, rateLimited }
+  return { medicines: allMedicines, completedChunks, totalChunks: chunks.length, rateLimited, lastError }
 }
 
-// ─── TIER 1: Gemini ───────────────────────────────────────────────────────────
-async function parseWithGemini(pdfBuffer: Buffer): Promise<ParseResult> {
-  const apiKey = aiKey('GEMINI');
-  if (!apiKey) throw new Error('NO_API_KEY');
-
-  const base64Pdf = pdfBuffer.toString('base64');
-  console.log('💎 Calling Gemini API (PDF mode — whole document)...');
-
-  const payload = {
-    contents: [{
-      parts: [
-        { inlineData: { mimeType: "application/pdf", data: base64Pdf } },
-        { text: SYSTEM_PROMPT + "\n\nExtract medicines from this PDF. Return ONLY valid JSON array." }
-      ]
-    }],
-    generationConfig: { temperature: 0 }
-  };
-
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
-  );
-
-  if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-  if (!resp.ok) throw new Error(`Gemini status ${resp.status}`);
-
-  const data = await resp.json();
-  const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!content) throw new Error('Empty response from Gemini');
-
-  const medicines = parseJsonSafely(content);
-  console.log(`💎 Gemini extracted ${medicines.length} medicines`);
-  return { medicines: dedup(medicines), pdfType: 'searchable', provider: 'gemini' };
-}
-
-// ─── Gemini Vision: Parse images directly ─────────────────────────────────────
+// ─── Vision: invoice image prompt ─────────────────────────────────────
 const INVOICE_IMAGE_PROMPT = `You are a world-class OCR expert for Indian Pharmacy Invoices.
 The image might be tilted or photographed at an angle. Mentally correct the orientation.
 
@@ -617,72 +513,6 @@ For each field, set confidence:
 Set overall to the LOWEST of all field confidences.
 
 Return ONLY valid JSON. NO explanation. NO markdown.`;
-
-export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: string): Promise<ParseResult> {
-  await loadAiKeys();
-  const base64Image = imageBuffer.toString('base64');
-  const errors: string[] = [];
-
-  // Vision-capable providers, tried in the configured priority order.
-  const tiers: Array<{ provider: AiProvider; label: string; run: () => Promise<ParseResult | null> }> = [
-    {
-      provider: 'GEMINI',
-      label: 'Gemini',
-      run: async () => {
-        const result = await callGeminiVision(base64Image, mimeType);
-        if (result.medicines.length > 0) return result;
-        errors.push('Gemini: no medicines extracted');
-        return null;
-      },
-    },
-    {
-      provider: 'GROQ',
-      label: 'Groq',
-      run: async () => {
-        const result = await callGroqVision(base64Image, mimeType);
-        // QUALITY CHECK: If more than 40% of rows have "NA" batch/qty, it's low quality
-        const lowQuality = result.medicines.filter(m => !m.batchNo || m.batchNo === 'NA' || !m.quantity).length / (result.medicines.length || 1) > 0.4;
-        if (result.medicines.length > 0 && !lowQuality) return result;
-        console.warn(`  ⚠️ Groq result was low quality (${result.medicines.length} meds), falling back...`);
-        errors.push('Groq: low quality extraction');
-        return null;
-      },
-    },
-    {
-      provider: 'OPENROUTER',
-      label: 'OpenRouter',
-      run: async () => {
-        const result = await callOpenRouterVision(base64Image, mimeType);
-        if (result.medicines.length > 0) return result;
-        errors.push('OpenRouter: no medicines extracted');
-        return null;
-      },
-    },
-  ];
-
-  const ordered = orderByPriority(tiers, (tier) => tier.provider);
-  for (const [index, tier] of ordered.entries()) {
-    if (!aiKey(tier.provider)) {
-      errors.push(`${tier.label}: no API key`);
-      continue;
-    }
-    try {
-      console.log(`🖼️ [Tier ${index + 1}] ${tier.label} Vision (${imageBuffer.length} bytes)...`);
-      const result = await tier.run();
-      if (result) return result;
-    } catch (err: any) {
-      const msg = err?.message || String(err);
-      console.warn(`  ❌ ${tier.label} Vision failed: ${msg}`);
-      errors.push(`${tier.label}: ${msg}`);
-    }
-  }
-
-  console.error(`🖼️ All vision tiers failed: ${errors.join(' | ')}`);
-  return {
-    medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
-    errorMessage: `All vision APIs failed. ${errors[0] || 'Please try again later.'}`,
-  };
-}
 
 // ── Vision Tier Helpers ───────────────────────────────────────────────────────
 
@@ -783,508 +613,6 @@ function logExtractedMedicines(medicines: ParsedMedicine[], provider: string) {
   });
 }
 
-async function callGeminiVision(base64Image: string, mimeType: string): Promise<ParseResult> {
-  const apiKey = aiKey('GEMINI')!;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-  try {
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [
-            { inlineData: { mimeType, data: base64Image } },
-            { text: INVOICE_IMAGE_PROMPT }
-          ]}],
-          generationConfig: { temperature: 0 }
-        }),
-        signal: controller.signal
-      }
-    );
-
-    if (resp.status === 429) throw new Error('RATE_LIMIT');
-    if (!resp.ok) throw new Error(`Status ${resp.status}`);
-
-    const data = await resp.json();
-    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    console.log(`🖼️ Gemini raw (first 300): ${(content || '').substring(0, 300)}`);
-    if (!content) throw new Error('Empty response');
-
-    const rawMedicines = parseJsonSafely(content);
-    const medicines = normalizeMedicines(rawMedicines);
-    logExtractedMedicines(medicines, 'Gemini');
-    await incrementUsage('gemini');
-    return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'gemini' };
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-async function callGroqVision(base64Image: string, mimeType: string): Promise<ParseResult> {
-  const apiKey = aiKey('GROQ')!;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-  // Try multiple Groq vision models in order
-  const groqVisionModels = [
-    'llama-3.3-70b-versatile',
-    'meta-llama/llama-4-scout-17b-16e-instruct',
-  ];
-
-  for (const model of groqVisionModels) {
-  try {
-    console.log(`  🔄 Groq trying ${model}...`);
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
-              { type: 'text', text: INVOICE_IMAGE_PROMPT }
-            ]
-          }
-        ],
-        temperature: 0,
-        max_tokens: 4096
-      }),
-      signal: controller.signal
-    });
-
-    if (resp.status === 429) throw new Error('RATE_LIMIT');
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => '');
-      console.warn(`  ⚠️ Groq ${model}: Status ${resp.status}: ${body.substring(0, 100)}`);
-      continue;
-    }
-
-    const data = await resp.json();
-    const content = data?.choices?.[0]?.message?.content;
-    console.log(`🖼️ Groq Vision (${model}) raw (first 300): ${(content || '').substring(0, 300)}`);
-    if (!content) { console.warn(`  ⚠️ Groq ${model}: empty response`); continue; }
-
-    const rawMedicines = parseJsonSafely(content);
-    const medicines = normalizeMedicines(rawMedicines);
-    logExtractedMedicines(medicines, `Groq/${model}`);
-    await incrementUsage('groq');
-    return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'groq' };
-  } catch (err: any) {
-    console.warn(`  ❌ Groq ${model}: ${err?.message || err}`);
-    if (err?.message === 'RATE_LIMIT') throw err;
-  }
-  } // end for loop
-
-  clearTimeout(timeoutId);
-  throw new Error('All Groq vision models failed');
-}
-
-async function callOpenRouterVision(base64Image: string, mimeType: string): Promise<ParseResult> {
-  const apiKey = aiKey('OPENROUTER')!;
-  const visionModels = [
-    'google/gemini-2.0-flash-001',
-    'google/gemini-2.0-flash-lite-001',
-    'anthropic/claude-3.5-sonnet:beta',
-    'google/gemma-3-27b-it:free',
-    'mistralai/mistral-small-3.1-24b-instruct:free',
-  ];
-
-  for (const model of visionModels) {
-    try {
-      console.log(`  🔄 OpenRouter trying ${model}...`);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-      try {
-        const resp = await fetch(OPENROUTER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
-                  { type: 'text', text: INVOICE_IMAGE_PROMPT }
-                ]
-              }
-            ],
-            temperature: 0,
-            max_tokens: 4096
-          }),
-          signal: controller.signal
-        });
-
-        if (resp.status === 429) { console.warn(`  ⚠️ ${model}: rate limited`); continue; }
-        if (!resp.ok) { console.warn(`  ⚠️ ${model}: status ${resp.status}`); continue; }
-
-        const data = await resp.json();
-        if (data?.error) { console.warn(`  ⚠️ ${model}: ${data.error.message?.substring(0, 80)}`); continue; }
-
-        const content = data?.choices?.[0]?.message?.content;
-        console.log(`🖼️ OpenRouter (${model}) raw (first 300): ${(content || '').substring(0, 300)}`);
-        if (!content) continue;
-
-        const rawMedicines = parseJsonSafely(content);
-        const medicines = normalizeMedicines(rawMedicines);
-        if (medicines.length > 0) {
-          logExtractedMedicines(medicines, `OpenRouter/${model}`);
-          await incrementUsage('openrouter');
-          return { medicines: dedup(medicines), pdfType: 'scanned', provider: 'openrouter' };
-        }
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    } catch (err) {
-      console.warn(`  ❌ OpenRouter ${model}: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  throw new Error('All OpenRouter vision models failed');
-}
-
-async function parseTextWithGemini(text: string): Promise<ParseResult> {
-  const apiKey = aiKey('GEMINI');
-  if (!apiKey) throw new Error('NO_API_KEY');
-
-  console.log(`💎 Calling Gemini API (Text mode)...`);
-  const chunks = splitTextIntoChunks(text, GEMINI_CHUNK_SIZE);
-  console.log(`  Gemini: ${chunks.length} chunk(s)`);
-
-  const allMedicines = await processChunks(chunks, async (chunk, i, total) => {
-    console.log(`  💎 Gemini chunk ${i + 1}/${total} (${chunk.length} chars)`);
-    const payload = {
-      contents: [{
-        parts: [{ text: SYSTEM_PROMPT + `\n\nExtract medicines from this text. Return ONLY a JSON array:\n\n${chunk}` }]
-      }],
-      generationConfig: { temperature: 0 }
-    };
-
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
-    );
-
-    if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-    if (!resp.ok) throw new Error(`Gemini status ${resp.status}`);
-
-    const data = await resp.json();
-    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!content) throw new Error('Empty response from Gemini');
-    return parseJsonSafely(content);
-  });
-
-  console.log(`💎 Gemini extracted ${allMedicines.medicines.length} medicines`);
-  return { medicines: dedup(allMedicines.medicines), pdfType: 'scanned', provider: 'gemini' };
-}
-
-// ─── TIER 2: Groq ─────────────────────────────────────────────────────────────
-async function parseWithGroq(pdfBuffer: Buffer): Promise<ParseResult> {
-  const apiKey = aiKey('GROQ');
-  if (!apiKey) throw new Error('NO_API_KEY');
-
-  let text = '';
-  try {
-    const pdfParse = require('pdf-parse');
-    const pdfData = await pdfParse(pdfBuffer, { max: 100 });
-    text = pdfData.text;
-  } catch (e) {
-    throw new Error('NO_TEXT');
-  }
-  if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
-
-  return parseTextWithGroq(text, 'searchable');
-}
-
-async function parseTextWithGroq(text: string, pdfType: PdfType = 'scanned'): Promise<ParseResult> {
-  const apiKey = aiKey('GROQ');
-  if (!apiKey) throw new Error('NO_API_KEY');
-  if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
-
-  console.log('⚡ Calling Groq API...');
-  const chunks = splitTextIntoChunks(text, GROQ_CHUNK_SIZE);
-  console.log(`  Groq: ${chunks.length} chunks`);
-
-  const allMedicines = await processChunks(chunks, async (chunk, i, total) => {
-    console.log(`  ⚡ Groq chunk ${i + 1}/${total} (${chunk.length} chars)`);
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
-        ],
-        temperature: 0,
-        max_tokens: 4096
-      })
-    });
-
-    if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-    if (!resp.ok) {
-      const errorBody = await resp.text().catch(() => '');
-      console.error(`Groq error body: ${errorBody.substring(0, 200)}`);
-      throw new Error(`Groq status ${resp.status}`);
-    }
-
-    const data = await resp.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Empty response from Groq');
-    return parseJsonSafely(content);
-  }, 3000);
-
-  console.log(`⚡ Groq extracted ${allMedicines.medicines.length} medicines`);
-  return { medicines: dedup(allMedicines.medicines), pdfType, provider: 'groq' };
-}
-
-// ─── TIER 2b: Cerebras ────────────────────────────────────────────────────────
-async function parseWithCerebras(text: string, pdfType: PdfType = 'scanned'): Promise<ParseResult> {
-  const apiKey = process.env.CEREBRAS_API_KEY;
-  if (!apiKey) throw new Error('NO_API_KEY');
-  if (!text || text.trim().length < 50) throw new Error('NO_TEXT');
-
-  console.log('🧠 Calling Cerebras API...');
-  const chunks = splitTextIntoChunks(text, CEREBRAS_CHUNK_SIZE);
-  console.log(`  Cerebras: ${chunks.length} chunks`);
-
-  const allMedicines = await processChunks(chunks, async (chunk, i, total) => {
-    console.log(`  🧠 Cerebras chunk ${i + 1}/${total} (${chunk.length} chars)`);
-    const resp = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'llama3.1-8b',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
-        ],
-        temperature: 0,
-        max_tokens: 8192
-      })
-    });
-
-    if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-    if (!resp.ok) {
-      const errorBody = await resp.text().catch(() => '');
-      console.error(`Cerebras error body: ${errorBody.substring(0, 200)}`);
-      throw new Error(`Cerebras status ${resp.status}`);
-    }
-
-    const data = await resp.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Empty response from Cerebras');
-    return parseJsonSafely(content);
-  }, 1000);
-
-  console.log(`🧠 Cerebras extracted ${allMedicines.medicines.length} medicines`);
-  return { medicines: dedup(allMedicines.medicines), pdfType, provider: 'cerebras' };
-}
-
-// ─── TIER 3: Cloudflare AI ────────────────────────────────────────────────────
-async function parseWithCloudflare(text: string, pdfType: PdfType = 'scanned'): Promise<ParseResult> {
-  const apiKey = process.env.CLOUDFLARE_API_TOKEN;
-  if (!apiKey) throw new Error('NO_API_KEY');
-
-  console.log('☁️ Calling Cloudflare Workers AI...');
-  const chunks = splitTextIntoChunks(text, CLOUDFLARE_CHUNK_SIZE);
-  console.log(`  Cloudflare: ${chunks.length} chunks`);
-
-  const allMedicines = await processChunks(chunks, async (chunk, i, total) => {
-    console.log(`  ☁️ Cloudflare chunk ${i + 1}/${total} (${chunk.length} chars)`);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-    try {
-      const resp = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/${CF_MODEL}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
-            ],
-            max_tokens: 2048
-          }),
-          signal: controller.signal
-        }
-      );
-
-      if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-      if (!resp.ok) throw new Error(`Cloudflare status ${resp.status}`);
-
-      const data = await resp.json();
-      const content = data?.result?.response || '';
-      if (!content) throw new Error('Empty response from Cloudflare');
-      return parseJsonSafely(content);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  });
-
-  console.log(`☁️ Cloudflare extracted ${allMedicines.medicines.length} medicines`);
-  return { medicines: dedup(allMedicines.medicines), pdfType, provider: 'cloudflare' };
-}
-
-// ─── TIER 4: Mistral AI ───────────────────────────────────────────────────────
-async function parseWithMistral(text: string, pdfType: PdfType = 'scanned'): Promise<ParseResult> {
-  const apiKey = aiKey('MISTRAL');
-  if (!apiKey) throw new Error('NO_API_KEY');
-
-  console.log('🌟 Calling Mistral AI...');
-  const chunks = splitTextIntoChunks(text, MISTRAL_CHUNK_SIZE);
-  console.log(`  Mistral: ${chunks.length} chunks`);
-
-  const allMedicines = await processChunks(chunks, async (chunk, i, total) => {
-    console.log(`  🌟 Mistral chunk ${i + 1}/${total} (${chunk.length} chars)`);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-    try {
-      const resp = await fetch('https://api.mistral.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: MISTRAL_MODEL,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
-          ],
-          temperature: 0,
-          max_tokens: 8192
-        }),
-        signal: controller.signal
-      });
-
-      if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-      if (!resp.ok) throw new Error(`Mistral status ${resp.status}`);
-
-      const data = await resp.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (!content) throw new Error('Empty response from Mistral');
-      return parseJsonSafely(content);
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  });
-
-  console.log(`🌟 Mistral extracted ${allMedicines.medicines.length} medicines`);
-  return { medicines: dedup(allMedicines.medicines), pdfType, provider: 'mistral' };
-}
-
-// ─── TIER 5: OpenRouter ───────────────────────────────────────────────────────
-async function findWorkingOpenRouterModel(apiKey: string): Promise<string> {
-  console.log('🔍 Finding working OpenRouter model...');
-  for (const model of OPENROUTER_MODELS) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const resp = await fetch(OPENROUTER_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'user', content: 'Reply with the single word: Working' }],
-          temperature: 0,
-          max_tokens: 5,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      const data = await resp.json().catch(() => null);
-      if (data?.error) { console.log(`  ❌ ${model}: ${(data.error.message || '').substring(0, 80)}`); continue; }
-      const content = data?.choices?.[0]?.message?.content || '';
-      if (content) { console.log(`  ✅ ${model}: working!`); return model; }
-      console.log(`  ❌ ${model}: empty response`);
-    } catch {
-      console.log(`  ❌ ${model}: timeout or error`);
-    }
-  }
-  throw new Error('No OpenRouter models are currently available.');
-}
-
-async function parseWithOpenRouter(text: string, pdfType: PdfType = 'scanned'): Promise<ParseResult> {
-  const apiKey = aiKey('OPENROUTER');
-  if (!apiKey) throw new Error('NO_API_KEY');
-
-  console.log('🔄 Calling OpenRouter...');
-  const workingModel = await findWorkingOpenRouterModel(apiKey);
-  const chunks = splitTextIntoChunks(text, OPENROUTER_CHUNK_SIZE);
-  console.log(`  OpenRouter: ${chunks.length} chunks with ${workingModel}`);
-
-  const allMedicines: ParsedMedicine[] = [];
-  let successCount = 0;
-  let failureCount = 0;
-
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    try {
-      console.log(`  🔄 OpenRouter chunk ${i + 1}/${chunks.length} (${chunk.length} chars)`);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-      try {
-        const resp = await fetch(OPENROUTER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: workingModel,
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: chunk }
-            ],
-            temperature: 0,
-            max_tokens: 4096
-          }),
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-        if (resp.status === 429) throw new Error('RATE_LIMIT');
-        if (!resp.ok) throw new Error(`OpenRouter status ${resp.status}`);
-
-        const data = await resp.json();
-        const content = data?.choices?.[0]?.message?.content || '';
-        if (!content) throw new Error('Empty response from OpenRouter');
-
-        const medicines = parseJsonSafely(content);
-        allMedicines.push(...medicines);
-        successCount++;
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    } catch (err) {
-      console.warn(`  ❌ OpenRouter chunk ${i + 1} failed: ${err instanceof Error ? err.message : String(err)}`);
-      failureCount++;
-    }
-
-    if (i < chunks.length - 1) {
-      await new Promise(r => setTimeout(r, REQUEST_INTERVAL_MS));
-    }
-  }
-
-  console.log(`🔄 OpenRouter: ${successCount} succeeded, ${failureCount} failed`);
-  if (successCount === 0) throw new Error('All OpenRouter chunks failed');
-
-  return { medicines: dedup(allMedicines), pdfType, provider: 'openrouter' };
-}
-
 // ─── Extract text from PDF for lower tiers ────────────────────────────────────
 async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
   // Try pdf-parse first
@@ -1338,288 +666,331 @@ async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
   });
 }
 
-// ─── MAIN: parsePDFWithAI ─────────────────────────────────────────────────────
-export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
-  console.log('\n📖 Starting 5-Tier PDF parsing sequence...');
+// ─── Provider chain ───────────────────────────────────────────────────────────
+
+/** One step of the fallback chain: a provider instance or an env-only tier. */
+type Tier = {
+  label: string;           // provider name reported back to the caller
+  instanceId: string | null;
+  adapter: string;
+  model: string | null;
+  supportsPdf: boolean;
+  supportsImage: boolean;
+  chunkSize: number;
+  delayMs: number;
+  usageField: UsageField | null;
+  key: string;
+  available: (usage: DailyUsage) => boolean;
+  call: (prompt: AiPrompt, files?: AiFile[]) => Promise<string>;
+};
+
+const TEXT_USER_PROMPT = (chunk: string) => `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}`;
+
+/** Provider name in results: the original lowercase id for legacy slots (UIs key off it). */
+function tierLabel(instance: AiInstance): string {
+  return instance.provider ? instance.provider.toLowerCase() : instance.displayName;
+}
+
+function instanceTier(instance: AiInstance): Tier {
+  const adapter = getAdapter(instance.adapter)!;
+  const config = { key: instance.key!, model: instance.model, baseUrl: instance.baseUrl };
+  // Daily limits belong to the original providers' free tiers.
+  const limited = instance.provider ? adapter : null;
+  return {
+    label: tierLabel(instance),
+    instanceId: instance.id,
+    adapter: adapter.id,
+    model: instance.model || adapter.defaultModel || null,
+    supportsPdf: adapter.supportsPdf,
+    supportsImage: adapter.supportsImage,
+    chunkSize: adapter.chunkSize,
+    delayMs: adapter.delayMs,
+    usageField: limited?.usageField ?? null,
+    key: config.key,
+    available: (usage) => !limited?.usageField || !limited.dailyLimit || usage[limited.usageField] < limited.dailyLimit,
+    call: (prompt, files) => adapter.call(config, prompt, files),
+  };
+}
+
+/** Cerebras and Cloudflare: text-only, configured through .env alone. */
+function envTiers(): Array<{ slot: number; tier: Tier }> {
+  const tiers: Array<{ slot: number; tier: Tier }> = [];
+  const cerebrasKey = process.env.CEREBRAS_API_KEY;
+  if (cerebrasKey) {
+    tiers.push({
+      slot: 2,
+      tier: {
+        label: 'cerebras', instanceId: null, adapter: 'CEREBRAS', model: 'llama3.1-8b',
+        supportsPdf: false, supportsImage: false, chunkSize: CEREBRAS_CHUNK_SIZE, delayMs: 1000,
+        usageField: 'cerebras', key: cerebrasKey,
+        available: (usage) => usage.cerebras < CEREBRAS_DAILY_LIMIT,
+        call: (prompt) => openAiChat({
+          label: 'Cerebras', url: 'https://api.cerebras.ai/v1/chat/completions', key: cerebrasKey,
+          model: 'llama3.1-8b', prompt, maxTokens: 8192,
+        }),
+      },
+    });
+  }
+  const cloudflareKey = process.env.CLOUDFLARE_API_TOKEN;
+  if (cloudflareKey) {
+    tiers.push({
+      slot: 4,
+      tier: {
+        label: 'cloudflare', instanceId: null, adapter: 'CLOUDFLARE', model: CF_MODEL,
+        supportsPdf: false, supportsImage: false, chunkSize: CLOUDFLARE_CHUNK_SIZE, delayMs: REQUEST_INTERVAL_MS,
+        usageField: 'cloudflare', key: cloudflareKey,
+        available: (usage) => usage.cloudflare < CLOUDFLARE_DAILY_LIMIT,
+        call: async (prompt) => {
+          const resp = await fetchWithTimeout(
+            `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/${CF_MODEL}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cloudflareKey}` },
+              body: JSON.stringify({
+                messages: [
+                  { role: 'system', content: prompt.system ?? '' },
+                  { role: 'user', content: prompt.user }
+                ],
+                max_tokens: 2048
+              }),
+            },
+            prompt.timeoutMs ?? REQUEST_TIMEOUT_MS
+          );
+          if (resp.status === 429) throw new RateLimitError();
+          if (!resp.ok) throw new Error(`Cloudflare status ${resp.status}`);
+          const data = await resp.json();
+          const content = data?.result?.response || '';
+          if (!content) throw new Error('Empty response from Cloudflare');
+          return content;
+        },
+      },
+    });
+  }
+  return tiers;
+}
+
+/**
+ * The chain for a feature. A custom per-feature order is used as-is; the
+ * global chain also keeps the env-only tiers in their historical slots
+ * (Gemini, Mistral, Cerebras, Groq, Cloudflare, OpenRouter by default).
+ */
+function buildChain(feature: AiCallContext['feature']): Tier[] {
+  const chain = aiChain(feature).map(instanceTier);
+  if (aiFeatureRoute(feature)) return chain;
+  for (const { slot, tier } of envTiers()) chain.splice(Math.min(slot, chain.length), 0, tier);
+  return chain;
+}
+
+/** Records every provider attempt of one parse request under a shared requestId. */
+function attemptLogger(ctx: AiCallContext) {
+  const requestId = randomUUID();
+  let attempts = 0;
+  return {
+    async record(tier: Tier, started: number, success: boolean, error?: unknown) {
+      attempts++;
+      const message = error === undefined || error === null ? null : error instanceof Error ? error.message : String(error);
+      await logAiCall({
+        requestId, feature: ctx.feature, shopId: ctx.shopId, instanceId: tier.instanceId, adapter: tier.adapter,
+        providerName: tier.label, model: tier.model, success, latencyMs: Date.now() - started,
+        error: message ? scrubKey(message, tier.key) : null,
+      });
+    },
+    /** A request no provider could take still counts as a failed call. */
+    async finish(reason: string) {
+      if (attempts > 0) return;
+      await logAiCall({
+        requestId, feature: ctx.feature, shopId: ctx.shopId, instanceId: null, adapter: 'NONE',
+        providerName: 'none', model: null, success: false, latencyMs: 0, error: reason,
+      });
+    },
+  };
+}
+
+/**
+ * Walk the chain. PDF-capable providers read the whole PDF while nothing has
+ * been extracted yet; every other step works on document text, and a
+ * rate-limited provider hands its unprocessed chunks to the next one.
+ */
+async function runChain(
+  ctx: AiCallContext,
+  input: { pdf: Buffer | null; text: () => Promise<string> },
+  pdfType: PdfType
+): Promise<ParseResult> {
   await loadAiKeys();
   const usage = await getDailyUsage();
+  const chain = buildChain(ctx.feature);
+  const log = attemptLogger(ctx);
 
-  // Gemini reads the whole PDF natively. It runs first when it heads the
-  // configured priority order; otherwise it is the fallback after the
-  // text relay (and the only option for scanned PDFs).
-  const tryGeminiPdf = async (): Promise<ParseResult | null> => {
-    try {
-      if (!aiKey('GEMINI')) {
-        console.log('⚠️ No Gemini key configured. Skipping Gemini.');
-      } else if (usage.gemini >= GEMINI_DAILY_LIMIT) {
-        console.log('Gemini daily limit reached. Skipping Gemini.');
-      } else {
-        const result = await parseWithGemini(pdfBuffer);
-        if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
-      }
-    } catch (error: any) {
-      if (error?.status === 429) console.log('Gemini rate limited, trying next tier...');
-      else console.error('Gemini error:', error?.message || error);
+  const allMedicines: ParsedMedicine[] = [];
+  const usedProviders: string[] = [];
+  let text: string | null = null;
+  let remainingText: string | null = null; // null until the text relay starts
+
+  for (const tier of chain) {
+    if (!tier.available(usage)) {
+      console.log(`  ⏭️ ${tier.label}: daily limit reached, skipping.`);
+      continue;
     }
-    return null;
-  };
 
-  const geminiFirst = geminiLeadsChain();
-  if (geminiFirst) {
-    const result = await tryGeminiPdf();
-    if (result) return result;
+    // Whole-document read.
+    if (input.pdf && tier.supportsPdf && remainingText === null) {
+      const started = Date.now();
+      try {
+        console.log(`📄 ${tier.label}: reading whole PDF...`);
+        const content = await tier.call(
+          { system: SYSTEM_PROMPT, user: 'Extract medicines from this PDF. Return ONLY valid JSON array.', timeoutMs: PDF_TIMEOUT_MS },
+          [{ mimeType: 'application/pdf', data: input.pdf.toString('base64') }]
+        );
+        const medicines = parseJsonSafely(content);
+        console.log(`📄 ${tier.label} extracted ${medicines.length} medicines`);
+        if (medicines.length > 0) {
+          await log.record(tier, started, true);
+          await incrementUsage(tier.usageField);
+          return { medicines: dedup(medicines), pdfType: 'searchable', provider: tier.label };
+        }
+        await log.record(tier, started, false, 'No medicines extracted');
+      } catch (error) {
+        console.error(`  ❌ ${tier.label} PDF error: ${error instanceof Error ? error.message : error}`);
+        await log.record(tier, started, false, error);
+      }
+      continue;
+    }
+
+    // Text relay.
+    if (text === null) {
+      if (input.pdf) console.log('🔧 Extracting text from PDF for text providers...');
+      text = await input.text();
+      if (input.pdf && text.trim()) console.log(`📊 Extracted ${text.length} chars from PDF`);
+    }
+    if (!text.trim()) continue; // scanned PDF: only PDF-capable providers can help
+    if (remainingText === null) remainingText = text;
+    if (remainingText.trim().length < 50) break;
+
+    const started = Date.now();
+    try {
+      console.log(`\n🔗 Relay → ${tier.label} (${remainingText.length} chars remaining)`);
+      const chunks = splitTextIntoChunks(remainingText, tier.chunkSize);
+      console.log(`  ${tier.label}: ${chunks.length} chunks`);
+
+      const result = await processChunks(
+        chunks,
+        async (chunk) => parseJsonSafely(await tier.call({ system: SYSTEM_PROMPT, user: TEXT_USER_PROMPT(chunk) })),
+        tier.delayMs
+      );
+      allMedicines.push(...result.medicines);
+
+      const success = result.medicines.length > 0;
+      await log.record(tier, started, success, success ? null : result.lastError ?? 'No medicines extracted');
+      if (success) {
+        usedProviders.push(tier.label);
+        await incrementUsage(tier.usageField);
+      }
+
+      // Nothing got through (bad key, outage): try the next provider on the same text.
+      if (result.completedChunks === 0) continue;
+
+      if (!result.rateLimited) {
+        console.log(`  ✅ ${tier.label} completed all ${result.totalChunks} chunks. Total: ${allMedicines.length} medicines.`);
+        break;
+      }
+
+      remainingText = chunks.slice(result.completedChunks).join('\n');
+      console.log(`  🔄 ${tier.label} completed ${result.completedChunks}/${result.totalChunks} chunks (${result.medicines.length} medicines). Relaying ${remainingText.length} chars to next tier...`);
+    } catch (error) {
+      console.error(`  ❌ ${tier.label} error: ${error instanceof Error ? error.message : error}`);
+      await log.record(tier, started, false, error);
+    }
   }
 
-  // Extract text for Tiers 2-5
-  console.log('🔧 Extracting text from PDF for lower tiers...');
-  const extractedText = await extractTextFromPDF(pdfBuffer);
+  if (allMedicines.length > 0) {
+    console.log(`\n🏁 Relay complete! ${allMedicines.length} total medicines from [${usedProviders.join(' → ')}]`);
+    return { medicines: dedup(allMedicines), pdfType, provider: usedProviders[0] };
+  }
 
-  if (!extractedText.trim()) {
-    if (!geminiFirst) {
-      const result = await tryGeminiPdf();
-      if (result) return result;
-    }
+  if (input.pdf && text !== null && !text.trim()) {
+    await log.finish('No text in PDF and no PDF-capable provider succeeded');
     return {
       medicines: [], pdfType: 'scanned', errorCode: 'NO_TEXT',
       errorMessage: 'This PDF appears to be scanned/image-based. Use the "Run OCR" button.',
     };
   }
-
-  console.log(`📊 Extracted ${extractedText.length} chars from PDF`);
-
-  // ─── RELAY MODE: Tiers 2-5 share remaining text ───────────────────
-  const usage2 = await getDailyUsage(); // refresh usage
-  const relayed = await relayParseText(extractedText, buildTextTiers(usage2), 'searchable');
-  if (relayed.medicines.length > 0 || geminiFirst) return relayed;
-  return (await tryGeminiPdf()) ?? relayed;
+  if (chain.length === 0) {
+    await log.finish('No AI provider configured');
+    return { medicines: [], pdfType, errorCode: 'NO_API_KEY', errorMessage: 'No AI provider is configured.' };
+  }
+  await log.finish('No provider was available');
+  return { medicines: [], pdfType, errorCode: 'AI_FAILED', errorMessage: 'All AI tiers failed.' };
 }
 
-/** True when Gemini is the first managed provider with a usable key. */
-function geminiLeadsChain(): boolean {
-  const firstAvailable = aiProviderOrder().find((provider) => aiKey(provider));
-  return firstAvailable === 'GEMINI' || firstAvailable === undefined;
-}
-
-const TEXT_TIER_PROVIDER: Record<string, AiProvider | null> = {
-  mistral: 'MISTRAL',
-  groq: 'GROQ',
-  openrouter: 'OPENROUTER',
-  cerebras: null, // env-only providers keep their slot in the chain
-  cloudflare: null,
-};
-
-// ─── Build tier configs ───────────────────────────────────────────────────────
-function buildTextTiers(usage: any): TextTierConfig[] {
-  return orderByPriority(buildDefaultTextTiers(usage), (tier) => TEXT_TIER_PROVIDER[tier.name] ?? null);
-}
-
-function buildDefaultTextTiers(usage: any): TextTierConfig[] {
-  // Mistral first — best quality (2100+ medicines vs 1200 from Cerebras)
-  return [
-    {
-      name: 'mistral',
-      chunkSize: MISTRAL_CHUNK_SIZE,
-      delayMs: REQUEST_INTERVAL_MS,
-      available: () => !!(aiKey('MISTRAL') && usage.mistral < MISTRAL_DAILY_LIMIT),
-      processFn: async (chunk, i, total) => {
-        console.log(`  🌟 Mistral chunk ${i + 1}/${total} (${chunk.length} chars)`);
-        const apiKey = aiKey('MISTRAL')!;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-        try {
-          const resp = await fetch('https://api.mistral.ai/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({
-              model: MISTRAL_MODEL,
-              messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
-              ],
-              temperature: 0, max_tokens: 8192
-            }),
-            signal: controller.signal
-          });
-          if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-          if (!resp.ok) throw new Error(`Mistral status ${resp.status}`);
-          const data = await resp.json();
-          const content = data?.choices?.[0]?.message?.content;
-          if (!content) throw new Error('Empty response');
-          return parseJsonSafely(content);
-        } finally { clearTimeout(timeoutId); }
-      }
-    },
-    {
-      name: 'cerebras',
-      chunkSize: CEREBRAS_CHUNK_SIZE,
-      delayMs: 1000,
-      available: () => !!(process.env.CEREBRAS_API_KEY && ((usage as any).cerebras ?? 0) < CEREBRAS_DAILY_LIMIT),
-      processFn: async (chunk, i, total) => {
-        console.log(`  🧠 Cerebras chunk ${i + 1}/${total} (${chunk.length} chars)`);
-        const apiKey = process.env.CEREBRAS_API_KEY!;
-        const resp = await fetch('https://api.cerebras.ai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: 'llama3.1-8b',
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
-            ],
-            temperature: 0, max_tokens: 8192
-          })
-        });
-        if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-        if (!resp.ok) { const b = await resp.text().catch(() => ''); console.error(`Cerebras error body: ${b.substring(0, 200)}`); throw new Error(`Cerebras status ${resp.status}`); }
-        const data = await resp.json();
-        const content = data?.choices?.[0]?.message?.content;
-        if (!content) throw new Error('Empty response');
-        return parseJsonSafely(content);
-      }
-    },
-    {
-      name: 'groq',
-      chunkSize: GROQ_CHUNK_SIZE,
-      delayMs: 3000,
-      available: () => !!(aiKey('GROQ') && usage.groq < GROQ_DAILY_LIMIT),
-      processFn: async (chunk, i, total) => {
-        console.log(`  ⚡ Groq chunk ${i + 1}/${total} (${chunk.length} chars)`);
-        const apiKey = aiKey('GROQ')!;
-        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: 'llama-3.1-8b-instant',
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
-            ],
-            temperature: 0, max_tokens: 4096
-          })
-        });
-        if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-        if (!resp.ok) { const b = await resp.text().catch(() => ''); console.error(`Groq error body: ${b.substring(0, 200)}`); throw new Error(`Groq status ${resp.status}`); }
-        const data = await resp.json();
-        const content = data?.choices?.[0]?.message?.content;
-        if (!content) throw new Error('Empty response');
-        return parseJsonSafely(content);
-      }
-    },
-    {
-      name: 'cloudflare',
-      chunkSize: CLOUDFLARE_CHUNK_SIZE,
-      delayMs: REQUEST_INTERVAL_MS,
-      available: () => !!(process.env.CLOUDFLARE_API_TOKEN && usage.cloudflare < CLOUDFLARE_DAILY_LIMIT),
-      processFn: async (chunk, i, total) => {
-        console.log(`  ☁️ Cloudflare chunk ${i + 1}/${total} (${chunk.length} chars)`);
-        const apiKey = process.env.CLOUDFLARE_API_TOKEN!;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-        try {
-          const resp = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/${CF_MODEL}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({
-              messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: `Extract medicines from this text. Return ONLY JSON array:\n\n${chunk}` }
-              ],
-              max_tokens: 2048
-            }),
-            signal: controller.signal
-          });
-          if (resp.status === 429) { const err: any = new Error('RATE_LIMIT'); err.status = 429; throw err; }
-          if (!resp.ok) throw new Error(`Cloudflare status ${resp.status}`);
-          const data = await resp.json();
-          const content = data?.result?.response || '';
-          if (!content) throw new Error('Empty response');
-          return parseJsonSafely(content);
-        } finally { clearTimeout(timeoutId); }
-      }
-    },
-    {
-      name: 'openrouter',
-      chunkSize: OPENROUTER_CHUNK_SIZE,
-      delayMs: REQUEST_INTERVAL_MS,
-      available: () => !!aiKey('OPENROUTER'),
-      processFn: async (chunk, i, total) => {
-        console.log(`  🔄 OpenRouter chunk ${i + 1}/${total} (${chunk.length} chars)`);
-        const apiKey = aiKey('OPENROUTER')!;
-        const model = await findWorkingOpenRouterModel(apiKey);
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-        try {
-          const resp = await fetch(OPENROUTER_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({
-              model,
-              messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: chunk }
-              ],
-              temperature: 0, max_tokens: 4096
-            }),
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-          if (resp.status === 429) throw new Error('RATE_LIMIT');
-          if (!resp.ok) throw new Error(`OpenRouter status ${resp.status}`);
-          const data = await resp.json();
-          const content = data?.choices?.[0]?.message?.content || '';
-          if (!content) throw new Error('Empty response');
-          return parseJsonSafely(content);
-        } finally { clearTimeout(timeoutId); }
-      }
-    }
-  ];
+// ─── MAIN: parsePDFWithAI ─────────────────────────────────────────────────────
+export async function parsePDFWithAI(pdfBuffer: Buffer, ctx: AiCallContext): Promise<ParseResult> {
+  console.log(`\n📖 Starting PDF parsing sequence [${ctx.feature}]...`);
+  return runChain(ctx, { pdf: pdfBuffer, text: () => extractTextFromPDF(pdfBuffer) }, 'searchable');
 }
 
 // ─── MAIN: parseTextWithAI ────────────────────────────────────────────────────
-export async function parseTextWithAI(extractedText: string): Promise<ParseResult> {
-  console.log('\n📖 Starting 5-Tier TEXT parsing sequence...');
+export async function parseTextWithAI(extractedText: string, ctx: AiCallContext): Promise<ParseResult> {
+  console.log(`\n📖 Starting TEXT parsing sequence [${ctx.feature}]...`);
   if (!extractedText.trim()) {
     return { medicines: [], pdfType: 'scanned', errorCode: 'NO_TEXT', errorMessage: 'The provided text is empty.' };
   }
+  const cleanedText = cleanOcrText(extractedText);
+  return runChain(ctx, { pdf: null, text: async () => cleanedText }, 'scanned');
+}
 
+// ─── MAIN: parseImageWithGeminiVision (any image-capable provider) ───────────
+export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: string, ctx: AiCallContext): Promise<ParseResult> {
   await loadAiKeys();
   const usage = await getDailyUsage();
-  const cleanedText = cleanOcrText(extractedText);
+  const chain = buildChain(ctx.feature).filter((tier) => tier.supportsImage);
+  const log = attemptLogger(ctx);
+  const data = imageBuffer.toString('base64');
+  const errors: string[] = [];
 
-  const tryGeminiText = async (): Promise<ParseResult | null> => {
-    try {
-      if (!aiKey('GEMINI')) {
-        console.log('⚠️ No Gemini key configured. Skipping Gemini.');
-      } else if (usage.gemini >= GEMINI_DAILY_LIMIT) {
-        console.log('Gemini daily limit reached. Skipping Gemini.');
-      } else {
-        const result = await parseTextWithGemini(cleanedText);
-        if (result.medicines.length > 0) { await incrementUsage('gemini'); return result; }
-      }
-    } catch (error: any) {
-      if (error?.status === 429) console.log('Gemini rate limited, trying next tier...');
-      else console.error('Gemini error:', error?.message || error);
+  for (const [index, tier] of chain.entries()) {
+    if (!tier.available(usage)) {
+      errors.push(`${tier.label}: daily limit reached`);
+      continue;
     }
-    return null;
-  };
+    const started = Date.now();
+    try {
+      console.log(`🖼️ [Tier ${index + 1}] ${tier.label} Vision (${imageBuffer.length} bytes)...`);
+      const content = await tier.call({ user: INVOICE_IMAGE_PROMPT, timeoutMs: VISION_TIMEOUT_MS }, [{ mimeType, data }]);
+      console.log(`🖼️ ${tier.label} raw (first 300): ${content.substring(0, 300)}`);
+      const medicines = normalizeMedicines(parseJsonSafely(content));
+      logExtractedMedicines(medicines, tier.label);
 
-  // Gemini handles the whole text at once; it leads when first in priority,
-  // otherwise it is the fallback after the relay.
-  const geminiFirst = geminiLeadsChain();
-  if (geminiFirst) {
-    const result = await tryGeminiText();
-    if (result) return result;
+      // QUALITY CHECK (Groq): if more than 40% of rows have no batch/qty, fall back.
+      const lowQuality = tier.adapter === 'GROQ' &&
+        medicines.filter(m => !m.batchNo || m.batchNo === 'NA' || !m.quantity).length / (medicines.length || 1) > 0.4;
+      if (medicines.length > 0 && !lowQuality) {
+        await log.record(tier, started, true);
+        await incrementUsage(tier.usageField);
+        return { medicines: dedup(medicines), pdfType: 'scanned', provider: tier.label };
+      }
+      const reason = lowQuality ? 'low quality extraction' : 'no medicines extracted';
+      if (lowQuality) console.warn(`  ⚠️ ${tier.label} result was low quality (${medicines.length} meds), falling back...`);
+      errors.push(`${tier.label}: ${reason}`);
+      await log.record(tier, started, false, reason);
+    } catch (err) {
+      const msg = scrubKey(err instanceof Error ? err.message : String(err), tier.key);
+      console.warn(`  ❌ ${tier.label} Vision failed: ${msg}`);
+      errors.push(`${tier.label}: ${msg}`);
+      await log.record(tier, started, false, msg);
+    }
   }
 
-  // ─── RELAY MODE: Tiers 2-5 share remaining text ───────────────────
-  const usage2 = await getDailyUsage(); // refresh usage
-  const relayed = await relayParseText(cleanedText, buildTextTiers(usage2), 'scanned');
-  if (relayed.medicines.length > 0 || geminiFirst) return relayed;
-  return (await tryGeminiText()) ?? relayed;
+  await log.finish(chain.length ? 'No provider was available' : 'No image-capable AI provider configured');
+  console.error(`🖼️ All vision tiers failed: ${errors.join(' | ')}`);
+  return {
+    medicines: [], pdfType: 'scanned', errorCode: 'AI_FAILED',
+    errorMessage: chain.length
+      ? `All vision APIs failed. ${errors[0] || 'Please try again later.'}`
+      : 'No image-capable AI provider is configured.',
+  };
 }
 
 // ─── Legacy export (kept for backward compatibility) ──────────────────────────
-export async function parseMedicinesWithAI(rawOcrText: string): Promise<ParseResult> {
-  return parseTextWithAI(rawOcrText);
+export async function parseMedicinesWithAI(rawOcrText: string, ctx: AiCallContext): Promise<ParseResult> {
+  return parseTextWithAI(rawOcrText, ctx);
 }
-

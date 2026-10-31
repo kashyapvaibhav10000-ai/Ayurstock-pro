@@ -85,7 +85,7 @@ export async function PATCH(
     });
 
     // Re-parse the text
-    const result = await parseTextWithAI(job.pdfText);
+    const result = await parseTextWithAI(job.pdfText, { feature: 'MEDICINE_BATCH_REPARSE', shopId: auth.user.shopId });
 
     if (result.medicines.length > 0) {
       await prisma.pdfImportJob.update({

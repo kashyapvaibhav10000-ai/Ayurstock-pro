@@ -1,16 +1,21 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
-import { AiProvider } from '@prisma/client';
+import { AiFeature, AiProvider } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { AdapterId, getAdapter, legacyAdapter } from '@/lib/ai/providers';
 
 /**
- * AI provider key vault.
+ * AI provider vault.
  *
- * Keys are AES-256-GCM encrypted with AI_ENCRYPTION_KEY (32 bytes, hex or
- * base64, env only). Decrypted keys live only in this process's memory
- * cache and are never returned by any API or written to logs.
+ * Each AiProviderKey row is a provider instance: an adapter (API format),
+ * optional model / base URL and an encrypted key. Keys are AES-256-GCM
+ * encrypted with AI_ENCRYPTION_KEY (32 bytes, hex or base64, env only).
+ * Decrypted keys live only in this process's memory cache and are never
+ * returned by any API or written to logs.
  *
- * Resolution per provider: enabled DB key -> .env key -> provider skipped.
- * Chain order follows AiProviderKey.priority (lower first).
+ * Key per instance: stored key -> .env key (only the instance holding one of
+ * the four original providers' slot) -> none (instance skipped).
+ * The chain is the enabled instances with a key, by priority (lower first),
+ * unless a feature has its own order (AiFeatureRoute).
  */
 
 export const AI_PROVIDERS: AiProvider[] = ['GEMINI', 'GROQ', 'MISTRAL', 'OPENROUTER'];
@@ -22,8 +27,7 @@ const ENV_VAR: Record<AiProvider, string> = {
   OPENROUTER: 'OPENROUTER_API_KEY',
 };
 
-// Default chain when no priorities are stored (matches the parser's
-// historical order: Gemini, Mistral, Groq, OpenRouter).
+// Chain used when the database cannot be read (historical parser order).
 const DEFAULT_ORDER: AiProvider[] = ['GEMINI', 'MISTRAL', 'GROQ', 'OPENROUTER'];
 
 export function envKey(provider: AiProvider): string | null {
@@ -50,12 +54,19 @@ export function isVaultConfigured(): boolean {
   }
 }
 
-// The provider name is bound as additional authenticated data, so a
-// ciphertext copied onto another provider's row fails to decrypt.
-export function encryptKey(provider: AiProvider, plaintext: string) {
+/**
+ * Additional authenticated data binding a ciphertext to its row: the legacy
+ * provider name (keeps keys stored before instances existed decryptable),
+ * else the instance id. A ciphertext copied onto another row fails to decrypt.
+ */
+export function keyAad(row: { id: string; provider: AiProvider | null }): string {
+  return row.provider ?? row.id;
+}
+
+export function encryptKey(aad: string, plaintext: string) {
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', masterKey(), iv);
-  cipher.setAAD(Buffer.from(provider));
+  cipher.setAAD(Buffer.from(aad));
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   return {
     encryptedKey: encrypted.toString('base64'),
@@ -65,66 +76,130 @@ export function encryptKey(provider: AiProvider, plaintext: string) {
   };
 }
 
-function decryptKey(provider: AiProvider, row: { encryptedKey: string; iv: string; authTag: string }): string {
+function decryptKey(aad: string, row: { encryptedKey: string; iv: string; authTag: string }): string {
   const decipher = createDecipheriv('aes-256-gcm', masterKey(), Buffer.from(row.iv, 'base64'));
-  decipher.setAAD(Buffer.from(provider));
+  decipher.setAAD(Buffer.from(aad));
   decipher.setAuthTag(Buffer.from(row.authTag, 'base64'));
   return Buffer.concat([decipher.update(Buffer.from(row.encryptedKey, 'base64')), decipher.final()]).toString('utf8');
 }
 
+type KeyRow = { id: string; provider: AiProvider | null; encryptedKey: string | null; iv: string | null; authTag: string | null };
+
+function storedKey(row: KeyRow): string | null {
+  if (!row.encryptedKey || !row.iv || !row.authTag) return null;
+  return decryptKey(keyAad(row), { encryptedKey: row.encryptedKey, iv: row.iv, authTag: row.authTag });
+}
+
 // ─── Resolution cache ─────────────────────────────────────────────────────────
 
-interface ResolvedKeys {
-  keys: Partial<Record<AiProvider, { key: string; source: 'db' | 'env' }>>;
-  order: AiProvider[];
+export interface AiInstance {
+  id: string;
+  adapter: AdapterId;
+  displayName: string;
+  model: string | null;
+  baseUrl: string | null;
+  /** Original provider slot held by this instance (owns the .env fallback). */
+  provider: AiProvider | null;
+  enabled: boolean;
+  priority: number;
+  key: string | null;
+  keySource: 'db' | 'env' | null;
+}
+
+interface Snapshot {
+  instances: AiInstance[];
+  routes: Partial<Record<AiFeature, string[]>>;
   loadedAt: number;
 }
 
 // Changes made through this process invalidate immediately; the TTL covers
 // changes made by another server process.
 const CACHE_TTL_MS = 60_000;
-let cache: ResolvedKeys | null = null;
-let loading: Promise<ResolvedKeys> | null = null;
+let cache: Snapshot | null = null;
+let loading: Promise<Snapshot> | null = null;
 
 export function invalidateAiKeyCache() {
   cache = null;
   loading = null;
 }
 
-async function load(): Promise<ResolvedKeys> {
-  let rows: Awaited<ReturnType<typeof prisma.aiProviderKey.findMany>> = [];
-  try {
-    rows = await prisma.aiProviderKey.findMany();
-  } catch (error) {
-    console.error('AI key load failed; using .env keys only:', error instanceof Error ? error.message : 'unknown error');
-  }
-  const byProvider = new Map(rows.map((row) => [row.provider, row]));
-
-  const keys: ResolvedKeys['keys'] = {};
-  for (const provider of AI_PROVIDERS) {
-    const row = byProvider.get(provider);
-    if (row?.enabled && row.encryptedKey && row.iv && row.authTag) {
-      try {
-        keys[provider] = { key: decryptKey(provider, { encryptedKey: row.encryptedKey, iv: row.iv, authTag: row.authTag }), source: 'db' };
-        continue;
-      } catch {
-        console.error(`AI key for ${provider} could not be decrypted; falling back to .env`);
-      }
-    }
-    const fromEnv = envKey(provider);
-    if (fromEnv) keys[provider] = { key: fromEnv, source: 'env' };
-  }
-
-  const rank = (provider: AiProvider) => {
-    const row = byProvider.get(provider);
-    return row ? row.priority : 1000 + DEFAULT_ORDER.indexOf(provider);
-  };
-  const order = [...AI_PROVIDERS].sort((a, b) => rank(a) - rank(b) || DEFAULT_ORDER.indexOf(a) - DEFAULT_ORDER.indexOf(b));
-
-  return { keys, order, loadedAt: Date.now() };
+export function instanceName(row: { displayName: string | null; adapter: string }): string {
+  return row.displayName || getAdapter(row.adapter)?.name || row.adapter;
 }
 
-/** Refresh the in-memory key snapshot if stale. Call before using aiKey(). */
+/** Instances built from .env alone, for when the database is unreachable. */
+function envOnlyInstances(): AiInstance[] {
+  return DEFAULT_ORDER.map((provider, priority) => {
+    const key = envKey(provider);
+    return {
+      id: `env:${provider}`,
+      adapter: provider,
+      displayName: legacyAdapter(provider).name,
+      model: null,
+      baseUrl: null,
+      provider,
+      enabled: true,
+      priority,
+      key,
+      keySource: key ? ('env' as const) : null,
+    };
+  });
+}
+
+async function load(): Promise<Snapshot> {
+  let rows: Awaited<ReturnType<typeof prisma.aiProviderKey.findMany>>;
+  try {
+    rows = await prisma.aiProviderKey.findMany({ orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }] });
+  } catch (error) {
+    console.error('AI key load failed; using .env keys only:', error instanceof Error ? error.message : 'unknown error');
+    return { instances: envOnlyInstances(), routes: {}, loadedAt: Date.now() };
+  }
+
+  const instances: AiInstance[] = [];
+  for (const row of rows) {
+    if (!getAdapter(row.adapter)) {
+      console.error(`AI instance ${row.id} has unknown adapter ${row.adapter}; skipped`);
+      continue;
+    }
+    let key: string | null = null;
+    let keySource: AiInstance['keySource'] = null;
+    try {
+      key = storedKey(row);
+      if (key) keySource = 'db';
+    } catch {
+      console.error(`AI key for ${instanceName(row)} could not be decrypted; falling back to .env`);
+    }
+    if (!key && row.provider) {
+      key = envKey(row.provider);
+      if (key) keySource = 'env';
+    }
+    instances.push({
+      id: row.id,
+      adapter: row.adapter as AdapterId,
+      displayName: instanceName(row),
+      model: row.model,
+      baseUrl: row.baseUrl,
+      provider: row.provider,
+      enabled: row.enabled,
+      priority: row.priority,
+      key,
+      keySource,
+    });
+  }
+
+  const routes: Snapshot['routes'] = {};
+  try {
+    for (const route of await prisma.aiFeatureRoute.findMany()) {
+      if (route.instanceIds.length) routes[route.feature] = route.instanceIds;
+    }
+  } catch (error) {
+    console.error('AI feature routes load failed; using the global chain:', error instanceof Error ? error.message : 'unknown error');
+  }
+
+  return { instances, routes, loadedAt: Date.now() };
+}
+
+/** Refresh the in-memory snapshot if stale. Call before aiInstances()/aiChain(). */
 export async function loadAiKeys(): Promise<void> {
   if (cache && Date.now() - cache.loadedAt < CACHE_TTL_MS) return;
   if (!loading) {
@@ -137,84 +212,35 @@ export async function loadAiKeys(): Promise<void> {
   await loading;
 }
 
-/** Resolved key for a provider from the last snapshot (null = skip provider). */
-export function aiKey(provider: AiProvider): string | null {
-  if (cache) return cache.keys[provider]?.key ?? null;
-  return envKey(provider);
+/** Every instance, in global chain order (enabled or not, with or without key). */
+export function aiInstances(): AiInstance[] {
+  return cache?.instances ?? envOnlyInstances();
 }
 
-export function aiKeySource(provider: AiProvider): 'db' | 'env' | null {
-  return cache?.keys[provider]?.source ?? (envKey(provider) ? 'env' : null);
-}
-
-/** Fallback chain order of the managed providers. */
-export function aiProviderOrder(): AiProvider[] {
-  return cache?.order ?? DEFAULT_ORDER;
+/** Custom provider order for a feature, or null when it uses the global chain. */
+export function aiFeatureRoute(feature: AiFeature): string[] | null {
+  return cache?.routes[feature] ?? null;
 }
 
 /**
- * Reorder a provider chain by priority, keeping providers that are not
- * managed here (e.g. Cerebras, Cloudflare) in their original slots.
+ * Instances a feature calls, in order: its custom order if set, else the
+ * global chain. Disabled instances and instances without a key are left out.
  */
-export function orderByPriority<T>(items: T[], providerOf: (item: T) => AiProvider | null): T[] {
-  const order = aiProviderOrder();
-  const managed = items
-    .filter((item) => providerOf(item) !== null)
-    .sort((a, b) => order.indexOf(providerOf(a)!) - order.indexOf(providerOf(b)!));
-  let next = 0;
-  return items.map((item) => (providerOf(item) !== null ? managed[next++] : item));
-}
-
-// ─── Key test ─────────────────────────────────────────────────────────────────
-
-const TEST_TIMEOUT_MS = 10_000;
-
-/**
- * Minimal authenticated call per provider (model / key listing; no tokens
- * spent). Error text is scrubbed of the key before being returned.
- */
-export async function testProviderKey(provider: AiProvider, key: string): Promise<{ ok: boolean; latencyMs: number; error: string | null }> {
-  const request: { url: string; headers: Record<string, string> } =
-    provider === 'GEMINI'
-      ? { url: 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', headers: { 'x-goog-api-key': key } }
-      : provider === 'GROQ'
-        ? { url: 'https://api.groq.com/openai/v1/models', headers: { Authorization: `Bearer ${key}` } }
-        : provider === 'MISTRAL'
-          ? { url: 'https://api.mistral.ai/v1/models', headers: { Authorization: `Bearer ${key}` } }
-          : { url: 'https://openrouter.ai/api/v1/key', headers: { Authorization: `Bearer ${key}` } };
-
-  const scrub = (text: string) => (key ? text.split(key).join('[redacted]') : text).slice(0, 300);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TEST_TIMEOUT_MS);
-  const started = Date.now();
-  try {
-    const res = await fetch(request.url, { headers: request.headers, signal: controller.signal, cache: 'no-store' });
-    const latencyMs = Date.now() - started;
-    if (res.ok) return { ok: true, latencyMs, error: null };
-    let message = `HTTP ${res.status}`;
-    try {
-      const body = await res.json();
-      const detail = body?.error?.message || body?.message || body?.detail;
-      if (detail) message += `: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`;
-    } catch {
-      // non-JSON error body; status is enough
-    }
-    return { ok: false, latencyMs, error: scrub(message) };
-  } catch (error) {
-    const latencyMs = Date.now() - started;
-    const aborted = error instanceof Error && error.name === 'AbortError';
-    return { ok: false, latencyMs, error: aborted ? 'Timed out after 10s' : scrub(error instanceof Error ? error.message : 'Request failed') };
-  } finally {
-    clearTimeout(timer);
-  }
+export function aiChain(feature: AiFeature): AiInstance[] {
+  const usable = (instance: AiInstance | undefined): instance is AiInstance => Boolean(instance?.enabled && instance.key);
+  const instances = aiInstances();
+  const route = aiFeatureRoute(feature);
+  if (!route) return instances.filter(usable);
+  const byId = new Map(instances.map((instance) => [instance.id, instance]));
+  return route.map((id) => byId.get(id)).filter(usable);
 }
 
 /** Decrypt the stored key for a test. Server-only; never returned to clients. */
-export async function storedKeyForTest(provider: AiProvider): Promise<{ key: string; source: 'db' | 'env' } | null> {
-  const row = await prisma.aiProviderKey.findUnique({ where: { provider } });
-  if (row?.encryptedKey && row.iv && row.authTag) {
-    return { key: decryptKey(provider, { encryptedKey: row.encryptedKey, iv: row.iv, authTag: row.authTag }), source: 'db' };
-  }
-  const fromEnv = envKey(provider);
+export async function storedKeyForTest(id: string): Promise<{ key: string; source: 'db' | 'env' } | null> {
+  const row = await prisma.aiProviderKey.findUnique({ where: { id } });
+  if (!row) return null;
+  const key = storedKey(row);
+  if (key) return { key, source: 'db' };
+  const fromEnv = row.provider ? envKey(row.provider) : null;
   return fromEnv ? { key: fromEnv, source: 'env' } : null;
 }

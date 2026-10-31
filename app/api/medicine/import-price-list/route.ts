@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     if (extractedText && extractedText.trim().length > 0) {
       console.log('📝 [import-price-list] Using pre-extracted text from OCR');
 
-      const result = await parseTextWithAI(extractedText);
+      const result = await parseTextWithAI(extractedText, { feature: 'INVOICE_IMPORT', shopId: auth.user.shopId });
 
       if (result.errorCode || result.medicines.length === 0) {
         return NextResponse.json({
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     if (isImage) {
       console.log('🖼️ [import-price-list] Processing with Vision API:', file.name);
       try {
-        const result = await parseImageWithGeminiVision(buffer, file.type);
+        const result = await parseImageWithGeminiVision(buffer, file.type, { feature: 'INVOICE_IMPORT', shopId: auth.user.shopId });
 
         if (result.errorCode || result.medicines.length === 0) {
           return NextResponse.json({
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Path C: PDF file ────────────────────────────────────────────
-    const result = await parsePDFWithAI(buffer);
+    const result = await parsePDFWithAI(buffer, { feature: 'INVOICE_IMPORT', shopId: auth.user.shopId });
 
     // Scanned PDF — let UI offer client-side OCR
     if (result.errorCode === 'NO_TEXT') {

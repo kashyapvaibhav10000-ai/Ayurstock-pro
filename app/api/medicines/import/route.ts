@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Fire and forget
-    processJobInBackground(job.id, buffer, extractedText).catch(console.error);
+    processJobInBackground(job.id, auth.user.shopId, buffer, extractedText).catch(console.error);
 
     return NextResponse.json({ success: true, jobId: job.id }, { status: 202 });
 
@@ -66,13 +66,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function processJobInBackground(jobId: string, pdfBuffer: Buffer | null, extractedText: string | null) {
+async function processJobInBackground(jobId: string, shopId: string, pdfBuffer: Buffer | null, extractedText: string | null) {
   try {
+    const ctx = { feature: 'MEDICINE_IMPORT' as const, shopId };
     let result;
     if (extractedText && extractedText.trim().length > 0) {
-      result = await parseTextWithAI(extractedText);
+      result = await parseTextWithAI(extractedText, ctx);
     } else if (pdfBuffer) {
-      result = await parsePDFWithAI(pdfBuffer);
+      result = await parsePDFWithAI(pdfBuffer, ctx);
     } else {
       throw new Error('No input provided');
     }
