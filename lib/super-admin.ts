@@ -18,9 +18,21 @@ function allowlist(name: 'SUPER_ADMIN_EMAILS' | 'SUPER_ADMIN_USERNAMES'): Set<st
 }
 
 export function isSuperAdmin(user: Pick<AuthUser, 'role' | 'email' | 'username'> | null | undefined): boolean {
-  if (!user || user.role !== 'ADMIN') return false;
-  if (user.email && allowlist('SUPER_ADMIN_EMAILS').has(user.email.trim().toLowerCase())) return true;
-  return Boolean(user.username && allowlist('SUPER_ADMIN_USERNAMES').has(user.username.trim().toLowerCase()));
+  return superAdminVia(user).length > 0;
+}
+
+/**
+ * Which identifiers make this user a super-admin. The UI warns before the
+ * user changes one of them, since the allowlist lives in the server .env.
+ */
+export function superAdminVia(
+  user: { role: string; email?: string | null; username?: string | null } | null | undefined
+): Array<'email' | 'username'> {
+  if (!user || user.role !== 'ADMIN') return [];
+  const via: Array<'email' | 'username'> = [];
+  if (user.email && allowlist('SUPER_ADMIN_EMAILS').has(user.email.trim().toLowerCase())) via.push('email');
+  if (user.username && allowlist('SUPER_ADMIN_USERNAMES').has(user.username.trim().toLowerCase())) via.push('username');
+  return via;
 }
 
 /** Authenticated super-admin for this request, or null. */

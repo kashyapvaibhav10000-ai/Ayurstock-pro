@@ -18,6 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { useUsernameAvailability, usernameBlocked } from "@/hooks/use-username-availability"
 import UsernameStatusLine from "@/components/settings/username-status"
+import { superAdminIdentifierWarning } from "@/lib/super-admin-warning"
 
 // Interfaces mapping to Prisma models
 interface User {
@@ -25,6 +26,8 @@ interface User {
   name: string
   email: string
   username?: string | null
+  phone?: string | null
+  hasPin?: boolean
   role: string
   isActive: boolean
   createdAt?: string
@@ -36,13 +39,29 @@ const userSchema = z.object({
   email: z.string().email("Invalid email format"),
   // Optional login name; rules checked live and by the API.
   username: z.string().optional(),
-  role: z.enum(["ADMIN", "MANAGER", "CASHIER"]),
+  // Optional: a disabled role select submits nothing (role unchanged).
+  role: z.enum(["ADMIN", "MANAGER", "CASHIER"]).optional(),
   password: z.string().min(8, "Password must be strictly at least 8 characters").optional(),
+  phone: z.string().max(20, "Phone is too long").optional(),
+  // Blank = keep the current PIN.
+  pin: z.string().regex(/^(\d{4})?$/, "PIN must be exactly 4 digits").optional(),
+  removePin: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  // Own account only: needed to change your email or username.
+  currentPassword: z.string().optional(),
 })
 
-const passwordSchema = z.object({
-  newPassword: z.string().min(8, "Password must be strictly at least 8 characters"),
-})
+const passwordSchema = z
+  .object({
+    newPassword: z.string().min(8, "Password must be strictly at least 8 characters"),
+    // Own account only.
+    currentPassword: z.string().optional(),
+    confirmPassword: z.string().optional(),
+  })
+  .refine((data) => data.confirmPassword === undefined || data.confirmPassword === data.newPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
 
 type UserFormData = z.infer<typeof userSchema>
 type PasswordFormData = z.infer<typeof passwordSchema>
@@ -50,6 +69,8 @@ type PasswordFormData = z.infer<typeof passwordSchema>
 export default function UserSettings() {
   const [users, setUsers] = useState<User[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  // Identifiers that make you a super-admin via the server .env allowlist.
+  const [superAdminVia, setSuperAdminVia] = useState<Array<"email" | "username">>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -100,6 +121,7 @@ export default function UserSettings() {
       }
       
       setCurrentUserId(data.currentUserId)
+      setSuperAdminVia(data.currentUserSuperAdminVia || [])
       setUsers(data.users)
       setError(null)
     } catch (err) {
@@ -110,6 +132,22 @@ export default function UserSettings() {
     }
   }
 
+  // The server enforces this too; here it only disables controls and explains why.
+  const activeAdminCount = users.filter(u => u.role === "ADMIN" && u.isActive).length
+  const isLastActiveAdmin = (user: User | null) =>
+    Boolean(user && user.role === "ADMIN" && user.isActive && activeAdminCount <= 1)
+  const LAST_ADMIN_TIP = "This is the shop's last active Admin. Make another user an active Admin first."
+
+  const editingSelf = Boolean(editingUser && editingUser.id === currentUserId)
+  const passwordSelf = Boolean(passwordUser && passwordUser.id === currentUserId)
+  const editedEmail = (watch("email") || "").trim().toLowerCase()
+  const editedUsername = (watch("username") || "").trim().toLowerCase()
+  const selfEmailChanged = editingSelf && editedEmail !== editingUser?.email
+  const selfUsernameChanged = editingSelf && editedUsername !== (editingUser?.username ?? "")
+  const selfSuperAdminWarning = editingSelf
+    ? superAdminIdentifierWarning(superAdminVia, { email: selfEmailChanged, username: selfUsernameChanged })
+    : null
+
   const openAddModal = () => {
     reset({ name: "", email: "", username: "", password: "", role: "MANAGER" })
     setIsAddOpen(true)
@@ -117,13 +155,25 @@ export default function UserSettings() {
 
   const openEditModal = (user: User) => {
     setEditingUser(user)
-    reset({ name: user.name, email: user.email, username: user.username || "", role: user.role as any })
+    reset({
+      name: user.name,
+      email: user.email,
+      username: user.username || "",
+      role: user.role as any,
+      phone: user.phone || "",
+      pin: "",
+      removePin: false,
+      isActive: user.isActive,
+      currentPassword: "",
+    })
     setIsEditOpen(true)
   }
 
   const openPasswordModal = (user: User) => {
     setPasswordUser(user)
-    resetPassword({ newPassword: "" })
+    resetPassword(user.id === currentUserId
+      ? { newPassword: "", currentPassword: "", confirmPassword: "" }
+      : { newPassword: "" })
     setIsPasswordOpen(true)
   }
 
@@ -157,11 +207,38 @@ export default function UserSettings() {
 
   const handleEditSubmitForm = async (data: UserFormData) => {
     if (!editingUser) return
+    const isSelf = editingUser.id === currentUserId
+
+    if (isSelf && (selfEmailChanged || selfUsernameChanged) && !data.currentPassword) {
+      toast.error("Enter your current password to change your email or username.")
+      return
+    }
+    if (selfSuperAdminWarning && !confirm(`${selfSuperAdminWarning}\n\nSave anyway?`)) return
+    if (isSelf && editingUser.isActive && data.isActive === false &&
+        !confirm("Deactivate your own account? You will be signed out and need another Admin to reactivate you.")) return
 
     try {
-      // Optimistic UI Update specifically for Edit
       const username = data.username?.trim().toLowerCase() || null
-      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, name: data.name, email: data.email, username, role: data.role } : u))
+      const payload: Record<string, unknown> = {
+        name: data.name,
+        email: data.email,
+        username,
+        role: data.role,
+        phone: data.phone?.trim() || null,
+      }
+      // PIN: only sent when set or removed, so blank keeps the current one.
+      if (data.removePin) payload.pin = null
+      else if (data.pin) payload.pin = data.pin
+      if (isSelf) {
+        payload.isActive = data.isActive
+        if (selfEmailChanged || selfUsernameChanged) payload.currentPassword = data.currentPassword
+      }
+
+      // Optimistic UI Update specifically for Edit
+      setUsers(prev => prev.map(u => u.id === editingUser.id
+        ? { ...u, name: data.name, email: data.email, username, role: data.role ?? u.role, phone: data.phone || null,
+            hasPin: data.removePin ? false : data.pin ? true : u.hasPin, isActive: isSelf ? data.isActive ?? u.isActive : u.isActive }
+        : u))
       setIsEditOpen(false)
       
       toast.info("Saving changes to profile...")
@@ -170,7 +247,7 @@ export default function UserSettings() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         // Notice we do NOT send the password here, enforcing backend rule
-        body: JSON.stringify({ name: data.name, email: data.email, username, role: data.role }),
+        body: JSON.stringify(payload),
       })
       
       const result = await res.json()
@@ -179,6 +256,7 @@ export default function UserSettings() {
         fetchUsers() // Revert optimistic update on failure
       } else {
         toast.success("Profile fully updated!")
+        if (isSelf) fetchUsers() // own row may affect last-admin state and super-admin hints
       }
     } catch (err) {
       toast.error("Network error while updating user.")
@@ -193,7 +271,9 @@ export default function UserSettings() {
       const res = await fetch(`/api/users/change-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: passwordUser.id, newPassword: data.newPassword }),
+        body: JSON.stringify(passwordUser.id === currentUserId
+          ? { userId: passwordUser.id, newPassword: data.newPassword, currentPassword: data.currentPassword, confirmPassword: data.confirmPassword ?? "" }
+          : { userId: passwordUser.id, newPassword: data.newPassword }),
       })
       
       const result = await res.json()
@@ -328,12 +408,15 @@ export default function UserSettings() {
                     </span>
                   </td>
                   <td className="p-3 text-right">
-                    <button onClick={() => openEditModal(user)} disabled={isSelf} className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Edit</button>
+                    <button onClick={() => openEditModal(user)} className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Edit</button>
                     <span className="text-muted-foreground">|</span>
-                    <button onClick={() => openPasswordModal(user)} disabled={isSelf} className="text-orange-500 hover:text-orange-700 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Reset Password</button>
+                    <button onClick={() => openPasswordModal(user)} className="text-orange-500 hover:text-orange-700 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Reset Password</button>
                     <span className="text-muted-foreground">|</span>
                     {user.isActive ? (
-                      <button onClick={() => handleDelete(user)} disabled={isSelf} className="text-red-500 hover:text-red-700 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Delete</button>
+                      // Wrapped so the tooltip shows even though the button is disabled.
+                      <span title={isSelf ? "You can't delete your own account" : undefined}>
+                        <button onClick={() => handleDelete(user)} disabled={isSelf} className="text-red-500 hover:text-red-700 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Delete</button>
+                      </span>
                     ) : (
                       <button onClick={() => handleReactivate(user)} disabled={isSelf} className="text-green-600 hover:text-green-800 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Reactivate</button>
                     )}
@@ -417,15 +500,65 @@ export default function UserSettings() {
                   <Input id="edit-username" autoComplete="off" spellCheck={false} {...register("username")} placeholder="Not set" />
                   <UsernameStatusLine status={usernameStatus} />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-phone">Phone</Label>
+                    <Input id="edit-phone" type="tel" {...register("phone")} placeholder="Not set" />
+                    {errors.phone && <p className="text-[10px] text-red-500">{errors.phone.message}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-pin">POS PIN</Label>
+                    <Input
+                      id="edit-pin"
+                      inputMode="numeric"
+                      maxLength={4}
+                      autoComplete="off"
+                      disabled={watch("removePin")}
+                      {...register("pin")}
+                      placeholder={editingUser?.hasPin ? "•••• (keep)" : "4 digits"}
+                    />
+                    {errors.pin && <p className="text-[10px] text-red-500">{errors.pin.message}</p>}
+                    {editingUser?.hasPin && (
+                      <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <input type="checkbox" {...register("removePin")} />
+                        Remove PIN
+                      </label>
+                    )}
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-role">Account Role</Label>
-                  <select {...register("role")} disabled={editingUser?.role === 'ADMIN'} className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:bg-surface-muted disabled:cursor-not-allowed">
-                     <option value="CASHIER">Cashier</option>
-                     <option value="MANAGER">Manager</option>
-                     <option value="ADMIN">Admin</option>
-                  </select>
-                  {editingUser?.role === 'ADMIN' && <p className="text-[10px] text-muted-foreground">Admin roles cannot be demoted directly from standard edit view to prevent accidental lockouts.</p>}
+                  {/* Wrapped so the tooltip shows even though the select is disabled. */}
+                  <div title={editingSelf && isLastActiveAdmin(editingUser) ? LAST_ADMIN_TIP : undefined}>
+                    <select
+                      id="edit-role"
+                      {...register("role")}
+                      disabled={editingUser?.role === 'ADMIN' && (!editingSelf || isLastActiveAdmin(editingUser))}
+                      className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:bg-surface-muted disabled:cursor-not-allowed"
+                    >
+                      <option value="CASHIER">Cashier</option>
+                      <option value="MANAGER">Manager</option>
+                      <option value="ADMIN">Admin</option>
+                    </select>
+                  </div>
+                  {editingUser?.role === 'ADMIN' && !editingSelf && <p className="text-[10px] text-muted-foreground">Another Admin manages their own account.</p>}
+                  {editingSelf && isLastActiveAdmin(editingUser) && <p className="text-[10px] text-muted-foreground">{LAST_ADMIN_TIP}</p>}
                 </div>
+                {editingSelf && (
+                  <div title={isLastActiveAdmin(editingUser) ? LAST_ADMIN_TIP : undefined}>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" {...register("isActive")} disabled={isLastActiveAdmin(editingUser)} />
+                      Account active
+                    </label>
+                  </div>
+                )}
+                {editingSelf && (selfEmailChanged || selfUsernameChanged) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-current-password">Current Password</Label>
+                    <Input id="edit-current-password" type="password" autoComplete="current-password" {...register("currentPassword")} placeholder="Required to change your email or username" />
+                  </div>
+                )}
+                {selfSuperAdminWarning && <p className="text-[11px] text-amber-600">{selfSuperAdminWarning}</p>}
               </div>
               <DialogFooter>
                  <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
@@ -444,15 +577,37 @@ export default function UserSettings() {
             {isPasswordOpen && (
             <form onSubmit={handlePasswordSubmit(handlePasswordChange)}>
               <DialogHeader>
-                <DialogTitle>Admin Password Override</DialogTitle>
+                <DialogTitle>{passwordSelf ? "Change Your Password" : "Admin Password Override"}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                 <p className="text-xs text-muted-foreground">You are securely overriding the password for <span className="font-bold text-foreground">{passwordUser?.email}</span>.</p>
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">New Password (Min 8 Characters)</Label>
-                  <Input id="new-password" type="text" {...registerPassword("newPassword")} placeholder="Must be 8+ characters..." />
-                  {passwordErrors.newPassword && <p className="text-[10px] text-red-500">{passwordErrors.newPassword.message}</p>}
-                </div>
+                {passwordSelf ? (
+                  <>
+                    <p className="text-xs text-muted-foreground">Change your own password.</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="current-password">Current Password</Label>
+                      <Input id="current-password" type="password" autoComplete="current-password" {...registerPassword("currentPassword")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="new-password">New Password (Min 8 Characters)</Label>
+                      <Input id="new-password" type="password" autoComplete="new-password" {...registerPassword("newPassword")} />
+                      {passwordErrors.newPassword && <p className="text-[10px] text-red-500">{passwordErrors.newPassword.message}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password">Confirm New Password</Label>
+                      <Input id="confirm-password" type="password" autoComplete="new-password" {...registerPassword("confirmPassword")} />
+                      {passwordErrors.confirmPassword && <p className="text-[10px] text-red-500">{passwordErrors.confirmPassword.message}</p>}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground">You are securely overriding the password for <span className="font-bold text-foreground">{passwordUser?.email}</span>.</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="new-password">New Password (Min 8 Characters)</Label>
+                      <Input id="new-password" type="text" {...registerPassword("newPassword")} placeholder="Must be 8+ characters..." />
+                      {passwordErrors.newPassword && <p className="text-[10px] text-red-500">{passwordErrors.newPassword.message}</p>}
+                    </div>
+                  </>
+                )}
               </div>
               <DialogFooter>
                  <Button type="button" variant="outline" onClick={() => setIsPasswordOpen(false)}>Abort</Button>

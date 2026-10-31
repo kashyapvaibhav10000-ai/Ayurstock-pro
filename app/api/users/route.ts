@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, hashPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { USERNAME_TAKEN, isUsernameConflict, parseUsernameInput } from '@/lib/username';
+import { superAdminVia } from '@/lib/super-admin';
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,6 +25,8 @@ export async function GET(req: NextRequest) {
         name: true,
         email: true,
         username: true,
+        phone: true,
+        pin: true,
         role: true,
         isActive: true,
         createdAt: true,
@@ -33,7 +36,14 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({ success: true, currentUserId: auth.user.id, users });
+    return NextResponse.json({
+      success: true,
+      currentUserId: auth.user.id,
+      // Identifiers that make the caller a super-admin (UI warns before changing them).
+      currentUserSuperAdminVia: superAdminVia(auth.user),
+      // The PIN itself never leaves the server.
+      users: users.map(({ pin, ...user }) => ({ ...user, hasPin: Boolean(pin) })),
+    });
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });

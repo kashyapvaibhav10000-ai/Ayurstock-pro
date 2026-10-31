@@ -1,7 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { Prisma } from '@prisma/client';
+import { verifyAuth, verifyPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { USERNAME_TAKEN, isUsernameConflict, parseUsernameInput } from '@/lib/username';
+import {
+  CURRENT_PASSWORD_REQUIRED,
+  CURRENT_PASSWORD_WRONG,
+  LastAdminError,
+  PIN_TAKEN,
+  parsePinInput,
+  pinTakenInShop,
+  updateUserKeepingAnAdmin,
+} from '@/lib/user-guards';
+
+const USER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  username: true,
+  phone: true,
+  pin: true,
+  role: true,
+  isActive: true,
+  createdAt: true,
+} as const;
+
+/** Never send the PIN itself to the browser. */
+function publicUser<T extends { pin: string | null }>({ pin, ...user }: T) {
+  return { ...user, hasPin: Boolean(pin) };
+}
+
+function fail(message: string, status = 400) {
+  return NextResponse.json({ success: false, message }, { status });
+}
+
+/** Errors any user write can raise, as clear 400/409 responses. */
+function writeError(error: unknown) {
+  if (error instanceof LastAdminError) return fail(error.message);
+  if (isUsernameConflict(error)) return fail(USERNAME_TAKEN);
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    // Another admin change ran at the same moment; the last-admin check could not be confirmed.
+    if (error.code === 'P2034') return fail('Another change to this shop\'s admins happened at the same time. Try again.', 409);
+    if (error.code === 'P2002') return fail('Another user in this shop already uses this email.');
+  }
+  return null;
+}
 
 export async function PUT(
   req: NextRequest,
@@ -11,17 +54,19 @@ export async function PUT(
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return fail('Unauthorized', 401);
     }
 
     if (auth.user.role !== 'ADMIN') {
-      return NextResponse.json({ success: false, message: 'Forbidden: Admins only' }, { status: 403 });
+      return fail('Forbidden: Admins only', 403);
     }
 
-    const { name, email, role, isActive, username: usernameInput } = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== 'object') return fail('Invalid request body');
+    const { name, email, role, isActive, phone, currentPassword } = body;
 
     if (!userId) {
-      return NextResponse.json({ success: false, message: 'User ID is required' }, { status: 400 });
+      return fail('User ID is required');
     }
 
     // Security: Fetch target user and ensure they belong to the same shop!
@@ -33,68 +78,80 @@ export async function PUT(
     });
 
     if (!targetUser) {
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
+      return fail('User not found', 404);
     }
 
-    // Role Escalation & Last Admin Guard: Prevent modifying another Admin
-    if (targetUser.role === 'ADMIN') {
-       if (auth.user.id !== targetUser.id) {
-         return NextResponse.json({ success: false, message: 'Cannot demote or deactivate another Admin account' }, { status: 403 });
-       }
-       
-       // If the admin is modifying THEMSELVES (demoting or deactivating)
-       if (role !== 'ADMIN' || isActive === false) {
-         const adminCount = await prisma.user.count({
-           where: { shopId: auth.user.shopId, role: 'ADMIN', isActive: true }
-         });
-         
-         if (adminCount <= 1) {
-           return NextResponse.json({ success: false, message: 'Cannot demote or deactivate the last active Admin account in the shop' }, { status: 403 });
-         }
-       }
+    const isSelf = targetUser.id === auth.user.id;
+
+    // Role Escalation Guard: an admin manages their own account, never another admin's.
+    if (targetUser.role === 'ADMIN' && !isSelf) {
+      return fail('Cannot edit another Admin account', 403);
+    }
+
+    // Security: Ensure only valid roles are assigned
+    const validRoles = ['ADMIN', 'MANAGER', 'CASHIER'];
+    if (role !== undefined && !validRoles.includes(role)) {
+      return fail('Invalid role provided');
+    }
+    if (isActive !== undefined && typeof isActive !== 'boolean') {
+      return fail('isActive must be true or false');
+    }
+
+    const normalizedEmail = typeof email === 'string' && email.trim() ? email.toLowerCase().trim() : undefined;
+    if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return fail('Invalid email address');
     }
 
     // username: undefined = unchanged, null / '' = cleared
-    const parsedUsername = parseUsernameInput(usernameInput);
+    const parsedUsername = parseUsernameInput(body.username);
     if (!parsedUsername.ok) {
-      return NextResponse.json({ success: false, message: parsedUsername.error }, { status: 400 });
+      return fail(parsedUsername.error);
     }
     const username = parsedUsername.username;
     if (username) {
       const owner = await prisma.user.findUnique({ where: { username }, select: { id: true } });
       if (owner && owner.id !== userId) {
-        return NextResponse.json({ success: false, message: USERNAME_TAKEN }, { status: 400 });
+        return fail(USERNAME_TAKEN);
       }
     }
 
-    // Security: Ensure only valid roles are assigned
-    const validRoles = ['ADMIN', 'MANAGER', 'CASHIER'];
-    if (role && !validRoles.includes(role)) {
-      return NextResponse.json({ success: false, message: 'Invalid role provided' }, { status: 400 });
+    const parsedPin = parsePinInput(body.pin);
+    if (!parsedPin.ok) return fail(parsedPin.error);
+    if (parsedPin.pin && (await pinTakenInShop(auth.user.shopId, parsedPin.pin, userId))) {
+      return fail(PIN_TAKEN);
+    }
+
+    if (phone !== undefined && phone !== null && (typeof phone !== 'string' || phone.trim().length > 20)) {
+      return fail('Invalid phone number');
+    }
+
+    // Changing your own login identifiers needs your current password.
+    const emailChanged = normalizedEmail !== undefined && normalizedEmail !== targetUser.email;
+    const usernameChanged = username !== undefined && username !== targetUser.username;
+    if (isSelf && (emailChanged || usernameChanged)) {
+      if (typeof currentPassword !== 'string' || !currentPassword) return fail(CURRENT_PASSWORD_REQUIRED);
+      if (!verifyPassword(currentPassword, targetUser.passwordHash)) return fail(CURRENT_PASSWORD_WRONG);
     }
 
     // Explicitly doing a targeted update of ONLY safe fields. Password is NEVER updated here.
-    const updatedUser = await prisma.user.update({
-      where: {
-        id: userId
-      },
-      data: {
-        name: name ? name.trim() : undefined,
-        email: email ? email.toLowerCase().trim() : undefined,
-        username,
-        role: role !== undefined ? role : undefined,
-        isActive: isActive !== undefined ? isActive : undefined,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-      }
-    });
+    const data = {
+      name: typeof name === 'string' && name.trim() ? name.trim() : undefined,
+      email: normalizedEmail,
+      username,
+      phone: phone === undefined ? undefined : phone ? String(phone).trim() : null,
+      pin: parsedPin.pin,
+      role: role !== undefined ? role : undefined,
+      isActive: isActive !== undefined ? isActive : undefined,
+    };
+
+    // Demoting or deactivating an active admin must leave the shop another active admin.
+    const losesAdmin =
+      targetUser.role === 'ADMIN' && targetUser.isActive && ((role !== undefined && role !== 'ADMIN') || isActive === false);
+    const updatedUser = losesAdmin
+      ? await updateUserKeepingAnAdmin(auth.user.shopId, isActive === false ? 'deactivate' : 'demote', (tx) =>
+          tx.user.update({ where: { id: userId }, data, select: USER_SELECT })
+        )
+      : await prisma.user.update({ where: { id: userId }, data, select: USER_SELECT });
 
     // Log the action securely
     await prisma.activityLog.create({
@@ -102,18 +159,22 @@ export async function PUT(
         shopId: auth.user.shopId,
         userId: auth.user.id,
         action: 'UPDATE_USER',
-        meta: JSON.stringify({ targetEmail: updatedUser.email, targetUsername: updatedUser.username, targetRole: updatedUser.role })
+        meta: JSON.stringify({
+          targetEmail: updatedUser.email,
+          targetUsername: updatedUser.username,
+          targetRole: updatedUser.role,
+          self: isSelf,
+          pinChanged: parsedPin.pin !== undefined,
+        })
       }
     });
 
-    return NextResponse.json({ success: true, user: updatedUser });
+    return NextResponse.json({ success: true, user: publicUser(updatedUser) });
   } catch (error) {
-    // Lost a race with another request for the same username.
-    if (isUsernameConflict(error)) {
-      return NextResponse.json({ success: false, message: USERNAME_TAKEN }, { status: 400 });
-    }
+    const response = writeError(error);
+    if (response) return response;
     console.error('Error updating user:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return fail('Internal server error', 500);
   }
 }
 
@@ -125,17 +186,16 @@ export async function DELETE(
   try {
     const auth = await verifyAuth(req);
     if (!auth.authenticated || !auth.user) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      return fail('Unauthorized', 401);
     }
 
     if (auth.user.role !== 'ADMIN') {
-      return NextResponse.json({ success: false, message: 'Forbidden: Admins only' }, { status: 403 });
+      return fail('Forbidden: Admins only', 403);
     }
-
 
     // Self-delete protection
     if (userId === auth.user.id) {
-      return NextResponse.json({ success: false, message: 'You cannot delete your own account' }, { status: 400 });
+      return fail("You can't delete your own account");
     }
 
     // Security: Fetch target user and ensure they belong to the same shop
@@ -147,33 +207,19 @@ export async function DELETE(
     });
 
     if (!targetUser) {
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
-    }
-
-    // Last Admin Safety Net: If the user IS an admin (we already blocked deleting OTHER admins, but let's be double sure it's not the LAST admin)
-    if (targetUser.role === 'ADMIN') {
-       const adminCount = await prisma.user.count({
-           where: { shopId: auth.user.shopId, role: 'ADMIN', isActive: true }
-       });
-       if (adminCount <= 1) {
-           return NextResponse.json({ success: false, message: 'Cannot delete the last active Admin account in the shop' }, { status: 403 });
-       }
+      return fail('User not found', 404);
     }
 
     // Role Escalation Guard: Prevent deleting another Admin
-    if (targetUser.role === 'ADMIN' && targetUser.id !== auth.user.id) {
-      return NextResponse.json({ success: false, message: 'Cannot delete another Admin account' }, { status: 403 });
+    if (targetUser.role === 'ADMIN') {
+      return fail('Cannot delete another Admin account', 403);
     }
 
-    // HARD DELETE PREVENTED: We do a Soft Delete instead so any previous invoices linked to this user don't break
-    await prisma.user.update({
-      where: {
-        id: userId
-      },
-      data: {
-        isActive: false
-      }
-    });
+    // HARD DELETE PREVENTED: We do a Soft Delete instead so any previous invoices linked to this user don't break.
+    // Last-admin check kept as a safety net in case the admin rules above change.
+    await updateUserKeepingAnAdmin(auth.user.shopId, 'delete', (tx) =>
+      tx.user.update({ where: { id: userId }, data: { isActive: false } })
+    );
 
     // Log the DELETE (Deactivation) operation securely
     await prisma.activityLog.create({
@@ -187,7 +233,9 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: 'User successfully deactivated (soft deleted)' });
   } catch (error) {
+    const response = writeError(error);
+    if (response) return response;
     console.error('Error deleting user:', error);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return fail('Internal server error', 500);
   }
 }

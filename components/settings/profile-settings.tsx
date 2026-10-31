@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useUsernameAvailability, usernameBlocked } from '@/hooks/use-username-availability';
 import UsernameStatusLine from '@/components/settings/username-status';
+import { superAdminIdentifierWarning } from '@/lib/super-admin-warning';
 
 export default function ProfileSettings() {
   const router = useRouter();
@@ -17,9 +18,18 @@ export default function ProfileSettings() {
     phone: '',
     password: '',
     avatarUrl: '',
+    pin: '',
+    currentPassword: '',
   });
-  // Saved username, so an unchanged value is not reported as taken.
+  // Saved values: unchanged username is not "taken"; email/username changes need the current password.
   const [savedUsername, setSavedUsername] = useState<string | null>(null);
+  const [savedEmail, setSavedEmail] = useState('');
+  const [account, setAccount] = useState<{ role: string; hasPin: boolean; superAdminVia: Array<'email' | 'username'> }>({
+    role: '',
+    hasPin: false,
+    superAdminVia: [],
+  });
+  const [removePin, setRemovePin] = useState(false);
   const usernameStatus = useUsernameAvailability(formData.username, savedUsername);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -38,8 +48,12 @@ export default function ProfileSettings() {
             phone: profile.phone || '',
             password: '',
             avatarUrl: profile.avatarUrl || '',
+            pin: '',
+            currentPassword: '',
           });
           setSavedUsername(profile.username || null);
+          setSavedEmail(profile.email || '');
+          setAccount({ role: profile.role, hasPin: Boolean(profile.hasPin), superAdminVia: profile.superAdminVia || [] });
           setPreviewUrl(profile.avatarUrl || '');
         }
       } catch (error) {
@@ -84,14 +98,35 @@ export default function ProfileSettings() {
     reader.readAsDataURL(file);
   };
 
+  const emailChanged = formData.email.trim().toLowerCase() !== savedEmail;
+  const usernameChanged = formData.username.trim().toLowerCase() !== (savedUsername ?? '');
+  const needsCurrentPassword = emailChanged || usernameChanged || Boolean(formData.password);
+  const isAdmin = account.role === 'ADMIN';
+
   const handleSave = async () => {
+    if (needsCurrentPassword && !formData.currentPassword) {
+      toast.error('Enter your current password to change your email, username or password.');
+      return;
+    }
+    if (formData.pin && !/^\d{4}$/.test(formData.pin)) {
+      toast.error('PIN must be exactly 4 digits.');
+      return;
+    }
+    const warning = superAdminIdentifierWarning(account.superAdminVia, { email: emailChanged, username: usernameChanged });
+    if (warning && !window.confirm(`${warning}\n\nSave anyway?`)) return;
+
     setSaving(true);
     try {
       const response = await axios.put('/api/settings/profile', {
-        ...formData,
+        name: formData.name,
+        email: formData.email,
+        avatarUrl: formData.avatarUrl,
         password: formData.password || null,
         phone: formData.phone || null,
         username: formData.username.trim() || null,
+        // PIN: only admins, only when set or removed.
+        ...(isAdmin && (formData.pin || removePin) ? { pin: removePin ? null : formData.pin } : {}),
+        currentPassword: needsCurrentPassword ? formData.currentPassword : null,
       });
       if (response.data.success) {
         const profile = response.data.data;
@@ -103,8 +138,13 @@ export default function ProfileSettings() {
           phone: profile.phone || '',
           password: '',
           avatarUrl: profile.avatarUrl || '',
+          pin: '',
+          currentPassword: '',
         }));
         setSavedUsername(profile.username || null);
+        setSavedEmail(profile.email || '');
+        setAccount({ role: profile.role, hasPin: Boolean(profile.hasPin), superAdminVia: profile.superAdminVia || [] });
+        setRemovePin(false);
         setPreviewUrl(profile.avatarUrl || '');
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
@@ -210,10 +250,49 @@ export default function ProfileSettings() {
             placeholder="New Password"
             name="password"
             type="password"
+            autoComplete="new-password"
             value={formData.password}
             onChange={handleChange}
             disabled={loading}
           />
+          {isAdmin && (
+            <div className="space-y-1">
+              <Input
+                placeholder={account.hasPin ? 'POS PIN: •••• (leave blank to keep)' : 'POS PIN (4 digits)'}
+                name="pin"
+                inputMode="numeric"
+                maxLength={4}
+                autoComplete="off"
+                value={formData.pin}
+                onChange={handleChange}
+                disabled={loading || removePin}
+              />
+              {account.hasPin && (
+                <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <input type="checkbox" checked={removePin} onChange={(e) => setRemovePin(e.target.checked)} />
+                  Remove POS PIN
+                </label>
+              )}
+            </div>
+          )}
+          {needsCurrentPassword && (
+            <div className="space-y-1 md:col-span-2">
+              <Input
+                placeholder="Current password (required to change email, username or password)"
+                name="currentPassword"
+                type="password"
+                autoComplete="current-password"
+                value={formData.currentPassword}
+                onChange={handleChange}
+                disabled={loading}
+              />
+              {superAdminIdentifierWarning(account.superAdminVia, { email: emailChanged, username: usernameChanged }) && (
+                <p className="text-[11px] text-amber-600">
+                  {superAdminIdentifierWarning(account.superAdminVia, { email: emailChanged, username: usernameChanged })}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-3">

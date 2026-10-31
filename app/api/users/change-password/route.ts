@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth, hashPassword } from '@/lib/auth';
+import { verifyAuth, hashPassword, verifyPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Forbidden: Admins only' }, { status: 403 });
     }
 
-    const { userId, newPassword } = await req.json();
+    const { userId, newPassword, currentPassword, confirmPassword } = await req.json();
 
     if (!userId || !newPassword) {
       return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 });
@@ -35,6 +35,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
 
+    // Your own password: prove you know the current one (an open session alone is not enough).
+    const isSelf = targetUser.id === auth.user.id;
+    if (isSelf) {
+      if (!currentPassword) {
+        return NextResponse.json({ success: false, message: 'Enter your current password.' }, { status: 400 });
+      }
+      if (!verifyPassword(currentPassword, targetUser.passwordHash)) {
+        return NextResponse.json({ success: false, message: 'Current password is incorrect.' }, { status: 400 });
+      }
+    }
+    if (confirmPassword !== undefined && confirmPassword !== newPassword) {
+      return NextResponse.json({ success: false, message: 'New password and confirmation do not match.' }, { status: 400 });
+    }
+
     const hashed = hashPassword(newPassword);
 
     await prisma.user.update({
@@ -48,7 +62,7 @@ export async function POST(req: NextRequest) {
         shopId: auth.user.shopId,
         userId: auth.user.id,
         action: 'UPDATE_PASSWORD',
-        meta: JSON.stringify({ targetEmail: targetUser.email, targetRole: targetUser.role })
+        meta: JSON.stringify({ targetEmail: targetUser.email, targetRole: targetUser.role, self: isSelf })
       }
     });
 

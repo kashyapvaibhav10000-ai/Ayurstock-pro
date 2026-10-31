@@ -52,6 +52,10 @@ export const ProfileSettingsSchema = z.object({
   phone: z.string().min(6, 'Valid phone number required').optional().nullable(),
   password: z.string().min(6, 'Password must be at least 6 characters').optional().nullable(),
   avatarUrl: z.string().optional().nullable(),
+  // Admins only. Omitted = unchanged, null / '' = removed, else 4 digits.
+  pin: z.string().max(10).optional().nullable(),
+  // Required when email, username or password changes.
+  currentPassword: z.string().max(200).optional().nullable(),
 });
 
 // Shop Settings Schema

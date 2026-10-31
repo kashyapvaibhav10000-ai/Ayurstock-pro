@@ -2,7 +2,15 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
 import { ProfileSettingsSchema } from '@/lib/schemas';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, verifyPassword } from '@/lib/auth';
+import { superAdminVia } from '@/lib/super-admin';
+import {
+  CURRENT_PASSWORD_REQUIRED,
+  CURRENT_PASSWORD_WRONG,
+  PIN_TAKEN,
+  parsePinInput,
+  pinTakenInShop,
+} from '@/lib/user-guards';
 import { USERNAME_TAKEN, isUsernameConflict, parseUsernameInput } from '@/lib/username';
 
 export async function GET(request: NextRequest) {
@@ -22,6 +30,7 @@ export async function GET(request: NextRequest) {
         phone: true,
         avatarUrl: true,
         role: true,
+        pin: true,
       },
     });
 
@@ -29,7 +38,9 @@ export async function GET(request: NextRequest) {
       return createErrorResponse('User not found', 404);
     }
 
-    return createApiResponse(true, user);
+    // The PIN itself never leaves the server.
+    const { pin, ...profile } = user;
+    return createApiResponse(true, { ...profile, hasPin: Boolean(pin), superAdminVia: superAdminVia(auth.user) });
   } catch (error) {
     console.error('Get profile settings error:', error);
     return createErrorResponse('Internal server error', 500);
@@ -68,6 +79,34 @@ export async function PUT(request: NextRequest) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
+    // POS PIN (admins only): omitted = unchanged, null / '' = removed.
+    const parsedPin = parsePinInput(validation.data.pin);
+    if (!parsedPin.ok) {
+      return createErrorResponse(parsedPin.error, 400);
+    }
+    if (parsedPin.pin !== undefined && auth.user.role !== 'ADMIN') {
+      return createErrorResponse('Only an Admin can change the POS PIN.', 403);
+    }
+    if (parsedPin.pin && (await pinTakenInShop(auth.user.shopId, parsedPin.pin, auth.user.id))) {
+      return createErrorResponse(PIN_TAKEN, 400);
+    }
+
+    // Changing login identifiers or the password needs the current password.
+    const current = await prisma.user.findUnique({
+      where: { id: auth.user.id },
+      select: { email: true, username: true, passwordHash: true },
+    });
+    if (!current) {
+      return createErrorResponse('User not found', 404);
+    }
+    const emailChanged = normalizedEmail !== current.email;
+    const usernameChanged = username !== undefined && username !== current.username;
+    if (emailChanged || usernameChanged || password) {
+      const currentPassword = validation.data.currentPassword;
+      if (!currentPassword) return createErrorResponse(CURRENT_PASSWORD_REQUIRED, 400);
+      if (!verifyPassword(currentPassword, current.passwordHash)) return createErrorResponse(CURRENT_PASSWORD_WRONG, 400);
+    }
+
     const existingUser = await prisma.user.findFirst({
       where: {
         shopId: auth.user.shopId,
@@ -89,6 +128,7 @@ export async function PUT(request: NextRequest) {
         username,
         phone: phone ? phone.trim() : null,
         avatarUrl: avatarUrl || null,
+        pin: parsedPin.pin,
         ...(password ? { passwordHash: hashPassword(password) } : {}),
       },
       select: {
@@ -99,10 +139,12 @@ export async function PUT(request: NextRequest) {
         phone: true,
         avatarUrl: true,
         role: true,
+        pin: true,
       },
     });
 
-    return createApiResponse(true, updated);
+    const { pin, ...profile } = updated;
+    return createApiResponse(true, { ...profile, hasPin: Boolean(pin), superAdminVia: superAdminVia(profile) });
   } catch (error) {
     // Lost a race with another request for the same username.
     if (isUsernameConflict(error)) {
