@@ -36,3 +36,7 @@ yarn-error.log
 
 # OS
 Thumbs.db
+
+# local browser profiles / server logs (never commit)
+.gemini/
+*.log
