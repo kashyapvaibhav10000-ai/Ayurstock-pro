@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { staffOnlyResponse } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
 
 /**
@@ -12,6 +13,9 @@ export async function POST(req: NextRequest) {
     if (!auth.authenticated || !auth.user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+
+    const notStaff = staffOnlyResponse(auth.user!.role);
+    if (notStaff) return notStaff;
 
     const body = await req.json();
     const { fileName, pdfText, medicines } = body;
@@ -58,6 +62,9 @@ export async function GET(req: NextRequest) {
     if (!auth.authenticated || !auth.user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+
+    const notStaff = staffOnlyResponse(auth.user!.role);
+    if (notStaff) return notStaff;
 
     const jobs = await prisma.pdfImportJob.findMany({
       where: { shopId: auth.user.shopId },

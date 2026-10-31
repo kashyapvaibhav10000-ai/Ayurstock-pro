@@ -6,6 +6,7 @@ import { verifyAuth } from '@/lib/auth';
 import { aiAllowanceError } from '@/lib/ai/allowance';
 import { parsePDFWithAI, parseTextWithAI } from '@/lib/aiParser';
 import { prisma } from '@/lib/db';
+import { MAX_UPLOAD_BYTES, detectFileType } from '@/lib/upload';
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,13 +42,13 @@ export async function POST(req: NextRequest) {
 
     let buffer: Buffer | null = null;
     if (file) {
-      if (!file.type.includes('pdf')) {
-        return NextResponse.json({ success: false, message: 'Only PDF files are accepted' }, { status: 400 });
-      }
-      if (file.size > 50 * 1024 * 1024) {
-        return NextResponse.json({ success: false, message: 'File too large. Maximum size is 50MB.' }, { status: 400 });
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return NextResponse.json({ success: false, message: 'File too large. Maximum size is 20MB.' }, { status: 400 });
       }
       buffer = Buffer.from(await file.arrayBuffer());
+      if (detectFileType(buffer)?.kind !== 'pdf') {
+        return NextResponse.json({ success: false, message: 'Only PDF files are accepted' }, { status: 400 });
+      }
     }
 
     // Create background job

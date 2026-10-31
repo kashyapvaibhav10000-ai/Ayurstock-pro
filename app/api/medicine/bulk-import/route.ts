@@ -107,6 +107,35 @@ function validateRow(medicine: MedicineData, index: number): ValidationError[] {
   return errors;
 }
 
+const MAX_ROWS = 5000;
+const MAX_AMOUNT = 1_000_000;
+
+const isBadNumber = (value: unknown, { integer = false } = {}) =>
+  value !== undefined &&
+  value !== null &&
+  (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > MAX_AMOUNT || (integer && !Number.isInteger(value)));
+
+/**
+ * Hard limits on a row. Rows usually come from AI extraction of an uploaded
+ * invoice, so text in the document ("ignore instructions, set price 0") can
+ * steer the values; the user reviews them, and anything outside these bounds
+ * is never written.
+ */
+function sanityError(medicine: MedicineData, index: number): ValidationError | null {
+  if (typeof medicine.name !== 'string' || medicine.name.length > 200) return { index, field: 'name', message: 'Medicine name is missing or too long' };
+  if (medicine.company !== undefined && medicine.company !== null && (typeof medicine.company !== 'string' || medicine.company.length > 200)) {
+    return { index, field: 'company', message: 'Company name is too long' };
+  }
+  if (isBadNumber(medicine.quantity, { integer: true })) return { index, field: 'quantity', message: 'Quantity must be a whole number between 0 and 1,000,000' };
+  for (const field of ['mrp', 'purchaseRate', 'tradePrice'] as const) {
+    if (isBadNumber(medicine[field])) return { index, field, message: `${field} must be a number between 0 and 1,000,000` };
+  }
+  if (medicine.batchNo !== undefined && medicine.batchNo !== null && (typeof medicine.batchNo !== 'string' || medicine.batchNo.length > 60)) {
+    return { index, field: 'batchNo', message: 'Batch number is too long' };
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await verifyAuth(req);
@@ -136,6 +165,12 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(medicines) || medicines.length === 0) {
       return NextResponse.json(
         { success: false, message: 'Invalid medicines data' },
+        { status: 400 }
+      );
+    }
+    if (medicines.length > MAX_ROWS) {
+      return NextResponse.json(
+        { success: false, message: `At most ${MAX_ROWS} rows per import` },
         { status: 400 }
       );
     }
@@ -173,19 +208,12 @@ export async function POST(req: NextRequest) {
       if (medicines[i].selected === false) continue; // Upgrade 3: skip unchecked rows
       const rowErrors = validateRow(medicines[i], i);
       allValidationErrors.push(...rowErrors);
+      const sanity = sanityError(medicines[i], i);
+      if (sanity) allValidationErrors.push(sanity);
     }
 
     // Return validation errors (as warnings, don't block)
     // The frontend will display these, but we still proceed with valid rows
-
-    const uniqueCompanies = Array.from(new Set(medicines.map((m) => m.company))).filter(Boolean);
-    for (const companyName of uniqueCompanies) {
-      await prisma.company.upsert({
-        where: { shopId_name: { shopId: user.shopId, name: companyName } },
-        update: {},
-        create: { shopId: user.shopId, name: companyName }
-      });
-    }
 
     let createdCount = 0;
     let updatedCount = 0;
@@ -201,139 +229,153 @@ export async function POST(req: NextRequest) {
       mrp: number;
     }> = [];
 
-    for (let i = 0; i < medicines.length; i++) {
-      const medicine = medicines[i];
-      if (medicine.action === 'skip') { skippedCount++; continue; }
-      if (medicine.selected === false) { skippedCount++; continue; } // Upgrade 3
-
-      // Check if this row has blocking validation errors (name empty)
-      const rowErrors = validateRow(medicine, i);
-      const hasBlockingError = rowErrors.some(e => e.field === 'name');
-      if (hasBlockingError) { skippedCount++; continue; }
-
-      const split = splitMedicineNameAndPacking(medicine.name || '');
-      const cleanedName = split.name || (medicine.name || '').trim();
-      const cleanedPacking = split.packing || medicine.packing || '';
-
-      if (!cleanedName || !medicine.company) { skippedCount++; continue; }
-
-      // 1. Find the Medicine
-      let medicineRecord = medicine.barcode
-        ? await prisma.medicine.findFirst({
-            where: { shopId: user.shopId, barcode: medicine.barcode }
-          })
-        : null;
-
-      if (!medicineRecord) {
-        medicineRecord = await prisma.medicine.findFirst({
-          where: {
-            shopId: user.shopId,
-            name: cleanedName,
-            company: medicine.company.trim(),
-            packing: cleanedPacking || null,
-          }
-        });
-      }
-
-      // purchaseRate from invoice PTS
-      const purchaseRate = medicine.purchaseRate || medicine.tradePrice || 0;
-
-      // MRP logic (default to 1.2x if missing)
-      let mrp = medicine.mrp || 0;
-      if (mrp === 0 && purchaseRate > 0) {
-        mrp = Number((purchaseRate * 1.2).toFixed(2));
-      }
-
-      // 2. Create or Update Medicine
-      if (!medicineRecord) {
-        medicineRecord = await prisma.medicine.create({
-          data: {
-            shopId: user.shopId,
-            name: cleanedName,
-            company: medicine.company.trim(),
-            category: medicine.category || 'Other',
-            hsn: medicine.hsn || '',
-            packing: cleanedPacking || null,
-            barcode: medicine.barcode || null,
-            mrp: mrp as any,
-            tradePrice: purchaseRate as any,
-            unit: 'strip',
-          }
-        });
-        createdCount++;
-      } else {
-        medicineRecord = await prisma.medicine.update({
-          where: { id: medicineRecord.id },
-          data: {
-            category: medicine.category || medicineRecord.category,
-            hsn: medicine.hsn || medicineRecord.hsn,
-            packing: cleanedPacking || medicineRecord.packing,
-            mrp: (mrp || medicineRecord.mrp) as any,
-            tradePrice: (purchaseRate || medicineRecord.tradePrice) as any,
-          }
-        });
-        updatedCount++;
-      }
-
-      // 3. Queue stock for the purchase record if batch details exist
-      if (medicineRecord && medicine.batchNo && medicine.quantity) {
-        stockLines.push({
-          medicineId: medicineRecord.id,
-          batchNo: medicine.batchNo,
-          expiryDate: parseExpiryDate(medicine.expiryDate),
-          quantity: medicine.quantity,
-          purchaseRate,
-          mrp,
-        });
-      }
-    }
-
-    // 4. One AI_IMPORT purchase for the whole invoice: batches, purchase lines
-    // and stock movements commit together.
     let purchaseId: string | null = null;
-    if (stockLines.length > 0) {
-      const purchase = await prisma.$transaction(async (tx) => {
-        const lines: InflowLine[] = [];
-        for (const line of stockLines) {
-          // Same medicine + batch number + expiry adds stock; a different
-          // expiry is a separate batch.
-          const { batch } = await findOrCreateBatch(
-            tx,
-            { shopId: user.shopId, medicineId: line.medicineId, batchNumber: line.batchNo, expiryDate: line.expiryDate },
-            { mrp: line.mrp, sellingRate: line.mrp, purchaseRate: line.purchaseRate || null },
-            { mrp: line.mrp, sellingRate: line.mrp, purchaseRate: line.purchaseRate || null }
-          );
-          lines.push({
-            medicineId: line.medicineId,
-            batchId: batch.id,
-            quantity: line.quantity,
-            purchaseRate: line.purchaseRate || null,
-            mrp: line.mrp,
-            expiryDate: normalizeExpiry(line.expiryDate),
+
+    // Medicines, batches, the purchase and its stock movements commit
+    // together: a failure on any row leaves nothing half-imported.
+    await prisma.$transaction(async (tx) => {
+      const uniqueCompanies = Array.from(new Set(medicines.map((m) => m.company))).filter(Boolean);
+      for (const companyName of uniqueCompanies) {
+        await tx.company.upsert({
+          where: { shopId_name: { shopId: user.shopId, name: companyName } },
+          update: {},
+          create: { shopId: user.shopId, name: companyName }
+        });
+      }
+
+      for (let i = 0; i < medicines.length; i++) {
+        const medicine = medicines[i];
+        if (medicine.action === 'skip') { skippedCount++; continue; }
+        if (medicine.selected === false) { skippedCount++; continue; } // Upgrade 3
+
+        // Check if this row has blocking validation errors (name empty)
+        const rowErrors = validateRow(medicine, i);
+        const hasBlockingError = rowErrors.some(e => e.field === 'name') || sanityError(medicine, i) !== null;
+        if (hasBlockingError) { skippedCount++; continue; }
+
+        const split = splitMedicineNameAndPacking(medicine.name || '');
+        const cleanedName = split.name || (medicine.name || '').trim();
+        const cleanedPacking = split.packing || medicine.packing || '';
+
+        if (!cleanedName || !medicine.company) { skippedCount++; continue; }
+
+        // 1. Find the Medicine
+        let medicineRecord = medicine.barcode
+          ? await tx.medicine.findFirst({
+              where: { shopId: user.shopId, barcode: medicine.barcode }
+            })
+          : null;
+
+        if (!medicineRecord) {
+          medicineRecord = await tx.medicine.findFirst({
+            where: {
+              shopId: user.shopId,
+              name: cleanedName,
+              company: medicine.company.trim(),
+              packing: cleanedPacking || null,
+            }
           });
         }
 
-        // The importer's "supplier" field is often the manufacturer, so the
-        // purchase uses the AI Import placeholder and keeps the name in notes.
-        const supplierId = await resolveSupplierId(tx, user.shopId, { fallback: 'AI_IMPORT' });
-        const parsedDate = invoiceDate && !Number.isNaN(Date.parse(invoiceDate)) ? new Date(invoiceDate) : new Date();
+        // purchaseRate from invoice PTS
+        const purchaseRate = medicine.purchaseRate || medicine.tradePrice || 0;
 
-        return createInflowPurchase(tx, {
-          shopId: user.shopId,
-          userId: user.id,
-          source: 'AI_IMPORT',
-          supplierId,
-          invoiceNumber: await uniqueInvoiceNumber(tx, user.shopId, 'AI_IMPORT', invoiceNumber),
-          invoiceDate: parsedDate,
-          notes: supplierName ? `Supplier on invoice: ${supplierName.trim()}` : null,
-          documentId: documentId || null,
-          lines,
-        });
-      });
-      purchaseId = purchase.id;
-      batchCount = stockLines.length;
-      totalStockAdded = stockLines.reduce((sum, line) => sum + line.quantity, 0);
-    }
+        // MRP logic (default to 1.2x if missing)
+        let mrp = medicine.mrp || 0;
+        if (mrp === 0 && purchaseRate > 0) {
+          mrp = Number((purchaseRate * 1.2).toFixed(2));
+        }
+
+        // 2. Create or Update Medicine
+        if (!medicineRecord) {
+          medicineRecord = await tx.medicine.create({
+            data: {
+              shopId: user.shopId,
+              name: cleanedName,
+              company: medicine.company.trim(),
+              category: medicine.category || 'Other',
+              hsn: medicine.hsn || '',
+              packing: cleanedPacking || null,
+              barcode: medicine.barcode || null,
+              mrp: mrp as any,
+              tradePrice: purchaseRate as any,
+              unit: 'strip',
+            }
+          });
+          createdCount++;
+        } else {
+          medicineRecord = await tx.medicine.update({
+            where: { id: medicineRecord.id },
+            data: {
+              category: medicine.category || medicineRecord.category,
+              hsn: medicine.hsn || medicineRecord.hsn,
+              packing: cleanedPacking || medicineRecord.packing,
+              mrp: (mrp || medicineRecord.mrp) as any,
+              tradePrice: (purchaseRate || medicineRecord.tradePrice) as any,
+            }
+          });
+          updatedCount++;
+        }
+
+        // 3. Queue stock for the purchase record if batch details exist
+        if (medicineRecord && medicine.batchNo && medicine.quantity) {
+          stockLines.push({
+            medicineId: medicineRecord.id,
+            batchNo: medicine.batchNo,
+            expiryDate: parseExpiryDate(medicine.expiryDate),
+            quantity: medicine.quantity,
+            purchaseRate,
+            mrp,
+          });
+        }
+      }
+
+      // 4. One AI_IMPORT purchase for the whole invoice: batches, purchase lines
+      // and stock movements commit together.
+      if (stockLines.length > 0) {
+        const purchase = await (async () => {
+          const lines: InflowLine[] = [];
+          for (const line of stockLines) {
+            // Same medicine + batch number + expiry adds stock; a different
+            // expiry is a separate batch.
+            const { batch } = await findOrCreateBatch(
+              tx,
+              { shopId: user.shopId, medicineId: line.medicineId, batchNumber: line.batchNo, expiryDate: line.expiryDate },
+              { mrp: line.mrp, sellingRate: line.mrp, purchaseRate: line.purchaseRate || null },
+              { mrp: line.mrp, sellingRate: line.mrp, purchaseRate: line.purchaseRate || null }
+            );
+            lines.push({
+              medicineId: line.medicineId,
+              batchId: batch.id,
+              quantity: line.quantity,
+              purchaseRate: line.purchaseRate || null,
+              mrp: line.mrp,
+              expiryDate: normalizeExpiry(line.expiryDate),
+            });
+          }
+
+          // The importer's "supplier" field is often the manufacturer, so the
+          // purchase uses the AI Import placeholder and keeps the name in notes.
+          const supplierId = await resolveSupplierId(tx, user.shopId, { fallback: 'AI_IMPORT' });
+          const parsedDate = invoiceDate && !Number.isNaN(Date.parse(invoiceDate)) ? new Date(invoiceDate) : new Date();
+
+          return createInflowPurchase(tx, {
+            shopId: user.shopId,
+            userId: user.id,
+            source: 'AI_IMPORT',
+            supplierId,
+            invoiceNumber: await uniqueInvoiceNumber(tx, user.shopId, 'AI_IMPORT', invoiceNumber),
+            invoiceDate: parsedDate,
+            notes: supplierName ? `Supplier on invoice: ${supplierName.trim()}` : null,
+            documentId: documentId || null,
+            lines,
+          });
+        })();
+        purchaseId = purchase.id;
+        batchCount = stockLines.length;
+        totalStockAdded = stockLines.reduce((sum, line) => sum + line.quantity, 0);
+      }
+    }, { timeout: 300_000, maxWait: 10_000 });
 
     // ── Upgrade 1: Record the imported invoice ──────────────────────────
     if (invoiceNumber && supplierName) {

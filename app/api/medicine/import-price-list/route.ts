@@ -4,6 +4,7 @@ import { aiAllowanceError } from '@/lib/ai/allowance';
 import { parsePDFWithAI, parseTextWithAI, parseImageWithGeminiVision } from '@/lib/aiParser';
 import { prisma } from '@/lib/db';
 import { storePurchaseDocument } from '@/lib/purchase-record';
+import { detectFileType } from '@/lib/upload';
 
 // Dedicated Vision-based import pipeline for price lists and invoices
 
@@ -57,15 +58,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isImage = file.type.startsWith('image/');
-    const isPdf = file.type.includes('pdf');
-    if (!isPdf && !isImage) {
-      return NextResponse.json(
-        { success: false, message: 'Only PDF and image files are accepted' },
-        { status: 400 }
-      );
-    }
-
     if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json(
         { success: false, message: 'File too large. Maximum size is 10MB.' },
@@ -76,6 +68,16 @@ export async function POST(req: NextRequest) {
     console.log('📄 [import-price-list] Processing:', file.name, file.size, 'bytes');
     const buffer = Buffer.from(await file.arrayBuffer());
 
+    // The declared type is a hint; decide from the bytes.
+    const detected = detectFileType(buffer);
+    if (!detected) {
+      return NextResponse.json(
+        { success: false, message: 'Only PDF and image files are accepted' },
+        { status: 400 }
+      );
+    }
+    const isImage = detected.kind === 'image';
+
     // Keep the original file so the resulting purchase can link to it. The
     // id is returned on every response (incl. NO_TEXT, where the client
     // retries with OCR text) and sent back with the bulk import.
@@ -83,14 +85,14 @@ export async function POST(req: NextRequest) {
       shopId: auth.user.shopId,
       userId: auth.user.id,
       fileName: file.name,
-      mimeType: file.type,
+      mimeType: detected.mime,
       data: buffer,
     });
 
     if (isImage) {
       console.log('🖼️ [import-price-list] Processing with Vision API:', file.name);
       try {
-        const result = await parseImageWithGeminiVision(buffer, file.type, { feature: 'INVOICE_IMPORT', shopId: auth.user.shopId });
+        const result = await parseImageWithGeminiVision(buffer, detected.mime, { feature: 'INVOICE_IMPORT', shopId: auth.user.shopId });
 
         if (result.errorCode || result.medicines.length === 0) {
           return NextResponse.json({

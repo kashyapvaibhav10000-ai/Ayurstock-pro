@@ -49,9 +49,10 @@ class ImportJobStore {
     });
   }
 
-  async getJob(jobId: string): Promise<ImportJob | undefined> {
-    const job = await prisma.importJob.findUnique({
-      where: { id: jobId },
+  /** The job, only if it belongs to `shopId`. */
+  async getJob(jobId: string, shopId: string): Promise<ImportJob | undefined> {
+    const job = await prisma.importJob.findFirst({
+      where: { id: jobId, shopId },
     });
 
     if (!job) return undefined;

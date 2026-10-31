@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
-import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
+import { authenticateRequest, createErrorResponse, createApiResponse, staffOnlyResponse } from '@/middleware/auth';
 
 export async function GET(
   req: NextRequest,
@@ -11,6 +11,9 @@ export async function GET(
     if (!auth) {
       return createErrorResponse('Unauthorized', 401);
     }
+
+    const notStaff = staffOnlyResponse(auth.user.role);
+    if (notStaff) return notStaff;
 
     const { id } = await params;
 
@@ -37,6 +40,6 @@ export async function GET(
     return createApiResponse(true, sale.saleItems);
   } catch (error: any) {
     console.error('Sale Items Fetch Error:', error);
-    return createErrorResponse(error.message, 500);
+    return createErrorResponse('Failed to load sale items', 500);
   }
 }

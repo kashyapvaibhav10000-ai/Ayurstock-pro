@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash, timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/db';
 import * as nodemailer from 'nodemailer';
 import { addMonths, differenceInDays } from 'date-fns';
 import { batchLabel } from '@/lib/batch';
 
+/** Constant-time check of "Bearer <CRON_SECRET>". */
+function cronAuthorized(header: string | null): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !header) return false;
+  const expected = createHash('sha256').update(`Bearer ${secret}`).digest();
+  const actual = createHash('sha256').update(header).digest();
+  return timingSafeEqual(expected, actual);
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (!cronAuthorized(request.headers.get('authorization'))) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 

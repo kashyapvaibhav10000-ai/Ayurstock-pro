@@ -109,7 +109,6 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         data: {
-          token,
           user: {
             id: user.id,
             name: user.name,

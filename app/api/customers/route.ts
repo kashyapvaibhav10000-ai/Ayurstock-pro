@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
+import { staffOnlyResponse } from '@/middleware/auth';
+import { ZodError } from 'zod';
 import { CreateCustomerSchema, UpdateCustomerSchema } from '@/lib/schemas';
 
 /**
@@ -13,6 +15,9 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
+
+    const notStaff = staffOnlyResponse(user.role);
+    if (notStaff) return notStaff;
 
     const { searchParams } = new URL(req.url);
     const isWholesale = searchParams.get('isWholesale');
@@ -28,7 +33,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, data: customers });
   } catch (error: any) {
     console.error('Failed to fetch customers:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('Get customers error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to load customers' }, { status: 500 });
   }
 }
 
@@ -43,6 +49,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    const notStaff = staffOnlyResponse(user.role);
+    if (notStaff) return notStaff;
+
     const body = await req.json();
     const validatedData = CreateCustomerSchema.parse(body);
 
@@ -55,7 +64,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, data: customer });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    if (error instanceof ZodError) {
+      return NextResponse.json({ success: false, error: error.issues.map((i) => i.message).join(', ') }, { status: 400 });
+    }
+    console.error('Save customer error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to save customer' }, { status: 500 });
   }
 }
 
@@ -70,6 +83,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    const notStaff = staffOnlyResponse(user.role);
+    if (notStaff) return notStaff;
+
     const body = await req.json();
     const { id, ...data } = body;
 
@@ -79,13 +95,22 @@ export async function PATCH(req: NextRequest) {
 
     const validatedData = UpdateCustomerSchema.parse(data);
 
+    const existing = await prisma.customer.findFirst({ where: { id, shopId: user.shopId }, select: { id: true } });
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
+    }
+
     const customer = await prisma.customer.update({
-      where: { id, shopId: user.shopId },
+      where: { id: existing.id },
       data: validatedData,
     });
 
     return NextResponse.json({ success: true, data: customer });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    if (error instanceof ZodError) {
+      return NextResponse.json({ success: false, error: error.issues.map((i) => i.message).join(', ') }, { status: 400 });
+    }
+    console.error('Save customer error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to save customer' }, { status: 500 });
   }
 }

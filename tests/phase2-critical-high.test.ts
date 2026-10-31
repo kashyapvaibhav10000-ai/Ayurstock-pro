@@ -221,7 +221,8 @@ describe('#2 Critical — POS PIN brute force across all shops', () => {
   it('PIN sessions are short and not extended to 30 days', async () => {
     await setPin(A, A.cashier.id, '1111');
     const ok = await pinLogin(await pairDevice(A), '1111');
-    const payload = jwt.decode(ok.json.data.token) as { exp: number; iat: number; pos: boolean };
+    expect(ok.json.data.token).toBeUndefined();
+    const payload = jwt.decode(setCookie(ok.res, 'auth-token')!) as { exp: number; iat: number; pos: boolean };
     expect(payload.pos).toBe(true);
     expect(payload.exp - payload.iat).toBe(12 * 3600);
   });

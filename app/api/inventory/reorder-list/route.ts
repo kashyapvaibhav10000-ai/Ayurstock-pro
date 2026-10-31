@@ -1,11 +1,14 @@
 import { NextRequest } from 'next/server';
-import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
+import { authenticateRequest, createApiResponse, createErrorResponse, staffOnlyResponse } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request);
     if (!auth) return createErrorResponse('Unauthorized', 401);
+
+    const notStaff = staffOnlyResponse(auth.user.role);
+    if (notStaff) return notStaff;
 
     const threshold = parseInt(request.nextUrl.searchParams.get('threshold') || '10');
 

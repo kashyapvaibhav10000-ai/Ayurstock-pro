@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, PurchaseSource } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { csvCell } from '@/lib/csv';
 import { authenticateRequest, createErrorResponse } from '@/middleware/auth';
 
 const SOURCES: PurchaseSource[] = ['INVOICE', 'AI_IMPORT', 'MANUAL'];
@@ -58,11 +59,6 @@ function toRow(p: ListRow) {
   };
 }
 
-function csvCell(value: unknown): string {
-  const text = value === null || value === undefined ? '' : String(value);
-  const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
 
 export async function GET(request: NextRequest) {
   try {

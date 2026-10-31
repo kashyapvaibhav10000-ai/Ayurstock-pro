@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, data: mappings });
   } catch (error: any) {
     console.error('GST categories GET error:', error);
-    return createErrorResponse(error.message || 'Failed to fetch GST categories', 500);
+    return createErrorResponse('Failed to fetch GST categories', 500);
   }
 }
 
@@ -57,6 +57,6 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true, data: results, message: `${results.length} GST category defaults saved.` });
   } catch (error: any) {
     console.error('GST categories PUT error:', error);
-    return createErrorResponse(error.message || 'Failed to update GST categories', 500);
+    return createErrorResponse('Failed to update GST categories', 500);
   }
 }

@@ -1,12 +1,15 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
-import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
+import { authenticateRequest, createApiResponse, createErrorResponse, staffOnlyResponse } from '@/middleware/auth';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
     const auth = await authenticateRequest(req);
     if (!auth) return createErrorResponse('Unauthorized', 401);
+
+    const notStaff = staffOnlyResponse(auth.user.role);
+    if (notStaff) return notStaff;
 
     const latestBatch = await prisma.inventoryBatch.findFirst({
       where: {

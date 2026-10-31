@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { clientErrorMessage } from '@/lib/errors';
 import { verifyAuth } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -44,6 +45,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (medicines.length > 5000) {
+      return NextResponse.json({ success: false, message: 'At most 5000 medicines per import' }, { status: 400 });
+    }
 
     const normalizedMedicines = medicines
       .map((med) => ({
@@ -86,7 +90,6 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    console.log('Auth shopId:', user.shopId);
     console.log(`📦 [Bulk Insert API] Saving ${sanitizedMedicines.length} medicines to Database for shopId: ${user.shopId}`);
 
     let createdMedicineCount = 0;
@@ -215,7 +218,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to import medicines',
+        message: clientErrorMessage(error, 'Failed to import medicines'),
       },
       { status: 500 }
     );

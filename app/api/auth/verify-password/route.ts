@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    const isValid = verifyPassword(password, user.passwordHash);
+    const isValid = await verifyPassword(password, user.passwordHash);
 
     return NextResponse.json({ success: isValid });
   } catch (error) {

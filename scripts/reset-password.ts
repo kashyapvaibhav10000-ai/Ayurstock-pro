@@ -4,13 +4,14 @@ import { prisma } from '../lib/db';
 async function main() {
   const email = 'admin@demo.com';
   const newPassword = 'admin123';
-  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, 12);
 
   const user = await prisma.user.updateMany({
     where: { email },
     data: {
       passwordHash,
       isActive: true,
+      tokenVersion: { increment: 1 },
     },
   });
 

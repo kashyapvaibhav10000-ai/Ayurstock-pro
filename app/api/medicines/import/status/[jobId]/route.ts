@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { staffOnlyResponse } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
@@ -10,6 +11,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ jobI
     if (!auth.authenticated || !auth.user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+
+    const notStaff = staffOnlyResponse(auth.user!.role);
+    if (notStaff) return notStaff;
 
     const { jobId } = await params;
     if (!jobId) {

@@ -17,12 +17,16 @@ if (JWT_SECRET.length < MIN_SECRET_LENGTH) {
   console.warn(`⚠️ JWT_SECRET is missing or shorter than ${MIN_SECRET_LENGTH} characters.`);
 }
 
-export function hashPassword(password: string): string {
-  return bcrypt.hashSync(password, 10);
+export const BCRYPT_COST = 12;
+export const MIN_PASSWORD_LENGTH = 8;
+
+// Async so a hash (~250 ms at cost 12) does not block other requests.
+export function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_COST);
 }
 
-export function verifyPassword(password: string, hash: string): boolean {
-  return bcrypt.compareSync(password, hash);
+export function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }
 
 export function generateToken(
@@ -43,28 +47,10 @@ export function verifyToken(token: string): JWTPayload | null {
   }
 }
 
-export function extractToken(authHeader?: string | null): string | null {
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.slice(7).trim();
-  if (!token || token === 'null' || token === 'undefined') {
-    return null;
-  }
-
-  return token;
-}
-
-// The httpOnly cookie wins over a Bearer header: the server can re-issue the
-// cookie (e.g. after a password change), but not a copy kept in the browser.
+// Sessions are carried only by the httpOnly auth-token cookie. Bearer headers
+// are not accepted: a token that page scripts can read can be stolen by XSS.
 export function extractRequestToken(req: NextRequest): string | null {
-  const cookieToken = req.cookies.get('auth-token')?.value;
-  if (cookieToken) {
-    return cookieToken;
-  }
-
-  return extractToken(req.headers.get('authorization'));
+  return req.cookies.get('auth-token')?.value || null;
 }
 
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;

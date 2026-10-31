@@ -50,7 +50,7 @@ export const ProfileSettingsSchema = z.object({
   // Optional: omitted = unchanged, null / '' = cleared. Rules in lib/username.ts.
   username: z.string().max(100).optional().nullable(),
   phone: z.string().min(6, 'Valid phone number required').optional().nullable(),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional().nullable(),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(200).optional().nullable(),
   avatarUrl: z.string().optional().nullable(),
   // Admins only. Omitted = unchanged, null / '' = removed, else 4 digits.
   pin: z.string().max(10).optional().nullable(),

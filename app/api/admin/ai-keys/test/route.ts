@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
       let baseUrl: string | null = null;
       if (adapter.requiresBaseUrl) {
         const text = optionalText(body.baseUrl, 300);
-        const valid = text ? validateBaseUrl(text) : false;
-        if (!valid) return badRequest('Base URL must be an https:// URL');
+        const valid = text ? await validateBaseUrl(text) : false;
+        if (!valid) return badRequest('Base URL must be a public https:// URL');
         baseUrl = valid;
       }
       const result = await adapter.test({ key: checked.key, model: model ?? null, baseUrl });

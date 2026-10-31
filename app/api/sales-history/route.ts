@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
-import { authenticateRequest, createErrorResponse } from '@/middleware/auth';
+import { authenticateRequest, createErrorResponse, staffOnlyResponse } from '@/middleware/auth';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -9,6 +9,9 @@ export async function GET(request: NextRequest) {
     if (!auth) {
       return createErrorResponse('Unauthorized', 401);
     }
+
+    const notStaff = staffOnlyResponse(auth.user.role);
+    if (notStaff) return notStaff;
 
     const { shopId } = auth.user;
     const searchParams = request.nextUrl.searchParams;

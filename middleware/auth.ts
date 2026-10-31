@@ -63,6 +63,16 @@ export function requireRole(...allowedRoles: string[]) {
   };
 }
 
+/**
+ * Back-office data (purchases and cost prices, suppliers, customers, credit,
+ * reports, exports) is for ADMIN and MANAGER. Cashiers only bill, so their
+ * API access must match what their screens show, not just hide the menu.
+ */
+export function staffOnlyResponse(role: string): NextResponse | null {
+  if (role === 'ADMIN' || role === 'MANAGER') return null;
+  return NextResponse.json({ success: false, error: 'Forbidden - Insufficient permissions' }, { status: 403 });
+}
+
 export async function validateShopAccess(
   requestShopId: string,
   userShopId: string

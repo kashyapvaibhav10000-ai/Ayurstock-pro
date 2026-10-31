@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     return createApiResponse(true, rackLocations);
   } catch (error: any) {
     console.error('Fetch Rack Locations Error:', error);
-    return createErrorResponse(error.message, 500);
+    return createErrorResponse('Failed to load rack locations', 500);
   }
 }
 
@@ -79,6 +79,6 @@ export async function POST(req: NextRequest) {
     return createApiResponse(true, newLocation);
   } catch (error: any) {
     console.error('Create Rack Location Error:', error);
-    return createErrorResponse(error.message, 500);
+    return createErrorResponse('Failed to save rack location', 500);
   }
 }

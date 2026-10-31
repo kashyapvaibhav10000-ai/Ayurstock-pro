@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
-import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
+import { authenticateRequest, createErrorResponse, createApiResponse, staffOnlyResponse } from '@/middleware/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,6 +8,9 @@ export async function GET(req: NextRequest) {
     if (!auth) {
       return createErrorResponse('Unauthorized', 401);
     }
+
+    const notStaff = staffOnlyResponse(auth.user.role);
+    if (notStaff) return notStaff;
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('query') || '';
@@ -32,6 +35,6 @@ export async function GET(req: NextRequest) {
     return createApiResponse(true, sales);
   } catch (error: any) {
     console.error('Sales Search Error:', error);
-    return createErrorResponse(error.message, 500);
+    return createErrorResponse('Failed to search sales', 500);
   }
 }

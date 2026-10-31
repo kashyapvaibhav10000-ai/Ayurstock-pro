@@ -171,14 +171,12 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
   const [validationErrors, setValidationErrors] = useState<{ index: number, field: string, message: string }[]>([])
 
   const abortControllerRef = useRef<AbortController | null>(null)
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
-  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
 
   useEffect(() => {
     if (!isOpen) return
     const loadCompanies = async () => {
       try {
-        const res = await fetch("/api/companies", { headers: authHeaders })
+        const res = await fetch("/api/companies")
         const payload = await res.json()
         if (payload.success && Array.isArray(payload.data)) {
           setCompanies(payload.data.map((row: any) => row.name))
@@ -189,7 +187,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     }
     const loadExisting = async () => {
       try {
-        const res = await fetch("/api/medicines/search?query=&limit=500", { headers: authHeaders })
+        const res = await fetch("/api/medicines/search?query=&limit=500")
         const payload = await res.json()
         if (payload.success && Array.isArray(payload.data)) {
           const keys = new Set<string>(
@@ -245,7 +243,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
         const payload = parsedMedicines.map(m => ({ name: m.name, company: m.company, packing: m.packing }))
         const res = await fetch("/api/medicine/check-restock", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeaders },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ medicines: payload })
         })
         const data = await res.json()
@@ -302,7 +300,6 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
 
       const response = await fetch("/api/medicine/import-price-list", {
         method: "POST",
-        headers: authHeaders,
         body: formData,
       })
 
@@ -380,7 +377,6 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
 
       const response = await fetch("/api/medicine/import-price-list", {
         method: "POST",
-        headers: authHeaders,
         body: formData,
       })
 
@@ -447,7 +443,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
       
       const response = await fetch("/api/medicine/bulk-import", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           medicines: payloadRows,
           invoiceNumber: invoiceNumber || undefined,
@@ -676,7 +672,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     try {
       const res = await fetch("/api/companies", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       })
       const payload = await res.json()

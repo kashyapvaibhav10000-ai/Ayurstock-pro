@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
     if (baseUrlText === false) return badRequest('Base URL is too long');
     let baseUrl: string | null = null;
     if (adapter.requiresBaseUrl) {
-      const valid = validateBaseUrl(baseUrlText ?? null);
-      if (!valid) return badRequest('Base URL must be an https:// URL');
+      const valid = await validateBaseUrl(baseUrlText ?? null);
+      if (!valid) return badRequest('Base URL must be a public https:// URL');
       baseUrl = valid;
     }
     const checked = validateKey(body.key);

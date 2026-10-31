@@ -11,6 +11,7 @@
 | `SUPER_ADMIN_USER_IDS` | Comma-separated `User.id`s of ADMIN users who manage Settings > AI. |
 | `TRUST_PROXY` | `cloudflare` behind Cloudflare Tunnel (see below), else empty. |
 | `AI_DAILY_CALLS_PER_SHOP` | Optional, default 200 AI provider calls per shop per UTC day. |
+| `APP_ORIGINS` | Optional. Extra origins (e.g. `https://shop.example.com`) allowed to make POST/PUT/PATCH/DELETE API calls. The request's own Host is always allowed; set this only if something in front rewrites Host. |
 
 Generate secrets with `openssl rand -hex 32`.
 
@@ -27,6 +28,19 @@ can reach the app:
 - Set `TRUST_PROXY=cloudflare`.
 
 `X-Forwarded-For` is never read; clients can set it to anything.
+
+## Request protections in `proxy.ts`
+
+Every `/api` request passes the proxy:
+
+- State-changing methods with a foreign `Origin` (or `Sec-Fetch-Site: cross-site`) get 403 (CSRF).
+- Bodies over 20 MB get 413 before any route reads them.
+
+Sessions live only in the httpOnly `auth-token` cookie; the API ignores
+`Authorization: Bearer` headers. Security headers (CSP, HSTS, frame-ancestors
+'none', nosniff, Referrer-Policy, Permissions-Policy) are set in
+`next.config.js`. If you add a third-party script or API to the browser side,
+add its origin to the CSP there.
 
 ## Deploying the security-hardening release (migration `20261101000000_security_hardening`)
 

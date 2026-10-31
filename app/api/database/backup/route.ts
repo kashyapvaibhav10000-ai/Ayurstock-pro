@@ -80,6 +80,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Backup Error:', error);
-    return createErrorResponse(error.message || 'Failed to generate backup', 500);
+    return createErrorResponse('Failed to generate backup', 500);
   }
 }

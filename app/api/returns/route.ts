@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Returns Fetch Error:', error);
-    return createErrorResponse(error.message, 500);
+    return createErrorResponse('Failed to load returns', 500);
   }
 }
 

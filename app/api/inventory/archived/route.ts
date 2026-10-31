@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
+import { staffOnlyResponse } from '@/middleware/auth';
 import { recordMovement } from '@/lib/stock-movement';
 
 export async function GET(req: NextRequest) {
@@ -9,6 +10,9 @@ export async function GET(req: NextRequest) {
     if (!authResult.authenticated || !authResult.user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+
+    const notStaff = staffOnlyResponse(authResult.user!.role);
+    if (notStaff) return notStaff;
 
     const archivedBatches = await prisma.inventoryBatch.findMany({
       where: {

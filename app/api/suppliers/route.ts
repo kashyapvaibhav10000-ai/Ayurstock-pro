@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { supplierFields } from '@/lib/schemas';
 import { verifyAuth } from '@/lib/auth';
+import { staffOnlyResponse } from '@/middleware/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,6 +10,9 @@ export async function GET(req: NextRequest) {
     if (!auth.authenticated || !auth.user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+
+    const notStaff = staffOnlyResponse(auth.user!.role);
+    if (notStaff) return notStaff;
 
     const suppliers = await prisma.supplier.findMany({
       where: { shopId: auth.user.shopId },

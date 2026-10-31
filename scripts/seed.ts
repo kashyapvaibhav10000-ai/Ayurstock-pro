@@ -38,7 +38,7 @@ async function main() {
         name: demo.name,
         email: demo.email,
         username,
-        passwordHash: await bcrypt.hash(demo.password, 10),
+        passwordHash: await bcrypt.hash(demo.password, 12),
         role: demo.role,
         isActive: true,
       },

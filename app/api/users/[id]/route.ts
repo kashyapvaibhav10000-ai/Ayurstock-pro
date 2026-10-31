@@ -131,7 +131,7 @@ export async function PUT(
     const usernameChanged = username !== undefined && username !== targetUser.username;
     if (isSelf && (emailChanged || usernameChanged)) {
       if (typeof currentPassword !== 'string' || !currentPassword) return fail(CURRENT_PASSWORD_REQUIRED);
-      if (!verifyPassword(currentPassword, targetUser.passwordHash)) return fail(CURRENT_PASSWORD_WRONG);
+      if (!(await verifyPassword(currentPassword, targetUser.passwordHash))) return fail(CURRENT_PASSWORD_WRONG);
     }
 
     // Explicitly doing a targeted update of ONLY safe fields. Password is NEVER updated here.

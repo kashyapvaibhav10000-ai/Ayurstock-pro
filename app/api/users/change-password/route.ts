@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       if (!currentPassword) {
         return NextResponse.json({ success: false, message: 'Enter your current password.' }, { status: 400 });
       }
-      if (!verifyPassword(currentPassword, targetUser.passwordHash)) {
+      if (!(await verifyPassword(currentPassword, targetUser.passwordHash))) {
         return NextResponse.json({ success: false, message: 'Current password is incorrect.' }, { status: 400 });
       }
     }
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'New password and confirmation do not match.' }, { status: 400 });
     }
 
-    const hashed = hashPassword(newPassword);
+    const hashed = await hashPassword(newPassword);
 
     const updated = await prisma.user.update({
       where: { id: userId },

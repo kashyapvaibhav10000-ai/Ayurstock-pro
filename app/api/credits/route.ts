@@ -1,11 +1,14 @@
 import { NextRequest } from 'next/server';
-import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
+import { authenticateRequest, createApiResponse, createErrorResponse, staffOnlyResponse } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request);
     if (!auth) return createErrorResponse('Unauthorized', 401);
+
+    const notStaff = staffOnlyResponse(auth.user.role);
+    if (notStaff) return notStaff;
 
     const sales = await prisma.sale.findMany({
       where: {
@@ -72,8 +75,16 @@ export async function PATCH(request: NextRequest) {
     const auth = await authenticateRequest(request);
     if (!auth) return createErrorResponse('Unauthorized', 401);
 
-    const { saleId, amount } = await request.json();
-    if (!saleId) return createErrorResponse('saleId is required', 400);
+    if (!['ADMIN', 'MANAGER'].includes(auth.user.role)) {
+      return createErrorResponse('Forbidden - Insufficient permissions', 403);
+    }
+
+    const { saleId, amount } = (await request.json().catch(() => null)) ?? {};
+    if (!saleId || typeof saleId !== 'string') return createErrorResponse('saleId is required', 400);
+    // A payment can only reduce what is owed.
+    if (amount !== undefined && (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0)) {
+      return createErrorResponse('Amount must be a positive number', 400);
+    }
 
     const sale = await prisma.sale.findFirst({
       where: { id: saleId, shopId: auth.user.shopId },

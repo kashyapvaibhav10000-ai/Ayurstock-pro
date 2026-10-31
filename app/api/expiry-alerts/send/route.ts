@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
+import { authenticateRequest, createApiResponse, createErrorResponse, staffOnlyResponse } from '@/middleware/auth';
 import * as nodemailer from 'nodemailer';
 import { addMonths, differenceInDays } from 'date-fns';
 
@@ -10,6 +10,9 @@ export async function POST(request: NextRequest) {
     if (!auth) {
       return createErrorResponse('Unauthorized', 401);
     }
+
+    const notStaff = staffOnlyResponse(auth.user.role);
+    if (notStaff) return notStaff;
 
     const shopId = auth.user.shopId;
 

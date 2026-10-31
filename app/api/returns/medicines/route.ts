@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyAuth } from "@/lib/auth";
+import { staffOnlyResponse } from '@/middleware/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,6 +12,9 @@ export async function GET(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    const notStaff = staffOnlyResponse(auth.user!.role);
+    if (notStaff) return notStaff;
 
     // Fetch distinct medicines that currently exist in inventory batches with stock > 0
     const activeBatches = await prisma.inventoryBatch.findMany({

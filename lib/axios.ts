@@ -3,14 +3,9 @@ import axios from 'axios';
 // Only execute interceptor attachment on the Client Side
 if (typeof window !== 'undefined') {
 
-  // Intercept all OUTGOING requests to attach the Bearer token automatically
-  axios.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  });
+  // The session lives in the httpOnly auth-token cookie, which the browser
+  // sends by itself; no token is kept in JavaScript-readable storage.
+  localStorage.removeItem('token');
 
   // Intercept all INCOMING responses to catch rogue 401s universally
   axios.interceptors.response.use(

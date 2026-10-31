@@ -6,6 +6,7 @@ import { AI_FEATURES, AI_FEATURE_LABEL } from '@/lib/ai/features';
 import { AI_ADAPTERS, describeAdapter, getAdapter } from '@/lib/ai/providers';
 import { aiUsageStats } from '@/lib/ai/usage-log';
 import { AuthUser } from '@/types';
+import { assertPublicHttpsUrl } from '@/lib/net-guard';
 
 export function forbidden() {
   // 404 rather than 403 so the endpoint is not advertised to non-super-admins.
@@ -57,13 +58,15 @@ export function optionalText(value: unknown, max: number): string | null | undef
   return value.trim() || null;
 }
 
-/** Base URLs receive the API key, so only https (no credentials) is accepted. */
-export function validateBaseUrl(value: string | null): string | null | false {
+/**
+ * Base URLs receive the API key, so only https (no credentials) to a public
+ * address is accepted. DNS is checked again on every call (lib/ai/providers/http.ts).
+ */
+export async function validateBaseUrl(value: string | null): Promise<string | null | false> {
   if (value === null) return null;
   try {
-    const url = new URL(value);
-    if (url.protocol !== 'https:' || url.username || url.password) return false;
-    return url.toString().replace(/\/+$/, '');
+    await assertPublicHttpsUrl(value);
+    return new URL(value).toString().replace(/\/+$/, '');
   } catch {
     return false;
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { authenticateRequest } from '@/middleware/auth';
-import Papa from 'papaparse';
+import { authenticateRequest, staffOnlyResponse } from '@/middleware/auth';
+import { toCsv } from '@/lib/csv';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,6 +9,9 @@ export async function GET(req: NextRequest) {
     if (!auth) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
+
+    const notStaff = staffOnlyResponse(auth.user.role);
+    if (notStaff) return notStaff;
 
     // Export ALL Returns mapping relational logic top-down
     const returns = await prisma.medicineReturn.findMany({
@@ -33,7 +36,7 @@ export async function GET(req: NextRequest) {
       'Status': ret.status
     }));
 
-    const csvContent = Papa.unparse(flatRecords);
+    const csvContent = toCsv(flatRecords);
     const filename = `returns-report-${new Date().toISOString().split('T')[0]}.csv`;
 
     return new NextResponse(csvContent, {

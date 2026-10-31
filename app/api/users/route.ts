@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Hash the password SECURELY using the library's bcrypt implementation
-    const hashed = hashPassword(password);
+    const hashed = await hashPassword(password);
 
     const newUser = await prisma.user.create({
       data: {

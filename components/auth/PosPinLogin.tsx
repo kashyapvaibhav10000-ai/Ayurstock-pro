@@ -11,7 +11,7 @@ type DeviceStatus = { paired: false } | { paired: true; deviceName: string; shop
  * PIN login for paired POS devices. An unpaired browser only sees the
  * "Pair this device" entry; the code comes from Settings > POS Devices.
  */
-export default function PosPinLogin({ onLoggedIn }: { onLoggedIn: (data: { token: string; user: unknown }) => void }) {
+export default function PosPinLogin({ onLoggedIn }: { onLoggedIn: (data: { user: unknown }) => void }) {
   const [status, setStatus] = useState<DeviceStatus | null>(null);
   const [pairing, setPairing] = useState(false);
   const [code, setCode] = useState('');

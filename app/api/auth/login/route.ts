@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { generateToken, hashPassword, setAuthCookie, verifyPassword } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
+import { BCRYPT_COST, generateToken, setAuthCookie, verifyPassword } from '@/lib/auth';
 import { LoginSchema } from '@/lib/schemas';
 import { createErrorResponse } from '@/middleware/auth';
 import { rateLimit, getClientIp } from '@/lib/rate-limit';
@@ -12,7 +13,7 @@ const INVALID_CREDENTIALS = 'Invalid credentials';
 
 // Compared against when no user matches, so an unknown identifier costs the
 // same bcrypt time as a wrong password.
-const DUMMY_HASH = hashPassword('not-a-real-password-for-timing-only');
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password-for-timing-only', BCRYPT_COST);
 
 /** Username or email: an "@" means email; both match case-insensitively. */
 async function findLoginUser(identifier: string) {
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       // Can't log to LoginHistory without a userId FK
-      verifyPassword(password, DUMMY_HASH);
+      await verifyPassword(password, DUMMY_HASH);
       return createErrorResponse(INVALID_CREDENTIALS, 401);
     }
 
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
       });
 
     // Verify password
-    const passwordValid = verifyPassword(password, user.passwordHash);
+    const passwordValid = await verifyPassword(password, user.passwordHash);
     if (!passwordValid) {
       await logAttempt('failed').catch(console.error);
       return createErrorResponse(INVALID_CREDENTIALS, 401);
@@ -107,7 +108,6 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         data: {
-          token,
           user: {
             id: user.id,
             name: user.name,

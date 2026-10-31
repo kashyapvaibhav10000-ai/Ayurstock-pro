@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
+import { clientErrorMessage } from '@/lib/errors';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
 import Papa from 'papaparse';
 import { normalizeExpiry } from '@/lib/batch';
@@ -14,8 +15,8 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('Unauthorized - Admin access required', 403);
     }
 
-    const { csvData } = await req.json();
-    if (!csvData) return createErrorResponse('No CSV data provided', 400);
+    const { csvData } = (await req.json().catch(() => null)) ?? {};
+    if (!csvData || typeof csvData !== 'string') return createErrorResponse('No CSV data provided', 400);
 
     const parsed = Papa.parse(csvData.trim(), { header: true, skipEmptyLines: true });
     
@@ -60,6 +61,9 @@ export async function POST(req: NextRequest) {
       if (isNaN(mrp) || mrp <= 0) return createErrorResponse(`Row ${lineNum}: MRP must be positive`, 400);
 
       if (!row['Rack Location']?.trim()) return createErrorResponse(`Row ${lineNum}: Rack Location is required`, 400);
+      for (const column of ['Medicine Name', 'Company', 'Batch Number', 'Rack Location']) {
+        if (String(row[column]).length > 200) return createErrorResponse(`Row ${lineNum}: ${column} is too long (max 200 characters)`, 400);
+      }
     }
 
     const shopId = auth.user.shopId;
@@ -77,8 +81,6 @@ export async function POST(req: NextRequest) {
       `${medicineId}|${batchNumber.toLowerCase().trim()}|${normalizeExpiry(expiry).toISOString().slice(0, 10)}`;
     existingBatches.forEach(b => batchMap.set(csvBatchKey(b.medicineId, b.batchNumber, b.expiryDate), b));
 
-    const transactions = [];
-
     // Counters for the requested final UI output
     let added = 0;
     let updated = 0;
@@ -93,193 +95,142 @@ export async function POST(req: NextRequest) {
       rackLocation: string;
     }> = [];
 
-    // Tracking what we generated in this exact loop to map relational dependencies dynamically across the 5k bounds
-    const newMedsCache = new Map();
-    const newCompanyCache = new Set();
-    const newRacksCache = new Set();
-
-    // 4. Transform Operations into Prisma Pipelines
-    for (let row of rows) {
-      const mName = row['Medicine Name'].trim();
-      const mCompany = row['Company'].trim();
-      const mBatch = row['Batch Number'].trim();
-      const mExpiry = new Date(row['Expiry Date']);
-      const mQty = parseInt(row['Quantity']);
-      const mPr = parseFloat(row['Purchase Rate']);
-      const mMrp = parseFloat(row['MRP']);
-      const mRack = row['Rack Location'].trim();
-
-      // Upsert Topologies securely
-      if (!newCompanyCache.has(mCompany.toLowerCase())) {
-        transactions.push(
-          prisma.company.upsert({
-            where: { shopId_name: { shopId, name: mCompany } },
-            update: {},
-            create: { shopId, name: mCompany }
-          })
-        );
-        newCompanyCache.add(mCompany.toLowerCase());
-      }
-
-      if (!newRacksCache.has(mRack.toLowerCase())) {
-        transactions.push(
-          prisma.rackLocation.upsert({
-            where: { shopId_name: { shopId, name: mRack } },
-            update: {},
-            create: { shopId, name: mRack }
-          })
-        );
-        newRacksCache.add(mRack.toLowerCase());
-      }
-
-      // Check Medicine Existance
-      const medKey = `${mName.toLowerCase()}|${mCompany.toLowerCase()}`;
-      let finalMedicineId = medMap.get(medKey);
+    // All writes in one transaction: a failure on any row leaves nothing
+    // half-imported.
+    await prisma.$transaction(async (tx) => {
+      // Since Prisma bulk logic requires IDs, we execute safely outside the batch loop for standard topological graphs:
+      // This scales efficiently up to 5k.
+      for (let row of rows) {
+        const mName = row['Medicine Name'].trim();
+        const mCompany = row['Company'].trim();
+        const medKey = `${mName.toLowerCase()}|${mCompany.toLowerCase()}`;
       
-      if (!finalMedicineId) {
-        // If not in DB, did we flag it for creation already in this run?
-        if (!newMedsCache.has(medKey)) {
-          // We can't immediately get the ID back here because $transaction executes later. 
-          // However, Prisma doesn't support nested array IDs inside raw transactions easily.
-          // Because of this sequential dependency gap, we must split the transaction:
-          // Medicines & Companies first -> Batches Second.
-          added++;
-        }
-      }
-    }
-
-    // Since Prisma bulk logic requires IDs, we execute safely outside the batch loop for standard topological graphs:
-    // This scales efficiently up to 5k.
-    for (let row of rows) {
-      const mName = row['Medicine Name'].trim();
-      const mCompany = row['Company'].trim();
-      const medKey = `${mName.toLowerCase()}|${mCompany.toLowerCase()}`;
+        let medId = medMap.get(medKey);
       
-      let medId = medMap.get(medKey);
-      
-      // If no ID exists, physically commit it now so the batch can latch
-      if (!medId) {
-         const newMed = await prisma.medicine.create({
-            data: {
-              shopId,
-              name: mName,
-              company: mCompany,
-              category: 'General',
-              hsn: '', // Fulfills Prisma schema requirement
-              unit: 'strip',
-            }
-         });
-         medId = newMed.id;
-         medMap.set(medKey, medId);
-         added++;
-      }
-      
-      // Analyze Batch logical bounds
-      const mBatch = row['Batch Number'].trim();
-      const mExpiry = normalizeExpiry(row['Expiry Date']);
-      const batchKey = csvBatchKey(medId, mBatch, mExpiry);
-      const existingBatch = batchMap.get(batchKey);
-
-      const mQty = parseInt(row['Quantity']);
-      const mPr = parseFloat(row['Purchase Rate']);
-      const mMrp = parseFloat(row['MRP']);
-      const mRack = row['Rack Location'].trim();
-
-      if (existingBatch?.pendingRow) {
-        // Repeated row for a batch created by this import: last row wins.
-        Object.assign(existingBatch.pendingRow, { quantity: mQty, purchaseRate: mPr, mrp: mMrp, rackLocation: mRack });
-        updated++;
-      } else if (existingBatch) {
-        // Did anything actually change requiring an update?
-        if (
-          existingBatch.stockQty === mQty &&
-          Number(existingBatch.mrp) === mMrp &&
-          Number(existingBatch.purchaseRate) === mPr &&
-          existingBatch.rackLocation === mRack
-        ) {
-          skipped++;
-        } else {
-          // CSV rows carry the absolute on-hand quantity; apply the difference.
-          const updatedBatch = await prisma.$transaction(async (tx) => {
-            await tx.inventoryBatch.update({
-              where: { id: existingBatch.id },
-              data: { purchaseRate: mPr, mrp: mMrp, sellingRate: mMrp, rackLocation: mRack },
-            });
-            const current = await tx.inventoryBatch.findUniqueOrThrow({ where: { id: existingBatch.id } });
-            if (mQty !== current.stockQty) {
-              await recordMovement(tx, {
+        // If no ID exists, physically commit it now so the batch can latch
+        if (!medId) {
+           const newMed = await tx.medicine.create({
+              data: {
                 shopId,
-                batchId: existingBatch.id,
-                type: 'ADJUSTMENT',
-                qtyChange: mQty - current.stockQty,
-                refType: 'CSV_IMPORT',
-                note: `CSV import set stock from ${current.stockQty} to ${mQty}`,
-                userId: auth.user.id,
-              });
-            }
-            return tx.inventoryBatch.findUniqueOrThrow({ where: { id: existingBatch.id } });
-          });
-          batchMap.set(batchKey, updatedBatch);
+                name: mName,
+                company: mCompany,
+                category: 'General',
+                hsn: '', // Fulfills Prisma schema requirement
+                unit: 'strip',
+              }
+           });
+           medId = newMed.id;
+           medMap.set(medKey, medId);
+           added++;
+        }
+      
+        // Analyze Batch logical bounds
+        const mBatch = row['Batch Number'].trim();
+        const mExpiry = normalizeExpiry(row['Expiry Date']);
+        const batchKey = csvBatchKey(medId, mBatch, mExpiry);
+        const existingBatch = batchMap.get(batchKey);
+
+        const mQty = parseInt(row['Quantity']);
+        const mPr = parseFloat(row['Purchase Rate']);
+        const mMrp = parseFloat(row['MRP']);
+        const mRack = row['Rack Location'].trim();
+
+        if (existingBatch?.pendingRow) {
+          // Repeated row for a batch created by this import: last row wins.
+          Object.assign(existingBatch.pendingRow, { quantity: mQty, purchaseRate: mPr, mrp: mMrp, rackLocation: mRack });
           updated++;
+        } else if (existingBatch) {
+          // Did anything actually change requiring an update?
+          if (
+            existingBatch.stockQty === mQty &&
+            Number(existingBatch.mrp) === mMrp &&
+            Number(existingBatch.purchaseRate) === mPr &&
+            existingBatch.rackLocation === mRack
+          ) {
+            skipped++;
+          } else {
+            // CSV rows carry the absolute on-hand quantity; apply the difference.
+            const updatedBatch = await (async () => {
+              await tx.inventoryBatch.update({
+                where: { id: existingBatch.id },
+                data: { purchaseRate: mPr, mrp: mMrp, sellingRate: mMrp, rackLocation: mRack },
+              });
+              const current = await tx.inventoryBatch.findUniqueOrThrow({ where: { id: existingBatch.id } });
+              if (mQty !== current.stockQty) {
+                await recordMovement(tx, {
+                  shopId,
+                  batchId: existingBatch.id,
+                  type: 'ADJUSTMENT',
+                  qtyChange: mQty - current.stockQty,
+                  refType: 'CSV_IMPORT',
+                  note: `CSV import set stock from ${current.stockQty} to ${mQty}`,
+                  userId: auth.user.id,
+                });
+              }
+              return tx.inventoryBatch.findUniqueOrThrow({ where: { id: existingBatch.id } });
+            })();
+            batchMap.set(batchKey, updatedBatch);
+            updated++;
+          }
+        } else {
+          // New batches are collected into one MANUAL purchase below.
+          const pendingRow = { medicineId: medId, batchNumber: mBatch, expiryDate: mExpiry, quantity: mQty, purchaseRate: mPr, mrp: mMrp, rackLocation: mRack };
+          newBatchRows.push(pendingRow);
+          batchMap.set(batchKey, { pendingRow });
         }
-      } else {
-        // New batches are collected into one MANUAL purchase below.
-        const pendingRow = { medicineId: medId, batchNumber: mBatch, expiryDate: mExpiry, quantity: mQty, purchaseRate: mPr, mrp: mMrp, rackLocation: mRack };
-        newBatchRows.push(pendingRow);
-        batchMap.set(batchKey, { pendingRow });
       }
-    }
 
-    if (newBatchRows.length > 0) {
-      await prisma.$transaction(async (tx) => {
-        const lines: InflowLine[] = [];
-        for (const row of newBatchRows) {
-          const { batch } = await findOrCreateBatch(
-            tx,
-            { shopId, medicineId: row.medicineId, batchNumber: row.batchNumber, expiryDate: row.expiryDate },
-            { mrp: row.mrp, purchaseRate: row.purchaseRate, sellingRate: row.mrp, rackLocation: row.rackLocation }
-          );
-          lines.push({
-            medicineId: row.medicineId,
-            batchId: batch.id,
-            quantity: row.quantity,
-            purchaseRate: row.purchaseRate,
-            mrp: row.mrp,
-            expiryDate: batch.expiryDate,
+      if (newBatchRows.length > 0) {
+        await (async () => {
+          const lines: InflowLine[] = [];
+          for (const row of newBatchRows) {
+            const { batch } = await findOrCreateBatch(
+              tx,
+              { shopId, medicineId: row.medicineId, batchNumber: row.batchNumber, expiryDate: row.expiryDate },
+              { mrp: row.mrp, purchaseRate: row.purchaseRate, sellingRate: row.mrp, rackLocation: row.rackLocation }
+            );
+            lines.push({
+              medicineId: row.medicineId,
+              batchId: batch.id,
+              quantity: row.quantity,
+              purchaseRate: row.purchaseRate,
+              mrp: row.mrp,
+              expiryDate: batch.expiryDate,
+            });
+          }
+          await createInflowPurchase(tx, {
+            shopId,
+            userId: auth.user.id,
+            source: 'MANUAL',
+            supplierId: await resolveSupplierId(tx, shopId, { fallback: 'MANUAL' }),
+            invoiceNumber: await uniqueInvoiceNumber(tx, shopId, 'MANUAL'),
+            invoiceDate: new Date(),
+            notes: 'CSV inventory import',
+            lines,
           });
-        }
-        await createInflowPurchase(tx, {
-          shopId,
-          userId: auth.user.id,
-          source: 'MANUAL',
-          supplierId: await resolveSupplierId(tx, shopId, { fallback: 'MANUAL' }),
-          invoiceNumber: await uniqueInvoiceNumber(tx, shopId, 'MANUAL'),
-          invoiceDate: new Date(),
-          notes: 'CSV inventory import',
-          lines,
-        });
-      }, { timeout: 120_000 });
-    }
+        })();
+      }
 
-    // Force Topology Sync
-    const mapCompanySet = new Set(rows.map(r => r['Company'].trim()));
-    const mapRackSet = new Set(rows.map(r => r['Rack Location'].trim()));
+      // Force Topology Sync
+      const mapCompanySet = new Set(rows.map(r => r['Company'].trim()));
+      const mapRackSet = new Set(rows.map(r => r['Rack Location'].trim()));
     
-    for (const c of Array.from(mapCompanySet)) {
-      await prisma.company.upsert({
-        where: { shopId_name: { shopId, name: c as string } },
-        update: {},
-        create: { shopId, name: c as string }
-      });
-    }
+      for (const c of Array.from(mapCompanySet)) {
+        await tx.company.upsert({
+          where: { shopId_name: { shopId, name: c as string } },
+          update: {},
+          create: { shopId, name: c as string }
+        });
+      }
 
-    for (const r of Array.from(mapRackSet)) {
-      await prisma.rackLocation.upsert({
-        where: { shopId_name: { shopId, name: r as string } },
-        update: {},
-        create: { shopId, name: r as string }
-      });
-    }
+      for (const r of Array.from(mapRackSet)) {
+        await tx.rackLocation.upsert({
+          where: { shopId_name: { shopId, name: r as string } },
+          update: {},
+          create: { shopId, name: r as string }
+        });
+      }
+    }, { timeout: 300_000, maxWait: 10_000 });
 
     return createApiResponse(true, {
       message: `Import complete: ${added} medicines added, ${updated} updated, ${skipped} skipped`
@@ -287,6 +238,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Import CSV Error:', error);
-    return createErrorResponse(error.message || 'Internal Server Error processing CSV block', 500);
+    return createErrorResponse(clientErrorMessage(error, 'Failed to import CSV'), 500);
   }
 }

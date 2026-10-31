@@ -104,7 +104,7 @@ export async function PUT(request: NextRequest) {
     if (emailChanged || usernameChanged || password) {
       const currentPassword = validation.data.currentPassword;
       if (!currentPassword) return createErrorResponse(CURRENT_PASSWORD_REQUIRED, 400);
-      if (!verifyPassword(currentPassword, current.passwordHash)) return createErrorResponse(CURRENT_PASSWORD_WRONG, 400);
+      if (!(await verifyPassword(currentPassword, current.passwordHash))) return createErrorResponse(CURRENT_PASSWORD_WRONG, 400);
     }
 
     // Emails are unique across all shops.
@@ -130,7 +130,7 @@ export async function PUT(request: NextRequest) {
         avatarUrl: avatarUrl || null,
         ...pinData(auth.user.shopId, parsedPin.pin),
         // A new password ends every other session.
-        ...(password ? { passwordHash: hashPassword(password), tokenVersion: { increment: 1 } } : {}),
+        ...(password ? { passwordHash: await hashPassword(password), tokenVersion: { increment: 1 } } : {}),
       },
       select: {
         id: true,

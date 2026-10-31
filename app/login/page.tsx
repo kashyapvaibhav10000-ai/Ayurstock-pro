@@ -15,8 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const finishLogin = (data: { token: string; user: unknown }) => {
-    localStorage.setItem('token', data.token);
+  const finishLogin = (data: { user: unknown }) => {
     localStorage.setItem('user', JSON.stringify(data.user));
     router.push('/dashboard');
   };

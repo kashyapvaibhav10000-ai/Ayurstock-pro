@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
+import { authenticateRequest, createErrorResponse, createApiResponse, staffOnlyResponse } from '@/middleware/auth';
 import { getDailySalesSummary, getTopSellingMedicines } from '@/services/billing';
 import { prisma } from '@/lib/db';
 
@@ -9,6 +9,9 @@ export async function GET(request: NextRequest) {
     if (!auth) {
       return createErrorResponse('Unauthorized', 401);
     }
+
+    const notStaff = staffOnlyResponse(auth.user.role);
+    if (notStaff) return notStaff;
 
     const searchParams = request.nextUrl.searchParams;
     const reportType = searchParams.get('type') || 'daily-sales';

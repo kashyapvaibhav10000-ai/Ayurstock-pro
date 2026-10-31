@@ -101,8 +101,8 @@ export async function PATCH(request: NextRequest) {
     if (baseUrlText === false) return badRequest('Base URL is too long');
     if (baseUrlText !== undefined) {
       if (!adapter.requiresBaseUrl) return badRequest('This provider has a fixed URL');
-      const baseUrl = validateBaseUrl(baseUrlText);
-      if (!baseUrl) return badRequest('Base URL must be an https:// URL');
+      const baseUrl = await validateBaseUrl(baseUrlText);
+      if (!baseUrl) return badRequest('Base URL must be a public https:// URL');
       data.baseUrl = baseUrl;
       changes.push(`base URL: ${baseUrl}`);
     }

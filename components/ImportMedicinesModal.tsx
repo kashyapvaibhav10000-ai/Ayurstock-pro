@@ -200,7 +200,6 @@ export default function ImportMedicinesModal({
   });
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -275,15 +274,7 @@ export default function ImportMedicinesModal({
         const formData = new FormData();
         formData.append('extractedText', extractedText);
 
-        const headers: Record<string, string> = {};
-        const authToken = token || localStorage.getItem('token');
-        
-        if (authToken) {
-          headers['Authorization'] = `Bearer ${authToken}`;
-        }
-
         const response = await axios.post('/api/medicines/import', formData, {
-          headers,
           signal: abortControllerRef.current.signal,
         });
 
@@ -370,11 +361,7 @@ export default function ImportMedicinesModal({
       const formData = new FormData();
       formData.append('extractedText', extractedText);
 
-      const headers: Record<string, string> = {};
-      const authToken = token || localStorage.getItem('token');
-      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-
-      const response = await axios.post('/api/medicines/import', formData, { headers });
+      const response = await axios.post('/api/medicines/import', formData);
 
       if (response.status === 202 && response.data.jobId) {
         setJobId(response.data.jobId);
@@ -617,10 +604,6 @@ export default function ImportMedicinesModal({
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
 
       const response = await axios.post('/api/medicines/import/single', {
         name: medicine.name,

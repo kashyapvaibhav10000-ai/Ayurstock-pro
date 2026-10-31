@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
+import { staffOnlyResponse } from '@/middleware/auth';
 import { CreatePurchaseSchema } from '@/lib/schemas';
 import { findOrCreateBatch, getLowStockMedicines } from '@/services/inventory';
 import { createInflowPurchase, InflowLine } from '@/lib/purchase-record';
@@ -13,6 +14,9 @@ export async function GET(req: NextRequest) {
     if (!auth.authenticated || !auth.user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+
+    const notStaff = staffOnlyResponse(auth.user!.role);
+    if (notStaff) return notStaff;
 
     const searchParams = req.nextUrl.searchParams;
     const view = searchParams.get('view');

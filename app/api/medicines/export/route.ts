@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
+import { staffOnlyResponse } from '@/middleware/auth';
+import { toCsv } from '@/lib/csv';
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,6 +10,9 @@ export async function GET(req: NextRequest) {
     if (!auth.authenticated || !auth.user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+
+    const notStaff = staffOnlyResponse(auth.user!.role);
+    if (notStaff) return notStaff;
 
     const shopId = auth.user.shopId;
 
@@ -20,20 +25,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'No medicines to export' }, { status: 404 });
     }
 
-    // Create CSV header
-    const headers = ['Name', 'Company', 'Category', 'Packing', 'HSN', 'Barcode', 'Unit', 'Created At'];
-    const rows = medicines.map(m => [
-      `"${(m.name || '').replace(/"/g, '""')}"`,
-      `"${(m.company || '').replace(/"/g, '""')}"`,
-      `"${(m.category || '').replace(/"/g, '""')}"`,
-      `"${(m.packing || '').replace(/"/g, '""')}"`,
-      `"${(m.hsn || '').replace(/"/g, '""')}"`,
-      `"${(m.barcode || '').replace(/"/g, '""')}"`,
-      `"${(m.unit || '').replace(/"/g, '""')}"`,
-      m.createdAt.toISOString()
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = toCsv(
+      medicines.map((m) => ({
+        Name: m.name,
+        Company: m.company,
+        Category: m.category,
+        Packing: m.packing,
+        HSN: m.hsn,
+        Barcode: m.barcode,
+        Unit: m.unit,
+        'Created At': m.createdAt.toISOString(),
+      }))
+    );
 
     return new NextResponse(csvContent, {
       status: 200,

@@ -1,11 +1,17 @@
+import { assertPublicHttpsUrl } from '@/lib/net-guard';
 import { AiFile, AiPrompt, DEFAULT_TIMEOUT_MS, RateLimitError, TEST_TIMEOUT_MS, TestResult } from './types';
 
-/** fetch with an abort timeout. */
+/**
+ * fetch with an abort timeout. Every request carries an API key and some
+ * URLs are admin-configured, so the target must be public https and
+ * redirects are never followed (a 3xx comes back as a failed response).
+ */
 export async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  await assertPublicHttpsUrl(url);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    return await fetch(url, { ...init, redirect: 'manual', signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }

@@ -6,7 +6,71 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || '');
 const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;
 const SEVEN_DAYS_SECONDS = 60 * 60 * 24 * 7;
 
+// Largest request body any route accepts (invoice / price-list uploads).
+export const MAX_BODY_BYTES = 20 * 1024 * 1024;
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/** Hosts this app is served on: the request's own Host plus APP_ORIGINS. */
+function allowedHosts(request: NextRequest): Set<string> {
+  const hosts = new Set<string>();
+  const host = request.headers.get('host');
+  if (host) hosts.add(host.toLowerCase());
+  for (const origin of (process.env.APP_ORIGINS || '').split(',')) {
+    try {
+      if (origin.trim()) hosts.add(new URL(origin.trim()).host.toLowerCase());
+    } catch {
+      // ignore malformed entries
+    }
+  }
+  return hosts;
+}
+
+/**
+ * CSRF: a state-changing API call must come from our own pages. Browsers
+ * send Origin on every cross-origin request and on same-origin non-GET
+ * fetches, so a foreign or "null" Origin is refused. Requests with no Origin
+ * and no Sec-Fetch-Site are not from a browser page and carry no ambient
+ * cookie risk.
+ */
+export function crossOriginRejection(request: NextRequest): NextResponse | null {
+  if (SAFE_METHODS.has(request.method)) return null;
+
+  const origin = request.headers.get('origin');
+  if (origin) {
+    let host: string | null = null;
+    try {
+      host = new URL(origin).host.toLowerCase();
+    } catch {
+      host = null;
+    }
+    if (!host || !allowedHosts(request).has(host)) {
+      return NextResponse.json({ success: false, error: 'Cross-origin request refused' }, { status: 403 });
+    }
+    return null;
+  }
+
+  const site = request.headers.get('sec-fetch-site');
+  if (site && site !== 'same-origin' && site !== 'none') {
+    return NextResponse.json({ success: false, error: 'Cross-origin request refused' }, { status: 403 });
+  }
+  return null;
+}
+
+/** Refuse oversized bodies before any route buffers them. */
+export function oversizedRejection(request: NextRequest): NextResponse | null {
+  const length = Number(request.headers.get('content-length') || 0);
+  if (length > MAX_BODY_BYTES) {
+    return NextResponse.json({ success: false, error: 'Request body too large (max 20 MB)' }, { status: 413 });
+  }
+  return null;
+}
+
 export async function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return crossOriginRejection(request) ?? oversizedRejection(request) ?? NextResponse.next();
+  }
+
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
     const token = request.cookies.get('auth-token')?.value;
 
@@ -40,27 +104,13 @@ export async function proxy(request: NextRequest) {
       }
 
       return response;
-    } catch (err: unknown) {
-      // Only clear cookie and redirect on genuine JWT errors (expired / invalid signature).
-      // For unexpected errors (e.g. transient crypto failure during server restart),
-      // let the request through so users are not logged out mid-session.
-      const message = err instanceof Error ? err.message : String(err);
-      const isJwtError =
-        message.includes('JWTExpired') ||
-        message.includes('JWSInvalid') ||
-        message.includes('JWSSignatureVerificationFailed') ||
-        message.includes('ERR_JWT') ||
-        message.includes('invalid_token');
-
-      if (isJwtError) {
-        const response = NextResponse.redirect(new URL('/login', request.url));
-        response.cookies.delete('auth-token');
-        return response;
-      }
-
-      // Unexpected error — allow through without deleting cookie
-      console.error('[middleware] Unexpected JWT verify error:', message);
-      return NextResponse.next();
+    } catch {
+      // Fail closed: any verification failure (expired, bad signature,
+      // missing secret) sends the user to log in again. The dashboard layout
+      // re-checks the session against the database as well.
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('auth-token');
+      return response;
     }
   }
 
@@ -68,5 +118,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ['/dashboard/:path*', '/api/:path*'],
 };

@@ -5,6 +5,10 @@ import { parsePurchaseInvoiceText } from '@/lib/purchase-invoice-parser';
 import { prisma } from '@/lib/db';
 import { storePurchaseDocument } from '@/lib/purchase-record';
 import Tesseract from 'tesseract.js';
+import { detectFileType, runLimited, withTimeout } from '@/lib/upload';
+
+const MAX_TEXT_PAGES = 50;
+const OCR_TIMEOUT_MS = 60_000;
 
 const STOPWORDS = new Set(['tab', 'tabs', 'tablet', 'caps', 'capsule', 'strip', 'bottle', 'pack', 'syrup']);
 
@@ -54,18 +58,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'No file provided' }, { status: 400 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    if (buffer.length > 10 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json({ success: false, message: 'File too large. Maximum size is 10MB.' }, { status: 400 });
     }
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    // The declared type is a hint; decide from the bytes.
+    const detected = detectFileType(buffer);
+    if (!detected) {
+      return NextResponse.json({ success: false, message: 'Only PDF, PNG, JPEG or WebP files are accepted' }, { status: 400 });
+    }
+    const fileType = detected.mime;
 
     // Keep the original invoice; the purchase saved from these lines links to it.
     const documentId = await storePurchaseDocument(prisma, {
       shopId: auth.user.shopId,
       userId: auth.user.id,
       fileName: file.name,
-      mimeType: file.type,
+      mimeType: fileType,
       data: buffer,
     });
 
@@ -80,55 +90,67 @@ export async function POST(req: NextRequest) {
       quantity?: number;
     }> = [];
 
-    if (file.type === 'application/pdf') {
-      try {
-        const pdfjsLib = await import('pdfjs-dist');
-        const loadingTask = pdfjsLib.getDocument({ data: buffer });
-        const pdf = await loadingTask.promise;
-        let fullText = '';
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map((item: any) => item.str)
-            .join(' ');
-          fullText += pageText + '\n';
+    // OCR needs hundreds of MB; run one at a time on this server.
+    const parsed = await runLimited('ocr', 1, async () => {
+      if (fileType === 'application/pdf') {
+        try {
+          const pdfjsLib = await import('pdfjs-dist');
+          const loadingTask = pdfjsLib.getDocument({ data: buffer });
+          const pdf = await loadingTask.promise;
+          let fullText = '';
+          for (let i = 1; i <= Math.min(pdf.numPages, MAX_TEXT_PAGES); i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items
+              .map((item: any) => item.str)
+              .join(' ');
+            fullText += pageText + '\n';
+          }
+          parsedRows = parsePurchaseInvoiceText(fullText);
+        } catch (error) {
+          console.warn('PDF text parse failed, falling back to OCR:', error);
         }
-        parsedRows = parsePurchaseInvoiceText(fullText);
-      } catch (error) {
-        console.warn('PDF text parse failed, falling back to OCR:', error);
       }
-    }
 
-    if (parsedRows.length === 0 && file.type === 'application/pdf') {
-      try {
-        const { pdf } = await import('pdf-to-img');
-        const dataUrl = `data:application/pdf;base64,${buffer.toString('base64')}`;
-        const document = await pdf(dataUrl, { scale: 2 });
-        let combinedText = '';
-        let pageCount = 0;
+      if (parsedRows.length === 0 && fileType === 'application/pdf') {
+        try {
+          const { pdf } = await import('pdf-to-img');
+          const dataUrl = `data:application/pdf;base64,${buffer.toString('base64')}`;
+          const document = await pdf(dataUrl, { scale: 2 });
+          let combinedText = '';
+          let pageCount = 0;
 
-        for await (const image of document) {
-          const result = await Tesseract.recognize(image, 'eng+hin', { logger: () => {} });
-          combinedText += `\n${result.data.text || ''}`;
-          pageCount += 1;
-          if (pageCount >= 2) break;
+          for await (const image of document) {
+            const result = await withTimeout(Tesseract.recognize(image, 'eng+hin', { logger: () => {} }), OCR_TIMEOUT_MS, 'OCR');
+            combinedText += `\n${result.data.text || ''}`;
+            pageCount += 1;
+            if (pageCount >= 2) break;
+          }
+
+          parsedRows = parsePurchaseInvoiceText(combinedText);
+        } catch (error) {
+          console.warn('PDF OCR fallback failed:', error);
         }
-
-        parsedRows = parsePurchaseInvoiceText(combinedText);
-      } catch (error) {
-        console.warn('PDF OCR fallback failed:', error);
       }
-    }
 
-    if (parsedRows.length === 0 && ['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
-      const result = await Tesseract.recognize(buffer, 'eng+hin', { logger: () => {} });
-      parsedRows = parsePurchaseInvoiceText(result.data.text || '');
-    }
+      if (parsedRows.length === 0 && detected.kind === 'image') {
+        const result = await withTimeout(Tesseract.recognize(buffer, 'eng+hin', { logger: () => {} }), OCR_TIMEOUT_MS, 'OCR');
+        parsedRows = parsePurchaseInvoiceText(result.data.text || '');
+      }
 
-    if (parsedRows.length === 0) {
-      parsedRows = await parseMedicineImportFile(file, buffer);
+      if (parsedRows.length === 0) {
+        const typedFile = new File([new Uint8Array(buffer)], file.name, { type: fileType });
+        parsedRows = await withTimeout(parseMedicineImportFile(typedFile, buffer), OCR_TIMEOUT_MS * 2, 'Import parse');
+      }
+      return parsedRows;
+    }).catch((error) => {
+      console.warn('Invoice parse failed:', error instanceof Error ? error.message : error);
+      return { busy: false as const, value: [] as typeof parsedRows };
+    });
+    if (parsed.busy) {
+      return NextResponse.json({ success: false, message: 'Another invoice is being read. Try again in a minute.' }, { status: 429 });
     }
+    parsedRows = parsed.value;
 
     const medicines = await prisma.medicine.findMany({
       where: {
