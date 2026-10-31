@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
 import { ProfileSettingsSchema } from '@/lib/schemas';
 import { hashPassword } from '@/lib/auth';
+import { USERNAME_TAKEN, isUsernameConflict, parseUsernameInput } from '@/lib/username';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         email: true,
+        username: true,
         phone: true,
         avatarUrl: true,
         role: true,
@@ -51,6 +53,19 @@ export async function PUT(request: NextRequest) {
 
     const { name, email, phone, password, avatarUrl } = validation.data;
 
+    // username: omitted = unchanged, null / '' = cleared
+    const parsedUsername = parseUsernameInput(validation.data.username);
+    if (!parsedUsername.ok) {
+      return createErrorResponse(parsedUsername.error, 400);
+    }
+    const username = parsedUsername.username;
+    if (username) {
+      const owner = await prisma.user.findUnique({ where: { username }, select: { id: true } });
+      if (owner && owner.id !== auth.user.id) {
+        return createErrorResponse(USERNAME_TAKEN, 400);
+      }
+    }
+
     const normalizedEmail = email.trim().toLowerCase();
 
     const existingUser = await prisma.user.findFirst({
@@ -71,6 +86,7 @@ export async function PUT(request: NextRequest) {
       data: {
         name: name.trim(),
         email: normalizedEmail,
+        username,
         phone: phone ? phone.trim() : null,
         avatarUrl: avatarUrl || null,
         ...(password ? { passwordHash: hashPassword(password) } : {}),
@@ -79,6 +95,7 @@ export async function PUT(request: NextRequest) {
         id: true,
         name: true,
         email: true,
+        username: true,
         phone: true,
         avatarUrl: true,
         role: true,
@@ -87,6 +104,10 @@ export async function PUT(request: NextRequest) {
 
     return createApiResponse(true, updated);
   } catch (error) {
+    // Lost a race with another request for the same username.
+    if (isUsernameConflict(error)) {
+      return createErrorResponse(USERNAME_TAKEN, 400);
+    }
     console.error('Update profile settings error:', error);
     return createErrorResponse('Internal server error', 500);
   }

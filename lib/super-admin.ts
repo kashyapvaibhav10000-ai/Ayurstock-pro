@@ -4,21 +4,23 @@ import { AuthUser } from '@/types';
 
 /**
  * Super-admins manage platform-wide settings (AI provider keys). A
- * super-admin is an ADMIN whose email is listed in SUPER_ADMIN_EMAILS
- * (comma-separated, case-insensitive). No allowlist = no super-admins.
+ * super-admin is an ADMIN whose email is listed in SUPER_ADMIN_EMAILS or
+ * whose username is listed in SUPER_ADMIN_USERNAMES (comma-separated,
+ * case-insensitive). No allowlist = no super-admins.
  */
-function superAdminEmails(): Set<string> {
+function allowlist(name: 'SUPER_ADMIN_EMAILS' | 'SUPER_ADMIN_USERNAMES'): Set<string> {
   return new Set(
-    (process.env.SUPER_ADMIN_EMAILS || '')
+    (process.env[name] || '')
       .split(',')
-      .map((email) => email.trim().toLowerCase())
+      .map((entry) => entry.trim().toLowerCase())
       .filter(Boolean)
   );
 }
 
-export function isSuperAdmin(user: Pick<AuthUser, 'role' | 'email'> | null | undefined): boolean {
-  if (!user || user.role !== 'ADMIN' || !user.email) return false;
-  return superAdminEmails().has(user.email.trim().toLowerCase());
+export function isSuperAdmin(user: Pick<AuthUser, 'role' | 'email' | 'username'> | null | undefined): boolean {
+  if (!user || user.role !== 'ADMIN') return false;
+  if (user.email && allowlist('SUPER_ADMIN_EMAILS').has(user.email.trim().toLowerCase())) return true;
+  return Boolean(user.username && allowlist('SUPER_ADMIN_USERNAMES').has(user.username.trim().toLowerCase()));
 }
 
 /** Authenticated super-admin for this request, or null. */

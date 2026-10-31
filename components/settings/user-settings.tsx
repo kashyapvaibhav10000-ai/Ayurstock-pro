@@ -16,12 +16,15 @@ import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
+import { useUsernameAvailability, usernameBlocked } from "@/hooks/use-username-availability"
+import UsernameStatusLine from "@/components/settings/username-status"
 
 // Interfaces mapping to Prisma models
 interface User {
   id: string
   name: string
   email: string
+  username?: string | null
   role: string
   isActive: boolean
   createdAt?: string
@@ -31,6 +34,8 @@ interface User {
 const userSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email format"),
+  // Optional login name; rules checked live and by the API.
+  username: z.string().optional(),
   role: z.enum(["ADMIN", "MANAGER", "CASHIER"]),
   password: z.string().min(8, "Password must be strictly at least 8 characters").optional(),
 })
@@ -56,7 +61,7 @@ export default function UserSettings() {
   const [passwordUser, setPasswordUser] = useState<User | null>(null)
   
   // React Hook Form for unified validation
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<UserFormData>({
+  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: { role: "MANAGER" }
   })
@@ -65,6 +70,13 @@ export default function UserSettings() {
   const { register: registerPassword, handleSubmit: handlePasswordSubmit, reset: resetPassword, formState: { errors: passwordErrors, isSubmitting: isPasswordSubmitting } } = useForm<PasswordFormData>({
     resolver: zodResolver(passwordSchema)
   })
+
+  // Live username check for whichever dialog is open (edit excludes the user's current name).
+  const usernameStatus = useUsernameAvailability(
+    watch("username") || "",
+    isEditOpen ? editingUser?.username : null,
+    isEditOpen ? editingUser?.id : undefined
+  )
 
   // Initial Fetch
   useEffect(() => {
@@ -99,13 +111,13 @@ export default function UserSettings() {
   }
 
   const openAddModal = () => {
-    reset({ name: "", email: "", password: "", role: "MANAGER" })
+    reset({ name: "", email: "", username: "", password: "", role: "MANAGER" })
     setIsAddOpen(true)
   }
 
   const openEditModal = (user: User) => {
     setEditingUser(user)
-    reset({ name: user.name, email: user.email, role: user.role as any })
+    reset({ name: user.name, email: user.email, username: user.username || "", role: user.role as any })
     setIsEditOpen(true)
   }
 
@@ -125,7 +137,7 @@ export default function UserSettings() {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, username: data.username?.trim() || null }),
       })
       const result = await res.json()
       
@@ -148,7 +160,8 @@ export default function UserSettings() {
 
     try {
       // Optimistic UI Update specifically for Edit
-      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, name: data.name, email: data.email, role: data.role } : u))
+      const username = data.username?.trim().toLowerCase() || null
+      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, name: data.name, email: data.email, username, role: data.role } : u))
       setIsEditOpen(false)
       
       toast.info("Saving changes to profile...")
@@ -157,7 +170,7 @@ export default function UserSettings() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         // Notice we do NOT send the password here, enforcing backend rule
-        body: JSON.stringify({ name: data.name, email: data.email, role: data.role }),
+        body: JSON.stringify({ name: data.name, email: data.email, username, role: data.role }),
       })
       
       const result = await res.json()
@@ -276,6 +289,7 @@ export default function UserSettings() {
               <tr className="text-left border-b border-border">
                 <th className="p-3 text-muted-foreground font-medium">Name</th>
                 <th className="p-3 text-muted-foreground font-medium">Email</th>
+                <th className="p-3 text-muted-foreground font-medium">Username</th>
                 <th className="p-3 text-muted-foreground font-medium">Role</th>
                 <th className="p-3 text-muted-foreground font-medium">Status</th>
                 <th className="p-3 text-muted-foreground font-medium text-right">Actions</th>
@@ -284,7 +298,7 @@ export default function UserSettings() {
 
             <tbody>
               {users.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-4 text-muted-foreground">No users found for this shop.</td></tr>
+                <tr><td colSpan={6} className="text-center py-4 text-muted-foreground">No users found for this shop.</td></tr>
               ) : users.map((user) => {
                  // Check if the current row represents the currently logged-in admin!
                  const isSelf = user.id === currentUserId;
@@ -295,6 +309,7 @@ export default function UserSettings() {
                     {user.name} {isSelf && <span className="text-[9px] text-blue-600 font-bold ml-1">(YOU)</span>}
                   </td>
                   <td className="p-3 text-muted-foreground">{user.email}</td>
+                  <td className="p-3 text-muted-foreground font-mono text-xs">{user.username || "—"}</td>
                   <td className="p-3">
                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase ${
                         user.role === 'ADMIN' ? 'bg-indigo-100 text-indigo-700' :
@@ -349,6 +364,11 @@ export default function UserSettings() {
                   {errors.email && <p className="text-[10px] text-red-500">{errors.email.message}</p>}
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="username">Username (optional)</Label>
+                  <Input id="username" autoComplete="off" spellCheck={false} {...register("username")} placeholder="john.doe" />
+                  <UsernameStatusLine status={usernameStatus} />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="password">Temporary Password</Label>
                   <Input id="password" type="password" {...register("password")} placeholder="•••••••• (Min 8)" />
                   {errors.password && <p className="text-[10px] text-red-500">{errors.password.message}</p>}
@@ -364,7 +384,7 @@ export default function UserSettings() {
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={isSubmitting} className="bg-green-600 hover:bg-green-700 text-white">
+                <Button type="submit" disabled={isSubmitting || usernameBlocked(usernameStatus)} className="bg-green-600 hover:bg-green-700 text-white">
                   {isSubmitting ? "Creating..." : "Create Account"}
                 </Button>
               </DialogFooter>
@@ -393,6 +413,11 @@ export default function UserSettings() {
                   {errors.email && <p className="text-[10px] text-red-500">{errors.email.message}</p>}
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="edit-username">Username</Label>
+                  <Input id="edit-username" autoComplete="off" spellCheck={false} {...register("username")} placeholder="Not set" />
+                  <UsernameStatusLine status={usernameStatus} />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="edit-role">Account Role</Label>
                   <select {...register("role")} disabled={editingUser?.role === 'ADMIN'} className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background disabled:bg-surface-muted disabled:cursor-not-allowed">
                      <option value="CASHIER">Cashier</option>
@@ -404,7 +429,7 @@ export default function UserSettings() {
               </div>
               <DialogFooter>
                  <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                 <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 text-white">
+                 <Button type="submit" disabled={isSubmitting || usernameBlocked(usernameStatus)} className="bg-blue-600 hover:bg-blue-700 text-white">
                    {isSubmitting ? "Saving..." : "Save Changes"}
                  </Button>
               </DialogFooter>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { USERNAME_TAKEN, isUsernameConflict, parseUsernameInput } from '@/lib/username';
 
 export async function PUT(
   req: NextRequest,
@@ -17,7 +18,7 @@ export async function PUT(
       return NextResponse.json({ success: false, message: 'Forbidden: Admins only' }, { status: 403 });
     }
 
-    const { name, email, role, isActive } = await req.json();
+    const { name, email, role, isActive, username: usernameInput } = await req.json();
 
     if (!userId) {
       return NextResponse.json({ success: false, message: 'User ID is required' }, { status: 400 });
@@ -53,6 +54,19 @@ export async function PUT(
        }
     }
 
+    // username: undefined = unchanged, null / '' = cleared
+    const parsedUsername = parseUsernameInput(usernameInput);
+    if (!parsedUsername.ok) {
+      return NextResponse.json({ success: false, message: parsedUsername.error }, { status: 400 });
+    }
+    const username = parsedUsername.username;
+    if (username) {
+      const owner = await prisma.user.findUnique({ where: { username }, select: { id: true } });
+      if (owner && owner.id !== userId) {
+        return NextResponse.json({ success: false, message: USERNAME_TAKEN }, { status: 400 });
+      }
+    }
+
     // Security: Ensure only valid roles are assigned
     const validRoles = ['ADMIN', 'MANAGER', 'CASHIER'];
     if (role && !validRoles.includes(role)) {
@@ -67,6 +81,7 @@ export async function PUT(
       data: {
         name: name ? name.trim() : undefined,
         email: email ? email.toLowerCase().trim() : undefined,
+        username,
         role: role !== undefined ? role : undefined,
         isActive: isActive !== undefined ? isActive : undefined,
       },
@@ -74,6 +89,7 @@ export async function PUT(
         id: true,
         name: true,
         email: true,
+        username: true,
         role: true,
         isActive: true,
         createdAt: true,
@@ -86,12 +102,16 @@ export async function PUT(
         shopId: auth.user.shopId,
         userId: auth.user.id,
         action: 'UPDATE_USER',
-        meta: JSON.stringify({ targetEmail: updatedUser.email, targetRole: updatedUser.role })
+        meta: JSON.stringify({ targetEmail: updatedUser.email, targetUsername: updatedUser.username, targetRole: updatedUser.role })
       }
     });
 
     return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {
+    // Lost a race with another request for the same username.
+    if (isUsernameConflict(error)) {
+      return NextResponse.json({ success: false, message: USERNAME_TAKEN }, { status: 400 });
+    }
     console.error('Error updating user:', error);
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }

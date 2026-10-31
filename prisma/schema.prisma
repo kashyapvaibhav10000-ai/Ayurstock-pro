@@ -138,6 +138,9 @@ model User {
   shopId          String
   name            String
   email           String
+  // Login name, stored lowercase. Globally unique: the login screen has no
+  // shop selector. Rules in lib/username.ts.
+  username        String?          @unique
   phone           String?
   avatarUrl       String?
   passwordHash    String
@@ -167,6 +170,8 @@ model LoginHistory {
   ipAddress String?
   userAgent String?
   status    String   @default("success")
+  // What was typed in the login field (username or email), lowercased.
+  identifier String?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

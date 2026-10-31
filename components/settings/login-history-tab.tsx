@@ -149,6 +149,9 @@ export default function LoginHistoryTab() {
                   </TableCell>
                   <TableCell className="font-extrabold text-[13px] text-foreground">
                     {item.user?.name || 'TERMINAL_01'}
+                    {item.identifier && (
+                      <div className="font-mono text-[10px] font-medium text-muted-foreground">via {item.identifier}</div>
+                    )}
                   </TableCell>
                   <TableCell className="font-mono text-[11px] text-muted-foreground/60">
                     <div className="flex items-center gap-1.5">

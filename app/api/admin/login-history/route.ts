@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         where: whereClause,
         include: {
           user: {
-            select: { name: true, email: true }
+            select: { name: true, email: true, username: true }
           }
         },
         orderBy: { createdAt: 'desc' },

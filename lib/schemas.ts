@@ -17,10 +17,14 @@ const optionalGstin = optionalTrimmedString(15).refine(
 );
 
 // Auth Schemas
-export const LoginSchema = z.object({
-  email: z.string().email('Invalid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-});
+// identifier = username or email ("@" means email). email is the older field name.
+export const LoginSchema = z
+  .object({
+    identifier: z.string().trim().min(1).max(254).optional(),
+    email: z.string().trim().min(1).max(254).optional(),
+    password: z.string().min(1).max(200),
+  })
+  .refine((data) => data.identifier || data.email, { message: 'Username or email is required' });
 
 export const POSLoginSchema = z.object({
   pin: z.string().length(4, 'PIN must be 4 digits').regex(/^\d+$/, 'PIN must be numeric'),
@@ -43,6 +47,8 @@ export const UpdateUserSchema = z.object({
 export const ProfileSettingsSchema = z.object({
   name: z.string().min(2, 'Name is required'),
   email: z.string().email('Invalid email'),
+  // Optional: omitted = unchanged, null / '' = cleared. Rules in lib/username.ts.
+  username: z.string().max(100).optional().nullable(),
   phone: z.string().min(6, 'Valid phone number required').optional().nullable(),
   password: z.string().min(6, 'Password must be at least 6 characters').optional().nullable(),
   avatarUrl: z.string().optional().nullable(),

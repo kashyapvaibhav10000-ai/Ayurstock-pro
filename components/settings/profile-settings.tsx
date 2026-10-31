@@ -5,16 +5,22 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useUsernameAvailability, usernameBlocked } from '@/hooks/use-username-availability';
+import UsernameStatusLine from '@/components/settings/username-status';
 
 export default function ProfileSettings() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    username: '',
     phone: '',
     password: '',
     avatarUrl: '',
   });
+  // Saved username, so an unchanged value is not reported as taken.
+  const [savedUsername, setSavedUsername] = useState<string | null>(null);
+  const usernameStatus = useUsernameAvailability(formData.username, savedUsername);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,10 +34,12 @@ export default function ProfileSettings() {
           setFormData({
             name: profile.name || '',
             email: profile.email || '',
+            username: profile.username || '',
             phone: profile.phone || '',
             password: '',
             avatarUrl: profile.avatarUrl || '',
           });
+          setSavedUsername(profile.username || null);
           setPreviewUrl(profile.avatarUrl || '');
         }
       } catch (error) {
@@ -83,6 +91,7 @@ export default function ProfileSettings() {
         ...formData,
         password: formData.password || null,
         phone: formData.phone || null,
+        username: formData.username.trim() || null,
       });
       if (response.data.success) {
         const profile = response.data.data;
@@ -90,10 +99,12 @@ export default function ProfileSettings() {
           ...current,
           name: profile.name || '',
           email: profile.email || '',
+          username: profile.username || '',
           phone: profile.phone || '',
           password: '',
           avatarUrl: profile.avatarUrl || '',
         }));
+        setSavedUsername(profile.username || null);
         setPreviewUrl(profile.avatarUrl || '');
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
@@ -104,6 +115,7 @@ export default function ProfileSettings() {
               ...parsed,
               name: profile.name,
               email: profile.email,
+              username: profile.username,
               phone: profile.phone,
               avatarUrl: profile.avatarUrl,
             })
@@ -114,7 +126,9 @@ export default function ProfileSettings() {
       }
     } catch (error) {
       console.error('Failed to save profile settings', error);
-      toast.error('Failed to save profile settings.');
+      toast.error(
+        (axios.isAxiosError(error) && error.response?.data?.error) || 'Failed to save profile settings.'
+      );
     } finally {
       setSaving(false);
     }
@@ -173,6 +187,18 @@ export default function ProfileSettings() {
             onChange={handleChange}
             disabled={loading}
           />
+          <div className="space-y-1">
+            <Input
+              placeholder="Username (for login)"
+              name="username"
+              autoComplete="username"
+              spellCheck={false}
+              value={formData.username}
+              onChange={handleChange}
+              disabled={loading}
+            />
+            <UsernameStatusLine status={usernameStatus} />
+          </div>
           <Input
             placeholder="Phone"
             name="phone"
@@ -194,7 +220,7 @@ export default function ProfileSettings() {
           <Button
             className="bg-emerald-600 hover:bg-emerald-700"
             onClick={handleSave}
-            disabled={loading || saving}
+            disabled={loading || saving || usernameBlocked(usernameStatus)}
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </Button>

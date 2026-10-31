@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, hashPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { USERNAME_TAKEN, isUsernameConflict, parseUsernameInput } from '@/lib/username';
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         email: true,
+        username: true,
         role: true,
         isActive: true,
         createdAt: true,
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Forbidden: Admins only' }, { status: 403 });
     }
 
-    const { name, email, password, role } = await req.json();
+    const { name, email, password, role, username: usernameInput } = await req.json();
 
     if (!name || !email || !password || !role) {
       return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 });
@@ -71,6 +73,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'User with this email already exists' }, { status: 400 });
     }
 
+    const parsedUsername = parseUsernameInput(usernameInput);
+    if (!parsedUsername.ok) {
+      return NextResponse.json({ success: false, message: parsedUsername.error }, { status: 400 });
+    }
+    const username = parsedUsername.username ?? null;
+    if (username && (await prisma.user.findUnique({ where: { username }, select: { id: true } }))) {
+      return NextResponse.json({ success: false, message: USERNAME_TAKEN }, { status: 400 });
+    }
+
     // Security: Only allow specific roles
     const validRoles = ['ADMIN', 'MANAGER', 'CASHIER'];
     if (!validRoles.includes(role)) {
@@ -85,6 +96,7 @@ export async function POST(req: NextRequest) {
         shopId: auth.user.shopId,
         name: name.trim(),
         email: email.toLowerCase().trim(),
+        username,
         passwordHash: hashed,
         role: role,
         isActive: true, // Default to true when created
@@ -93,6 +105,7 @@ export async function POST(req: NextRequest) {
         id: true,
         name: true,
         email: true,
+        username: true,
         role: true,
         isActive: true,
         createdAt: true,
@@ -105,12 +118,16 @@ export async function POST(req: NextRequest) {
         shopId: auth.user.shopId,
         userId: auth.user.id,
         action: 'CREATE_USER',
-        meta: JSON.stringify({ targetEmail: newUser.email, targetRole: newUser.role })
+        meta: JSON.stringify({ targetEmail: newUser.email, targetUsername: newUser.username, targetRole: newUser.role })
       }
     });
 
     return NextResponse.json({ success: true, user: newUser }, { status: 201 });
   } catch (error) {
+    // Lost a race with another request for the same username.
+    if (isUsernameConflict(error)) {
+      return NextResponse.json({ success: false, message: USERNAME_TAKEN }, { status: 400 });
+    }
     console.error('Error creating user:', error);
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
   }

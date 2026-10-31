@@ -17,11 +17,12 @@ export interface AuthUser {
   shopId: string;
   name: string;
   email: string;
+  username?: string | null;
   phone?: string | null;
   avatarUrl?: string | null;
   role: UserRole;
   isActive: boolean;
-  /** Computed server-side from SUPER_ADMIN_EMAILS; UI hint only. */
+  /** Computed server-side from SUPER_ADMIN_EMAILS / SUPER_ADMIN_USERNAMES; UI hint only. */
   isSuperAdmin?: boolean;
 }
 

@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import Image from 'next/image';
-import { ArrowRight, Lock, Mail, Zap, ShieldCheck, FileText, Users } from 'lucide-react';
+import { ArrowRight, Lock, UserRound, Zap, ShieldCheck, FileText, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ export default function LoginPage() {
       localStorage.removeItem('user');
       await axios.post('/api/auth/logout').catch(() => {});
 
-      const response = await axios.post('/api/auth/login', { email, password });
+      const response = await axios.post('/api/auth/login', { identifier, password });
 
       if (response.data.success) {
         localStorage.setItem('token', response.data.data.token);
@@ -137,15 +137,19 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">Email address</label>
+              <label htmlFor="identifier" className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">Username or email</label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                <UserRound className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                 <Input
                   className="pl-12 h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-medium"
-                  type="email"
-                  placeholder="you@pharmacy.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="identifier"
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  placeholder="username or you@pharmacy.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   required
                 />
               </div>

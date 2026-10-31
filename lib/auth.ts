@@ -73,6 +73,7 @@ export async function getAuthUserFromToken(token: string): Promise<AuthUser | nu
     select: {
       id: true,
       email: true,
+      username: true,
       name: true,
       phone: true,
       avatarUrl: true,
