@@ -124,6 +124,24 @@ export const CreateSupplierSchema = z.object({
   gstin: z.string().optional(),
 });
 
+const SUPPLIER_FIELDS = ['name', 'contactPerson', 'phone', 'email', 'address', 'city', 'state', 'gstin'] as const;
+
+/**
+ * Only the editable supplier columns, as trimmed strings. Anything else in
+ * the body (id, shopId, timestamps) is dropped so it can never be written.
+ */
+export function supplierFields(body: unknown): Partial<Record<(typeof SUPPLIER_FIELDS)[number], string>> | null {
+  if (!body || typeof body !== 'object') return null;
+  const out: Partial<Record<(typeof SUPPLIER_FIELDS)[number], string>> = {};
+  for (const field of SUPPLIER_FIELDS) {
+    const value = (body as Record<string, unknown>)[field];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== 'string' || value.length > 500) return null;
+    out[field] = value.trim();
+  }
+  return out;
+}
+
 export const UpdateSupplierSchema = CreateSupplierSchema.extend({
   id: z.string().min(1, 'Supplier id is required'),
 });
@@ -199,20 +217,23 @@ export const CreateSaleSchema = z.object({
     })
     .optional(),
   saleType: z.enum(['RETAIL', 'WHOLESALE', 'TRANSFER']),
+  // rate is a price override request (checked server-side); GST percent,
+  // GST mode and totals sent by older clients are accepted but ignored.
   items: z.array(
     z.object({
-      medicineId: z.string(),
-      batchId: z.string().optional().nullable(),
-      quantity: z.number().int().positive(),
-      rate: z.number().min(0),
-      discount: z.number().min(0).default(0),
-      gstPercent: z.number().min(0).max(100),
+      medicineId: z.string().max(64),
+      batchId: z.string().max(64).optional().nullable(),
+      quantity: z.number().int().positive().max(100000),
+      rate: z.number().min(0).max(10_000_000),
+      discount: z.number().min(0).max(10_000_000).default(0),
+      gstPercent: z.number().optional(),
     })
-  ).min(1, 'At least one item is required'),
+  ).min(1, 'At least one item is required').max(500),
   paymentMode: z.enum(['CASH', 'CARD', 'UPI', 'CHEQUE', 'CREDIT']),
-  discountTotal: z.number().min(0).default(0),
-  gstMode: z.enum(['inclusive', 'exclusive']).default('inclusive'),
-  creditDue: z.number().min(0).optional(),
+  discountTotal: z.number().optional(),
+  gstMode: z.enum(['inclusive', 'exclusive']).optional(),
+  amountPaid: z.number().min(0).max(100_000_000).optional(),
+  creditDue: z.number().min(0).max(100_000_000).optional(),
 });
 
 // Return Schemas

@@ -1,19 +1,20 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { JWTPayload, AuthUser } from '@/types';
 import { prisma } from '@/lib/db';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '30d';
 
-// Fail loudly rather than falling back to an empty secret. An empty signing key
-// means anyone can forge a valid token, so we never want to run without it.
-if (!JWT_SECRET) {
+// Fail loudly rather than run with a weak signing key: anyone who can guess
+// it can forge a token for any user.
+const MIN_SECRET_LENGTH = 32;
+if (JWT_SECRET.length < MIN_SECRET_LENGTH) {
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET is not set. Refusing to start with an insecure empty signing key.');
+    throw new Error(`JWT_SECRET must be at least ${MIN_SECRET_LENGTH} characters. Refusing to start.`);
   }
-  console.warn('⚠️ JWT_SECRET is not set. Authentication will not work until it is configured.');
+  console.warn(`⚠️ JWT_SECRET is missing or shorter than ${MIN_SECRET_LENGTH} characters.`);
 }
 
 export function hashPassword(password: string): string {
@@ -24,15 +25,19 @@ export function verifyPassword(password: string, hash: string): boolean {
   return bcrypt.compareSync(password, hash);
 }
 
-export function generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
+export function generateToken(
+  payload: Omit<JWTPayload, 'iat' | 'exp'>,
+  expiresIn: string = JWT_EXPIRATION
+): string {
   return jwt.sign(payload, JWT_SECRET as jwt.Secret, {
-    expiresIn: JWT_EXPIRATION as jwt.SignOptions['expiresIn'],
+    algorithm: 'HS256',
+    expiresIn: expiresIn as jwt.SignOptions['expiresIn'],
   });
 }
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET as string) as JWTPayload;
+    return jwt.verify(token, JWT_SECRET as string, { algorithms: ['HS256'] }) as JWTPayload;
   } catch {
     return null;
   }
@@ -51,15 +56,27 @@ export function extractToken(authHeader?: string | null): string | null {
   return token;
 }
 
+// The httpOnly cookie wins over a Bearer header: the server can re-issue the
+// cookie (e.g. after a password change), but not a copy kept in the browser.
 export function extractRequestToken(req: NextRequest): string | null {
-  const authHeader = req.headers.get('authorization');
-  const bearerToken = extractToken(authHeader);
-
-  if (bearerToken) {
-    return bearerToken;
+  const cookieToken = req.cookies.get('auth-token')?.value;
+  if (cookieToken) {
+    return cookieToken;
   }
 
-  return req.cookies.get('auth-token')?.value || null;
+  return extractToken(req.headers.get('authorization'));
+}
+
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+export function setAuthCookie(response: NextResponse, token: string, maxAge = SESSION_MAX_AGE_SECONDS) {
+  response.cookies.set('auth-token', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge,
+  });
 }
 
 export async function getAuthUserFromToken(token: string): Promise<AuthUser | null> {
@@ -80,14 +97,18 @@ export async function getAuthUserFromToken(token: string): Promise<AuthUser | nu
       role: true,
       shopId: true,
       isActive: true,
+      tokenVersion: true,
     },
   });
 
-  if (!user || !user.isActive) {
+  // tokenVersion is bumped on password change, deactivation and role change,
+  // which ends every session issued before it.
+  if (!user || !user.isActive || payload.tv !== user.tokenVersion) {
     return null;
   }
 
-  return user as AuthUser;
+  const { tokenVersion: _tokenVersion, ...authUser } = user;
+  return authUser as AuthUser;
 }
 
 export async function verifyAuth(req: NextRequest): Promise<{

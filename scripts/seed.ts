@@ -31,12 +31,7 @@ async function main() {
     const username = !holder || (holder.shopId === shop.id && holder.email === demo.email) ? demo.username : null;
 
     const user = await prisma.user.upsert({
-      where: {
-        shopId_email: {
-          shopId: shop.id,
-          email: demo.email,
-        },
-      },
+      where: { email: demo.email },
       update: username ? { username } : {},
       create: {
         shopId: shop.id,

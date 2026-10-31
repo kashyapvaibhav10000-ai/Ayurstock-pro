@@ -4,6 +4,8 @@ import { verifyAuth } from '@/lib/auth';
 import { z } from 'zod';
 import { recordMovement } from '@/lib/stock-movement';
 
+class BatchNotFound extends Error {}
+
 const ArchiveBatchSchema = z.object({
   batchId: z.string().min(1, 'Batch ID is required'),
   reason: z.string().min(1, 'Reason is required').max(500),
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (!batch) {
-        throw new Error('Batch not found, does not belong to your shop, or no longer has zero stock');
+        throw new BatchNotFound('Batch not found, does not belong to your shop, or no longer has zero stock');
       }
 
       // Archive the batch (soft delete)
@@ -114,13 +116,10 @@ export async function POST(req: NextRequest) {
       message: 'Batch archived successfully',
     });
   } catch (error) {
+    if (error instanceof BatchNotFound) {
+      return NextResponse.json({ success: false, message: error.message }, { status: 404 });
+    }
     console.error('Archive batch error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to archive batch',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Failed to archive batch' }, { status: 500 });
   }
 }

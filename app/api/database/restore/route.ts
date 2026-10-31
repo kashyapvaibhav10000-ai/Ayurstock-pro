@@ -5,8 +5,11 @@ import { authenticateRequest, createErrorResponse } from '@/middleware/auth';
 export async function POST(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request);
-    if (!auth || auth.user.role !== 'ADMIN') {
-      return createErrorResponse('Unauthorized, Admin access required', 401);
+    if (!auth) {
+      return createErrorResponse('Unauthorized', 401);
+    }
+    if (auth.user.role !== 'ADMIN') {
+      return createErrorResponse('Forbidden - Admin access required', 403);
     }
 
     const shopId = auth.user.shopId;
@@ -125,7 +128,8 @@ export async function POST(request: NextRequest) {
           create: { shopId, name: company.name, description: company.description },
         });
       } catch (e: any) {
-        errors.push(`Company "${company.name}": ${e.message}`);
+        console.error('Restore row failed:', e);
+        errors.push(`Company "${company.name}": could not be restored`);
       }
     }
 
@@ -156,7 +160,8 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (e: any) {
-        errors.push(`Supplier "${supplier.name}": ${e.message}`);
+        console.error('Restore row failed:', e);
+        errors.push(`Supplier "${supplier.name}": could not be restored`);
       }
     }
 
@@ -169,7 +174,8 @@ export async function POST(request: NextRequest) {
           create: { shopId, name: rack.name, description: rack.description },
         });
       } catch (e: any) {
-        errors.push(`Rack "${rack.name}": ${e.message}`);
+        console.error('Restore row failed:', e);
+        errors.push(`Rack "${rack.name}": could not be restored`);
       }
     }
 
@@ -216,7 +222,8 @@ export async function POST(request: NextRequest) {
         }
         medicinesRestored++;
       } catch (e: any) {
-        errors.push(`Medicine "${med.name}": ${e.message}`);
+        console.error('Restore row failed:', e);
+        errors.push(`Medicine "${med.name}": could not be restored`);
       }
     }
 
@@ -232,24 +239,46 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (e: any) {
-        errors.push(`Customer "${customer.name}": ${e.message}`);
+        console.error('Restore row failed:', e);
+        errors.push(`Customer "${customer.name}": could not be restored`);
       }
     }
 
     // v2.0: Upsert sales (by invoiceNumber)
     let salesRestored = 0;
     if (version === '2.0') {
+      // Backup rows carry raw ids. Only ids that already belong to this shop
+      // may be linked; anything else (another shop's records, made-up ids)
+      // is dropped so a crafted file cannot attach data across tenants.
+      const [ownCustomers, ownUsers, ownMedicines, ownBatches] = await Promise.all([
+        prisma.customer.findMany({ where: { shopId }, select: { id: true } }),
+        prisma.user.findMany({ where: { shopId }, select: { id: true } }),
+        prisma.medicine.findMany({ where: { shopId }, select: { id: true } }),
+        prisma.inventoryBatch.findMany({ where: { shopId }, select: { id: true, medicineId: true } }),
+      ]);
+      const customerIds = new Set(ownCustomers.map((c) => c.id));
+      const userIds = new Set(ownUsers.map((u) => u.id));
+      const medicineIds = new Set(ownMedicines.map((m) => m.id));
+      const batchMedicine = new Map(ownBatches.map((b) => [b.id, b.medicineId]));
+
       for (const sale of sales) {
         try {
           const existing = await prisma.sale.findFirst({
             where: { shopId, invoiceNumber: sale.invoiceNumber }
           });
           if (!existing) {
-            const saleItemsData = sale.saleItems || saleItems.filter((si: any) => si.saleId === sale.id);
+            const saleItemsData: any[] = sale.saleItems || saleItems.filter((si: any) => si.saleId === sale.id);
+            const foreignItem = saleItemsData.find(
+              (si: any) => !medicineIds.has(si.medicineId) || batchMedicine.get(si.batchId) !== si.medicineId
+            );
+            if (foreignItem) {
+              errors.push(`Sale "${sale.invoiceNumber}": items reference medicines or batches that are not in this shop; skipped.`);
+              continue;
+            }
             await prisma.sale.create({
               data: {
                 shopId,
-                customerId: sale.customerId,
+                customerId: customerIds.has(sale.customerId) ? sale.customerId : null,
                 saleType: sale.saleType || 'RETAIL',
                 invoiceNumber: sale.invoiceNumber,
                 subtotal: sale.subtotal,
@@ -258,7 +287,7 @@ export async function POST(request: NextRequest) {
                 grandTotal: sale.grandTotal,
                 paymentMode: sale.paymentMode,
                 creditDue: sale.creditDue,
-                createdByUserId: sale.createdByUserId,
+                createdByUserId: userIds.has(sale.createdByUserId) ? sale.createdByUserId : auth.user.id,
                 createdAt: new Date(sale.createdAt),
                 saleItems: {
                   create: saleItemsData.map((si: any) => ({
@@ -278,7 +307,8 @@ export async function POST(request: NextRequest) {
             salesRestored++;
           }
         } catch (e: any) {
-          errors.push(`Sale "${sale.invoiceNumber}": ${e.message}`);
+          console.error('Restore row failed:', e);
+        errors.push(`Sale "${sale.invoiceNumber}": could not be restored`);
         }
       }
     }
@@ -296,6 +326,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Restore Error:', error);
-    return NextResponse.json({ success: false, error: error.message || 'Failed to restore backup' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Failed to restore backup' }, { status: 500 });
   }
 }

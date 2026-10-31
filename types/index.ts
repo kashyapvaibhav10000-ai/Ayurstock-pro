@@ -8,6 +8,10 @@ export interface JWTPayload {
   shopId: string;
   email: string;
   role: UserRole;
+  /** User.tokenVersion when the token was issued. */
+  tv: number;
+  /** Set on PIN (POS) sessions, which the sliding refresh never extends. */
+  pos?: boolean;
   iat: number;
   exp: number;
 }
@@ -22,7 +26,7 @@ export interface AuthUser {
   avatarUrl?: string | null;
   role: UserRole;
   isActive: boolean;
-  /** Computed server-side from SUPER_ADMIN_EMAILS / SUPER_ADMIN_USERNAMES; UI hint only. */
+  /** Computed server-side from SUPER_ADMIN_USER_IDS; UI hint only. */
   isSuperAdmin?: boolean;
 }
 

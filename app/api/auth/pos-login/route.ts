@@ -4,71 +4,104 @@ import { generateToken } from '@/lib/auth';
 import { POSLoginSchema } from '@/lib/schemas';
 import { createErrorResponse } from '@/middleware/auth';
 import { rateLimit, getClientIp } from '@/lib/rate-limit';
+import { hashPin } from '@/lib/pin';
+import { PIN_LOCKOUT_MS, PIN_MAX_FAILURES, getRequestDevice } from '@/lib/pos-device';
 import { UserRole } from '@/types';
 
+// A POS session lasts one shift and is never extended by the sliding refresh.
+const POS_SESSION_SECONDS = 60 * 60 * 12;
+
+const INVALID_PIN = 'Invalid PIN';
+
+function lockedResponse(until: Date) {
+  const seconds = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000));
+  return createErrorResponse(`Too many wrong PINs on this device. Try again in ${seconds}s.`, 429);
+}
+
+/**
+ * PIN login. Only works from a paired device (lib/pos-device.ts) and only
+ * looks up users of that device's shop. Wrong PINs lock the device after
+ * PIN_MAX_FAILURES; the lock is stored on the device row so it survives
+ * restarts. The caller's IP is throttled as well.
+ */
 export async function POST(request: NextRequest) {
   try {
-    // A 4-digit PIN only has 10k combinations, so throttle aggressively.
     const ip = getClientIp(request);
-    const limit = rateLimit(`pos-login:${ip}`, 5, 60_000);
+    const limit = rateLimit(`pos-login:${ip}`, 10, 60_000);
     if (!limit.allowed) {
-      return createErrorResponse(
-        `Too many PIN attempts. Try again in ${limit.retryAfterSeconds}s.`,
-        429
+      return createErrorResponse(`Too many PIN attempts. Try again in ${limit.retryAfterSeconds}s.`, 429);
+    }
+
+    const device = await getRequestDevice(request);
+    if (!device) {
+      return NextResponse.json(
+        { success: false, error: 'This device is not paired for PIN login. Ask an admin to pair it.', code: 'DEVICE_NOT_PAIRED' },
+        { status: 401 }
       );
     }
+    if (device.lockedUntil && device.lockedUntil > new Date()) {
+      return lockedResponse(device.lockedUntil);
+    }
 
-    const body = await request.json();
-
-    // Validate PIN format
+    const body = await request.json().catch(() => null);
     const validation = POSLoginSchema.safeParse(body);
     if (!validation.success) {
-      return createErrorResponse('Invalid PIN', 400);
+      return createErrorResponse(INVALID_PIN, 401);
     }
 
-    const { pin } = validation.data;
-
-    // Find ALL active users matching this PIN. A 4-digit PIN is not globally
-    // unique across tenants, so if more than one active user shares it we cannot
-    // safely decide which shop to log into — reject rather than risk logging the
-    // cashier into the WRONG shop's data.
-    const matches = await prisma.user.findMany({
-      where: {
-        pin,
-        isActive: true,
-      },
-      include: {
-        shop: true,
-      },
-      take: 2,
+    const user = await prisma.user.findFirst({
+      where: { shopId: device.shopId, pinHash: hashPin(device.shopId, validation.data.pin), isActive: true },
+      include: { shop: true },
     });
 
-    if (matches.length === 0) {
-      return createErrorResponse('Invalid PIN', 401);
+    if (!user) {
+      // Count atomically; the request that reaches the limit sets the lock.
+      const updated = await prisma.posDevice.update({
+        where: { id: device.id },
+        data: { failedPinCount: { increment: 1 } },
+        select: { failedPinCount: true },
+      });
+      if (updated.failedPinCount >= PIN_MAX_FAILURES) {
+        const lockedUntil = new Date(Date.now() + PIN_LOCKOUT_MS);
+        await prisma.posDevice.update({ where: { id: device.id }, data: { lockedUntil, failedPinCount: 0 } });
+        await prisma.activityLog
+          .create({
+            data: {
+              shopId: device.shopId,
+              action: 'POS_DEVICE_LOCKED',
+              meta: JSON.stringify({ deviceId: device.id, deviceName: device.name, ip }),
+            },
+          })
+          .catch(console.error);
+        return lockedResponse(lockedUntil);
+      }
+      return createErrorResponse(INVALID_PIN, 401);
     }
 
-    if (matches.length > 1) {
-      // Ambiguous PIN across shops/users — refuse to guess.
-      return createErrorResponse('PIN is not unique. Please log in with email and password.', 409);
-    }
-
-    const user = matches[0];
-
-    // Generate token
-    const token = generateToken({
-      userId: user.id,
-      shopId: user.shopId,
-      email: user.email,
-      role: user.role as UserRole,
+    await prisma.posDevice.update({
+      where: { id: device.id },
+      data: { failedPinCount: 0, lockedUntil: null, lastUsedAt: new Date() },
     });
 
-    // Log login
+    const token = generateToken(
+      {
+        userId: user.id,
+        shopId: user.shopId,
+        email: user.email,
+        role: user.role as UserRole,
+        tv: user.tokenVersion,
+        pos: true,
+      },
+      `${POS_SESSION_SECONDS}s`
+    );
+
     await prisma.loginHistory.create({
       data: {
         userId: user.id,
-        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+        ipAddress: ip,
         userAgent: request.headers.get('user-agent'),
         status: 'success',
+        identifier: `pos-device:${device.name}`,
       },
     });
 
@@ -101,7 +134,7 @@ export async function POST(request: NextRequest) {
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
-      maxAge: 60 * 15,
+      maxAge: POS_SESSION_SECONDS,
     });
 
     return response;

@@ -34,24 +34,63 @@ export interface BillingCalculation {
   }[];
 }
 
-function resolvePositiveRate(
-  requestedRate: number,
-  batch: { sellingRate: Decimal; mrp: Decimal; purchaseRate?: Decimal | null },
-  saleType: SaleType
-) {
-  if (requestedRate > 0) {
-    return requestedRate;
-  }
+/** A rule the request broke; the route answers 400 with this message. */
+export class BillingError extends Error {}
 
+type PricedBatch = { sellingRate: Decimal; mrp: Decimal; purchaseRate?: Decimal | null };
+
+const PRICE_EPSILON = 0.005;
+
+/**
+ * The rate a batch sells at when nobody overrides it: trade price for
+ * wholesale/transfer (when known), else the selling rate, else MRP; never
+ * above MRP. Matches getBillingRate() on the POS screen.
+ */
+export function defaultRate(batch: PricedBatch, saleType: SaleType): number {
   const purchaseRate = Number(batch.purchaseRate || 0);
   const sellingRate = Number(batch.sellingRate || 0);
   const mrp = Number(batch.mrp || 0);
 
-  if ((saleType === 'WHOLESALE' || saleType === 'TRANSFER') && purchaseRate > 0) {
-    return purchaseRate;
-  }
+  const rate =
+    (saleType === 'WHOLESALE' || saleType === 'TRANSFER') && purchaseRate > 0
+      ? purchaseRate
+      : sellingRate > 0
+        ? sellingRate
+        : mrp;
+  return mrp > 0 ? Math.min(rate, mrp) : rate;
+}
 
-  return sellingRate > 0 ? sellingRate : mrp;
+export type SellerRole = 'ADMIN' | 'MANAGER' | 'CASHIER';
+
+export interface DiscountCaps {
+  CASHIER: number;
+  MANAGER: number;
+  ADMIN: number;
+}
+
+export const DEFAULT_DISCOUNT_CAPS: DiscountCaps = { CASHIER: 10, MANAGER: 25, ADMIN: 100 };
+
+/**
+ * Check a price override for one batch. Overrides are MANAGER+ only and must
+ * sit between purchase cost and MRP; an ADMIN may go below cost (returned as
+ * a warning and logged), a MANAGER may not.
+ */
+function checkOverride(rate: number, batch: PricedBatch, role: SellerRole, label: string): string | null {
+  if (role === 'CASHIER') {
+    throw new BillingError('Only a manager or admin can change the selling price.');
+  }
+  const mrp = Number(batch.mrp || 0);
+  if (mrp > 0 && rate > mrp + PRICE_EPSILON) {
+    throw new BillingError(`Price ₹${rate.toFixed(2)} for ${label} is above MRP ₹${mrp.toFixed(2)}.`);
+  }
+  const cost = Number(batch.purchaseRate || 0);
+  if (cost > 0 && rate < cost - PRICE_EPSILON) {
+    if (role !== 'ADMIN') {
+      throw new BillingError(`Price ₹${rate.toFixed(2)} for ${label} is below purchase cost ₹${cost.toFixed(2)}. Only an admin can sell below cost.`);
+    }
+    return `${label} sold at ₹${rate.toFixed(2)}, below purchase cost ₹${cost.toFixed(2)}`;
+  }
+  return null;
 }
 
 export type GstMode = 'inclusive' | 'exclusive';
@@ -131,7 +170,12 @@ export function calculateBilling(
 }
 
 /**
- * Create a sale/invoice
+ * Create a sale/invoice.
+ *
+ * Prices, GST, discounts and totals are computed here from the database;
+ * the client only says what to sell. Its rate is honoured only as a price
+ * override (MANAGER+, between cost and MRP), its discount only within the
+ * seller's role cap, and its GST percent and totals are ignored.
  */
 export async function createSale(params: {
   shopId: string;
@@ -139,9 +183,11 @@ export async function createSale(params: {
   saleType: SaleType;
   items: BillingItem[];
   paymentMode: PaymentMode;
-  discountTotal?: number;
-  gstMode?: GstMode;
+  /** Received up front on a CREDIT sale; the rest becomes creditDue. */
+  amountPaid?: number;
+  /** Legacy clients sent creditDue instead of amountPaid. */
   creditDue?: number;
+  sellerRole: SellerRole;
   createdByUserId: string;
 }) {
   return prisma.$transaction(async (tx) => {
@@ -166,10 +212,31 @@ export async function createSale(params: {
       },
     });
 
-    const invoiceSettings = await tx.invoiceSettings.upsert({
-      where: { shopId: params.shopId },
-      update: {},
-      create: {
+    const billingSettings = await tx.billingSettings.findUnique({ where: { shopId: params.shopId } });
+    const gstMode: GstMode = billingSettings?.gstMode === 'exclusive' ? 'exclusive' : 'inclusive';
+    const discountCap = billingSettings
+      ? {
+          CASHIER: billingSettings.maxDiscountPercentCashier,
+          MANAGER: billingSettings.maxDiscountPercentManager,
+          ADMIN: billingSettings.maxDiscountPercentAdmin,
+        }[params.sellerRole]
+      : DEFAULT_DISCOUNT_CAPS[params.sellerRole];
+    const allowDiscounts = billingSettings?.allowDiscounts ?? true;
+
+    if (params.customerId) {
+      const customer = await tx.customer.findFirst({
+        where: { id: params.customerId, shopId: params.shopId },
+        select: { id: true },
+      });
+      if (!customer) throw new BillingError('Customer not found');
+    }
+
+    // createMany + skipDuplicates is INSERT ... ON CONFLICT DO NOTHING, so the
+    // first two sales of a new shop cannot collide creating this row (an
+    // upsert's find-then-insert can).
+    await tx.invoiceSettings.createMany({
+      skipDuplicates: true,
+      data: {
         shopId: params.shopId,
         shopName: shopSettings?.shopName || shop.name || '',
         addressLine1: shopSettings?.addressLine1 || shop.address || '',
@@ -198,11 +265,31 @@ export async function createSale(params: {
 
     const reservedQty = new Map<string, number>();
     const expandedItems: BillingItem[] = [];
+    const warnings: string[] = [];
     const sellableFrom = startOfTodayUtc();
+    const batchSelect = {
+      id: true,
+      medicineId: true,
+      batchNumber: true,
+      expiryDate: true,
+      stockQty: true,
+      mrp: true,
+      purchaseRate: true,
+      sellingRate: true,
+    } as const;
 
     for (const item of params.items) {
+      const medicine = await tx.medicine.findFirst({
+        where: { id: item.medicineId, shopId: params.shopId },
+        select: { name: true, gstPercent: true },
+      });
+      if (!medicine) {
+        throw new BillingError(`Medicine not found: ${item.medicineId}`);
+      }
+
       const totalQty = item.quantity;
       let remaining = totalQty;
+      const slices: { batch: { id: string; mrp: Decimal; purchaseRate: Decimal | null; sellingRate: Decimal }; qty: number }[] = [];
 
       if (item.batchId) {
         const preferredBatch = await tx.inventoryBatch.findFirst({
@@ -211,46 +298,26 @@ export async function createSale(params: {
             shopId: params.shopId,
             deletedAt: null,
           },
-          select: {
-            id: true,
-            medicineId: true,
-            batchNumber: true,
-            expiryDate: true,
-            stockQty: true,
-            mrp: true,
-            purchaseRate: true,
-            sellingRate: true,
-          },
+          select: batchSelect,
         });
 
         if (!preferredBatch) {
-          throw new Error(`Batch not found: ${item.batchId}`);
+          throw new BillingError(`Batch not found: ${item.batchId}`);
         }
 
         if (preferredBatch.medicineId !== item.medicineId) {
-          throw new Error(`Batch ${item.batchId} does not belong to medicine ${item.medicineId}`);
+          throw new BillingError(`Batch ${item.batchId} does not belong to medicine ${item.medicineId}`);
         }
 
         if (isBatchExpired(preferredBatch.expiryDate)) {
-          throw new Error(`Batch ${batchLabel(preferredBatch)} is expired and cannot be billed`);
+          throw new BillingError(`Batch ${batchLabel(preferredBatch)} is expired and cannot be billed`);
         }
 
         const alreadyReserved = reservedQty.get(preferredBatch.id) || 0;
         const available = preferredBatch.stockQty - alreadyReserved;
         if (available > 0) {
           const takeQty = Math.min(available, remaining);
-          const proportionalDiscount =
-            totalQty > 0 ? new Decimal(item.discount).times(takeQty).dividedBy(totalQty) : new Decimal(0);
-
-          expandedItems.push({
-            medicineId: item.medicineId,
-            batchId: preferredBatch.id,
-            quantity: takeQty,
-            rate: resolvePositiveRate(item.rate, preferredBatch, params.saleType),
-            discount: Number(proportionalDiscount.toFixed(2)),
-            gstPercent: item.gstPercent,
-          });
-
+          slices.push({ batch: preferredBatch, qty: takeQty });
           reservedQty.set(preferredBatch.id, alreadyReserved + takeQty);
           remaining -= takeQty;
         }
@@ -266,13 +333,7 @@ export async function createSale(params: {
             deletedAt: null,
             ...(item.batchId ? { NOT: { id: item.batchId } } : {}),
           },
-          select: {
-            id: true,
-            stockQty: true,
-            mrp: true,
-            purchaseRate: true,
-            sellingRate: true,
-          },
+          select: batchSelect,
           // FEFO: earliest expiry first.
           orderBy: [{ expiryDate: 'asc' }, { createdAt: 'asc' }],
         });
@@ -288,18 +349,7 @@ export async function createSale(params: {
           }
 
           const takeQty = Math.min(available, remaining);
-          const proportionalDiscount =
-            totalQty > 0 ? new Decimal(item.discount).times(takeQty).dividedBy(totalQty) : new Decimal(0);
-
-          expandedItems.push({
-            medicineId: item.medicineId,
-            batchId: batch.id,
-            quantity: takeQty,
-            rate: resolvePositiveRate(item.rate, batch, params.saleType),
-            discount: Number(proportionalDiscount.toFixed(2)),
-            gstPercent: item.gstPercent,
-          });
-
+          slices.push({ batch, qty: takeQty });
           reservedQty.set(batch.id, alreadyReserved + takeQty);
           remaining -= takeQty;
         }
@@ -307,13 +357,75 @@ export async function createSale(params: {
 
       if (remaining > 0) {
         const allocated = totalQty - remaining;
-        throw new Error(
+        throw new BillingError(
           `Insufficient stock for medicine ${item.medicineId}. Requested ${totalQty}, available ${allocated}`
         );
       }
+
+      // The client's rate is an override only when it differs from what the
+      // first batch drawn would sell at; otherwise every batch uses its own rate.
+      const requested = Number(item.rate || 0);
+      const isOverride =
+        requested > 0 && Math.abs(requested - defaultRate(slices[0].batch, params.saleType)) > PRICE_EPSILON;
+      const priced = slices.map(({ batch, qty }) => {
+        let rate = defaultRate(batch, params.saleType);
+        if (isOverride) {
+          const warning = checkOverride(requested, batch, params.sellerRole, medicine.name);
+          if (warning) warnings.push(warning);
+          rate = requested;
+        }
+        return { batch, qty, rate };
+      });
+
+      const lineTotal = priced.reduce((sum, p) => sum + p.qty * p.rate, 0);
+      const discount = Number(item.discount || 0);
+      if (discount > 0) {
+        if (!allowDiscounts) {
+          throw new BillingError('Discounts are turned off for this shop.');
+        }
+        if (discount > lineTotal + PRICE_EPSILON) {
+          throw new BillingError(`Discount on ${medicine.name} is more than the line total.`);
+        }
+        if ((discount / lineTotal) * 100 > discountCap + 0.01) {
+          throw new BillingError(`Discount on ${medicine.name} exceeds the ${discountCap}% allowed for your role.`);
+        }
+      }
+
+      let discountLeft = new Decimal(discount);
+      priced.forEach(({ batch, qty, rate }, index) => {
+        // Split the line discount by value; the last batch takes the rounding remainder.
+        const share =
+          index === priced.length - 1
+            ? discountLeft
+            : new Decimal(discount).times(qty * rate).dividedBy(lineTotal || 1).toDecimalPlaces(2);
+        discountLeft = discountLeft.minus(share);
+        expandedItems.push({
+          medicineId: item.medicineId,
+          batchId: batch.id,
+          quantity: qty,
+          rate,
+          discount: share.toNumber(),
+          gstPercent: medicine.gstPercent,
+        });
+      });
     }
 
-    const billing = calculateBilling(expandedItems, params.gstMode ?? 'inclusive');
+    const billing = calculateBilling(expandedItems, gstMode);
+    if (billing.grandTotal.isNegative()) {
+      throw new BillingError('Invoice total cannot be negative.');
+    }
+
+    const grandTotal = billing.grandTotal.toDecimalPlaces(2);
+    let creditDue: Decimal | null = null;
+    if (params.paymentMode === 'CREDIT') {
+      const paid =
+        params.amountPaid !== undefined
+          ? new Decimal(params.amountPaid)
+          : params.creditDue !== undefined
+            ? grandTotal.minus(params.creditDue)
+            : new Decimal(0);
+      creditDue = grandTotal.minus(Decimal.max(0, Decimal.min(paid, grandTotal))).toDecimalPlaces(2);
+    }
 
     const batches = await tx.inventoryBatch.findMany({
       where: {
@@ -337,11 +449,11 @@ export async function createSale(params: {
         saleType: params.saleType,
         invoiceNumber,
         subtotal: billing.subtotal,
-        discountTotal: new Decimal(params.discountTotal || 0),
+        discountTotal: billing.totalDiscount,
         gstTotal: billing.totalGst,
         grandTotal: billing.grandTotal,
         paymentMode: params.paymentMode,
-        creditDue: params.creditDue ? new Decimal(params.creditDue) : null,
+        creditDue,
         createdByUserId: params.createdByUserId,
         saleItems: {
           create: billing.items.map((item) => ({
@@ -384,7 +496,18 @@ export async function createSale(params: {
       });
     }
 
-    return sale;
+    if (warnings.length > 0) {
+      await tx.activityLog.create({
+        data: {
+          shopId: params.shopId,
+          userId: params.createdByUserId,
+          action: 'SALE_BELOW_COST',
+          meta: JSON.stringify({ saleId: sale.id, invoiceNumber, warnings }),
+        },
+      });
+    }
+
+    return { ...sale, warnings };
   });
 }
 

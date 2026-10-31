@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { supplierFields } from '@/lib/schemas';
 import { verifyAuth } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -38,9 +39,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
-    const data = await req.json();
+    const data = supplierFields(await req.json().catch(() => null));
+    if (!data) {
+      return NextResponse.json({ success: false, message: 'Invalid supplier details' }, { status: 400 });
+    }
+    const existing = await prisma.supplier.findFirst({ where: { id, shopId: auth.user.shopId }, select: { id: true } });
+    if (!existing) {
+      return NextResponse.json({ success: false, message: 'Supplier not found' }, { status: 404 });
+    }
     const supplier = await prisma.supplier.update({
-      where: { id: id, shopId: auth.user.shopId },
+      where: { id: existing.id },
       data
     });
 
@@ -58,8 +66,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ success: false, message: 'ADMIN only' }, { status: 403 });
     }
 
+    const existing = await prisma.supplier.findFirst({ where: { id, shopId: auth.user.shopId }, select: { id: true } });
+    if (!existing) {
+      return NextResponse.json({ success: false, message: 'Supplier not found' }, { status: 404 });
+    }
     await prisma.supplier.delete({
-      where: { id: id, shopId: auth.user.shopId }
+      where: { id: existing.id }
     });
 
     return NextResponse.json({ success: true, message: 'Supplier deleted' });

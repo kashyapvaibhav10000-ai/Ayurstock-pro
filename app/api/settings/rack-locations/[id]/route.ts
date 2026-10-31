@@ -20,6 +20,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return createErrorResponse('Name cannot be completely empty', 400);
     }
 
+    const rack = await prisma.rackLocation.findFirst({ where: { id, shopId: auth.user.shopId }, select: { id: true } });
+    if (!rack) {
+      return createErrorResponse('Rack location not found', 404);
+    }
+
     // Ensure we aren't colliding with an existing rack when renaming
     const existing = await prisma.rackLocation.findFirst({
       where: {
@@ -34,14 +39,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const updated = await prisma.rackLocation.update({
-      where: { id: id, shopId: auth.user.shopId },
+      where: { id: rack.id },
       data: { name, description }
     });
 
     return createApiResponse(true, updated);
   } catch (error: any) {
     console.error('Update Rack Location Error:', error);
-    return createErrorResponse(error.message, 500);
+    return createErrorResponse('Failed to update rack location', 500);
   }
 }
 
@@ -86,6 +91,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return createApiResponse(true, { deletedId: id });
   } catch (error: any) {
     console.error('Delete Rack Location Error:', error);
-    return createErrorResponse(error.message, 500);
+    return createErrorResponse('Failed to delete rack location', 500);
   }
 }

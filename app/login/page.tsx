@@ -6,6 +6,7 @@ import axios from 'axios';
 import Image from 'next/image';
 import { ArrowRight, Lock, UserRound, Zap, ShieldCheck, FileText, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import PosPinLogin from '@/components/auth/PosPinLogin';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +14,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const finishLogin = (data: { token: string; user: unknown }) => {
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    router.push('/dashboard');
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,11 +33,7 @@ export default function LoginPage() {
 
       const response = await axios.post('/api/auth/login', { identifier, password });
 
-      if (response.data.success) {
-        localStorage.setItem('token', response.data.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.data.user));
-        router.push('/dashboard');
-      }
+      if (response.data.success) finishLogin(response.data.data);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
@@ -185,6 +188,8 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          <PosPinLogin onLoggedIn={finishLogin} />
 
           <p className="mt-8 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />

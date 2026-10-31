@@ -10,8 +10,23 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Loader2, Save } from "lucide-react";
+import { useAuth } from "@/components/providers/AuthProvider";
+
+const CAP_FIELDS = [
+  { key: "maxDiscountPercentCashier", label: "Cashier" },
+  { key: "maxDiscountPercentManager", label: "Manager" },
+  { key: "maxDiscountPercentAdmin", label: "Admin" },
+] as const;
+
+type Caps = Record<(typeof CAP_FIELDS)[number]["key"], number>;
 
 export default function BillingSettings() {
+  const { isAdmin } = useAuth();
+  const [caps, setCaps] = useState<Caps>({
+    maxDiscountPercentCashier: 10,
+    maxDiscountPercentManager: 25,
+    maxDiscountPercentAdmin: 100,
+  });
   const [settings, setSettings] = useState({
     enableRetail: true,
     enableWholesale: true,
@@ -37,6 +52,11 @@ export default function BillingSettings() {
             enableBarcode: response.data.data.enableBarcode,
             autoPrintInvoice: response.data.data.autoPrintInvoice,
             gstMode: response.data.data.gstMode,
+          });
+          setCaps({
+            maxDiscountPercentCashier: response.data.data.maxDiscountPercentCashier,
+            maxDiscountPercentManager: response.data.data.maxDiscountPercentManager,
+            maxDiscountPercentAdmin: response.data.data.maxDiscountPercentAdmin,
           });
         }
       } catch (error) {
@@ -68,7 +88,8 @@ export default function BillingSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const response = await axios.patch("/api/settings/billing", settings);
+      // Discount limits are admin-only; the server rejects them from anyone else.
+      const response = await axios.patch("/api/settings/billing", isAdmin ? { ...settings, ...caps } : settings);
       if (response.data.success) {
         toast.success("Billing settings saved successfully");
       } else {
@@ -172,6 +193,31 @@ export default function BillingSettings() {
               </RadioGroup>
               <p className="text-xs text-muted-foreground italic mt-2">
                 Inclusive: GST is extracted from MRP. Exclusive: GST is added on top of rate.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Maximum line discount by role (%)</Label>
+              <div className="grid grid-cols-3 gap-3">
+                {CAP_FIELDS.map(({ key, label }) => (
+                  <div key={key} className="space-y-1">
+                    <Label htmlFor={key} className="text-xs text-muted-foreground">{label}</Label>
+                    <Input
+                      id={key}
+                      type="number"
+                      min={0}
+                      max={100}
+                      disabled={!isAdmin}
+                      value={caps[key]}
+                      onChange={(e) =>
+                        setCaps((prev) => ({ ...prev, [key]: Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)) }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground italic">
+                Enforced at billing. Only managers and admins can change a price, never above MRP; only admins can sell below cost.
+                {!isAdmin && " Only an admin can change these limits."}
               </p>
             </div>
           </div>

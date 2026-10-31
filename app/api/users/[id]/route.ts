@@ -9,6 +9,7 @@ import {
   LastAdminError,
   PIN_TAKEN,
   parsePinInput,
+  pinData,
   pinTakenInShop,
   updateUserKeepingAnAdmin,
 } from '@/lib/user-guards';
@@ -19,15 +20,15 @@ const USER_SELECT = {
   email: true,
   username: true,
   phone: true,
-  pin: true,
+  pinHash: true,
   role: true,
   isActive: true,
   createdAt: true,
 } as const;
 
-/** Never send the PIN itself to the browser. */
-function publicUser<T extends { pin: string | null }>({ pin, ...user }: T) {
-  return { ...user, hasPin: Boolean(pin) };
+/** Never send the PIN hash to the browser. */
+function publicUser<T extends { pinHash: string | null }>({ pinHash, ...user }: T) {
+  return { ...user, hasPin: Boolean(pinHash) };
 }
 
 function fail(message: string, status = 400) {
@@ -41,7 +42,7 @@ function writeError(error: unknown) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     // Another admin change ran at the same moment; the last-admin check could not be confirmed.
     if (error.code === 'P2034') return fail('Another change to this shop\'s admins happened at the same time. Try again.', 409);
-    if (error.code === 'P2002') return fail('Another user in this shop already uses this email.');
+    if (error.code === 'P2002') return fail('This email is already in use.');
   }
   return null;
 }
@@ -139,9 +140,13 @@ export async function PUT(
       email: normalizedEmail,
       username,
       phone: phone === undefined ? undefined : phone ? String(phone).trim() : null,
-      pin: parsedPin.pin,
+      ...pinData(auth.user.shopId, parsedPin.pin),
       role: role !== undefined ? role : undefined,
       isActive: isActive !== undefined ? isActive : undefined,
+      // A role change or deactivation ends the user's open sessions.
+      ...((role !== undefined && role !== targetUser.role) || (isActive === false && targetUser.isActive)
+        ? { tokenVersion: { increment: 1 } }
+        : {}),
     };
 
     // Demoting or deactivating an active admin must leave the shop another active admin.
@@ -218,7 +223,7 @@ export async function DELETE(
     // HARD DELETE PREVENTED: We do a Soft Delete instead so any previous invoices linked to this user don't break.
     // Last-admin check kept as a safety net in case the admin rules above change.
     await updateUserKeepingAnAdmin(auth.user.shopId, 'delete', (tx) =>
-      tx.user.update({ where: { id: userId }, data: { isActive: false } })
+      tx.user.update({ where: { id: userId }, data: { isActive: false, tokenVersion: { increment: 1 } } })
     );
 
     // Log the DELETE (Deactivation) operation securely

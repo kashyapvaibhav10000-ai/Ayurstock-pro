@@ -1,24 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getAuthUserFromToken } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { verifyAuth } from '@/lib/auth';
 import { CreateCustomerSchema, UpdateCustomerSchema } from '@/lib/schemas';
 
 /**
  * GET /api/customers
  * List all customers for the shop
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = (await cookieStore).get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await getAuthUserFromToken(token);
-
+    const { user } = await verifyAuth(req);
     if (!user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
@@ -45,17 +36,9 @@ export async function GET(req: Request) {
  * POST /api/customers
  * Create a new customer
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = (await cookieStore).get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await getAuthUserFromToken(token);
-
+    const { user } = await verifyAuth(req);
     if (!user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
@@ -80,17 +63,9 @@ export async function POST(req: Request) {
  * PATCH /api/customers
  * Update customer details
  */
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = (await cookieStore).get('auth-token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await getAuthUserFromToken(token);
-
+    const { user } = await verifyAuth(req);
     if (!user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }

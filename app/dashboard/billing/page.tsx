@@ -15,11 +15,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-const GST_OPTIONS = [
-  { value: 5, label: '5%', category: 'Standard' },
-  { value: 12, label: '12%', category: 'Proprietary' },
-  { value: 18, label: '18%', category: 'Cosmetic' },
-];
 
 interface BillingSuggestion {
   id: string;
@@ -439,27 +434,6 @@ export default function BillingPage() {
     );
   };
 
-  const updateCartItemGst = (index: number, gstPercent: number) => {
-    setCart((current) =>
-      current.map((item, i) => {
-        if (i !== index) return item;
-        let gst: number;
-        let amount: number;
-        const unitPrice = getItemUnitPrice(item);
-        if (gstMode === 'inclusive') {
-          amount = Math.round((unitPrice * item.quantity - item.discount) * 100) / 100;
-          const basePrice = Math.round((amount / (1 + gstPercent / 100)) * 100) / 100;
-          gst = Math.round((amount - basePrice) * 100) / 100;
-        } else {
-          const afterDiscount = item.quantity * item.rate - item.discount;
-          gst = Math.round(((afterDiscount * gstPercent) / 100) * 100) / 100;
-          amount = afterDiscount + gst;
-        }
-        return { ...item, gstPercent, gst, amount };
-      })
-    );
-  };
-
   // User override of the FEFO-picked batch for a cart line. Price follows the
   // newly selected batch; quantity and discount stay as entered.
   const changeCartItemBatch = (index: number, batch: CartBatchOption) => {
@@ -581,12 +555,8 @@ export default function BillingPage() {
         pan: customerPan.trim(),
       };
 
-      // For credit sales, the outstanding amount is the grand total minus
-      // whatever was received up front (partial payment allowed).
-      const creditDue =
-        paymentMode === 'CREDIT'
-          ? Math.max(0, Math.round((totals.grandTotal - (receivedAmount || 0)) * 100) / 100)
-          : undefined;
+      // Credit sales: the server computes creditDue from the amount received.
+      const amountPaid = paymentMode === 'CREDIT' ? Math.max(0, receivedAmount || 0) : undefined;
 
       const response = await axios.post('/api/sales', {
         saleType,
@@ -596,12 +566,9 @@ export default function BillingPage() {
           quantity: item.quantity,
           rate: getItemUnitPrice(item),
           discount: item.discount,
-          gstPercent: item.gstPercent,
         })),
         paymentMode,
-        discountTotal: totals.discountTotal,
-        gstMode,
-        creditDue,
+        amountPaid,
         customer: normalizedCustomer,
       });
 
@@ -610,6 +577,7 @@ export default function BillingPage() {
       }
 
       const saleId = response.data.data?.id;
+      for (const warning of response.data.data?.warnings || []) toast.warning(warning);
       resetBill();
 
       if (saleId) {
@@ -864,13 +832,13 @@ export default function BillingPage() {
                     </div>
                     )}
                     <div className={`${allowDiscounts ? 'col-span-1' : 'col-span-2'} lg:col-span-4 min-h-[42px] lg:min-h-[34px]`}>
-                      <select 
-                        value={item.gstPercent}
-                        onChange={(e) => updateCartItemGst(index, parseFloat(e.target.value) || 0)}
-                        className="w-full h-full py-[7px] pl-2 pr-6 text-[13px] font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm appearance-none cursor-pointer"
+                      {/* GST comes from the medicine record; the server ignores any other value. */}
+                      <div
+                        title="GST is set on the medicine"
+                        className="w-full h-full py-[7px] px-2 text-[13px] font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded flex items-center"
                       >
-                        {GST_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>GST {opt.label}</option>)}
-                      </select>
+                        GST {item.gstPercent}%
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">

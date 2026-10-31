@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { generateToken, hashPassword, verifyPassword } from '@/lib/auth';
+import { generateToken, hashPassword, setAuthCookie, verifyPassword } from '@/lib/auth';
 import { LoginSchema } from '@/lib/schemas';
 import { createErrorResponse } from '@/middleware/auth';
 import { rateLimit, getClientIp } from '@/lib/rate-limit';
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       prisma.loginHistory.create({
         data: {
           userId: user.id,
-          ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
+          ipAddress: ip,
           userAgent: request.headers.get('user-agent'),
           status,
           identifier,
@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
       shopId: user.shopId,
       email: user.email,
       role: user.role as UserRole,
+      tv: user.tokenVersion,
     });
 
     // Log login
@@ -127,13 +128,7 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
 
-    response.cookies.set('auth-token', token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
+    setAuthCookie(response, token);
 
     return response;
   } catch (error) {

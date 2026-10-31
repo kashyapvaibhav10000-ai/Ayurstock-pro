@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useUsernameAvailability, usernameBlocked } from '@/hooks/use-username-availability';
 import UsernameStatusLine from '@/components/settings/username-status';
-import { superAdminIdentifierWarning } from '@/lib/super-admin-warning';
 
 export default function ProfileSettings() {
   const router = useRouter();
@@ -24,10 +23,9 @@ export default function ProfileSettings() {
   // Saved values: unchanged username is not "taken"; email/username changes need the current password.
   const [savedUsername, setSavedUsername] = useState<string | null>(null);
   const [savedEmail, setSavedEmail] = useState('');
-  const [account, setAccount] = useState<{ role: string; hasPin: boolean; superAdminVia: Array<'email' | 'username'> }>({
+  const [account, setAccount] = useState<{ role: string; hasPin: boolean }>({
     role: '',
     hasPin: false,
-    superAdminVia: [],
   });
   const [removePin, setRemovePin] = useState(false);
   const usernameStatus = useUsernameAvailability(formData.username, savedUsername);
@@ -53,7 +51,7 @@ export default function ProfileSettings() {
           });
           setSavedUsername(profile.username || null);
           setSavedEmail(profile.email || '');
-          setAccount({ role: profile.role, hasPin: Boolean(profile.hasPin), superAdminVia: profile.superAdminVia || [] });
+          setAccount({ role: profile.role, hasPin: Boolean(profile.hasPin) });
           setPreviewUrl(profile.avatarUrl || '');
         }
       } catch (error) {
@@ -112,8 +110,6 @@ export default function ProfileSettings() {
       toast.error('PIN must be exactly 4 digits.');
       return;
     }
-    const warning = superAdminIdentifierWarning(account.superAdminVia, { email: emailChanged, username: usernameChanged });
-    if (warning && !window.confirm(`${warning}\n\nSave anyway?`)) return;
 
     setSaving(true);
     try {
@@ -143,7 +139,7 @@ export default function ProfileSettings() {
         }));
         setSavedUsername(profile.username || null);
         setSavedEmail(profile.email || '');
-        setAccount({ role: profile.role, hasPin: Boolean(profile.hasPin), superAdminVia: profile.superAdminVia || [] });
+        setAccount({ role: profile.role, hasPin: Boolean(profile.hasPin) });
         setRemovePin(false);
         setPreviewUrl(profile.avatarUrl || '');
         const storedUser = localStorage.getItem('user');
@@ -286,11 +282,6 @@ export default function ProfileSettings() {
                 onChange={handleChange}
                 disabled={loading}
               />
-              {superAdminIdentifierWarning(account.superAdminVia, { email: emailChanged, username: usernameChanged }) && (
-                <p className="text-[11px] text-amber-600">
-                  {superAdminIdentifierWarning(account.superAdminVia, { email: emailChanged, username: usernameChanged })}
-                </p>
-              )}
             </div>
           )}
         </div>

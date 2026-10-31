@@ -5,8 +5,11 @@ import { authenticateRequest, createErrorResponse } from '@/middleware/auth';
 export async function GET(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request);
-    if (!auth || auth.user.role !== 'ADMIN') {
-      return createErrorResponse('Unauthorized, Admin access required', 401);
+    if (!auth) {
+      return createErrorResponse('Unauthorized', 401);
+    }
+    if (auth.user.role !== 'ADMIN') {
+      return createErrorResponse('Forbidden - Admin access required', 403);
     }
 
     const shopId = auth.user.shopId;

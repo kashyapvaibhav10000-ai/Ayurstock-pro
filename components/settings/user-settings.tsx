@@ -18,7 +18,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { useUsernameAvailability, usernameBlocked } from "@/hooks/use-username-availability"
 import UsernameStatusLine from "@/components/settings/username-status"
-import { superAdminIdentifierWarning } from "@/lib/super-admin-warning"
 
 // Interfaces mapping to Prisma models
 interface User {
@@ -69,8 +68,6 @@ type PasswordFormData = z.infer<typeof passwordSchema>
 export default function UserSettings() {
   const [users, setUsers] = useState<User[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  // Identifiers that make you a super-admin via the server .env allowlist.
-  const [superAdminVia, setSuperAdminVia] = useState<Array<"email" | "username">>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -121,7 +118,6 @@ export default function UserSettings() {
       }
       
       setCurrentUserId(data.currentUserId)
-      setSuperAdminVia(data.currentUserSuperAdminVia || [])
       setUsers(data.users)
       setError(null)
     } catch (err) {
@@ -144,9 +140,6 @@ export default function UserSettings() {
   const editedUsername = (watch("username") || "").trim().toLowerCase()
   const selfEmailChanged = editingSelf && editedEmail !== editingUser?.email
   const selfUsernameChanged = editingSelf && editedUsername !== (editingUser?.username ?? "")
-  const selfSuperAdminWarning = editingSelf
-    ? superAdminIdentifierWarning(superAdminVia, { email: selfEmailChanged, username: selfUsernameChanged })
-    : null
 
   const openAddModal = () => {
     reset({ name: "", email: "", username: "", password: "", role: "MANAGER" })
@@ -213,7 +206,6 @@ export default function UserSettings() {
       toast.error("Enter your current password to change your email or username.")
       return
     }
-    if (selfSuperAdminWarning && !confirm(`${selfSuperAdminWarning}\n\nSave anyway?`)) return
     if (isSelf && editingUser.isActive && data.isActive === false &&
         !confirm("Deactivate your own account? You will be signed out and need another Admin to reactivate you.")) return
 
@@ -558,7 +550,6 @@ export default function UserSettings() {
                     <Input id="edit-current-password" type="password" autoComplete="current-password" {...register("currentPassword")} placeholder="Required to change your email or username" />
                   </div>
                 )}
-                {selfSuperAdminWarning && <p className="text-[11px] text-amber-600">{selfSuperAdminWarning}</p>}
               </div>
               <DialogFooter>
                  <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
 import { CreateSaleSchema } from '@/lib/schemas';
-import { createSale } from '@/services/billing';
+import { BillingError, createSale, SellerRole } from '@/services/billing';
 import { prisma } from '@/lib/db';
 
 type SaleCustomerInput = {
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       return createErrorResponse(`Validation error: ${JSON.stringify(errors)}`, 400);
     }
 
-    const { customerId, customer, saleType, items, paymentMode, discountTotal, gstMode, creditDue } = validation.data;
+    const { customerId, customer, saleType, items, paymentMode, amountPaid, creditDue } = validation.data;
     const normalizedCustomer = normalizeSaleCustomer(customer);
 
     // Credit sales create an outstanding balance, so they must be attributable to
@@ -138,12 +138,12 @@ export async function POST(request: NextRequest) {
         quantity: item.quantity,
         rate: item.rate,
         discount: item.discount,
-        gstPercent: item.gstPercent,
+        gstPercent: 0, // ignored: GST always comes from the medicine
       })),
       paymentMode,
-      discountTotal,
-      gstMode,
+      amountPaid,
       creditDue,
+      sellerRole: auth.user.role as SellerRole,
       createdByUserId: auth.user.id,
     });
 
@@ -165,10 +165,8 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Create sale error:', error);
     if (
-      error instanceof Error &&
-      (error.message.includes('Insufficient stock') ||
-        error.message.includes('Batch') ||
-        error.message.includes('Medicine'))
+      error instanceof BillingError ||
+      (error instanceof Error && error.message.includes('Insufficient stock'))
     ) {
       return createErrorResponse(error.message, 400);
     }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { supplierFields } from '@/lib/schemas';
 import { verifyAuth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -32,10 +33,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
-    const data = await req.json();
+    const fields = supplierFields(await req.json().catch(() => null));
+    if (!fields?.name) {
+      return NextResponse.json({ success: false, message: 'Supplier name is required' }, { status: 400 });
+    }
     const supplier = await prisma.supplier.create({
       data: {
-        ...data,
+        phone: '',
+        email: '',
+        address: '',
+        ...fields,
+        name: fields.name,
         shopId: auth.user.shopId,
       }
     });

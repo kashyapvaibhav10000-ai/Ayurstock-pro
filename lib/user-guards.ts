@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { hashPin } from '@/lib/pin';
 
 /**
  * Account-management rules shared by Team (/api/users) and My Profile.
@@ -51,8 +52,17 @@ export function parsePinInput(value: unknown): { ok: true; pin: string | null | 
  * is checked, so this never reveals PINs used in other shops.
  */
 export async function pinTakenInShop(shopId: string, pin: string, userId: string): Promise<boolean> {
-  const other = await prisma.user.findFirst({ where: { shopId, pin, NOT: { id: userId } }, select: { id: true } });
+  const other = await prisma.user.findFirst({
+    where: { shopId, pinHash: hashPin(shopId, pin), NOT: { id: userId } },
+    select: { id: true },
+  });
   return Boolean(other);
+}
+
+/** Prisma data for a parsed PIN: undefined = unchanged, null = removed. */
+export function pinData(shopId: string, pin: string | null | undefined) {
+  if (pin === undefined) return {};
+  return { pinHash: pin === null ? null : hashPin(shopId, pin), legacyPin: null };
 }
 
 export const PIN_TAKEN = 'Another user in this shop already uses this PIN.';

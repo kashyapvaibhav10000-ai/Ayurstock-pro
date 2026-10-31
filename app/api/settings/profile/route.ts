@@ -2,13 +2,13 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
 import { ProfileSettingsSchema } from '@/lib/schemas';
-import { hashPassword, verifyPassword } from '@/lib/auth';
-import { superAdminVia } from '@/lib/super-admin';
+import { generateToken, hashPassword, setAuthCookie, verifyPassword } from '@/lib/auth';
 import {
   CURRENT_PASSWORD_REQUIRED,
   CURRENT_PASSWORD_WRONG,
   PIN_TAKEN,
   parsePinInput,
+  pinData,
   pinTakenInShop,
 } from '@/lib/user-guards';
 import { USERNAME_TAKEN, isUsernameConflict, parseUsernameInput } from '@/lib/username';
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         phone: true,
         avatarUrl: true,
         role: true,
-        pin: true,
+        pinHash: true,
       },
     });
 
@@ -38,9 +38,9 @@ export async function GET(request: NextRequest) {
       return createErrorResponse('User not found', 404);
     }
 
-    // The PIN itself never leaves the server.
-    const { pin, ...profile } = user;
-    return createApiResponse(true, { ...profile, hasPin: Boolean(pin), superAdminVia: superAdminVia(auth.user) });
+    // The PIN hash never leaves the server.
+    const { pinHash, ...profile } = user;
+    return createApiResponse(true, { ...profile, hasPin: Boolean(pinHash) });
   } catch (error) {
     console.error('Get profile settings error:', error);
     return createErrorResponse('Internal server error', 500);
@@ -107,9 +107,9 @@ export async function PUT(request: NextRequest) {
       if (!verifyPassword(currentPassword, current.passwordHash)) return createErrorResponse(CURRENT_PASSWORD_WRONG, 400);
     }
 
+    // Emails are unique across all shops.
     const existingUser = await prisma.user.findFirst({
       where: {
-        shopId: auth.user.shopId,
         email: normalizedEmail,
         NOT: { id: auth.user.id },
       },
@@ -128,8 +128,9 @@ export async function PUT(request: NextRequest) {
         username,
         phone: phone ? phone.trim() : null,
         avatarUrl: avatarUrl || null,
-        pin: parsedPin.pin,
-        ...(password ? { passwordHash: hashPassword(password) } : {}),
+        ...pinData(auth.user.shopId, parsedPin.pin),
+        // A new password ends every other session.
+        ...(password ? { passwordHash: hashPassword(password), tokenVersion: { increment: 1 } } : {}),
       },
       select: {
         id: true,
@@ -139,12 +140,19 @@ export async function PUT(request: NextRequest) {
         phone: true,
         avatarUrl: true,
         role: true,
-        pin: true,
+        pinHash: true,
+        tokenVersion: true,
       },
     });
 
-    const { pin, ...profile } = updated;
-    return createApiResponse(true, { ...profile, hasPin: Boolean(pin), superAdminVia: superAdminVia(profile) });
+    const { pinHash, tokenVersion, ...profile } = updated;
+    const response = createApiResponse(true, { ...profile, hasPin: Boolean(pinHash) });
+    if (password) {
+      // Keep this session alive: re-issue its token with the new version.
+      const token = generateToken({ userId: auth.user.id, shopId: auth.user.shopId, email: profile.email, role: auth.user.role, tv: tokenVersion });
+      setAuthCookie(response, token);
+    }
+    return response;
   } catch (error) {
     // Lost a race with another request for the same username.
     if (isUsernameConflict(error)) {

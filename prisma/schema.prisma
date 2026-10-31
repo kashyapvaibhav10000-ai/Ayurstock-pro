@@ -39,6 +39,8 @@ model Shop {
   purchaseDocuments PurchaseDocument[]
   users            User[]
   gstCategoryDefaults GstCategoryDefault[]
+  posDevices       PosDevice[]
+  posPairingCodes  PosPairingCode[]
 
   @@index([name])
 }
@@ -112,6 +114,10 @@ model BillingSettings {
   autoPrintInvoice       Boolean  @default(false)
   gstMode                String   @default("inclusive") // "inclusive" | "exclusive"
   defaultDiscountPercent Decimal  @default(0)
+  // Largest line discount (% of line total) each role may give at billing.
+  maxDiscountPercentCashier Int   @default(10)
+  maxDiscountPercentManager Int   @default(25)
+  maxDiscountPercentAdmin   Int   @default(100)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
   shop                   Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -137,7 +143,8 @@ model User {
   id              String           @id @default(cuid())
   shopId          String
   name            String
-  email           String
+  // Globally unique, stored lowercase: email login has no shop selector.
+  email           String           @unique
   // Login name, stored lowercase. Globally unique: the login screen has no
   // shop selector. Rules in lib/username.ts.
   username        String?          @unique
@@ -145,7 +152,14 @@ model User {
   avatarUrl       String?
   passwordHash    String
   role            String           @default("CASHIER")
-  pin             String?
+  // Plaintext PIN from before PINs were hashed; scripts/hash-pins.ts moves
+  // it into pinHash and clears it. Never read by the app.
+  legacyPin       String?          @map("pin")
+  // HMAC-SHA256 of the POS PIN (lib/pin.ts), unique per shop.
+  pinHash         String?
+  // Bumped on password change, deactivation and role change; tokens carrying
+  // an older value are rejected.
+  tokenVersion    Int              @default(0)
   isActive        Boolean          @default(false)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -159,9 +173,8 @@ model User {
   stockMovements  StockMovement[]
   purchasesCreated Purchase[]      @relation("PurchaseCreatedBy")
 
-  @@unique([shopId, email])
+  @@unique([shopId, pinHash])
   @@index([shopId])
-  @@index([email])
 }
 
 model LoginHistory {
@@ -743,6 +756,7 @@ model AiCallLog {
   @@index([createdAt])
   @@index([feature, createdAt])
   @@index([instanceId, createdAt])
+  @@index([shopId, createdAt])
 }
 
 // Optional per-feature provider order. No row = the global chain.
@@ -751,4 +765,39 @@ model AiFeatureRoute {
   instanceIds String[]
   updatedBy   String?
   updatedAt   DateTime  @updatedAt
+}
+
+// A paired POS terminal. PIN login only works from a paired device and only
+// finds users of the device's shop. The device token itself is never stored,
+// only its SHA-256.
+model PosDevice {
+  id              String    @id @default(cuid())
+  shopId          String
+  name            String
+  tokenHash       String    @unique
+  pairedAt        DateTime  @default(now())
+  pairedByUserId  String?
+  lastUsedAt      DateTime?
+  revokedAt       DateTime?
+  // Wrong-PIN lockout, persisted so restarts do not reset it.
+  failedPinCount  Int       @default(0)
+  lockedUntil     DateTime?
+  shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+}
+
+// One-time code an admin generates to pair a device. Stored as SHA-256.
+model PosPairingCode {
+  id              String    @id @default(cuid())
+  shopId          String
+  codeHash        String    @unique
+  deviceName      String
+  createdByUserId String
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now())
+  shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
 }

@@ -4,35 +4,22 @@ import { AuthUser } from '@/types';
 
 /**
  * Super-admins manage platform-wide settings (AI provider keys). A
- * super-admin is an ADMIN whose email is listed in SUPER_ADMIN_EMAILS or
- * whose username is listed in SUPER_ADMIN_USERNAMES (comma-separated,
- * case-insensitive). No allowlist = no super-admins.
+ * super-admin is an active ADMIN whose user id is listed in
+ * SUPER_ADMIN_USER_IDS (comma-separated). Ids never change, so editing an
+ * email or username can neither grant nor lose the role. No list = no
+ * super-admins.
  */
-function allowlist(name: 'SUPER_ADMIN_EMAILS' | 'SUPER_ADMIN_USERNAMES'): Set<string> {
+function allowedIds(): Set<string> {
   return new Set(
-    (process.env[name] || '')
+    (process.env.SUPER_ADMIN_USER_IDS || '')
       .split(',')
-      .map((entry) => entry.trim().toLowerCase())
+      .map((entry) => entry.trim())
       .filter(Boolean)
   );
 }
 
-export function isSuperAdmin(user: Pick<AuthUser, 'role' | 'email' | 'username'> | null | undefined): boolean {
-  return superAdminVia(user).length > 0;
-}
-
-/**
- * Which identifiers make this user a super-admin. The UI warns before the
- * user changes one of them, since the allowlist lives in the server .env.
- */
-export function superAdminVia(
-  user: { role: string; email?: string | null; username?: string | null } | null | undefined
-): Array<'email' | 'username'> {
-  if (!user || user.role !== 'ADMIN') return [];
-  const via: Array<'email' | 'username'> = [];
-  if (user.email && allowlist('SUPER_ADMIN_EMAILS').has(user.email.trim().toLowerCase())) via.push('email');
-  if (user.username && allowlist('SUPER_ADMIN_USERNAMES').has(user.username.trim().toLowerCase())) via.push('username');
-  return via;
+export function isSuperAdmin(user: Pick<AuthUser, 'id' | 'role'> | null | undefined): boolean {
+  return Boolean(user && user.role === 'ADMIN' && allowedIds().has(user.id));
 }
 
 /** Authenticated super-admin for this request, or null. */

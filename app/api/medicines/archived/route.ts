@@ -52,10 +52,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await prisma.medicine.update({
+    const restored = await prisma.medicine.updateMany({
       where: { id, shopId: authResult.user.shopId },
       data: { isActive: true, deletedAt: null },
     });
+    if (restored.count === 0) {
+      return NextResponse.json({ success: false, message: 'Medicine not found' }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,

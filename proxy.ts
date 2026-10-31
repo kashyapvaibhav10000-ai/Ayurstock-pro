@@ -15,14 +15,14 @@ export async function proxy(request: NextRequest) {
     }
 
     try {
-      const { payload } = await jwtVerify(token, JWT_SECRET);
+      const { payload } = await jwtVerify(token, JWT_SECRET, { algorithms: ['HS256'] });
       const response = NextResponse.next();
 
       // Sliding refresh: renew if token expires within 7 days
       // (wider window prevents expiry edge-cases on low-activity devices)
       const exp = payload.exp as number;
       const now = Math.floor(Date.now() / 1000);
-      if (exp - now < SEVEN_DAYS_SECONDS) {
+      if (!payload.pos && exp - now < SEVEN_DAYS_SECONDS) {
         const { iat: _iat, exp: _exp, ...rest } = payload;
         const newToken = await new SignJWT(rest)
           .setProtectedHeader({ alg: 'HS256' })

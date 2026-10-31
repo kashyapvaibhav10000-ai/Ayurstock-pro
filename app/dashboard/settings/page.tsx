@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud, Database, Sparkles, ShieldCheck, BellRing, ReceiptText, History } from 'lucide-react';
+import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud, Database, Sparkles, ShieldCheck, BellRing, ReceiptText, History, MonitorSmartphone } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,7 @@ import ExpiryAlertSettings from '@/components/settings/expiry-alert-settings';
 import GstCategorySettings from '@/components/settings/gst-category-settings';
 import InventoryHistoryTab from '@/components/settings/inventory-history-tab';
 import PurchaseHistoryTab from '@/components/settings/purchase-history-tab';
+import PosDevicesSettings from '@/components/settings/pos-devices-settings';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -38,6 +39,7 @@ const SETTINGS_CATEGORIES = [
   { id: 'expiry-alerts', label: 'Expiry Alerts', icon: BellRing, group: 'General' },
   { id: 'profile', label: 'My Profile', icon: User, group: 'Account' },
   { id: 'users', label: 'Team', icon: Users, group: 'Account' },
+  { id: 'pos-devices', label: 'POS Devices', icon: MonitorSmartphone, group: 'Account' },
   { id: 'invoice', label: 'Invoices', icon: FileText, group: 'Billing' },
   { id: 'billing', label: 'Shop Configuration', icon: CreditCard, group: 'Billing' },
   { id: 'gst-categories', label: 'GST by Category', icon: ReceiptText, group: 'Billing' },
@@ -95,6 +97,7 @@ export default function SettingsPage() {
       case 'racks': return <RackLocationsSettings />;
       case 'profile': return <ProfileSettings />;
       case 'users': return <UserSettings />;
+      case 'pos-devices': return <PosDevicesSettings />;
       case 'companies': return <CompanySettings />;
       case 'billing': return <BillingSettings />;
       case 'expiry-alerts': return <ExpiryAlertSettings />;

@@ -50,6 +50,10 @@ export async function POST(req: NextRequest) {
       data: { isActive: false, deletedAt: new Date() },
     });
 
+    if (result.count === 0) {
+      return NextResponse.json({ success: false, message: 'Medicines not found' }, { status: 404 });
+    }
+
     return NextResponse.json({
       success: true,
       count: result.count,

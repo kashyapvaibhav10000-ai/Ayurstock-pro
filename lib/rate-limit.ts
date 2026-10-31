@@ -58,10 +58,24 @@ export function rateLimit(key: string, limit = 10, windowMs = 60_000): RateLimit
 }
 
 /**
- * Best-effort client IP extraction from standard proxy headers.
+ * Client IP for rate limiting and login history.
+ *
+ * X-Forwarded-For is never read: a client can put anything in it and
+ * Cloudflare only appends to it. With TRUST_PROXY=cloudflare the app reads
+ * CF-Connecting-IP, which Cloudflare always overwrites with the real client
+ * address. That is only safe when the app listens on 127.0.0.1 so the tunnel
+ * is the sole way in (see DEPLOYMENT.md). Without a trusted proxy there is
+ * no reliable address and every caller shares the 'unknown' bucket.
  */
 export function getClientIp(request: Request): string {
-  const xff = request.headers.get('x-forwarded-for');
-  if (xff) return xff.split(',')[0].trim();
-  return request.headers.get('x-real-ip') || 'unknown';
+  if (process.env.TRUST_PROXY === 'cloudflare') {
+    const ip = request.headers.get('cf-connecting-ip')?.trim();
+    if (ip && /^[0-9a-fA-F:.]{2,45}$/.test(ip)) return ip;
+  }
+  return 'unknown';
+}
+
+/** Clears every bucket. For tests only. */
+export function resetRateLimits() {
+  buckets.clear();
 }

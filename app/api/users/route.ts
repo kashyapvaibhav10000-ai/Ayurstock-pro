@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, hashPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { USERNAME_TAKEN, isUsernameConflict, parseUsernameInput } from '@/lib/username';
-import { superAdminVia } from '@/lib/super-admin';
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,7 +25,7 @@ export async function GET(req: NextRequest) {
         email: true,
         username: true,
         phone: true,
-        pin: true,
+        pinHash: true,
         role: true,
         isActive: true,
         createdAt: true,
@@ -39,10 +38,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       currentUserId: auth.user.id,
-      // Identifiers that make the caller a super-admin (UI warns before changing them).
-      currentUserSuperAdminVia: superAdminVia(auth.user),
-      // The PIN itself never leaves the server.
-      users: users.map(({ pin, ...user }) => ({ ...user, hasPin: Boolean(pin) })),
+      // The PIN hash never leaves the server.
+      users: users.map(({ pinHash, ...user }) => ({ ...user, hasPin: Boolean(pinHash) })),
     });
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -71,16 +68,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Password must be at least 8 characters' }, { status: 400 });
     }
 
-    // Check if email already exists in this shop
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        shopId: auth.user.shopId,
-        email: email.toLowerCase().trim()
-      }
+    // Emails are unique across all shops (login has no shop selector).
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+      select: { id: true },
     });
 
     if (existingUser) {
-      return NextResponse.json({ success: false, message: 'User with this email already exists' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'This email is already in use' }, { status: 400 });
     }
 
     const parsedUsername = parseUsernameInput(usernameInput);

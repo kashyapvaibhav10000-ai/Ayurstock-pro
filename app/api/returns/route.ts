@@ -5,6 +5,9 @@ import { normalizeExpiry } from '@/lib/batch';
 import { findBatchByIdentity, findOrCreateBatch } from '@/services/inventory';
 import { recordMovement } from '@/lib/stock-movement';
 
+/** A rule the request broke; answered with 400 and this message. */
+class ReturnError extends Error {}
+
 export async function GET(req: NextRequest) {
   try {
     const auth = await authenticateRequest(req);
@@ -58,7 +61,7 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('Insufficient permissions', 403);
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const { 
       medicineId, 
       companyId, 
@@ -70,75 +73,99 @@ export async function POST(req: NextRequest) {
       reason, 
       notes, 
       type,
-      saleId,
       saleItemId
-    } = body;
-
-    if (!medicineId || !expiryDate || mrp === undefined || !quantity || !reason || !type) {
-      return createErrorResponse('Missing mandatory fields', 400);
-    }
+    } = body ?? {};
 
     if (type !== 'CUSTOMER' && type !== 'SUPPLIER') {
       return createErrorResponse('Return type must be CUSTOMER or SUPPLIER', 400);
     }
 
     const q = Number(quantity);
-    if (isNaN(q) || q <= 0) {
-      return createErrorResponse('Quantity must be greater than 0', 400);
+    if (!Number.isInteger(q) || q <= 0) {
+      return createErrorResponse('Quantity must be a whole number greater than 0', 400);
+    }
+    if (typeof reason !== 'string' || !reason.trim() || reason.length > 500) {
+      return createErrorResponse('Reason is required', 400);
+    }
+
+    // A customer return must point at the sale line it reverses: that caps
+    // the quantity and fixes the refund price to what the customer paid.
+    if (type === 'CUSTOMER' && !saleItemId) {
+      return createErrorResponse('Customer returns must reference the original sale item.', 400);
+    }
+    if (type === 'SUPPLIER' && (!medicineId || !expiryDate || mrp === undefined)) {
+      return createErrorResponse('Missing mandatory fields', 400);
+    }
+
+    let verifiedMedicineId: string = medicineId;
+    let verifiedBatchId: string | undefined = batchId;
+    let verifiedSaleId: string | undefined;
+    let returnMrp = Number(mrp);
+    let returnBatchNumber: string | undefined = batchNumber;
+    let returnExpiryInput = expiryDate;
+
+    if (saleItemId) {
+      const saleItem = await prisma.saleItem.findFirst({
+        where: { id: saleItemId, sale: { shopId: auth.user.shopId } },
+        include: { batch: { select: { batchNumber: true, expiryDate: true } } },
+      });
+      if (!saleItem || (medicineId && saleItem.medicineId !== medicineId)) {
+        return createErrorResponse('Invalid Sale Item provided.', 400);
+      }
+      verifiedMedicineId = saleItem.medicineId;
+      verifiedBatchId = saleItem.batchId;
+      verifiedSaleId = saleItem.saleId;
+      returnMrp = Number(saleItem.mrp);
+      returnBatchNumber = saleItem.batch.batchNumber;
+      returnExpiryInput = saleItem.batch.expiryDate;
+    }
+
+    if (!Number.isFinite(returnMrp) || returnMrp < 0) {
+      return createErrorResponse('Invalid MRP', 400);
     }
 
     // Security Check: Verify medicine belongs to current shop
     const medicine = await prisma.medicine.findFirst({
-      where: { id: medicineId, shopId: auth.user.shopId }
+      where: { id: verifiedMedicineId, shopId: auth.user.shopId }
     });
 
     if (!medicine) {
       return createErrorResponse('Access Denied: Medicine does not belong to your shop.', 403);
     }
 
-    // Step 1: Handle SaleItem Validation if provided
-    let verifiedBatchId = batchId;
-    if (saleItemId) {
-      const saleItem = await prisma.saleItem.findUnique({
-        where: { id: saleItemId },
-        include: { medicineReturns: true }
-      });
-
-      if (!saleItem || saleItem.medicineId !== medicineId) {
-        return createErrorResponse('Invalid Sale Item provided.', 400);
-      }
-
-      const previouslyReturned = saleItem.medicineReturns.reduce((acc: number, curr: any) => acc + curr.quantity, 0);
-      if (q + previouslyReturned > saleItem.quantity) {
-        return createErrorResponse(`Maximum returnable quantity is ${saleItem.quantity - previouslyReturned}.`, 400);
-      }
-      
-      // Use the exact batch from the sale item
-      verifiedBatchId = saleItem.batchId;
-    }
-
-    const returnExpiry = normalizeExpiry(expiryDate);
+    const returnExpiry = normalizeExpiry(returnExpiryInput);
 
     // Execute the return registration and stock logic transactionally
     const result = await prisma.$transaction(async (tx) => {
+      if (saleItemId) {
+        // Lock the sale line so two concurrent returns cannot both pass the cap.
+        await tx.$queryRaw`SELECT id FROM "SaleItem" WHERE id = ${saleItemId} FOR UPDATE`;
+        const sold = await tx.saleItem.findUniqueOrThrow({ where: { id: saleItemId }, select: { quantity: true } });
+        const returned = await tx.medicineReturn.aggregate({ where: { saleItemId }, _sum: { quantity: true } });
+        const left = sold.quantity - (returned._sum.quantity ?? 0);
+        if (q > left) {
+          throw new ReturnError(`Maximum returnable quantity is ${Math.max(0, left)}.`);
+        }
+      }
+
       // 1. Log the return
       const medReturn = await tx.medicineReturn.create({
         data: {
           shopId: auth.user.shopId,
-          medicineId,
-          companyId,
-          batchNumber: batchNumber || 'RETURN_BATCH',
+          medicineId: verifiedMedicineId,
+          companyId: typeof companyId === 'string' && companyId ? companyId : null,
+          batchNumber: returnBatchNumber || 'RETURN_BATCH',
           batchId: verifiedBatchId,
           expiryDate: returnExpiry,
-          mrp: Number(mrp),
+          mrp: returnMrp,
           quantity: q,
           reason,
-          notes,
+          notes: typeof notes === 'string' ? notes.slice(0, 1000) : null,
           type, // CUSTOMER or SUPPLIER
           status: 'PROCESSED',
           createdByUserId: auth.user.id,
-          saleId,
-          saleItemId
+          saleId: verifiedSaleId ?? null,
+          saleItemId: saleItemId ?? null
         }
       });
 
@@ -154,28 +181,28 @@ export async function POST(req: NextRequest) {
       let existingBatch;
       if (verifiedBatchId) {
         existingBatch = await tx.inventoryBatch.findFirst({
-          where: { id: verifiedBatchId, shopId: auth.user.shopId, medicineId }
+          where: { id: verifiedBatchId, shopId: auth.user.shopId, medicineId: verifiedMedicineId }
         });
         if (!existingBatch) {
-          throw new Error('Batch not found for this medicine.');
+          throw new ReturnError('Batch not found for this medicine.');
         }
       } else {
         existingBatch = await findBatchByIdentity(tx, {
           shopId: auth.user.shopId,
-          medicineId,
-          batchNumber: batchNumber || 'RETURN_BATCH',
+          medicineId: verifiedMedicineId,
+          batchNumber: returnBatchNumber || 'RETURN_BATCH',
           expiryDate: returnExpiry,
         });
       }
 
       if (existingBatch) {
         if (existingBatch.stockQty + stockQuantityAdjustment < 0) {
-          throw new Error('Insufficient stock to execute Supplier Return of this batch magnitude.');
+          throw new ReturnError('Insufficient stock to execute Supplier Return of this batch magnitude.');
         }
 
         await recordMovement(tx, {
           shopId: auth.user.shopId,
-          medicineId,
+          medicineId: verifiedMedicineId,
           batchId: existingBatch.id,
           type: 'RETURN',
           qtyChange: stockQuantityAdjustment,
@@ -187,14 +214,14 @@ export async function POST(req: NextRequest) {
 
       } else {
         if (type === 'SUPPLIER') {
-          throw new Error('Cannot return to supplier: This batch physically does not exist in inventory.');
+          throw new ReturnError('Cannot return to supplier: This batch physically does not exist in inventory.');
         }
 
         // Inherit the purchase rate from an existing batch of the same medicine so
         // that returned stock keeps a realistic cost basis. Falling back to 0 here
         // would understate COGS and inflate profit reports.
         const referenceBatch = await tx.inventoryBatch.findFirst({
-          where: { shopId: auth.user.shopId, medicineId, purchaseRate: { not: null } },
+          where: { shopId: auth.user.shopId, medicineId: verifiedMedicineId, purchaseRate: { not: null } },
           orderBy: { createdAt: 'desc' },
           select: { purchaseRate: true },
         });
@@ -203,19 +230,19 @@ export async function POST(req: NextRequest) {
           tx,
           {
             shopId: auth.user.shopId,
-            medicineId,
-            batchNumber: batchNumber || 'RETURN_BATCH',
+            medicineId: verifiedMedicineId,
+            batchNumber: returnBatchNumber || 'RETURN_BATCH',
             expiryDate: returnExpiry,
           },
           {
-            mrp: Number(mrp),
+            mrp: returnMrp,
             purchaseRate: referenceBatch?.purchaseRate ?? null,
-            sellingRate: Number(mrp),
+            sellingRate: returnMrp,
           }
         );
         await recordMovement(tx, {
           shopId: auth.user.shopId,
-          medicineId,
+          medicineId: verifiedMedicineId,
           batchId: newBatch.id,
           type: 'RETURN',
           qtyChange: stockQuantityAdjustment,
@@ -246,7 +273,13 @@ export async function POST(req: NextRequest) {
     return createApiResponse(true, result);
 
   } catch (error: any) {
+    if (error instanceof ReturnError) {
+      return createErrorResponse(error.message, 400);
+    }
+    if (error instanceof Error && error.message.startsWith('Insufficient stock')) {
+      return createErrorResponse(error.message, 400);
+    }
     console.error('Returns Execution Error:', error);
-    return createErrorResponse(error.message, 500);
+    return createErrorResponse('Failed to process return', 500);
   }
 }

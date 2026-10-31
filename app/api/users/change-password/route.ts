@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth, hashPassword, verifyPassword } from '@/lib/auth';
+import { verifyAuth, generateToken, hashPassword, setAuthCookie, verifyPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
@@ -51,9 +51,10 @@ export async function POST(req: NextRequest) {
 
     const hashed = hashPassword(newPassword);
 
-    await prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id: userId },
-      data: { passwordHash: hashed }
+      // Ends every session issued with the old password.
+      data: { passwordHash: hashed, tokenVersion: { increment: 1 } }
     });
 
     // Log the action
@@ -66,7 +67,13 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({ success: true, message: 'Password successfully updated' });
+    const response = NextResponse.json({ success: true, message: 'Password successfully updated' });
+    if (isSelf) {
+      // Keep the admin's own session: re-issue it with the new token version.
+      const token = generateToken({ userId: auth.user.id, shopId: auth.user.shopId, email: auth.user.email, role: auth.user.role, tv: updated.tokenVersion });
+      setAuthCookie(response, token);
+    }
+    return response;
   } catch (error) {
     console.error('Error changing password:', error);
     return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });

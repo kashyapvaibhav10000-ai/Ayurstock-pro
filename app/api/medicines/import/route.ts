@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { aiAllowanceError } from '@/lib/ai/allowance';
 import { parsePDFWithAI, parseTextWithAI } from '@/lib/aiParser';
 import { prisma } from '@/lib/db';
 
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest) {
     if (!auth.authenticated || !auth.user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
+
+    const denied = await aiAllowanceError(auth.user);
+    if (denied) return denied;
 
     const formData = await req.formData();
     const file = formData.get('file') as File | null;

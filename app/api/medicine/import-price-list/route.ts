@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { aiAllowanceError } from '@/lib/ai/allowance';
 import { parsePDFWithAI, parseTextWithAI, parseImageWithGeminiVision } from '@/lib/aiParser';
 import { prisma } from '@/lib/db';
 import { storePurchaseDocument } from '@/lib/purchase-record';
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
+
+    const denied = await aiAllowanceError(auth.user);
+    if (denied) return denied;
 
     const formData = await req.formData();
     const file = formData.get('file') as File | null;

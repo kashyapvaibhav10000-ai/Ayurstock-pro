@@ -10,8 +10,14 @@ const BillingSettingsSchema = z.object({
   enableBarcode: z.boolean(),
   autoPrintInvoice: z.boolean(),
   gstMode: z.enum(['inclusive', 'exclusive']),
-  defaultDiscountPercent: z.number().min(0).max(100),
+  defaultDiscountPercent: z.number().min(0).max(100).optional(),
+  // Admins only: largest line discount (%) each role may give at billing.
+  maxDiscountPercentCashier: z.number().int().min(0).max(100).optional(),
+  maxDiscountPercentManager: z.number().int().min(0).max(100).optional(),
+  maxDiscountPercentAdmin: z.number().int().min(0).max(100).optional(),
 });
+
+const CAP_FIELDS = ['maxDiscountPercentCashier', 'maxDiscountPercentManager', 'maxDiscountPercentAdmin'] as const;
 
 export async function GET(request: NextRequest) {
   try {
@@ -53,6 +59,9 @@ export async function GET(request: NextRequest) {
       autoPrintInvoice: settings.autoPrintInvoice,
       gstMode: settings.gstMode,
       defaultDiscountPercent: Number(settings.defaultDiscountPercent),
+      maxDiscountPercentCashier: settings.maxDiscountPercentCashier,
+      maxDiscountPercentManager: settings.maxDiscountPercentManager,
+      maxDiscountPercentAdmin: settings.maxDiscountPercentAdmin,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
     });
@@ -91,6 +100,14 @@ export async function PATCH(request: NextRequest) {
       defaultDiscountPercent,
     } = validation.data;
 
+    // A manager must not be able to raise their own discount limit.
+    const caps = Object.fromEntries(
+      CAP_FIELDS.filter((field) => validation.data[field] !== undefined).map((field) => [field, validation.data[field]])
+    );
+    if (Object.keys(caps).length > 0 && auth.user.role !== 'ADMIN') {
+      return createErrorResponse('Only an admin can change discount limits', 403);
+    }
+
     const shop = await prisma.shop.findUnique({
       where: { id: auth.user.shopId },
     });
@@ -109,6 +126,7 @@ export async function PATCH(request: NextRequest) {
         autoPrintInvoice,
         gstMode,
         defaultDiscountPercent,
+        ...caps,
       },
       create: {
         shopId: auth.user.shopId,
@@ -118,7 +136,8 @@ export async function PATCH(request: NextRequest) {
         enableBarcode,
         autoPrintInvoice,
         gstMode,
-        defaultDiscountPercent,
+        defaultDiscountPercent: defaultDiscountPercent ?? 0,
+        ...caps,
       },
     });
 
@@ -132,6 +151,9 @@ export async function PATCH(request: NextRequest) {
       autoPrintInvoice: updated.autoPrintInvoice,
       gstMode: updated.gstMode,
       defaultDiscountPercent: Number(updated.defaultDiscountPercent),
+      maxDiscountPercentCashier: updated.maxDiscountPercentCashier,
+      maxDiscountPercentManager: updated.maxDiscountPercentManager,
+      maxDiscountPercentAdmin: updated.maxDiscountPercentAdmin,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     });
