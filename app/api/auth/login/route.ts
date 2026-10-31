@@ -63,8 +63,14 @@ export async function POST(request: NextRequest) {
     const user = await findLoginUser(identifier);
 
     if (!user) {
-      // Can't log to LoginHistory without a userId FK
       await verifyPassword(password, DUMMY_HASH);
+      // Record the typed identifier (never the password) so guessing at
+      // accounts shows up; no user, so no shop either.
+      await prisma.loginHistory
+        .create({
+          data: { ipAddress: ip, userAgent: request.headers.get('user-agent'), status: 'failed', identifier: identifier.slice(0, 254) },
+        })
+        .catch(console.error);
       return createErrorResponse(INVALID_CREDENTIALS, 401);
     }
 
@@ -72,6 +78,7 @@ export async function POST(request: NextRequest) {
       prisma.loginHistory.create({
         data: {
           userId: user.id,
+          shopId: user.shopId,
           ipAddress: ip,
           userAgent: request.headers.get('user-agent'),
           status,

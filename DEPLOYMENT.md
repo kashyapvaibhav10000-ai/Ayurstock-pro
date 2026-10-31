@@ -72,3 +72,9 @@ export TEST_DATABASE_URL=postgresql://postgres:test@127.0.0.1:55432/ayur_test
 DATABASE_URL=$TEST_DATABASE_URL npx prisma migrate deploy
 npm test
 ```
+
+## Migration `20261102000000_login_history_unknown_users`
+
+Makes `LoginHistory.userId` optional and adds `shopId`, so failed logins for
+unknown usernames/emails and wrong POS PINs are recorded. No data changes;
+`scripts/deploy.sh` applies it.

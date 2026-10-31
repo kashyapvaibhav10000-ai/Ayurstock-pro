@@ -616,11 +616,18 @@ function logExtractedMedicines(medicines: ParsedMedicine[], provider: string) {
 // ─── Extract text from PDF for lower tiers ────────────────────────────────────
 async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
   // Try pdf-parse first
+  // pdf-parse v2 is a class (the v1 function call threw and was swallowed,
+  // so this path never ran).
   try {
-    const pdfParse = require('pdf-parse');
-    const pdfData = await pdfParse(pdfBuffer, { max: 100 });
-    if (pdfData.text && pdfData.text.trim().length > 50) {
-      return pdfData.text;
+    const { PDFParse } = require('pdf-parse');
+    const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+    try {
+      const pdfData = await parser.getText({ first: 100 });
+      if (pdfData.text && pdfData.text.trim().length > 50) {
+        return pdfData.text;
+      }
+    } finally {
+      await parser.destroy();
     }
   } catch (e) { }
 

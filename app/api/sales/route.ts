@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
-import { CreateSaleSchema } from '@/lib/schemas';
+import { CreateSaleSchema, validationMessage } from '@/lib/schemas';
 import { BillingError, createSale, SellerRole } from '@/services/billing';
 import { prisma } from '@/lib/db';
 
@@ -61,8 +61,7 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validation = CreateSaleSchema.safeParse(body);
     if (!validation.success) {
-      const errors = validation.error.flatten().fieldErrors;
-      return createErrorResponse(`Validation error: ${JSON.stringify(errors)}`, 400);
+      return createErrorResponse(validationMessage(validation.error), 400);
     }
 
     const { customerId, customer, saleType, items, paymentMode, amountPaid, creditDue } = validation.data;

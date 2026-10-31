@@ -55,6 +55,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
+      await prisma.loginHistory
+        .create({
+          data: {
+            shopId: device.shopId,
+            ipAddress: ip,
+            userAgent: request.headers.get('user-agent'),
+            status: 'failed',
+            identifier: `pos-device:${device.name}`,
+          },
+        })
+        .catch(console.error);
       // Count atomically; the request that reaches the limit sets the lock.
       const updated = await prisma.posDevice.update({
         where: { id: device.id },
@@ -98,6 +109,7 @@ export async function POST(request: NextRequest) {
     await prisma.loginHistory.create({
       data: {
         userId: user.id,
+        shopId: user.shopId,
         ipAddress: ip,
         userAgent: request.headers.get('user-agent'),
         status: 'success',

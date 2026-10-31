@@ -148,7 +148,7 @@ export default function LoginHistoryTab() {
                     {new Date(item.createdAt).toLocaleString()}
                   </TableCell>
                   <TableCell className="font-extrabold text-[13px] text-foreground">
-                    {item.user?.name || 'TERMINAL_01'}
+                    {item.user?.name || 'No matching user'}
                     {item.identifier && (
                       <div className="font-mono text-[10px] font-medium text-muted-foreground">via {item.identifier}</div>
                     )}

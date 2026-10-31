@@ -33,9 +33,6 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   experimental: {
     // The proxy reads every /api request (CSRF check). Uploads are capped at
     // 20 MB by the routes; anything larger is refused in proxy.ts first.

@@ -1,7 +1,6 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import DashboardClientWrapper from '@/components/DashboardClientWrapper';
-import { getAuthUserFromToken } from '@/lib/auth';
+import { getPageUser } from '@/lib/page-guard';
 import { isSuperAdmin } from '@/lib/super-admin';
 
 export default async function DashboardLayout({
@@ -9,14 +8,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth-token')?.value;
-
-  if (!token) {
-    redirect('/login');
-  }
-
-  const user = await getAuthUserFromToken(token);
+  const user = await getPageUser();
   if (!user) {
     redirect('/login');
   }

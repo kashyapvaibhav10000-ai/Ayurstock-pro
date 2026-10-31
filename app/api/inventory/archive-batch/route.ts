@@ -6,7 +6,7 @@ import { recordMovement } from '@/lib/stock-movement';
 
 class BatchNotFound extends Error {}
 
-const ArchiveBatchSchema = z.object({
+const ArchiveBatchSchema = z.strictObject({
   batchId: z.string().min(1, 'Batch ID is required'),
   reason: z.string().min(1, 'Reason is required').max(500),
 });
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, message: 'Invalid request', errors: validation.error.flatten() },
+        { success: false, message: 'Invalid request', errors: z.flattenError(validation.error) },
         { status: 400 }
       );
     }

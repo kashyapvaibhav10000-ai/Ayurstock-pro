@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
-import { ShopSettingsSchema } from '@/lib/schemas';
+import { ShopSettingsSchema, validationMessage } from '@/lib/schemas';
 
 const splitAddress = (address: string) => {
   const lines = address.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -83,8 +83,7 @@ export async function PUT(request: NextRequest) {
     const validation = ShopSettingsSchema.safeParse(body);
 
     if (!validation.success) {
-      const errors = validation.error.flatten().fieldErrors;
-      return createErrorResponse(`Validation error: ${JSON.stringify(errors)}`, 400);
+      return createErrorResponse(validationMessage(validation.error), 400);
     }
 
     const { shopName, addressLine1, addressLine2, phone, email, gstin, drugLicense, state, stateCode, invoiceTerms } = validation.data;

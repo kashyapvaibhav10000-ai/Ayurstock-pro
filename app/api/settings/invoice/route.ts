@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
-import { InvoiceSettingsSchema } from '@/lib/schemas';
+import { InvoiceSettingsSchema, validationMessage } from '@/lib/schemas';
 
 export async function GET(request: NextRequest) {
   try {
@@ -80,8 +80,7 @@ export async function PUT(request: NextRequest) {
     const validation = InvoiceSettingsSchema.safeParse(body);
 
     if (!validation.success) {
-      const errors = validation.error.flatten().fieldErrors;
-      return createErrorResponse(`Validation error: ${JSON.stringify(errors)}`, 400);
+      return createErrorResponse(validationMessage(validation.error), 400);
     }
 
     const { invoicePrefix, watermarkText, watermarkEnabled } = validation.data;

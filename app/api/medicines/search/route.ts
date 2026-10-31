@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse, createPaginatedResponse } from '@/middleware/auth';
-import { CreateMedicineSchema, MedicineSearchSchema } from '@/lib/schemas';
+import { CreateMedicineSchema } from '@/lib/schemas';
 
 export async function GET(request: NextRequest) {
   try {
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
         hsn: data.hsn,
         packing: data.packing || null,
         unit: data.unit || 'strip',
-        gstPercent: typeof (body as any).gstPercent === 'number' ? (body as any).gstPercent : 0,
+        gstPercent: data.gstPercent ?? 0,
       },
     });
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash, timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/db';
-import * as nodemailer from 'nodemailer';
+import { sendTextMail } from '@/lib/mailer';
 import { addMonths, differenceInDays } from 'date-fns';
 import { batchLabel } from '@/lib/batch';
 
@@ -101,19 +101,8 @@ export async function GET(request: NextRequest) {
 
       if (settings.enableEmail && settings.emailAddress) {
         try {
-          const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.SMTP_PORT || '587'),
-            secure: process.env.SMTP_PORT === '465',
-            auth: {
-              user: process.env.SMTP_USER,
-              pass: process.env.SMTP_PASS,
-            },
-          });
-
           const monthName = today.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-          await transporter.sendMail({
-            from: process.env.SMTP_FROM || `"Ayur-stock Pro" <${process.env.SMTP_USER}>`,
+          await sendTextMail({
             to: settings.emailAddress,
             subject: `Monthly Expiry Report — ${settings.shop.name} — ${monthName}`,
             text: messageText,

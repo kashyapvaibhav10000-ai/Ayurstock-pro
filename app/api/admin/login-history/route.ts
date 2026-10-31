@@ -15,9 +15,10 @@ export async function GET(req: NextRequest) {
     const statusFilter = searchParams.get('status'); // 'failed' or null
     const skip = (page - 1) * limit;
 
-    const whereClause: any = {
-      user: { shopId: auth.user.shopId },
-    };
+    // Own users' attempts plus this shop's POS failures (no user). Attempts
+    // for unknown usernames/emails belong to no shop and are not shown here.
+    const shopScope = { OR: [{ user: { shopId: auth.user.shopId } }, { shopId: auth.user.shopId }] };
+    const whereClause: any = { ...shopScope };
     if (statusFilter === 'failed') {
       whereClause.status = 'failed';
     }
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
     const failedByIp = await prisma.loginHistory.groupBy({
       by: ['ipAddress'],
       where: {
-        user: { shopId: auth.user.shopId },
+        ...shopScope,
         status: 'failed',
         ipAddress: { not: null },
       },

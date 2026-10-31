@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
-import { ProfileSettingsSchema } from '@/lib/schemas';
+import { ProfileSettingsSchema, validationMessage } from '@/lib/schemas';
 import { generateToken, hashPassword, setAuthCookie, verifyPassword } from '@/lib/auth';
 import {
   CURRENT_PASSWORD_REQUIRED,
@@ -58,8 +58,7 @@ export async function PUT(request: NextRequest) {
     const validation = ProfileSettingsSchema.safeParse(body);
 
     if (!validation.success) {
-      const errors = validation.error.flatten().fieldErrors;
-      return createErrorResponse(`Validation error: ${JSON.stringify(errors)}`, 400);
+      return createErrorResponse(validationMessage(validation.error), 400);
     }
 
     const { name, email, phone, password, avatarUrl } = validation.data;

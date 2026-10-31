@@ -35,7 +35,7 @@ interface User {
 // Zod Validation Schemas
 const userSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email format"),
+  email: z.email("Invalid email format"),
   // Optional login name; rules checked live and by the API.
   username: z.string().optional(),
   // Optional: a disabled role select submits nothing (role unchanged).
@@ -58,7 +58,7 @@ const passwordSchema = z
     confirmPassword: z.string().optional(),
   })
   .refine((data) => data.confirmPassword === undefined || data.confirmPassword === data.newPassword, {
-    message: "Passwords do not match",
+    error: "Passwords do not match",
     path: ["confirmPassword"],
   })
 

@@ -179,16 +179,21 @@ model User {
 
 model LoginHistory {
   id        String   @id @default(cuid())
-  userId    String
+  // Null for attempts that matched no user (unknown username/email) and for
+  // wrong PINs on a POS device; shopId then says which shop, when known.
+  userId    String?
+  shopId    String?
   ipAddress String?
   userAgent String?
   status    String   @default("success")
   // What was typed in the login field (username or email), lowercased.
   identifier String?
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@index([shopId, createdAt])
+  @@index([createdAt])
 }
 
 model Supplier {

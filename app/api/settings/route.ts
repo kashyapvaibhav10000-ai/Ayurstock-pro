@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
+import { validationMessage } from '@/lib/schemas';
 import { z } from 'zod';
 
 const ALLOWED_ROUTES = [
@@ -15,15 +16,15 @@ const ALLOWED_ROUTES = [
   '/dashboard/medicines',
 ];
 
-const ActionSchema = z.object({
+const ActionSchema = z.strictObject({
   label: z.string().min(1, 'Label is required'),
   icon: z.string().min(1, 'Icon is required'),
   route: z.string().refine((val) => ALLOWED_ROUTES.includes(val), {
-    message: "Route is not in the allowed list",
+    error: "Route is not in the allowed list",
   }),
 });
 
-const UpdateActionsSchema = z.object({
+const UpdateActionsSchema = z.strictObject({
   commanderActions: z.array(ActionSchema)
     .min(1, 'At least 1 action is required')
     .max(5, 'Maximum of 5 actions allowed'),
@@ -63,7 +64,7 @@ export async function PATCH(request: NextRequest) {
     const validation = UpdateActionsSchema.safeParse(body);
 
     if (!validation.success) {
-      return createErrorResponse(`Validation error: ${JSON.stringify(validation.error.flatten().fieldErrors)}`, 400);
+      return createErrorResponse(validationMessage(validation.error), 400);
     }
 
     const { commanderActions } = validation.data;

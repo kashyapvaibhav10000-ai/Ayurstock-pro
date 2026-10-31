@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
+import { validationMessage } from '@/lib/schemas';
 import { z } from 'zod';
 
-const BillingSettingsSchema = z.object({
+const BillingSettingsSchema = z.strictObject({
   enableRetail: z.boolean(),
   enableWholesale: z.boolean(),
   allowDiscounts: z.boolean(),
@@ -86,8 +87,7 @@ export async function PATCH(request: NextRequest) {
     const validation = BillingSettingsSchema.safeParse(body);
 
     if (!validation.success) {
-      const errors = validation.error.flatten().fieldErrors;
-      return createErrorResponse(`Validation error: ${JSON.stringify(errors)}`, 400);
+      return createErrorResponse(validationMessage(validation.error), 400);
     }
 
     const {

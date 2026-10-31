@@ -1,15 +1,16 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
+import { validationMessage } from '@/lib/schemas';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { recordMovement } from '@/lib/stock-movement';
 
-const CreateStockAdjustmentSchema = z.object({
+const CreateStockAdjustmentSchema = z.strictObject({
   batchId: z.string().min(1, 'Batch is required'),
   type: z.enum(['ADD', 'REMOVE']),
   quantity: z.number().int().positive('Quantity must be at least 1'),
-  reason: z.string().min(1, 'Reason is required'),
-  notes: z.string().optional().nullable(),
+  reason: z.string().min(1, 'Reason is required').max(200),
+  notes: z.string().max(1000).optional().nullable(),
 });
 
 export async function POST(request: NextRequest) {
@@ -26,8 +27,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validation = CreateStockAdjustmentSchema.safeParse(body);
     if (!validation.success) {
-      const errors = validation.error.flatten().fieldErrors;
-      return createErrorResponse(`Validation error: ${JSON.stringify(errors)}`, 400);
+      return createErrorResponse(validationMessage(validation.error), 400);
     }
 
     const { batchId, type, quantity, reason, notes } = validation.data;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { sendTextMail } from '@/lib/mailer';
 import { authenticateRequest, createApiResponse, createErrorResponse, staffOnlyResponse } from '@/middleware/auth';
-import * as nodemailer from 'nodemailer';
 import { addMonths, differenceInDays } from 'date-fns';
 
 export async function POST(request: NextRequest) {
@@ -132,19 +132,8 @@ export async function POST(request: NextRequest) {
 
     if (settings.enableEmail && settings.emailAddress) {
       try {
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: process.env.SMTP_PORT === '465',
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
-
         const monthName = today.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || `"Ayur-stock Pro" <${process.env.SMTP_USER}>`,
+        await sendTextMail({
           to: settings.emailAddress,
           subject: `Monthly Expiry Report — ${shop.name} — ${monthName}`,
           text: messageText,
@@ -152,7 +141,7 @@ export async function POST(request: NextRequest) {
         emailSent = true;
       } catch (e: any) {
         console.error('Failed to send email:', e);
-        emailError = e.message;
+        emailError = 'Email could not be sent. Check the SMTP settings on the server.';
       }
     }
 

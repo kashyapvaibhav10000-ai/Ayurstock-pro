@@ -1,13 +1,14 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
+import { validationMessage } from '@/lib/schemas';
 import { z } from 'zod';
 
-const ExpiryAlertSettingsSchema = z.object({
+const ExpiryAlertSettingsSchema = z.strictObject({
   enableWhatsApp: z.boolean(),
   enableEmail: z.boolean(),
-  whatsappNumber: z.string(),
-  emailAddress: z.string().email().or(z.literal('')),
+  whatsappNumber: z.string().max(20),
+  emailAddress: z.email().max(254).or(z.literal('')),
 });
 
 export async function GET(request: NextRequest) {
@@ -68,8 +69,7 @@ export async function PATCH(request: NextRequest) {
     const validation = ExpiryAlertSettingsSchema.safeParse(body);
 
     if (!validation.success) {
-      const errors = validation.error.flatten().fieldErrors;
-      return createErrorResponse(`Validation error: ${JSON.stringify(errors)}`, 400);
+      return createErrorResponse(validationMessage(validation.error), 400);
     }
 
     const {
