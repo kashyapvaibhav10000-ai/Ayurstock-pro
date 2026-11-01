@@ -135,7 +135,7 @@ ayurstock-pro/
 │   └── schema.prisma      ← Database schema
 │
 ├── scripts/
-│   └── seed.js            ← Demo data seeding
+│   └── seed.ts            ← Demo data seeding (local only)
 │
 ├── package.json
 ├── tsconfig.json
