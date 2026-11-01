@@ -126,6 +126,7 @@ ayurstock-pro/
 ### Prerequisites
 - Node.js 18+
 - npm or yarn
+- PostgreSQL 14+
 
 ### 1. Install Dependencies
 ```bash
@@ -139,19 +140,19 @@ cp .env.example .env.local
 
 Edit `.env.local` with your configuration:
 ```env
-DATABASE_URL="file:./prisma/dev.db"
+DATABASE_URL=postgresql://user:pass@localhost:5432/ayurstock
 JWT_SECRET="your-super-secret-jwt-key-change-in-production"
 NEXT_PUBLIC_API_URL="http://localhost:3000"
 ```
 
 ### 3. Create Database
 ```bash
-# SQLite database file will be created automatically by Prisma
+createdb ayurstock
 ```
 
 ### 4. Run Migrations
 ```bash
-npm run prisma:migrate
+npx prisma migrate deploy
 ```
 
 This will:
@@ -498,8 +499,9 @@ CREATE TABLE "Sale" (
 
 ### Database Connection Failed
 ```bash
-# Verify DATABASE_URL in .env.local points to file:./prisma/dev.db
-# Ensure prisma/dev.db exists after running migrations
+# Verify DATABASE_URL in .env.local points to your Postgres database
+# and that Postgres is running, then apply migrations:
+npx prisma migrate deploy
 ```
 
 ### Port 3000 Already in Use

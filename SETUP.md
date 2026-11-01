@@ -9,9 +9,8 @@ npm install
 
 ### Step 2: Configure Database
 ```bash
-# Local development uses SQLite.
-# The database file is created automatically by Prisma at:
-# prisma/dev.db
+# Create an empty Postgres database
+createdb ayurstock
 ```
 
 ### Step 3: Setup Environment
@@ -21,14 +20,14 @@ cp .env.example .env.local
 
 Then edit `.env.local`:
 ```env
-DATABASE_URL="file:./prisma/dev.db"
+DATABASE_URL=postgresql://user:pass@localhost:5432/ayurstock
 JWT_SECRET="your-secret-key-at-least-32-chars-change-in-production"
 NEXT_PUBLIC_API_URL="http://localhost:3000"
 ```
 
 ### Step 4: Create Database Schema
 ```bash
-npm run prisma:migrate
+npx prisma migrate deploy
 ```
 
 This creates:
@@ -139,12 +138,12 @@ Before going live:
 
 ### "Database connection refused"
 ```bash
-# Verify the SQLite database file exists
-dir prisma\dev.db
+# Verify Postgres is running and DATABASE_URL in .env.local is correct
+pg_isready
 
-# Recreate the Prisma client and database schema if needed
+# Recreate the Prisma client and apply migrations if needed
 npm run prisma:generate
-npm run prisma:migrate
+npx prisma migrate deploy
 ```
 
 ### "Prisma schema not found"
@@ -210,7 +209,7 @@ curl -X POST http://localhost:3000/api/sales \
 2. **Add Medicines**: Use Medicines Master page or Prisma Studio
 3. **Test Workflows**: Try retail, wholesale, returns
 4. **Configure GST Rates**: Modify in API (`gstPercent` in billing)
-5. **Setup Backups**: Copy `prisma/dev.db` or move to a managed database later
+5. **Setup Backups**: Schedule `pg_dump` of the Postgres database
 6. **Monitor Logs**: Check `ActivityLog` table for audit trail
 
 ## Support URLs
