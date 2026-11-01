@@ -41,3 +41,14 @@ Thumbs.db
 .gemini/
 *.log
 tsconfig.tsbuildinfo
+
+# local databases, build/OCR dumps, scratch files
+*.db
+*.sqlite
+*_output*.txt
+build_log.txt
+ocr_out.txt
+Untitled-*
+import medicne/
+# tesseract.js language cache (downloaded on first OCR)
+*.traineddata

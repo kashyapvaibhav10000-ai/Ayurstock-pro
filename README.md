@@ -54,7 +54,7 @@ A production-grade, multi-tenant SaaS application for Ayurvedic pharmacy operati
 - **Zod** - Request/response validation
 
 ### Database
-- **SQLite** - Current development database
+- **PostgreSQL** - Database
 - **Prisma ORM** - Database abstraction & migrations
 
 ### Authentication
