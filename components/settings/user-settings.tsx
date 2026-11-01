@@ -19,6 +19,11 @@ import { toast } from "sonner"
 import { useUsernameAvailability, usernameBlocked } from "@/hooks/use-username-availability"
 import UsernameStatusLine from "@/components/settings/username-status"
 
+// The CSP has no 'unsafe-eval'. Without this, zod probes for eval support
+// with Function("") on first parse, which the browser reports as a CSP
+// violation (zod catches it and falls back anyway).
+if (typeof window !== "undefined") z.config({ jitless: true })
+
 // Interfaces mapping to Prisma models
 interface User {
   id: string
