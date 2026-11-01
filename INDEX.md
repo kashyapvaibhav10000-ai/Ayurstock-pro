@@ -257,13 +257,7 @@ ORDER BY expiryDate ASC
 
 ## Quick Reference: Login Credentials
 
-After running `npm run prisma:studio` and seeding:
-
-| User | Email | Password | PIN |
-|------|-------|----------|-----|
-| Admin | admin@demo.com | Demo@123 | 1234 |
-| Manager | manager@demo.com | Manager@123 | 2345 |
-| Cashier | cashier@demo.com | Cashier@123 | 3456 |
+Run seed locally, see `scripts/seed.ts`.
 
 ---
 

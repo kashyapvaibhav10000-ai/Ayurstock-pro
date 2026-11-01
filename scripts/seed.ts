@@ -2,6 +2,10 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/db';
 
 async function main() {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED !== 'yes') {
+    throw new Error('Refusing to seed in production. Set ALLOW_SEED=yes if you really mean it.');
+  }
+
   console.log('🌱 Seeding database...');
 
   const shop = await prisma.shop.upsert({

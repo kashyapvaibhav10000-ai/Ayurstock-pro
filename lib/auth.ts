@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { JWTPayload, AuthUser } from '@/types';
 import { prisma } from '@/lib/db';
+import { BCRYPT_COST, MIN_PASSWORD_LENGTH } from '@/lib/password-policy';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
@@ -23,8 +24,7 @@ if (JWT_SECRET.length < MIN_SECRET_LENGTH) {
   console.warn(`⚠️ JWT_SECRET is missing or shorter than ${MIN_SECRET_LENGTH} characters.`);
 }
 
-export const BCRYPT_COST = 12;
-export const MIN_PASSWORD_LENGTH = 8;
+export { BCRYPT_COST, MIN_PASSWORD_LENGTH };
 
 // Async so a hash (~250 ms at cost 12) does not block other requests.
 export function hashPassword(password: string): Promise<string> {

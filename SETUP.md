@@ -59,18 +59,8 @@ In "Shop" table, add:
 - `email`: `pharmacy@demo.com`
 
 #### Create Admin User:
-In "User" table, add:
-- `shopId`: `[shop_demo_id_from_above]`
-- `name`: `Admin User`
-- `email`: `admin@demo.com`
-- `passwordHash`: Generate in Node:
-  ```bash
-  node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('Demo@123', 10))"
-  ```
-  Copy output and paste
-- `role`: `ADMIN`
-- `isActive`: `true`
-- `pin`: `1234` (for POS login)
+Don't create users by hand. Run the seed locally (`npm run seed`); see
+`scripts/seed.ts` for the accounts it creates.
 
 #### Create Sample Medicine:
 In "Medicine" table, add:
@@ -107,13 +97,7 @@ Server starts on `http://localhost:3000`
 ### Step 7: Login
 Visit: `http://localhost:3000/login`
 
-**Email Login:**
-- Email: `admin@demo.com`
-- Password: `Demo@123`
-
-**OR POS PIN Login (faster):**
-- Open `/login` and change URL to `/dashboard`
-- Use: PIN `1234`
+Sign in with an account from the seed (run seed locally, see `scripts/seed.ts`).
 
 ## Quick Test Workflows
 
@@ -199,7 +183,7 @@ DELETE FROM "LoginHistory" WHERE "createdAt" < NOW() - INTERVAL '3 months';
 ```bash
 curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@demo.com","password":"Demo@123"}'
+  -d '{"email":"YOUR_EMAIL","password":"YOUR_PASSWORD"}'
 ```
 
 ### Search Medicines
