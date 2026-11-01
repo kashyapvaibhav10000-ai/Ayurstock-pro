@@ -5,11 +5,13 @@
 import jwt from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { call, makeReq, prisma, resetDb, seedShop, setCookie, tokenFor, Seed } from './helpers';
+import { call, makeReq, prisma, resetDb, seedShop, setCookie, tokenFor, PASSWORD, Seed } from './helpers';
 import { SESSION_ABSOLUTE_SECONDS, SESSION_IDLE_SECONDS, verifyToken } from '@/lib/auth';
 import { proxy } from '@/proxy';
 import * as logout from '@/app/api/auth/logout/route';
 import * as sales from '@/app/api/sales/route';
+import * as profile from '@/app/api/settings/profile/route';
+import * as changePassword from '@/app/api/users/change-password/route';
 
 let A: Seed;
 
@@ -72,6 +74,65 @@ describe('server-side logout', () => {
   it('refuses tokens without a session id or start', async () => {
     expect((await listSales(craft({ sid: undefined }))).status).toBe(401);
     expect((await listSales(craft({ sst: undefined }))).status).toBe(401);
+  });
+});
+
+describe('token reissue revokes the old session', () => {
+  const isRevoked = async (token: string) =>
+    Boolean(await prisma.revokedSession.findUnique({ where: { sid: verifyToken(token)!.sid! } }));
+
+  it('profile update with a new password: old cookie 401, new cookie 200', async () => {
+    const old = tokenFor(A.admin);
+    const res = await call(
+      profile.PUT,
+      makeReq('/api/settings/profile', {
+        method: 'PUT',
+        token: old,
+        body: { name: 'Renamed', email: 'renamed-admin@test.dev', username: 'renamed_admin', password: 'NewPassword456!', currentPassword: PASSWORD },
+      })
+    );
+    expect(res.status).toBe(200);
+    const fresh = setCookie(res.res, 'auth-token')!;
+    expect(fresh).toBeTruthy();
+    expect(verifyToken(fresh)!.sid).not.toBe(verifyToken(old)!.sid);
+
+    expect(await isRevoked(old)).toBe(true);
+    expect((await listSales(old)).status).toBe(401);
+    expect((await listSales(fresh)).status).toBe(200);
+  });
+
+  it('profile update without a password change issues no new cookie and keeps the session', async () => {
+    const current = tokenFor(A.admin);
+    const res = await call(
+      profile.PUT,
+      makeReq('/api/settings/profile', {
+        method: 'PUT',
+        token: current,
+        body: { name: 'Renamed', email: 'renamed-admin@test.dev', username: 'renamed_admin', currentPassword: PASSWORD },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(setCookie(res.res, 'auth-token')).toBeNull();
+    expect((await listSales(current)).status).toBe(200);
+  });
+
+  it('change-password on yourself: old cookie 401, new cookie 200', async () => {
+    const old = tokenFor(A.admin);
+    const res = await call(
+      changePassword.POST,
+      makeReq('/api/users/change-password', {
+        method: 'POST',
+        token: old,
+        body: { userId: A.admin.id, currentPassword: PASSWORD, newPassword: 'NewPassword456!' },
+      })
+    );
+    expect(res.status).toBe(200);
+    const fresh = setCookie(res.res, 'auth-token')!;
+    expect(fresh).toBeTruthy();
+
+    expect(await isRevoked(old)).toBe(true);
+    expect((await listSales(old)).status).toBe(401);
+    expect((await listSales(fresh)).status).toBe(200);
   });
 });
 

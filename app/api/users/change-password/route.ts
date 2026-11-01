@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth, generateToken, hashPassword, setAuthCookie, verifyPassword } from '@/lib/auth';
+import { verifyAuth, extractRequestToken, generateToken, hashPassword, revokeSession, setAuthCookie, verifyPassword, verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
@@ -69,7 +69,15 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({ success: true, message: 'Password successfully updated' });
     if (isSelf) {
-      // Keep the admin's own session: re-issue it with the new token version.
+      // Keep the admin's own session: re-issue it with the new token version,
+      // and revoke the old token so it can't be replayed.
+      try {
+        const current = extractRequestToken(req);
+        const oldPayload = current ? verifyToken(current) : null;
+        if (oldPayload) await revokeSession(oldPayload);
+      } catch (error) {
+        console.error('Session revocation failed:', error);
+      }
       const token = generateToken({ userId: auth.user.id, shopId: auth.user.shopId, email: auth.user.email, role: auth.user.role, tv: updated.tokenVersion });
       setAuthCookie(response, token);
     }

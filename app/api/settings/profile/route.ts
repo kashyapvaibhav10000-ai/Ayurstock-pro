@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
 import { ProfileSettingsSchema, validationMessage } from '@/lib/schemas';
-import { generateToken, hashPassword, setAuthCookie, verifyPassword } from '@/lib/auth';
+import { extractRequestToken, generateToken, hashPassword, revokeSession, setAuthCookie, verifyPassword, verifyToken } from '@/lib/auth';
 import {
   CURRENT_PASSWORD_REQUIRED,
   CURRENT_PASSWORD_WRONG,
@@ -147,7 +147,15 @@ export async function PUT(request: NextRequest) {
     const { pinHash, tokenVersion, ...profile } = updated;
     const response = createApiResponse(true, { ...profile, hasPin: Boolean(pinHash) });
     if (password) {
-      // Keep this session alive: re-issue its token with the new version.
+      // Keep this session alive: re-issue its token with the new version,
+      // and revoke the old token so it can't be replayed.
+      try {
+        const current = extractRequestToken(request);
+        const oldPayload = current ? verifyToken(current) : null;
+        if (oldPayload) await revokeSession(oldPayload);
+      } catch (error) {
+        console.error('Session revocation failed:', error);
+      }
       const token = generateToken({ userId: auth.user.id, shopId: auth.user.shopId, email: profile.email, role: auth.user.role, tv: tokenVersion });
       setAuthCookie(response, token);
     }
