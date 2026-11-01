@@ -213,7 +213,6 @@ describe('#2 Critical — POS PIN brute force across all shops', () => {
   it('PINs are stored as keyed hashes, never in plaintext', async () => {
     await setPin(A, A.cashier.id, '1234');
     const row = await prisma.user.findUniqueOrThrow({ where: { id: A.cashier.id } });
-    expect(row.legacyPin).toBeNull();
     expect(row.pinHash).toBe(hashPin(A.shop.id, '1234'));
     expect(row.pinHash).not.toContain('1234');
   });

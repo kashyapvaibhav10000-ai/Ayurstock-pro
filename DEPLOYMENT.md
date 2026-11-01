@@ -88,3 +88,11 @@ sessions expire after 12h without use (the proxy slides the expiry forward on
 **This release logs everyone out once:** tokens issued before it carry no
 session id (`sid`) and are rejected. POS devices stay paired; staff just enter
 their PIN again.
+
+## Migration `20261103010000_drop_legacy_pin`
+
+Drops the old plaintext `User.pin` column. **Before deploying this release, run
+`npm run hash-pins` on the currently deployed release.** The migration refuses
+to run while plaintext PINs exist; if it stops, run `hash-pins` from the
+previous release, then re-run `prisma migrate deploy`. This release no longer
+ships `scripts/hash-pins.ts`.

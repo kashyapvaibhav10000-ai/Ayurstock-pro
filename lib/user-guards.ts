@@ -62,7 +62,7 @@ export async function pinTakenInShop(shopId: string, pin: string, userId: string
 /** Prisma data for a parsed PIN: undefined = unchanged, null = removed. */
 export function pinData(shopId: string, pin: string | null | undefined) {
   if (pin === undefined) return {};
-  return { pinHash: pin === null ? null : hashPin(shopId, pin), legacyPin: null };
+  return { pinHash: pin === null ? null : hashPin(shopId, pin) };
 }
 
 export const PIN_TAKEN = 'Another user in this shop already uses this PIN.';

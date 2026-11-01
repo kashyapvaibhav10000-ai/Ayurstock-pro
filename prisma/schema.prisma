@@ -152,9 +152,6 @@ model User {
   avatarUrl       String?
   passwordHash    String
   role            String           @default("CASHIER")
-  // Plaintext PIN from before PINs were hashed; scripts/hash-pins.ts moves
-  // it into pinHash and clears it. Never read by the app.
-  legacyPin       String?          @map("pin")
   // HMAC-SHA256 of the POS PIN (lib/pin.ts), unique per shop.
   pinHash         String?
   // Bumped on password change, deactivation and role change; tokens carrying
