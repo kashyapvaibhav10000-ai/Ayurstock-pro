@@ -37,10 +37,28 @@ Every `/api` request passes the proxy:
 - Bodies over 20 MB get 413 before any route reads them.
 
 Sessions live only in the httpOnly `auth-token` cookie; the API ignores
-`Authorization: Bearer` headers. Security headers (CSP, HSTS, frame-ancestors
-'none', nosniff, Referrer-Policy, Permissions-Policy) are set in
-`next.config.js`. If you add a third-party script or API to the browser side,
-add its origin to the CSP there.
+`Authorization: Bearer` headers. Static security headers (HSTS,
+X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy) are set in
+`next.config.js`.
+
+### Content-Security-Policy
+
+`proxy.ts` (`buildCsp`) sends the CSP on every page and API response, with a
+fresh script nonce per request: `script-src 'self' 'nonce-…' 'strict-dynamic'`,
+no `'unsafe-inline'` or `'unsafe-eval'` for scripts in production. Next.js
+puts the nonce on its own scripts; `app/layout.tsx` passes it to next-themes.
+Any new inline `<script>` must use the nonce from `headers().get('x-nonce')`.
+`style-src` keeps `'unsafe-inline'` (Tailwind/Radix style attributes and the
+invoice templates' `<style>` blocks). If you add a third-party API the browser
+calls, add its origin to `connect-src` there.
+
+Because of the nonce, every page renders per request (none are static).
+
+Rolling out a CSP change: deploy with `CSP_REPORT_ONLY=1` in `.env`, so the
+policy is sent as `Content-Security-Policy-Report-Only` and violations only
+show in the browser console. Click through the app (login, billing, print,
+WhatsApp share, invoice scan, reports, settings, theme toggle) with devtools
+open; when the console shows no CSP violations, remove the flag and restart.
 
 ## Deploying the security-hardening release (migration `20261101000000_security_hardening`)
 

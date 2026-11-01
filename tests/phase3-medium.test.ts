@@ -95,11 +95,14 @@ describe('#12 Medium — SSRF through the OpenAI-compatible base URL', () => {
 
 describe('#13 Medium — missing security headers', () => {
   it('sends CSP with frame-ancestors none, HSTS, XFO, nosniff, Referrer-Policy, Permissions-Policy on every path', async () => {
+    // CSP is per request (nonce) from the proxy; the rest are static headers.
+    const csp = (await proxy(new NextRequest(new URL('/login', 'https://shop.example.com')))).headers.get('content-security-policy');
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("object-src 'none'");
+
     const rules = await (nextConfig as { headers: () => Promise<Array<{ source: string; headers: Array<{ key: string; value: string }> }>> }).headers();
     const all = rules.find((r) => r.source === '/:path*')!;
     const byKey = Object.fromEntries(all.headers.map((h) => [h.key, h.value]));
-    expect(byKey['Content-Security-Policy']).toContain("frame-ancestors 'none'");
-    expect(byKey['Content-Security-Policy']).toContain("object-src 'none'");
     expect(byKey['Strict-Transport-Security']).toMatch(/max-age=\d{8}/);
     expect(byKey['X-Frame-Options']).toBe('DENY');
     expect(byKey['X-Content-Type-Options']).toBe('nosniff');

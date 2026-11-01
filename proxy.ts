@@ -15,6 +15,42 @@ export const MAX_BODY_BYTES = 20 * 1024 * 1024;
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+/**
+ * Content-Security-Policy with a per-request script nonce. Next.js reads the
+ * nonce from the request's CSP header and puts it on its own scripts;
+ * 'strict-dynamic' lets those scripts load the rest (chunks, pdf.js and
+ * tesseract.js workers). Browsers that support 'strict-dynamic' ignore the
+ * host sources in script-src; they're a fallback for older ones. Inline styles stay allowed: Tailwind/Radix/sonner set style
+ * attributes and the invoice templates inject <style> blocks.
+ *
+ * Third parties the browser talks to: Google Fonts (POS icon font), the
+ * pdf.js worker on cdnjs, and tesseract.js (worker, wasm core and language
+ * data from jsdelivr / projectnaptha) for in-browser OCR. 'wasm-unsafe-eval'
+ * is for tesseract's wasm core; dev mode also needs eval and the HMR socket.
+ */
+export function buildCsp(nonce: string): string {
+  const isDev = process.env.NODE_ENV !== 'production';
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ''} https://cdnjs.cloudflare.com https://cdn.jsdelivr.net`,
+    "worker-src 'self' blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob:",
+    `connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://tessdata.projectnaptha.com${isDev ? ' ws:' : ''}`,
+    "frame-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
+
+/** CSP_REPORT_ONLY=1 reports violations without blocking (for rollout). */
+function cspHeaderName(): string {
+  return process.env.CSP_REPORT_ONLY === '1' ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
+}
+
 /** Hosts this app is served on: the request's own Host plus APP_ORIGINS. */
 function allowedHosts(request: NextRequest): Set<string> {
   const hosts = new Set<string>();
@@ -104,13 +140,30 @@ function setRefreshedCookie(response: NextResponse, token: string) {
 }
 
 export async function proxy(request: NextRequest) {
+  const nonce = btoa(crypto.randomUUID());
+  const csp = buildCsp(nonce);
+  const cspHeader = cspHeaderName();
+
+  // Request headers: Next.js takes the nonce from here for its own scripts,
+  // and server components read x-nonce.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set(cspHeader, csp);
+  const next = () => NextResponse.next({ request: { headers: requestHeaders } });
+
+  const response = await route(request, next);
+  response.headers.set(cspHeader, csp);
+  return response;
+}
+
+async function route(request: NextRequest, next: () => NextResponse): Promise<NextResponse> {
   const token = request.cookies.get('auth-token')?.value;
 
   if (request.nextUrl.pathname.startsWith('/api/')) {
     const rejection = crossOriginRejection(request) ?? oversizedRejection(request);
     if (rejection) return rejection;
 
-    const response = NextResponse.next();
+    const response = next();
     if (!token) return response;
     try {
       const refreshed = await refreshedCookie(token);
@@ -128,7 +181,7 @@ export async function proxy(request: NextRequest) {
 
     try {
       const refreshed = await refreshedCookie(token);
-      const response = NextResponse.next();
+      const response = next();
       if (refreshed) setRefreshedCookie(response, refreshed);
       return response;
     } catch {
@@ -141,9 +194,14 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return next();
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/api/:path*'],
+  // Every API route (CSRF, size limit), plus every page (CSP nonce). Build
+  // output, image optimizer, favicon and static files from public/ skip it.
+  matcher: [
+    '/api/:path*',
+    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf|css|js|mjs|map|wasm|txt|xml|json)$).*)',
+  ],
 };

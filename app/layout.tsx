@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
 import Providers from './providers';
 
@@ -10,15 +11,19 @@ export const metadata: Metadata = {
   description: 'Ayurvedic Pharmacy Management System',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // CSP nonce from proxy.ts, for next-themes' inline theme script. Reading
+  // headers() renders every page per request, which a nonce requires.
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20">
-        <Providers>
+        <Providers nonce={nonce}>
           {children}
         </Providers>
       </body>

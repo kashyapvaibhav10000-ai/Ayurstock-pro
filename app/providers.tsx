@@ -11,7 +11,7 @@ function ToasterWrapper() {
   return <Toaster richColors position="top-right" theme={theme as any} />;
 }
 
-export default function Providers({ children }: { children: React.ReactNode }) {
+export default function Providers({ children, nonce }: { children: React.ReactNode; nonce?: string }) {
   const [queryClient] = useState(() => new QueryClient())
 
   return (
@@ -22,6 +22,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
         storageKey="theme"
+        nonce={nonce}
       >
         {children}
         <ToasterWrapper />
