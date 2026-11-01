@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { jwtVerify, SignJWT } from 'jose';
+import { decodeJwt, jwtVerify, SignJWT } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || '');
-const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;
-const SEVEN_DAYS_SECONDS = 60 * 60 * 24 * 7;
+// Same values as SESSION_IDLE_SECONDS / SESSION_ABSOLUTE_SECONDS in lib/auth.ts
+// (duplicated: the proxy can't import Prisma).
+const IDLE_SECONDS = 60 * 60 * 12;
+const ABSOLUTE_SECONDS = 60 * 60 * 24 * 7;
+// Re-sign at most this often per session, not on every request.
+const REFRESH_AFTER_SECONDS = 60 * 10;
 
 // Largest request body any route accepts (invoice / price-list uploads).
 export const MAX_BODY_BYTES = 20 * 1024 * 1024;
@@ -66,43 +70,66 @@ export function oversizedRejection(request: NextRequest): NextResponse | null {
   return null;
 }
 
+/**
+ * Sliding refresh: a fresh cookie extending the session to IDLE_SECONDS from
+ * now (capped at sst + ABSOLUTE_SECONDS), or null when the token should not be
+ * extended. Throws if the token does not verify.
+ */
+async function refreshedCookie(token: string): Promise<string | null> {
+  const { payload } = await jwtVerify(token, JWT_SECRET, { algorithms: ['HS256'] });
+  const now = Math.floor(Date.now() / 1000);
+
+  // POS sessions never extend.
+  if (payload.pos) return null;
+
+  const sst = payload.sst;
+  if (typeof payload.sid !== 'string' || typeof sst !== 'number' || sst + ABSOLUTE_SECONDS <= now) return null;
+  if (now - (payload.iat ?? 0) <= REFRESH_AFTER_SECONDS) return null;
+
+  // sid and sst stay unchanged in rest.
+  const { iat: _iat, exp: _exp, ...rest } = payload;
+  const exp = Math.min(now + IDLE_SECONDS, sst + ABSOLUTE_SECONDS);
+  return new SignJWT(rest).setProtectedHeader({ alg: 'HS256' }).setIssuedAt(now).setExpirationTime(exp).sign(JWT_SECRET);
+}
+
+function setRefreshedCookie(response: NextResponse, token: string) {
+  const exp = decodeJwt(token).exp as number;
+  response.cookies.set('auth-token', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: exp - Math.floor(Date.now() / 1000),
+  });
+}
+
 export async function proxy(request: NextRequest) {
+  const token = request.cookies.get('auth-token')?.value;
+
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    return crossOriginRejection(request) ?? oversizedRejection(request) ?? NextResponse.next();
+    const rejection = crossOriginRejection(request) ?? oversizedRejection(request);
+    if (rejection) return rejection;
+
+    const response = NextResponse.next();
+    if (!token) return response;
+    try {
+      const refreshed = await refreshedCookie(token);
+      if (refreshed) setRefreshedCookie(response, refreshed);
+    } catch {
+      // Invalid token: the route itself answers 401.
+    }
+    return response;
   }
 
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    const token = request.cookies.get('auth-token')?.value;
-
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
     try {
-      const { payload } = await jwtVerify(token, JWT_SECRET, { algorithms: ['HS256'] });
+      const refreshed = await refreshedCookie(token);
       const response = NextResponse.next();
-
-      // Sliding refresh: renew if token expires within 7 days
-      // (wider window prevents expiry edge-cases on low-activity devices)
-      const exp = payload.exp as number;
-      const now = Math.floor(Date.now() / 1000);
-      if (!payload.pos && exp - now < SEVEN_DAYS_SECONDS) {
-        const { iat: _iat, exp: _exp, ...rest } = payload;
-        const newToken = await new SignJWT(rest)
-          .setProtectedHeader({ alg: 'HS256' })
-          .setIssuedAt()
-          .setExpirationTime(`${THIRTY_DAYS_SECONDS}s`)
-          .sign(JWT_SECRET);
-
-        response.cookies.set('auth-token', newToken, {
-          httpOnly: true,
-          sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production',
-          path: '/',
-          maxAge: THIRTY_DAYS_SECONDS,
-        });
-      }
-
+      if (refreshed) setRefreshedCookie(response, refreshed);
       return response;
     } catch {
       // Fail closed: any verification failure (expired, bad signature,

@@ -78,3 +78,13 @@ npm test
 Makes `LoginHistory.userId` optional and adds `shopId`, so failed logins for
 unknown usernames/emails and wrong POS PINs are recorded. No data changes;
 `scripts/deploy.sh` applies it.
+
+## Migration `20261103000000_revoked_sessions`
+
+Adds the `RevokedSession` table: logout now revokes the session server-side,
+sessions expire after 12h without use (the proxy slides the expiry forward on
+`/dashboard` and `/api` requests) and never last more than 7 days from sign-in.
+
+**This release logs everyone out once:** tokens issued before it carry no
+session id (`sid`) and are rejected. POS devices stay paired; staff just enter
+their PIN again.

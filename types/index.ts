@@ -12,6 +12,10 @@ export interface JWTPayload {
   tv: number;
   /** Set on PIN (POS) sessions, which the sliding refresh never extends. */
   pos?: boolean;
+  /** Random session id, constant across sliding refreshes. Revoked on logout. */
+  sid?: string;
+  /** Session start, unix seconds. Session can't be extended past sst + SESSION_ABSOLUTE_SECONDS. */
+  sst?: number;
   iat: number;
   exp: number;
 }

@@ -17,7 +17,7 @@ A production-grade, multi-tenant SaaS application for Ayurvedic pharmacy operati
 - JWT-based authentication with secure token management
 - 4-digit POS PIN for quick cashier login
 - Role-based access control (Admin, Manager, Cashier)
-- Session timeout after 15 minutes inactivity
+- Sessions expire after 12h inactivity (7-day absolute max); logout revokes the session server-side
 - Login history tracking
 - Admin-only user creation (no public signup)
 

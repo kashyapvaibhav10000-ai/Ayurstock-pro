@@ -5,7 +5,13 @@ import { JWTPayload, AuthUser } from '@/types';
 import { prisma } from '@/lib/db';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
-const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '30d';
+
+// A session lasts SESSION_IDLE_SECONDS past its last use (proxy.ts slides the
+// expiry forward) and never longer than SESSION_ABSOLUTE_SECONDS from login.
+export const SESSION_IDLE_SECONDS = 60 * 60 * 12;
+export const SESSION_ABSOLUTE_SECONDS = 60 * 60 * 24 * 7;
+
+const JWT_EXPIRATION = process.env.JWT_EXPIRATION || `${SESSION_IDLE_SECONDS}s`;
 
 // Fail loudly rather than run with a weak signing key: anyone who can guess
 // it can forge a token for any user.
@@ -33,7 +39,12 @@ export function generateToken(
   payload: Omit<JWTPayload, 'iat' | 'exp'>,
   expiresIn: string = JWT_EXPIRATION
 ): string {
-  return jwt.sign(payload, JWT_SECRET as jwt.Secret, {
+  const claims = {
+    ...payload,
+    sid: payload.sid ?? crypto.randomUUID(),
+    sst: payload.sst ?? Math.floor(Date.now() / 1000),
+  };
+  return jwt.sign(claims, JWT_SECRET as jwt.Secret, {
     algorithm: 'HS256',
     expiresIn: expiresIn as jwt.SignOptions['expiresIn'],
   });
@@ -53,7 +64,7 @@ export function extractRequestToken(req: NextRequest): string | null {
   return req.cookies.get('auth-token')?.value || null;
 }
 
-export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+export const SESSION_MAX_AGE_SECONDS = SESSION_IDLE_SECONDS;
 
 export function setAuthCookie(response: NextResponse, token: string, maxAge = SESSION_MAX_AGE_SECONDS) {
   response.cookies.set('auth-token', token, {
@@ -71,21 +82,34 @@ export async function getAuthUserFromToken(token: string): Promise<AuthUser | nu
     return null;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      name: true,
-      phone: true,
-      avatarUrl: true,
-      role: true,
-      shopId: true,
-      isActive: true,
-      tokenVersion: true,
-    },
-  });
+  // Tokens without a session id predate server-side logout and can't be revoked.
+  const now = Math.floor(Date.now() / 1000);
+  if (!payload.sid || !payload.sst || payload.sst + SESSION_ABSOLUTE_SECONDS < now) {
+    return null;
+  }
+
+  const [user, revoked] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        phone: true,
+        avatarUrl: true,
+        role: true,
+        shopId: true,
+        isActive: true,
+        tokenVersion: true,
+      },
+    }),
+    prisma.revokedSession.findUnique({ where: { sid: payload.sid }, select: { sid: true } }),
+  ]);
+
+  if (revoked) {
+    return null;
+  }
 
   // tokenVersion is bumped on password change, deactivation and role change,
   // which ends every session issued before it.
@@ -95,6 +119,18 @@ export async function getAuthUserFromToken(token: string): Promise<AuthUser | nu
 
   const { tokenVersion: _tokenVersion, ...authUser } = user;
   return authUser as AuthUser;
+}
+
+export async function revokeSession(payload: JWTPayload) {
+  if (!payload.sid || !payload.sst) return;
+  const expiresAt = new Date((payload.sst + SESSION_ABSOLUTE_SECONDS) * 1000);
+  await prisma.revokedSession.upsert({
+    where: { sid: payload.sid },
+    create: { sid: payload.sid, userId: payload.userId, expiresAt },
+    update: {},
+  });
+  // opportunistic cleanup, never block logout on it
+  prisma.revokedSession.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => {});
 }
 
 export async function verifyAuth(req: NextRequest): Promise<{

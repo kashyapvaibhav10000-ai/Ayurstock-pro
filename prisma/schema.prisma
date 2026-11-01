@@ -196,6 +196,17 @@ model LoginHistory {
   @@index([createdAt])
 }
 
+// Logged-out sessions (JWT sid). Rows are kept until the session's absolute
+// expiry, after which the token is rejected anyway.
+model RevokedSession {
+  sid       String   @id
+  userId    String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 model Supplier {
   id            String     @id @default(cuid())
   shopId        String
