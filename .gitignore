@@ -54,3 +54,9 @@ import medicne/
 medec/
 # tesseract.js language cache (downloaded on first OCR)
 *.traineddata
+
+# local tool settings, Python bytecode, ad-hoc dev scripts
+.claude/settings.local.json
+__pycache__/
+*.pyc
+test-pdf.mjs

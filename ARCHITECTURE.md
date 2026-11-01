@@ -367,13 +367,13 @@ const sales = await prisma.sale.findMany({
 4. Fast cashier login without typing password
 ```
 
-### Session Timeout (15 minutes)
+### Session Expiry (12h idle, 7-day absolute)
 ```
-1. Track last user activity (mousedown, keydown, scroll)
-2. Set timeout for 15 minutes
-3. On activity: Reset timeout
-4. On timeout: Logout → Redirect to login
-5. Activity log records user session
+1. Login issues a JWT with a session id (sid) and start time (sst), 12h expiry
+2. proxy.ts re-signs it on /dashboard and /api requests (at most every 10 min),
+   extending expiry to 12h from now, never past sst + 7 days
+3. No requests for 12h: token expires → next page load redirects to login
+4. Logout records the sid in RevokedSession; the token is refused from then on
 ```
 
 ## Error Handling Strategy

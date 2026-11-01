@@ -66,8 +66,8 @@ How to deploy to production and operate the system.
 ### Authentication
 - **Where**: `app/api/auth/login`, `app/api/auth/pos-login`
 - **How**: Email/password or 4-digit POS PIN
-- **Token**: JWT stored in localStorage
-- **Session**: 15-minute inactivity timeout
+- **Token**: JWT in the httpOnly `auth-token` cookie
+- **Session**: 12h inactivity expiry (7-day absolute max); logout revokes it server-side
 
 ### Retail Billing (POS)
 - **Where**: `app/dashboard/billing`
