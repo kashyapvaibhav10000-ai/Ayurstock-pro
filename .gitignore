@@ -45,10 +45,12 @@ tsconfig.tsbuildinfo
 # local databases, build/OCR dumps, scratch files
 *.db
 *.sqlite
+*.sqlite3
 *_output*.txt
 build_log.txt
 ocr_out.txt
 Untitled-*
 import medicne/
+medec/
 # tesseract.js language cache (downloaded on first OCR)
 *.traineddata

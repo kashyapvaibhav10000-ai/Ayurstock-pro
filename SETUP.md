@@ -61,28 +61,9 @@ In "Shop" table, add:
 Don't create users by hand. Run the seed locally (`npm run seed`); see
 `scripts/seed.ts` for the accounts it creates.
 
-#### Create Sample Medicine:
-In "Medicine" table, add:
-- `shopId`: [same as above]
-- `name`: `Ashwagandha Extract`
-- `company`: `Patanjali`
-- `category`: `Herbal Supplement`
-- `barcode`: `8901234567890`
-- `hsn`: `3004`
-- `rackLocation`: `A-1-1`
-- `unit`: `strip`
-- `isActive`: `true`
-
-#### Create InventoryBatch:
-In "InventoryBatch" table, add:
-- `shopId`: [same as above]
-- `medicineId`: [from above]
-- `batchNumber`: `BATCH001`
-- `expiryDate`: `2026-12-31`
-- `stockQty`: `100`
-- `mrp`: `500`
-- `purchaseRate`: `350`
-- `sellingRate`: `450`
+#### Medicines and stock:
+Add them in the app (Medicines page, or import a supplier price list). The
+seed creates no medicines.
 
 Close Prisma Studio (Ctrl+C in terminal).
 
@@ -104,7 +85,7 @@ Sign in with an account from the seed (run seed locally, see `scripts/seed.ts`).
 1. Login as admin
 2. Click "Billing" in sidebar
 3. Ensure "Retail" is selected
-4. Search for medicine: "Ashwagandha"
+4. Search for a medicine you added
 5. Select batch, enter quantity
 6. Click "Add to Cart"
 7. Click "Complete Sale"

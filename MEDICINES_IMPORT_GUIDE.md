@@ -399,11 +399,9 @@ inventoryBatch {
 - **Bulk Selection:** Checkbox in medicines table
 - **Bulk Actions:** Visible when medicines selected
 
-### Test Data Sample PDF Format:
+### Test Data PDF Format (one medicine per line):
 ```
-Ashwagandha Tablet | Himalaya | Tablets | 150 | | A-1-2
-Giloy Juice | Patanjali | Syrup | 120 | | A-2-1
-Neem Tablet | Baidyanath | Tablets | 80 | | B-1-3
+<Name> | <Company> | <Category> | <MRP> | | <Rack>
 ```
 
 ---

@@ -160,15 +160,13 @@ This will:
 - Create indexes for performance
 - Set up relationships & constraints
 
-### 5. Seed Demo Data (Optional)
+### 5. Seed Demo Data (Optional, local only)
 ```bash
-npm run prisma:studio
+npm run seed
 ```
 
-Use Prisma Studio to manually create:
-1. A Shop record
-2. An admin User for that shop
-3. Sample medicines and batches
+Creates a demo shop and users (see `scripts/seed.ts`). Add medicines in the
+app: Medicines page, or import a supplier price list.
 
 ### 6. Start Development Server
 ```bash

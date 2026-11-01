@@ -192,7 +192,7 @@ Automatic stock allocation ensures you sell oldest stock first.
 
 ### Example
 ```
-Medicine: Ashwagandha
+Medicine: Medicine A
 Batches:
 ├─ Batch A: Expiry 2025-06-01, Stock: 50
 ├─ Batch B: Expiry 2025-08-15, Stock: 30
@@ -209,7 +209,7 @@ Sale of 40 units:
 
 ### Retail Sale (GST 5%)
 ```
-Item 1: Ashwagandha 500mg
+Item 1: Medicine A
   - Quantity: 2
   - Rate: ₹450/unit
   - Subtotal: 2 × ₹450 = ₹900
@@ -218,7 +218,7 @@ Item 1: Ashwagandha 500mg
   - GST (5%): ₹900 × 5% = ₹45
   - Amount: ₹900 + ₹45 = ₹945
 
-Item 2: Brahmi 250mg
+Item 2: Medicine B
   - Quantity: 1
   - Rate: ₹300/unit
   - Subtotal: 1 × ₹300 = ₹300
