@@ -8,6 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Copy, Clock } from 'lucide-react';
 
+interface BatchOption {
+  id: string;
+  batchNumber: string;
+  expiryDate: string;
+  mrp: number;
+  packing: string;
+  rackLocation: string | null;
+  stockQty: number;
+}
+
 interface MedicineOption {
   id: string;
   name: string;
@@ -17,6 +27,17 @@ interface MedicineOption {
   hsn: string;
   packing?: string;
   gstPercent?: number;
+  batches?: BatchOption[];
+}
+
+// One dropdown row per batch, so variants of a medicine (different MRP or
+// packing) each show up; a medicine without batches gets one row.
+type SearchRow = { med: MedicineOption; batch: BatchOption | null };
+
+function formatExpiryShort(date: string) {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCFullYear()).slice(-2)}`;
 }
 
 const GST_OPTIONS = [
@@ -151,7 +172,6 @@ export default function AddInventoryModal({
   const batchRef = useRef<HTMLInputElement>(null);
   const expiryRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
-  const purchaseRateRef = useRef<HTMLInputElement>(null);
   const mrpRef = useRef<HTMLInputElement>(null);
   const packingRef = useRef<HTMLInputElement>(null);
   const rackRef = useRef<HTMLSelectElement>(null);
@@ -162,7 +182,6 @@ export default function AddInventoryModal({
     batchNumber: '',
     expiryDate: '',
     stockQty: '' as number | string,
-    purchaseRate: '' as number | string,
     mrp: '' as number | string,
     packing: '',
     rackLocation: '',
@@ -202,7 +221,6 @@ export default function AddInventoryModal({
       batchNumber: '',
       expiryDate: '',
       stockQty: '',
-      purchaseRate: '',
       mrp: '',
       packing: '',
       rackLocation: '',
@@ -282,7 +300,9 @@ export default function AddInventoryModal({
     const delayDebounceFn = setTimeout(async () => {
       setIsSearchingMedicines(true);
       try {
-        const res = await axios.get(`/api/medicines/search?company=${selectedCompanyId}&q=${medicineSearch}`);
+        const res = await axios.get('/api/medicines/search', {
+          params: { company: selectedCompanyId, q: medicineSearch, includeBatches: 'true' },
+        });
         if (res.data.success) {
           setMedicineOptions(res.data.data);
           setShowMedicineDropdown(true);
@@ -309,7 +329,7 @@ export default function AddInventoryModal({
     setTimeout(() => medicineRef.current?.focus(), 50);
   };
 
-  const handleSelectMedicine = async (med: MedicineOption) => {
+  const handleSelectMedicine = async (med: MedicineOption, batch: BatchOption | null = null) => {
     setSelectedCategory(med.category || '');
     setIsCreatingNewMedicine(false);
     setFormData(c => ({ ...c, medicineId: med.id, mrp: '', packing: med.packing || '', gstPercent: med.gstPercent || 5 }));
@@ -324,6 +344,18 @@ export default function AddInventoryModal({
 
     setTimeout(() => batchRef.current?.focus(), 50);
 
+    // A picked batch fills MRP/packing/rack from that batch; otherwise from
+    // the medicine's latest batch.
+    if (batch) {
+      setFormData(c => ({
+        ...c,
+        mrp: batch.mrp || c.mrp,
+        packing: batch.packing || c.packing,
+        rackLocation: batch.rackLocation || c.rackLocation,
+      }));
+      return;
+    }
+
     try {
       const res = await axios.get(`/api/medicines/${med.id}/last-mrp`);
       if (res.data.success && res.data.data) {
@@ -331,7 +363,6 @@ export default function AddInventoryModal({
         setFormData(c => ({
           ...c,
           mrp: d.mrp || c.mrp,
-          purchaseRate: d.purchaseRate || c.purchaseRate,
           packing: d.packing || c.packing,
           rackLocation: d.rackLocation || c.rackLocation,
         }));
@@ -368,7 +399,7 @@ export default function AddInventoryModal({
       expiryDate: '',
       stockQty: '',
       gstPercent: med!.gstPercent || c.gstPercent,
-      // Keep: purchaseRate, mrp, packing, rackLocation
+      // Keep: mrp, packing, rackLocation
     }));
     setExpiryText('');
     setError({});
@@ -381,7 +412,6 @@ export default function AddInventoryModal({
         setFormData(c => ({
           ...c,
           mrp: d.mrp || c.mrp,
-          purchaseRate: d.purchaseRate || c.purchaseRate,
           packing: d.packing || c.packing,
           rackLocation: d.rackLocation || c.rackLocation,
         }));
@@ -425,7 +455,7 @@ export default function AddInventoryModal({
       return;
     }
 
-    const totalItems = medicineOptions.length + 1;
+    const totalItems = searchRows.length + 1;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -435,13 +465,13 @@ export default function AddInventoryModal({
       setHighlightedIndex(prev => (prev - 1 + totalItems) % totalItems);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (highlightedIndex >= 0 && highlightedIndex < medicineOptions.length) {
-        handleSelectMedicine(medicineOptions[highlightedIndex]);
-      } else if (highlightedIndex === medicineOptions.length) {
+      if (highlightedIndex >= 0 && highlightedIndex < searchRows.length) {
+        handleSelectMedicine(searchRows[highlightedIndex].med, searchRows[highlightedIndex].batch);
+      } else if (highlightedIndex === searchRows.length) {
         handleCreateNewMedicine();
-      } else if (medicineOptions.length === 1) {
-        handleSelectMedicine(medicineOptions[0]);
-      } else if (medicineOptions.length === 0) {
+      } else if (searchRows.length === 1) {
+        handleSelectMedicine(searchRows[0].med, searchRows[0].batch);
+      } else if (searchRows.length === 0) {
         handleCreateNewMedicine();
       }
     } else if (e.key === 'Escape') {
@@ -523,7 +553,7 @@ export default function AddInventoryModal({
         expiryDate: formData.expiryDate,
         stockQty: Number(formData.stockQty),
         mrp: Number(formData.mrp),
-        purchaseRate: formData.purchaseRate === '' ? null : Number(formData.purchaseRate),
+        purchaseRate: null,
         sellingRate: Number(formData.mrp),
         packing: formData.packing,
         rackLocation: formData.rackLocation,
@@ -577,7 +607,6 @@ export default function AddInventoryModal({
         batchNumber: '',
         expiryDate: '',
         stockQty: '',
-        purchaseRate: '',
         mrp: '',
         packing: '',
         rackLocation: keepRack,
@@ -602,6 +631,12 @@ export default function AddInventoryModal({
     PACKAGING_OPTIONS[selectedCategory] || 
     PACKAGING_OPTIONS[selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1).toLowerCase()] || 
     []
+  );
+
+  const searchRows: SearchRow[] = medicineOptions.flatMap<SearchRow>((med) =>
+    med.batches && med.batches.length > 0
+      ? med.batches.map((batch) => ({ med, batch }))
+      : [{ med, batch: null }]
   );
 
   // Show recents when medicine field is focused but empty
@@ -716,36 +751,40 @@ export default function AddInventoryModal({
               )}
 
               {/* Search results dropdown */}
-              {showMedicineDropdown && medicineSearch.length >= 2 && medicineOptions.length > 0 && !formData.medicineId && (
+              {showMedicineDropdown && medicineSearch.length >= 2 && searchRows.length > 0 && !formData.medicineId && (
                 <div ref={dropdownListRef} className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-                  {medicineOptions.map((med, idx) => (
+                  {searchRows.map(({ med, batch }, idx) => (
                     <div 
-                      key={med.id} 
+                      key={batch ? batch.id : med.id} 
                       data-highlighted={idx === highlightedIndex ? 'true' : undefined}
                       className={`px-4 py-2 text-sm cursor-pointer border-b last:border-0 border-gray-100 transition-colors ${
                         idx === highlightedIndex ? 'bg-emerald-100 text-emerald-900' : 'hover:bg-emerald-50'
                       }`}
-                      onClick={() => handleSelectMedicine(med)}
+                      onClick={() => handleSelectMedicine(med, batch)}
                       onMouseEnter={() => setHighlightedIndex(idx)}
                     >
                       <div className="font-medium text-emerald-800">{med.name}</div>
-                      <div className="text-xs text-gray-500">{med.category}{med.packing ? ` • ${med.packing}` : ''}{med.hsn ? ` • HSN: ${med.hsn}` : ''}</div>
+                      <div className="text-xs text-gray-500">
+                        {batch
+                          ? `Batch ${batch.batchNumber} • Exp ${formatExpiryShort(batch.expiryDate)} • MRP ₹${Number(batch.mrp).toFixed(2)}${batch.packing ? ` • ${batch.packing}` : ''}`
+                          : `${med.category}${med.packing ? ` • ${med.packing}` : ''} • No batches yet`}
+                      </div>
                     </div>
                   ))}
                   <div 
-                    data-highlighted={highlightedIndex === medicineOptions.length ? 'true' : undefined}
+                    data-highlighted={highlightedIndex === searchRows.length ? 'true' : undefined}
                     className={`px-4 py-2 text-sm cursor-pointer border-t border-gray-200 flex items-center gap-2 transition-colors ${
-                      highlightedIndex === medicineOptions.length ? 'bg-blue-100 text-blue-900' : 'bg-gray-50 hover:bg-blue-50'
+                      highlightedIndex === searchRows.length ? 'bg-blue-100 text-blue-900' : 'bg-gray-50 hover:bg-blue-50'
                     }`}
                     onClick={handleCreateNewMedicine}
-                    onMouseEnter={() => setHighlightedIndex(medicineOptions.length)}
+                    onMouseEnter={() => setHighlightedIndex(searchRows.length)}
                   >
                     <Plus className="h-3.5 w-3.5 text-blue-600" />
                     <span className="font-medium text-blue-700">Create &quot;{medicineSearch.trim().toUpperCase()}&quot; as new medicine</span>
                   </div>
                 </div>
               )}
-              {showMedicineDropdown && medicineSearch.length >= 2 && medicineOptions.length === 0 && !isSearchingMedicines && !formData.medicineId && (
+              {showMedicineDropdown && medicineSearch.length >= 2 && searchRows.length === 0 && !isSearchingMedicines && !formData.medicineId && (
                 <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden">
                   <div className="px-4 py-3 text-sm text-amber-700 bg-amber-50 border-b border-amber-100">
                     No existing medicines found for &quot;{medicineSearch}&quot;
@@ -874,33 +913,11 @@ export default function AddInventoryModal({
                   setFormData((c) => ({ ...c, stockQty: e.target.value }));
                   setError(er => ({...er, stockQty: ''}));
                 }}
-                onKeyDown={(e) => handleFieldEnter(e, purchaseRateRef)}
+                onKeyDown={(e) => handleFieldEnter(e, mrpRef)}
                 className="h-11 text-base"
               />
               {error.stockQty && <span className="text-xs text-red-600 font-medium">{error.stockQty}</span>}
             </div>
-            
-            <div className="grid gap-2">
-              <Label className="text-sm">Purchase Rate</Label>
-              <Input
-                ref={purchaseRateRef}
-                tabIndex={7}
-                type="number"
-                step="0.01"
-                placeholder="Enter purchase rate"
-                value={formData.purchaseRate}
-                onChange={(e) => {
-                  setFormData((c) => ({ ...c, purchaseRate: e.target.value }));
-                  setError(er => ({...er, purchaseRate: ''}));
-                }}
-                onKeyDown={(e) => handleFieldEnter(e, mrpRef)}
-                className="h-11 text-base"
-              />
-              {error.purchaseRate && <span className="text-xs text-red-600 font-medium">{error.purchaseRate}</span>}
-            </div>
-          </div>
-
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label className="text-sm">MRP *</Label>
               <Input
@@ -939,10 +956,6 @@ export default function AddInventoryModal({
                 ))}
               </datalist>
             </div>
-          </div>
-
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-            
             <div className="grid gap-2">
               <Label className="text-sm">Rack Location *</Label>
               <select

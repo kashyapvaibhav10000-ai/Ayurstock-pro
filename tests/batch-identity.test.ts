@@ -7,6 +7,7 @@ import { call, makeReq, prisma, resetDb, seedShop, tokenFor, Seed } from './help
 import { findBatchByIdentity } from '@/services/inventory';
 import * as inventoryBatches from '@/app/api/inventory/batches/route';
 import * as inventoryUpdate from '@/app/api/inventory/update/route';
+import * as medicineSearch from '@/app/api/medicines/search/route';
 
 let A: Seed;
 
@@ -108,5 +109,18 @@ describe('batch edit', () => {
       })
     );
     expect(res.status).toBe(409);
+  });
+});
+
+describe('Add Inventory medicine search', () => {
+  it('returns every batch of a medicine so each variant can be listed', async () => {
+    await addBatch({ mrp: 120, sellingRate: 120, packing: '650 ml' });
+    const res = await call(
+      medicineSearch.GET,
+      makeReq(`/api/medicines/search?q=${encodeURIComponent(A.medicine.name)}&includeBatches=true`, { token: tokenFor(A.admin) })
+    );
+    expect(res.status).toBe(200);
+    const med = res.json.data.find((m: { id: string }) => m.id === A.medicine.id);
+    expect(med.batches.map((b: { mrp: number; packing: string }) => [b.mrp, b.packing]).sort()).toEqual([[100, ''], [120, '650 ml']]);
   });
 });

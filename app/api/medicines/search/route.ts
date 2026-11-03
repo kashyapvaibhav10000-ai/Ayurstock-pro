@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
     const mrpMaxRaw = searchParams.get('mrp_max');
     const mrpMin = mrpMinRaw ? parseFloat(mrpMinRaw) : undefined;
     const mrpMax = mrpMaxRaw ? parseFloat(mrpMaxRaw) : undefined;
+    // Add Inventory lists each batch of a medicine as its own result.
+    const includeBatches = searchParams.get('includeBatches') === 'true';
 
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 500);
     const offset = parseInt(searchParams.get('offset') || '0');
@@ -126,7 +128,7 @@ export async function GET(request: NextRequest) {
     console.log(`🔍 [Search API] Query: "${trimmedQuery}", Found: ${medicines.length} / ${total}`);
 
     const medicineIds = medicines.map((medicine) => medicine.id);
-    const [stockRows, expiryRows] = await Promise.all([
+    const [stockRows, expiryRows, batchRows] = await Promise.all([
       medicineIds.length === 0
         ? Promise.resolve([])
         : prisma.inventoryBatch.groupBy({
@@ -156,6 +158,26 @@ export async function GET(request: NextRequest) {
             },
             orderBy: [{ medicineId: 'asc' }, { expiryDate: 'asc' }],
           }),
+      !includeBatches || medicineIds.length === 0
+        ? Promise.resolve([])
+        : prisma.inventoryBatch.findMany({
+            where: {
+              shopId: auth.user.shopId,
+              medicineId: { in: medicineIds },
+              deletedAt: null,
+            },
+            select: {
+              id: true,
+              medicineId: true,
+              batchNumber: true,
+              expiryDate: true,
+              mrp: true,
+              packing: true,
+              rackLocation: true,
+              stockQty: true,
+            },
+            orderBy: [{ medicineId: 'asc' }, { expiryDate: 'asc' }],
+          }),
     ]);
 
     const stockByMedicine = new Map(
@@ -169,10 +191,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const batchesByMedicine = new Map<string, Array<Omit<(typeof batchRows)[number], 'mrp'> & { mrp: number }>>();
+    for (const batch of batchRows) {
+      const list = batchesByMedicine.get(batch.medicineId) || [];
+      list.push({ ...batch, mrp: Number(batch.mrp) });
+      batchesByMedicine.set(batch.medicineId, list);
+    }
+
     const enrichedMedicines = medicines.map((medicine) => ({
       ...medicine,
       availableStock: stockByMedicine.get(medicine.id) || 0,
       nextExpiryDate: nextExpiryByMedicine.get(medicine.id) || null,
+      ...(includeBatches ? { batches: batchesByMedicine.get(medicine.id) || [] } : {}),
     }));
 
     return createPaginatedResponse(enrichedMedicines, total, Math.floor(offset / limit) + 1, limit);
