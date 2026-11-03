@@ -6,6 +6,46 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, Store, Eye } from 'lucide-react';
+import InvoiceTemplate, { InvoiceSettings, SaleDetails } from '@/components/InvoiceTemplate';
+
+// Sample sale for the preview; GST is included in the amounts.
+const SAMPLE_SALE: SaleDetails = {
+  id: 'preview',
+  invoiceNumber: 'INV-SAMPLE-001',
+  createdAt: new Date().toISOString(),
+  paymentMode: 'CASH',
+  subtotal: 325,
+  discountTotal: 0,
+  gstTotal: 29.76,
+  grandTotal: 325,
+  customer: { name: 'Sample Customer', phone: '9876543210', address: 'City, State' },
+  saleItems: [
+    {
+      id: 'sample-1',
+      quantity: 2,
+      mrp: 120,
+      rate: 120,
+      discount: 0,
+      gst: 25.71,
+      gstPercent: 12,
+      amount: 240,
+      medicine: { name: 'Ashwagandha Tab (60s)', hsn: '30049011' },
+      batch: { batchNumber: 'ASH-001', expiryDate: '2028-06-30' },
+    },
+    {
+      id: 'sample-2',
+      quantity: 1,
+      mrp: 85,
+      rate: 85,
+      discount: 0,
+      gst: 4.05,
+      gstPercent: 5,
+      amount: 85,
+      medicine: { name: 'Triphala Churna 100g', hsn: '30049011' },
+      batch: { batchNumber: 'TRI-014', expiryDate: '2027-12-31' },
+    },
+  ],
+};
 
 export default function ShopSettings() {
   const [formData, setFormData] = useState({
@@ -22,6 +62,16 @@ export default function ShopSettings() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>({ invoicePrefix: 'INV' });
+
+  useEffect(() => {
+    axios
+      .get('/api/settings/invoice')
+      .then((res) => {
+        if (res.data.success) setInvoiceSettings(res.data.data);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const fetchShopSettings = async () => {
@@ -106,188 +156,135 @@ export default function ShopSettings() {
         </p>
       </div>
 
-      {/* Two-column layout: Form + Live Preview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        
-        {/* Form Side */}
-        <div className="space-y-4">
+      <div className="max-w-2xl space-y-4">
+        <div>
+          <Label>Shop Name</Label>
+          <Input
+            placeholder="e.g. Ayurveda Pharmacy"
+            name="shopName"
+            value={formData.shopName}
+            onChange={handleChange}
+            disabled={loading}
+            className="font-medium"
+          />
+        </div>
+        <div>
+          <Label>Address Line 1</Label>
+          <Input
+            placeholder="Street / Building"
+            name="addressLine1"
+            value={formData.addressLine1}
+            onChange={handleChange}
+            disabled={loading}
+          />
+        </div>
+        <div>
+          <Label>Address Line 2</Label>
+          <Input
+            placeholder="City, State, PIN"
+            name="addressLine2"
+            value={formData.addressLine2}
+            onChange={handleChange}
+            disabled={loading}
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label>Shop Name</Label>
+            <Label>Phone</Label>
             <Input
-              placeholder="e.g. Ayurveda Pharmacy"
-              name="shopName"
-              value={formData.shopName}
+              placeholder="+91 98765 43210"
+              name="phone"
+              value={formData.phone}
               onChange={handleChange}
               disabled={loading}
-              className="font-medium"
             />
           </div>
           <div>
-            <Label>Address Line 1</Label>
+            <Label>Email</Label>
             <Input
-              placeholder="Street / Building"
-              name="addressLine1"
-              value={formData.addressLine1}
+              placeholder="shop@email.com"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              disabled={loading}
+            />
+          </div>
+        </div>
+        <div>
+          <Label>GSTIN</Label>
+          <Input
+            placeholder="27AADCB1234L1ZM"
+            name="gstin"
+            value={formData.gstin}
+            onChange={handleChange}
+            disabled={loading}
+            className="font-mono uppercase"
+          />
+        </div>
+        <div>
+          <Label>Drug License No.</Label>
+          <Input
+            placeholder="e.g. 20B: KA-B-123456, 21B: KA-B-123457"
+            name="drugLicense"
+            value={formData.drugLicense}
+            onChange={handleChange}
+            disabled={loading}
+            className="font-mono"
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <Label>State (Place of Supply)</Label>
+            <Input
+              placeholder="e.g. Uttar Pradesh"
+              name="state"
+              value={formData.state}
               onChange={handleChange}
               disabled={loading}
             />
           </div>
           <div>
-            <Label>Address Line 2</Label>
+            <Label>State Code</Label>
             <Input
-              placeholder="City, State, PIN"
-              name="addressLine2"
-              value={formData.addressLine2}
-              onChange={handleChange}
-              disabled={loading}
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label>Phone</Label>
-              <Input
-                placeholder="+91 98765 43210"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                disabled={loading}
-              />
-            </div>
-            <div>
-              <Label>Email</Label>
-              <Input
-                placeholder="shop@email.com"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                disabled={loading}
-              />
-            </div>
-          </div>
-          <div>
-            <Label>GSTIN</Label>
-            <Input
-              placeholder="27AADCB1234L1ZM"
-              name="gstin"
-              value={formData.gstin}
-              onChange={handleChange}
-              disabled={loading}
-              className="font-mono uppercase"
-            />
-          </div>
-          <div>
-            <Label>Drug License No.</Label>
-            <Input
-              placeholder="e.g. 20B: KA-B-123456, 21B: KA-B-123457"
-              name="drugLicense"
-              value={formData.drugLicense}
+              placeholder="e.g. 09"
+              name="stateCode"
+              value={formData.stateCode}
               onChange={handleChange}
               disabled={loading}
               className="font-mono"
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label>State (Place of Supply)</Label>
-              <Input
-                placeholder="e.g. Uttar Pradesh"
-                name="state"
-                value={formData.state}
-                onChange={handleChange}
-                disabled={loading}
-              />
-            </div>
-            <div>
-              <Label>State Code</Label>
-              <Input
-                placeholder="e.g. 09"
-                name="stateCode"
-                value={formData.stateCode}
-                onChange={handleChange}
-                disabled={loading}
-                className="font-mono"
-              />
-            </div>
-          </div>
-          <div>
-            <Label>Invoice Terms / Declaration</Label>
-            <textarea
-              placeholder="e.g. Goods once sold will not be taken back. Subject to local jurisdiction."
-              name="invoiceTerms"
-              value={formData.invoiceTerms}
-              onChange={handleChange}
-              disabled={loading}
-              rows={2}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-            />
-          </div>
-          <Button
-            className="w-full bg-stitch-primary hover:bg-stitch-primary/90 text-white font-bold gap-2"
-            onClick={handleSave}
-            disabled={loading || saving}
-          >
-            {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : 'Save Shop Settings'}
-          </Button>
         </div>
+        <div>
+          <Label>Invoice Terms / Declaration</Label>
+          <textarea
+            placeholder="e.g. Goods once sold will not be taken back. Subject to local jurisdiction."
+            name="invoiceTerms"
+            value={formData.invoiceTerms}
+            onChange={handleChange}
+            disabled={loading}
+            rows={2}
+            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+          />
+        </div>
+        <Button
+          className="w-full bg-stitch-primary hover:bg-stitch-primary/90 text-white font-bold gap-2"
+          onClick={handleSave}
+          disabled={loading || saving}
+        >
+          {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : 'Save Shop Settings'}
+        </Button>
+      </div>
 
-        {/* Live Receipt Preview */}
-        <div className="lg:sticky lg:top-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Eye className="h-4 w-4 text-stitch-primary" />
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Live Bill Preview</p>
-          </div>
-          <div className="border border-dashed border-border rounded-xl bg-surface p-5 shadow-inner font-mono text-[11px] leading-relaxed text-foreground min-h-[280px]">
-            {/* Header */}
-            <div className="text-center space-y-0.5 border-b border-border pb-3 mb-3">
-              <p className="text-sm font-extrabold text-foreground uppercase tracking-wide">
-                {formData.shopName || 'Your Shop Name'}
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                {formData.addressLine1 || 'Address Line 1'}
-                {formData.addressLine2 ? `, ${formData.addressLine2}` : ''}
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                Ph: {formData.phone || '0000000000'} | {formData.email || 'email@shop.com'}
-              </p>
-              {formData.gstin && (
-                <p className="text-[10px] font-semibold text-foreground uppercase">GSTIN: {formData.gstin}</p>
-              )}
-            </div>
-
-            {/* Sample Line Items */}
-            <div className="space-y-1 text-[10px] text-muted-foreground border-b border-border pb-3 mb-3">
-              <div className="flex justify-between font-bold text-foreground border-b border-border pb-1">
-                <span>Medicine Name</span>
-                <span>Qty × Rate</span>
-                <span>Amount</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Ashwagandha Tab (60s)</span>
-                <span>2 × ₹120</span>
-                <span>₹240</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Triphala Churna 100g</span>
-                <span>1 × ₹85</span>
-                <span>₹85</span>
-              </div>
-            </div>
-
-            {/* Totals */}
-            <div className="space-y-0.5 text-[10px]">
-              <div className="flex justify-between"><span>Sub Total</span><span>₹325.00</span></div>
-              <div className="flex justify-between"><span>GST (12%)</span><span>₹39.00</span></div>
-              <div className="flex justify-between font-extrabold text-foreground text-xs pt-1 border-t border-border mt-1">
-                <span>GRAND TOTAL</span><span>₹364.00</span>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <p className="text-center text-[9px] text-muted-foreground mt-4 border-t border-border pt-2">
-              Thank you for your purchase! Get well soon.
-            </p>
-          </div>
+      {/* Invoice preview: the real invoice layout with a sample sale */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Eye className="h-4 w-4 text-stitch-primary" />
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Invoice Preview</p>
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-border bg-slate-50 p-2 sm:p-4">
+          <InvoiceTemplate sale={SAMPLE_SALE} settings={invoiceSettings} shopSettings={formData} />
         </div>
       </div>
     </div>
