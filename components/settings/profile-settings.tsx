@@ -184,7 +184,7 @@ export default function ProfileSettings() {
 
         <div className="flex flex-col gap-6 md:flex-row md:items-center">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-emerald-100 text-lg font-semibold text-emerald-700">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-primary/10 text-lg font-semibold text-primary">
               {previewUrl ? (
                 <img src={previewUrl} alt="Profile" className="h-full w-full object-cover" />
               ) : (
@@ -202,7 +202,7 @@ export default function ProfileSettings() {
               accept="image/*"
               onChange={handleAvatarChange}
               disabled={loading}
-              className="block text-sm text-muted-foreground file:mr-4 file:rounded-xl file:border-0 file:bg-emerald-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+              className="block text-sm text-muted-foreground file:mr-4 file:rounded-xl file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
             />
           </div>
         </div>
@@ -288,7 +288,7 @@ export default function ProfileSettings() {
 
         <div className="flex flex-wrap gap-3">
           <Button
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="bg-primary hover:bg-primary-hover"
             onClick={handleSave}
             disabled={loading || saving || usernameBlocked(usernameStatus)}
           >

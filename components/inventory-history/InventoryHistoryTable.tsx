@@ -211,16 +211,16 @@ export default function InventoryHistoryTable({ medicineId, onBatchesLoaded, pag
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 items-end">
         <label className="space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">From</span>
+          <span className="text-[11px] font-semibold text-muted-foreground">From</span>
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={cn(fieldClass, 'w-full')} />
         </label>
         <label className="space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">To</span>
+          <span className="text-[11px] font-semibold text-muted-foreground">To</span>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={cn(fieldClass, 'w-full')} />
         </label>
         {!medicineId && (
           <label className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Medicine</span>
+            <span className="text-[11px] font-semibold text-muted-foreground">Medicine</span>
             <Input
               value={medicineQuery}
               onChange={(e) => setMedicineQuery(e.target.value)}
@@ -230,7 +230,7 @@ export default function InventoryHistoryTable({ medicineId, onBatchesLoaded, pag
           </label>
         )}
         <label className="space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Type</span>
+          <span className="text-[11px] font-semibold text-muted-foreground">Type</span>
           <select value={type} onChange={(e) => setType(e.target.value as MovementType | '')} className={cn(fieldClass, 'w-full')}>
             <option value="">All types</option>
             {MOVEMENT_TYPES.map((t) => (
@@ -241,7 +241,7 @@ export default function InventoryHistoryTable({ medicineId, onBatchesLoaded, pag
           </select>
         </label>
         <label className="space-y-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Batch</span>
+          <span className="text-[11px] font-semibold text-muted-foreground">Batch</span>
           {medicineId ? (
             <select value={batchId} onChange={(e) => setBatchId(e.target.value)} className={cn(fieldClass, 'w-full')}>
               <option value="">All batches</option>
@@ -280,7 +280,7 @@ export default function InventoryHistoryTable({ medicineId, onBatchesLoaded, pag
                 <TableHead
                   key={h}
                   className={cn(
-                    'text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground whitespace-nowrap',
+                    'text-[11px] font-semibold   text-muted-foreground whitespace-nowrap',
                     (h === 'Qty' || h === 'Balance') && 'text-right'
                   )}
                 >
@@ -318,8 +318,8 @@ export default function InventoryHistoryTable({ medicineId, onBatchesLoaded, pag
                     </TableCell>
                     {!medicineId && (
                       <TableCell className="min-w-[160px]">
-                        <div className="text-[13px] font-extrabold text-foreground">{row.medicine.name}</div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <div className="text-[13px] font-bold text-foreground">{row.medicine.name}</div>
+                        <div className="text-[11px] font-bold text-muted-foreground">
                           {row.medicine.company}
                         </div>
                       </TableCell>
@@ -329,21 +329,21 @@ export default function InventoryHistoryTable({ medicineId, onBatchesLoaded, pag
                       <span
                         title={row.note || undefined}
                         className={cn(
-                          'px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border whitespace-nowrap',
+                          'px-2.5 py-1 rounded-full text-[11px] font-semibold   border whitespace-nowrap',
                           TYPE_STYLE[row.type]
                         )}
                       >
                         {TYPE_LABEL[row.type]}
                       </span>
                       {row.note && (
-                        <div className="mt-1 text-[10px] text-muted-foreground max-w-[220px] truncate" title={row.note}>
+                        <div className="mt-1 text-[11px] text-muted-foreground max-w-[220px] truncate" title={row.note}>
                           {row.note}
                         </div>
                       )}
                     </TableCell>
                     <TableCell
                       className={cn(
-                        'text-right font-black font-mono',
+                        'text-right font-semibold font-mono',
                         row.qtyChange > 0 && 'text-success',
                         row.qtyChange < 0 && 'text-danger',
                         row.qtyChange === 0 && 'text-muted-foreground'
@@ -385,7 +385,7 @@ export default function InventoryHistoryTable({ medicineId, onBatchesLoaded, pag
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+          <span className="text-[11px] font-semibold text-muted-foreground">
             Page <span className="text-primary">{page}</span> of {totalPages}
           </span>
           <Button

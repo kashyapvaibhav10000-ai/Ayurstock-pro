@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { clearAccent } from '@/lib/accent';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
@@ -82,6 +83,7 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      clearAccent();
       router.replace('/login');
       router.refresh();
     }
@@ -89,7 +91,7 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
 
   return (
     <>
-      <header className="flex items-center justify-between border-b border-border bg-background/80 backdrop-blur-md px-4 sm:px-6 py-4 h-[81px] relative z-20">
+      <header className="flex items-center justify-between border-b border-border bg-surface px-4 sm:px-6 h-[60px] shrink-0 relative z-20">
         <div className="flex items-center gap-3">
           <Button 
             variant="ghost" 
@@ -100,16 +102,16 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
             <Menu className="h-5 w-5" />
           </Button>
           <div className="xl:hidden flex items-center gap-2 mr-2">
-            <Image src="/logo.png" width={32} height={32} alt="AyurStock Pro" className="w-8 h-8 rounded-lg bg-white p-0.5" />
+            <Image src="/logo.png" width={28} height={28} alt="AyurStock Pro" className="w-7 h-7 rounded-lg" />
           </div>
-          <span className="text-lg sm:text-xl font-black text-foreground tracking-tighter uppercase truncate">{pageTitle}</span>
+          <span className="text-[17px] sm:text-[19px] font-semibold tracking-[-0.015em] text-foreground truncate">{pageTitle}</span>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
           {pathname !== '/dashboard/billing' && (
-            <div className="relative hidden md:block w-[280px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search everything..." className="rounded-2xl border-border bg-surface shadow-soft pl-9 h-10 transition-shadow focus-visible:shadow-bento text-foreground" />
+            <div className="relative hidden md:block w-[240px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 stroke-[1.75] text-muted-foreground" />
+              <Input placeholder="Search" className="h-9 rounded-full pl-9 text-[14px]" />
             </div>
           )}
 
@@ -117,24 +119,24 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
               device including mobile — this is the fix for the "stuck theme" bug. */}
           <ThemeToggle />
 
-          <Button variant="outline" size="icon" className="hidden sm:flex rounded-2xl border-border bg-surface shadow-soft hover:shadow-bento h-10 w-10">
-            <Bell className="h-4 w-4 text-muted-foreground" />
+          <Button variant="ghost" size="icon" aria-label="Notifications" className="hidden sm:flex h-9 w-9 text-muted-foreground hover:text-foreground">
+            <Bell className="h-[18px] w-[18px] stroke-[1.75]" />
           </Button>
           
           <button
-            className="group flex items-center gap-2 sm:gap-3 rounded-2xl border border-border bg-surface p-1 sm:px-1.5 sm:py-1.5 shadow-soft transition-all hover:shadow-bento hover:border-primary/20 focus:outline-none"
+            className="group flex items-center gap-2 rounded-full p-0.5 sm:pr-3 transition-colors duration-200 hover:bg-fill focus:outline-none"
             onClick={() => setProfileOpen(true)}
           >
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-sm font-semibold text-primary transition-colors group-hover:bg-primary/20">
+            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-[12px] font-semibold text-primary">
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
               ) : (
                 user.name.slice(0, 2).toUpperCase()
               )}
             </div>
-            <div className="hidden text-left sm:block pr-3">
-              <div className="text-sm font-bold text-foreground leading-tight">{user.name}</div>
-              <div className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">{user.role}</div>
+            <div className="hidden text-left sm:block">
+              <div className="text-[13px] font-semibold text-foreground leading-tight">{user.name}</div>
+              <div className="text-[11px] text-muted-foreground capitalize">{user.role.toLowerCase()}</div>
             </div>
           </button>
         </div>
@@ -145,91 +147,79 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
         <div className="fixed inset-0 z-50 overflow-hidden">
           {/* Backdrop Overlay */}
           <div 
-            className="absolute inset-0 bg-black/60 transition-opacity backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[var(--scrim)] transition-opacity"
             onClick={() => setProfileOpen(false)}
           />
           
           {/* Panel */}
           <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-            <div className="pointer-events-auto w-screen max-w-md transform transition-all shadow-2xl bg-surface h-full flex flex-col pt-4 border-l border-border backdrop-blur-3xl">
+            <div className="pointer-events-auto w-screen max-w-sm transform transition-all shadow-pop bg-surface h-full flex flex-col border-l border-border">
               
               {/* Panel Header */}
-              <div className="flex items-center justify-between px-6 py-5 border-b border-border">
-                <h2 className="text-lg font-black text-foreground flex items-center gap-3 uppercase tracking-tight">
-                  <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                    <UserCircle className="h-5 w-5 text-primary" />
-                  </div>
-                  Clinical Identity
+              <div className="flex items-center justify-between px-6 h-[60px] border-b border-border">
+                <h2 className="text-headline text-foreground flex items-center gap-2">
+                  <UserCircle className="h-5 w-5 stroke-[1.75] text-muted-foreground" />
+                  Account
                 </h2>
-                <Button variant="ghost" size="icon" className="rounded-xl h-10 w-10 hover:bg-surface-muted" onClick={() => setProfileOpen(false)}>
-                  <X className="h-5 w-5" />
-                </Button>
+                <button aria-label="Close" className="flex h-7 w-7 items-center justify-center rounded-full bg-fill text-muted-foreground hover:bg-fill-strong hover:text-foreground transition-colors" onClick={() => setProfileOpen(false)}>
+                  <X className="h-4 w-4" />
+                </button>
               </div>
 
               {/* Panel Content (Scrollable) */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 
                 {/* User Info Segment */}
-                <div className="flex items-center gap-5 bg-surface-muted/30 p-5 rounded-2xl border border-border shadow-inner">
-                  <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-primary/10 text-xl font-black text-primary shrink-0 border border-primary/20">
+                <div className="flex flex-col items-center text-center pt-2">
+                  <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-2xl font-semibold text-primary shrink-0">
                     {user.avatarUrl ? (
                       <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
                     ) : (
                       user.name.slice(0, 2).toUpperCase()
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-lg font-black text-foreground truncate tracking-tight">{user.name}</p>
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">{user.role}</p>
+                  <div className="min-w-0 mt-3">
+                    <p className="text-title-3 text-foreground truncate">{user.name}</p>
+                    <p className="text-[13px] text-muted-foreground mt-0.5 capitalize">{user.role.toLowerCase()}</p>
                   </div>
                 </div>
 
-                <hr className="border-border" />
-
                 {/* Shop Info Segment */}
                 <div>
-                  <h3 className="text-[10px] font-black tracking-[0.25em] text-muted-foreground/60 uppercase mb-5 ml-1">Foundation Metadata</h3>
+                  <h3 className="text-footnote font-medium text-muted-foreground mb-2 px-1">Shop</h3>
                   {shopInfo ? (
-                    <div className="space-y-5">
-                      <div className="flex gap-4 items-start">
-                        <div className="h-10 w-10 rounded-xl bg-surface-muted flex items-center justify-center border border-border shrink-0">
-                          <Building2 className="h-5 w-5 text-muted-foreground" />
-                        </div>
+                    <div className="rounded-xl bg-fill divide-y divide-border">
+                      <div className="flex gap-3 items-start px-4 py-3">
+                        <Building2 className="h-[18px] w-[18px] stroke-[1.75] text-muted-foreground shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-sm font-black text-foreground uppercase tracking-tight">{shopInfo.shopName}</p>
-                          <p className="text-[11px] font-bold text-muted-foreground mt-1 uppercase tracking-wide">{shopInfo.addressLine1}</p>
-                          {shopInfo.addressLine2 && <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">{shopInfo.addressLine2}</p>}
+                          <p className="text-[14px] font-semibold text-foreground">{shopInfo.shopName}</p>
+                          <p className="text-[13px] text-muted-foreground mt-0.5">{shopInfo.addressLine1}</p>
+                          {shopInfo.addressLine2 && <p className="text-[13px] text-muted-foreground">{shopInfo.addressLine2}</p>}
                         </div>
                       </div>
 
-                      <div className="flex gap-4 items-center">
-                        <div className="h-10 w-10 rounded-xl bg-surface-muted flex items-center justify-center border border-border shrink-0">
-                          <Phone className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <p className="text-[11px] font-black text-foreground uppercase tracking-widest">{shopInfo.phone || 'NULL_VCTR'}</p>
+                      <div className="flex gap-3 items-center px-4 py-3">
+                        <Phone className="h-[18px] w-[18px] stroke-[1.75] text-muted-foreground shrink-0" />
+                        <p className="text-[14px] text-foreground">{shopInfo.phone || <span className="text-muted-foreground">No phone added</span>}</p>
                       </div>
 
-                      <div className="flex gap-4 items-center">
-                        <div className="h-10 w-10 rounded-xl bg-surface-muted flex items-center justify-center border border-border shrink-0">
-                          <Mail className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <p className="text-[11px] font-black text-foreground uppercase tracking-widest">{shopInfo.email || 'NULL_VCTR'}</p>
+                      <div className="flex gap-3 items-center px-4 py-3">
+                        <Mail className="h-[18px] w-[18px] stroke-[1.75] text-muted-foreground shrink-0" />
+                        <p className="text-[14px] text-foreground truncate">{shopInfo.email || <span className="text-muted-foreground">No email added</span>}</p>
                       </div>
 
-                      <div className="flex gap-4 items-center border border-primary/20 bg-primary/5 p-4 rounded-2xl mt-4 shadow-soft">
-                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
-                          <FileText className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-[9px] font-black text-primary uppercase tracking-[0.25em]">GSTIN_AUTH_PTRN</p>
-                          <p className="text-sm font-mono font-black text-foreground mt-0.5 tracking-tighter">{shopInfo.gstin}</p>
+                      <div className="flex gap-3 items-center px-4 py-3">
+                        <FileText className="h-[18px] w-[18px] stroke-[1.75] text-muted-foreground shrink-0" />
+                        <div className="flex flex-1 items-center justify-between gap-2">
+                          <p className="text-[14px] text-foreground">GSTIN</p>
+                          <p className="text-[13px] font-mono text-muted-foreground">{shopInfo.gstin || '—'}</p>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-sm text-text-muted flex items-center gap-2 py-4">
-                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></span>
-                      Fetching shop details...
+                    <div className="text-[13px] text-muted-foreground flex items-center gap-2 py-4 px-1">
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-fill-strong border-t-primary"></span>
+                      Loading shop details…
                     </div>
                   )}
                 </div>
@@ -237,34 +227,36 @@ export default function DashboardHeader({ user, onMenuToggle }: DashboardHeaderP
               </div>
               
               {/* Panel Footer Actions */}
-              <div className="p-6 border-t border-border bg-surface-muted/30 space-y-3">
+              <div className="p-4 border-t border-border space-y-1">
                 <Button
-                  className="w-full gap-3 justify-start h-12 bg-surface hover:bg-surface-muted text-[11px] font-black uppercase tracking-widest text-foreground border border-border rounded-xl transition-all"
+                  variant="ghost"
+                  className="w-full gap-3 justify-start h-10 text-[14px] font-medium text-foreground rounded-[10px]"
                   onClick={() => {
                     setProfileOpen(false);
                     router.push('/dashboard/settings?tab=shop');
                   }}
                 >
-                  <Store className="h-4 w-4 text-primary" />
-                  Calibrate Shop Metadata
+                  <Store className="h-[18px] w-[18px] stroke-[1.75] text-muted-foreground" />
+                  Edit shop details
                 </Button>
                 <Button
-                  className="w-full gap-3 justify-start h-12 bg-surface hover:bg-surface-muted text-[11px] font-black uppercase tracking-widest text-foreground border border-border rounded-xl transition-all"
+                  variant="ghost"
+                  className="w-full gap-3 justify-start h-10 text-[14px] font-medium text-foreground rounded-[10px]"
                   onClick={() => {
                     setProfileOpen(false);
                     router.push('/dashboard/settings');
                   }}
                 >
-                  <Settings className="h-4 w-4 text-primary" />
-                  System Core Config
+                  <Settings className="h-[18px] w-[18px] stroke-[1.75] text-muted-foreground" />
+                  Settings
                 </Button>
                 <Button
-                  variant="destructive"
-                  className="w-full gap-3 h-12 text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-danger/10 mt-2"
+                  variant="ghost"
+                  className="w-full gap-3 justify-start h-10 text-[14px] font-medium text-danger rounded-[10px] hover:bg-danger/10 hover:text-danger"
                   onClick={handleLogout}
                 >
-                  <LogOut className="h-4 w-4" />
-                  Terminate Session
+                  <LogOut className="h-[18px] w-[18px] stroke-[1.75]" />
+                  Log out
                 </Button>
               </div>
 

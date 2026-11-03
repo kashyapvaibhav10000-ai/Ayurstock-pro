@@ -115,24 +115,24 @@ export default function CustomersPage() {
     <div className="space-y-6 p-6 md:p-8 max-w-[1200px] mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Customer Management</h1>
+          <h1 className="text-large-title text-foreground">Customer Management</h1>
           <p className="mt-1 text-sm font-medium text-muted-foreground">
             Manage your retail and wholesale customer database.
           </p>
         </div>
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogTrigger asChild>
-            <Button size="lg" className="rounded-xl font-bold bg-primary hover:bg-primary/90 text-background gap-2 shadow-soft">
+            <Button size="lg" className="rounded-xl font-bold bg-primary hover:bg-primary/90 text-background gap-2 shadow-card">
               <Plus className="h-5 w-5" /> Add Customer
             </Button>
           </DialogTrigger>
-          <DialogContent className="rounded-[24px] border-border bg-surface w-[95%] max-w-[450px]">
+          <DialogContent className="rounded-card border-border bg-surface w-[95%] max-w-[450px]">
             <DialogHeader>
-              <DialogTitle className="text-xl font-black text-foreground">New Customer</DialogTitle>
+              <DialogTitle className="text-xl font-semibold text-foreground">New Customer</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Full Name</Label>
+                <Label className="text-xs font-bold text-muted-foreground">Full Name</Label>
                 <Input 
                   placeholder="e.g. Rahul Sharma" 
                   className="rounded-xl border-border bg-background h-11"
@@ -141,7 +141,7 @@ export default function CustomersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Phone Number</Label>
+                <Label className="text-xs font-bold text-muted-foreground">Phone Number</Label>
                 <Input 
                   placeholder="e.g. 9876543210" 
                   className="rounded-xl border-border bg-background h-11"
@@ -150,7 +150,7 @@ export default function CustomersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Address</Label>
+                <Label className="text-xs font-bold text-muted-foreground">Address</Label>
                 <Input 
                   placeholder="e.g. Sector 12, Dwarka" 
                   className="rounded-xl border-border bg-background h-11"
@@ -159,7 +159,7 @@ export default function CustomersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">GSTIN (optional)</Label>
+                <Label className="text-xs font-bold text-muted-foreground">GSTIN (optional)</Label>
                 <Input 
                   placeholder="e.g. 09AAWPK7673B1ZP" 
                   className="rounded-xl border-border bg-background h-11 font-mono uppercase"
@@ -168,7 +168,7 @@ export default function CustomersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Drug License No. (optional)</Label>
+                <Label className="text-xs font-bold text-muted-foreground">Drug License No. (optional)</Label>
                 <Input 
                   placeholder="e.g. KA-B-123456" 
                   className="rounded-xl border-border bg-background h-11 font-mono"
@@ -177,7 +177,7 @@ export default function CustomersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">PAN No. (optional)</Label>
+                <Label className="text-xs font-bold text-muted-foreground">PAN No. (optional)</Label>
                 <Input 
                   placeholder="e.g. ABCDE1234F" 
                   className="rounded-xl border-border bg-background h-11 font-mono uppercase"
@@ -190,7 +190,7 @@ export default function CustomersPage() {
                   <ShieldCheck className="h-5 w-5 text-primary" />
                   <div>
                     <Label className="text-sm font-bold block">Wholesale Client</Label>
-                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Enable specialized pricing for transfers</p>
+                    <p className="text-[11px] text-muted-foreground font-medium">Enable specialized pricing for transfers</p>
                   </div>
                 </div>
                 <Switch 
@@ -198,7 +198,7 @@ export default function CustomersPage() {
                   onCheckedChange={(checked) => setNewCustomer({ ...newCustomer, isWholesale: checked })}
                 />
               </div>
-              <Button size="lg" className="w-full rounded-xl font-black tracking-widest uppercase mt-4 bg-primary text-background" onClick={handleAdd}>
+              <Button size="lg" className="w-full rounded-xl font-semibold mt-4 bg-primary text-background" onClick={handleAdd}>
                 Create Customer
               </Button>
             </div>
@@ -207,9 +207,9 @@ export default function CustomersPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="rounded-[24px] border-border bg-surface shadow-soft md:col-span-1">
+        <Card className="rounded-card border-border bg-surface shadow-card md:col-span-1">
           <CardHeader className="pb-0">
-            <CardTitle className="text-lg font-black flex items-center gap-2"><Search className="h-5 w-5 text-primary" /> Filters</CardTitle>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2"><Search className="h-5 w-5 text-primary" /> Filters</CardTitle>
           </CardHeader>
           <CardContent className="pt-6 space-y-6">
             <div className="relative group">
@@ -223,7 +223,7 @@ export default function CustomersPage() {
             </div>
             
             <div className="space-y-3">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 pl-1">Client Type</Label>
+              <Label className="text-[11px] font-semibold text-muted-foreground/60 pl-1">Client Type</Label>
               <div className="grid grid-cols-1 gap-2">
                 <Button 
                   variant={isWholesaleFilter === null ? 'default' : 'outline'} 
@@ -251,11 +251,11 @@ export default function CustomersPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[24px] border-border bg-surface shadow-soft md:col-span-2 overflow-hidden">
+        <Card className="rounded-card border-border bg-surface shadow-card md:col-span-2 overflow-hidden">
           <CardHeader className="border-b border-border bg-surface-muted/30">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-black">Customer List</CardTitle>
-              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+              <CardTitle className="text-lg font-semibold">Customer List</CardTitle>
+              <span className="text-[11px] font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
                 {filtered.length} Total
               </span>
             </div>
@@ -270,9 +270,9 @@ export default function CustomersPage() {
                 <Table>
                   <TableHeader className="bg-surface-muted/50 border-b border-border">
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-4">Customer</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-4">Contact Info</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-4 text-center">Wholesale</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-4">Customer</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-4">Contact Info</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-4 text-center">Wholesale</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -286,8 +286,8 @@ export default function CustomersPage() {
                               {customer.name.slice(0, 2).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-black text-foreground truncate">{customer.name}</p>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-0.5">Joined {new Date(customer.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</p>
+                              <p className="text-sm font-semibold text-foreground truncate">{customer.name}</p>
+                              <p className="text-[11px] font-semibold text-muted-foreground/60 mt-0.5">Joined {new Date(customer.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</p>
                             </div>
                           </div>
                         </TableCell>

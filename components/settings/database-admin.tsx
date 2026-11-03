@@ -332,7 +332,7 @@ export default function DatabaseAdmin() {
           <Icon className="h-5 w-5" />
         </div>
         <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
+          <p className="text-xs font-medium text-muted-foreground">{title}</p>
           <p className="text-xl font-bold text-foreground">
             {loadingStats ? <Loader2 className="h-4 w-4 animate-spin" /> : (count || 0).toLocaleString()}
           </p>
@@ -355,7 +355,7 @@ export default function DatabaseAdmin() {
         </div>
         <div className="flex items-center gap-3">
           {lastBackupLabel && (
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-surface-muted/50 border border-border rounded-lg px-3 py-1.5">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground bg-surface-muted/50 border border-border rounded-lg px-3 py-1.5">
               <Clock className="h-3 w-3" />
               Last backup: {lastBackupLabel}
             </div>
@@ -370,9 +370,9 @@ export default function DatabaseAdmin() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Medicines" count={stats?.medicines} icon={Package} color="bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400" />
-        <StatCard title="Inventory Batches" count={stats?.inventoryBatches} icon={Database} color="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400" />
+        <StatCard title="Inventory Batches" count={stats?.inventoryBatches} icon={Database} color="bg-primary/10 text-primary  " />
         <StatCard title="Sales" count={stats?.sales} icon={ShoppingCart} color="bg-purple-50 text-purple-600 dark:bg-purple-950/30 dark:text-purple-400" />
-        <StatCard title="Purchases" count={stats?.purchases} icon={Truck} color="bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400" />
+        <StatCard title="Purchases" count={stats?.purchases} icon={Truck} color="bg-warning/10 text-warning  " />
         <StatCard title="Suppliers" count={stats?.suppliers} icon={Building} color="bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400" />
         <StatCard title="Customers" count={stats?.customers} icon={Users} color="bg-pink-50 text-pink-600 dark:bg-pink-950/30 dark:text-pink-400" />
       </div>
@@ -411,13 +411,13 @@ export default function DatabaseAdmin() {
           </Card>
 
           {/* Restore from Backup */}
-          <Card className="border-amber-200 dark:border-amber-900/40 bg-amber-50/30 dark:bg-amber-950/20 shadow-sm">
-            <CardHeader className="pb-3 border-b border-amber-200 dark:border-amber-900/40">
-              <CardTitle className="text-sm font-bold text-amber-900 dark:text-amber-300 flex items-center gap-2">
-                <Upload className="h-4 w-4 text-amber-600" />
+          <Card className="border-warning/30 bg-warning/10 shadow-sm">
+            <CardHeader className="pb-3 border-b border-warning/30">
+              <CardTitle className="text-sm font-bold text-warning flex items-center gap-2">
+                <Upload className="h-4 w-4 text-warning" />
                 Restore from Backup
               </CardTitle>
-              <CardDescription className="text-xs text-amber-700/80 dark:text-amber-400/80">
+              <CardDescription className="text-xs text-warning/80">
                 Upload a previously downloaded backup file. Uses safe UPSERT — existing financial records are preserved.
               </CardDescription>
             </CardHeader>
@@ -425,7 +425,7 @@ export default function DatabaseAdmin() {
               {/* File Dropzone */}
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="cursor-pointer rounded-xl border-2 border-dashed border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 hover:border-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors p-6 text-center"
+                className="cursor-pointer rounded-xl border-2 border-dashed border-warning/30 bg-warning/10 hover:border-warning hover:bg-warning/10 transition-colors p-6 text-center"
               >
                 <input
                   ref={fileInputRef}
@@ -434,17 +434,17 @@ export default function DatabaseAdmin() {
                   className="hidden"
                   onChange={handleFileSelect}
                 />
-                <HardDrive className="h-8 w-8 text-amber-400 mx-auto mb-2" />
+                <HardDrive className="h-8 w-8 text-warning mx-auto mb-2" />
                 {restoreFile
-                  ? <p className="text-sm font-bold text-amber-800 dark:text-amber-300">{restoreFile.name}</p>
-                  : <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">Click to select <code>.json</code> backup file</p>
+                  ? <p className="text-sm font-bold text-warning">{restoreFile.name}</p>
+                  : <p className="text-sm text-warning font-medium">Click to select <code>.json</code> backup file</p>
                 }
               </div>
 
               {/* Client-side backup preview */}
               {backupPreview && (
                 <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
-                  <p className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <FileText className="h-4 w-4 text-muted-foreground" /> Backup Preview
                   </p>
                   <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
@@ -458,15 +458,15 @@ export default function DatabaseAdmin() {
                       .filter(([, v]) => v > 0)
                       .map(([key, val]) => (
                       <div key={key} className="rounded-lg bg-surface-muted border border-border text-center p-2">
-                        <p className="text-lg font-extrabold text-foreground">{val}</p>
-                        <p className="text-[9px] text-muted-foreground font-semibold uppercase">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
+                        <p className="text-lg font-bold text-foreground">{val}</p>
+                        <p className="text-[11px] text-muted-foreground font-semibold uppercase">{key.replace(/([A-Z])/g, ' $1').trim()}</p>
                       </div>
                     ))}
                   </div>
                   {backupPreview.warnings.map((w, i) => (
-                    <div key={i} className="flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-3">
-                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">{w}</p>
+                    <div key={i} className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3">
+                      <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                      <p className="text-xs text-warning font-medium">{w}</p>
                     </div>
                   ))}
                 </div>
@@ -478,7 +478,7 @@ export default function DatabaseAdmin() {
                   onClick={handleDryRun}
                   disabled={isDryRunning}
                   variant="outline"
-                  className="w-full gap-2 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/30"
+                  className="w-full gap-2 border-warning/30 text-warning hover:bg-warning/10"
                 >
                   {isDryRunning
                     ? <><Loader2 className="h-4 w-4 animate-spin" /> Validating...</>
@@ -490,14 +490,14 @@ export default function DatabaseAdmin() {
               {/* Dry-Run Summary */}
               {dryRunSummary && (
                 <div className="rounded-xl border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/20 p-4 space-y-2">
-                  <p className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <p className="text-xs font-bold text-blue-800 dark:text-blue-300 flex items-center gap-1.5">
                     <CheckCircle2 className="h-4 w-4 text-blue-500" /> Validation Complete
                   </p>
                   <p className="text-sm text-blue-700 dark:text-blue-400">{dryRunSummary.message}</p>
                   {dryRunWarnings.length > 0 && dryRunWarnings.map((w, i) => (
-                    <div key={i} className="flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-3">
-                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">{w}</p>
+                    <div key={i} className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3">
+                      <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                      <p className="text-xs text-warning font-medium">{w}</p>
                     </div>
                   ))}
                   <div className="grid grid-cols-3 gap-2 pt-1">
@@ -507,8 +507,8 @@ export default function DatabaseAdmin() {
                       { label: 'Suppliers', val: dryRunSummary.suppliers },
                     ].map(({ label, val }) => (
                       <div key={label} className="rounded-lg bg-surface border border-blue-100 dark:border-blue-900/40 text-center p-2">
-                        <p className="text-lg font-extrabold text-blue-800 dark:text-blue-300">{val}</p>
-                        <p className="text-[10px] text-blue-500 dark:text-blue-400 font-semibold uppercase">{label}</p>
+                        <p className="text-lg font-bold text-blue-800 dark:text-blue-300">{val}</p>
+                        <p className="text-[11px] text-blue-500 dark:text-blue-400 font-semibold uppercase">{label}</p>
                       </div>
                     ))}
                   </div>
@@ -523,11 +523,11 @@ export default function DatabaseAdmin() {
 
               {/* Restore Result */}
               {restoreResult && (
-                <div className="rounded-xl border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 p-4">
-                  <p className="text-sm font-bold text-green-800 dark:text-green-300 flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" /> Restore Complete!
+                <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+                  <p className="text-sm font-bold text-primary flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-primary" /> Restore Complete!
                   </p>
-                  <p className="text-xs text-green-700 dark:text-green-400 mt-1">{restoreResult.message}</p>
+                  <p className="text-xs text-primary mt-1">{restoreResult.message}</p>
                 </div>
               )}
             </CardContent>
@@ -537,27 +537,27 @@ export default function DatabaseAdmin() {
 
       {/* ===================== RED ZONE RESTORE CONFIRM DIALOG ===================== */}
       <Dialog open={showRestoreConfirm} onOpenChange={(o) => { setShowRestoreConfirm(o); if (!o) setRestoreConfirmText(''); }}>
-        <DialogContent className="max-w-md border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30">
+        <DialogContent className="max-w-md border-danger/30 bg-danger/10">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-700 dark:text-red-400 text-lg">
+            <DialogTitle className="flex items-center gap-2 text-danger text-lg">
               <AlertTriangle className="h-6 w-6" />
               Confirm Database Restore
             </DialogTitle>
-            <DialogDescription className="pt-2 text-red-800 dark:text-red-300">
+            <DialogDescription className="pt-2 text-danger">
               <strong>This will overwrite your current medicines, suppliers, and rack locations</strong> using UPSERT. Your existing financial records will be preserved.
               <br /><br />
               An automatic backup of your current data will be saved to your Activity Log before the restore begins.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 mt-2">
-            <p className="text-sm text-red-700 dark:text-red-300 font-medium">
-              Type <span className="font-mono font-extrabold bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded text-red-900 dark:text-red-200">RESTORE</span> to confirm:
+            <p className="text-sm text-danger font-medium">
+              Type <span className="font-mono font-bold bg-danger/10 px-1.5 py-0.5 rounded text-danger">RESTORE</span> to confirm:
             </p>
             <Input
               placeholder="Type RESTORE here..."
               value={restoreConfirmText}
               onChange={(e) => setRestoreConfirmText(e.target.value)}
-              className="font-mono border-red-300 dark:border-red-800 focus:ring-red-400 bg-surface"
+              className="font-mono border-danger/30 focus:ring-danger bg-surface"
             />
           </div>
           <DialogFooter className="mt-4 gap-2">
@@ -567,7 +567,7 @@ export default function DatabaseAdmin() {
             <Button
               onClick={handleRestore}
               disabled={isRestoring || restoreConfirmText !== 'RESTORE'}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold gap-2"
+              className="bg-danger hover:bg-danger/90 text-white font-bold gap-2"
             >
               {isRestoring
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Restoring...</>
@@ -594,7 +594,7 @@ export default function DatabaseAdmin() {
             <Button
               onClick={handleExport}
               disabled={exporting || loadingStats || (stats?.medicines === 0)}
-              className="w-full gap-2 bg-slate-800 hover:bg-slate-950 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-medium"
+              className="w-full gap-2 bg-slate-800 hover:bg-slate-950 text-white font-medium"
             >
               {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               Export Medicines as CSV
@@ -637,7 +637,7 @@ export default function DatabaseAdmin() {
                       <li>Total {stats?.inventoryBatches || 0} Inventory Batches</li>
                       <li>Total {stats?.sales || 0} Sales Records</li>
                     </ul>
-                    <p className="mt-4 text-red-600 font-bold uppercase text-xs">This cannot be undone!</p>
+                    <p className="mt-4 text-danger font-bold uppercase text-xs">This cannot be undone!</p>
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 mt-2">
@@ -664,7 +664,7 @@ export default function DatabaseAdmin() {
                     </Button>
                   </div>
                   {clearPasswordVerified && (
-                    <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-200">
+                    <div className="flex items-center gap-1.5 text-xs text-primary font-bold bg-primary/10 rounded-lg px-3 py-2 border border-primary/30">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Password verified. You may proceed with the wipeout.
                     </div>
@@ -691,20 +691,20 @@ export default function DatabaseAdmin() {
       </div>
 
       {/* Delete Medicines by Company */}
-      <Card className="border-orange-200 dark:border-orange-900/40 shadow-sm bg-orange-50/30 dark:bg-orange-950/20">
-        <CardHeader className="pb-3 bg-orange-50/60 dark:bg-orange-950/30 border-b border-orange-200 dark:border-orange-900/40">
-          <CardTitle className="text-base font-bold text-orange-900 dark:text-orange-300 flex items-center gap-2">
+      <Card className="border-warning/30 shadow-sm bg-warning/10">
+        <CardHeader className="pb-3 bg-warning/10 border-b border-warning/30">
+          <CardTitle className="text-base font-bold text-warning flex items-center gap-2">
             <Building className="h-4 w-4" />
             Delete Medicines by Company
           </CardTitle>
-          <CardDescription className="text-orange-700/80 dark:text-orange-400/80">
+          <CardDescription className="text-warning/80">
             Permanently remove all medicines belonging to a specific company.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
           <div className="relative">
             <select
-              className="w-full appearance-none rounded-lg border border-orange-200 dark:border-orange-900/40 bg-surface px-4 py-2.5 pr-10 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:opacity-50"
+              className="w-full appearance-none rounded-lg border border-warning/30 bg-surface px-4 py-2.5 pr-10 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-warning disabled:opacity-50"
               value={selectedCompany?.name ?? ''}
               onChange={(e) => {
                 const found = companies.find((c) => c.name === e.target.value) ?? null;
@@ -726,9 +726,9 @@ export default function DatabaseAdmin() {
           </div>
 
           {selectedCompany && (
-            <div className="flex items-start gap-3 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 p-4">
-              <AlertTriangle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
-              <p className="text-sm text-red-800 dark:text-red-300 font-medium">
+            <div className="flex items-start gap-3 rounded-lg border border-danger/30 bg-danger/10 p-4">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-danger mt-0.5" />
+              <p className="text-sm text-danger font-medium">
                 This will permanently delete all{' '}
                 <span className="font-bold">{selectedCompany.count}</span> medicines from{' '}
                 <span className="font-bold">{selectedCompany.name}</span>. This cannot be undone.
@@ -755,7 +755,7 @@ export default function DatabaseAdmin() {
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-red-700">
+                <DialogTitle className="flex items-center gap-2 text-danger">
                   <AlertTriangle className="h-5 w-5" />
                   Confirm Deletion
                 </DialogTitle>
@@ -764,7 +764,7 @@ export default function DatabaseAdmin() {
                   <span className="font-bold text-foreground">{selectedCompany?.count ?? 0} medicines</span> from{' '}
                   <span className="font-bold text-foreground">{selectedCompany?.name}</span>.
                   <br />
-                  <span className="text-red-600 font-semibold text-xs uppercase mt-1 block">This cannot be undone.</span>
+                  <span className="text-danger font-semibold text-xs uppercase mt-1 block">This cannot be undone.</span>
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-2 mt-2">
@@ -860,11 +860,11 @@ export default function DatabaseAdmin() {
                 ) : (
                   medicines.map((med) => (
                     <TableRow key={med.id}>
-                      <TableCell className="font-mono text-[10px] text-muted-foreground truncate max-w-[80px]">{med.id}</TableCell>
+                      <TableCell className="font-mono text-[11px] text-muted-foreground truncate max-w-[80px]">{med.id}</TableCell>
                       <TableCell className="font-medium text-foreground">{med.name}</TableCell>
                       <TableCell className="text-muted-foreground">{med.company}</TableCell>
                       <TableCell>
-                        <span className="px-2 py-0.5 rounded-full bg-surface-muted text-muted-foreground text-[10px] font-semibold uppercase">
+                        <span className="px-2 py-0.5 rounded-full bg-surface-muted text-muted-foreground text-[11px] font-semibold uppercase">
                           {med.category}
                         </span>
                       </TableCell>

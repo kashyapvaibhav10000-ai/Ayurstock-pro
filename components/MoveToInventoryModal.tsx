@@ -173,10 +173,10 @@ export default function MoveToInventoryModal({
         {done ? (
           /* Summary screen */
           <div className="flex flex-col items-center gap-4 py-6 text-center">
-            <CheckCircle className="h-12 w-12 text-green-500" />
+            <CheckCircle className="h-12 w-12 text-primary" />
             <div>
-              <p className="text-lg font-semibold text-slate-900">All done!</p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="text-lg font-semibold text-foreground">All done!</p>
+              <p className="mt-1 text-sm text-muted-foreground">
                 {addedCount} added to inventory &middot; {skippedCount} skipped
               </p>
             </div>
@@ -185,27 +185,27 @@ export default function MoveToInventoryModal({
         ) : current ? (
           <>
             {/* Progress indicator */}
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
               <span>Medicine {currentIndex + 1} of {total}</span>
               <span>{addedCount} added &middot; {skippedCount} skipped</span>
             </div>
-            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mb-4">
+            <div className="w-full h-1.5 bg-surface-muted rounded-full overflow-hidden mb-4">
               <div
-                className="h-full bg-emerald-500 rounded-full transition-all"
+                className="h-full bg-primary rounded-full transition-all"
                 style={{ width: `${((currentIndex) / total) * 100}%` }}
               />
             </div>
 
-            <div className="rounded-lg border bg-slate-50 p-4 mb-4">
-              <p className="font-semibold text-slate-900">{current.medicineName}</p>
-              <p className="text-xs text-slate-500 mt-0.5">
+            <div className="rounded-lg border bg-surface-muted p-4 mb-4">
+              <p className="font-semibold text-foreground">{current.medicineName}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {medicines[currentIndex]?.company} &middot; {medicines[currentIndex]?.category}
               </p>
             </div>
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-2">
-                <p className="text-sm text-red-600">{error}</p>
+              <div className="p-3 bg-danger/10 border border-danger/30 rounded-lg mb-2">
+                <p className="text-sm text-danger">{error}</p>
               </div>
             )}
 
@@ -309,7 +309,7 @@ export default function MoveToInventoryModal({
                 variant="ghost"
                 onClick={handleSkip}
                 disabled={loading}
-                className="gap-1 text-slate-600 w-full sm:w-auto"
+                className="gap-1 text-muted-foreground w-full sm:w-auto"
               >
                 <SkipForward className="h-4 w-4" />
                 Skip
@@ -317,7 +317,7 @@ export default function MoveToInventoryModal({
               <Button
                 onClick={handleAdd}
                 disabled={!canAdd || loading}
-                className="bg-green-600 hover:bg-green-700 gap-1 w-full sm:w-auto"
+                className="bg-primary hover:bg-primary-hover gap-1 w-full sm:w-auto"
               >
                 {loading ? 'Adding...' : 'Add to Inventory'}
               </Button>

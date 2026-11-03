@@ -62,19 +62,19 @@ export default function PosPinLogin({ onLoggedIn }: { onLoggedIn: (data: { user:
 
   if (!status) return null;
 
-  const errorBox = error && <p className="text-xs font-bold text-red-600">{error}</p>;
+  const errorBox = error && <p className="text-xs font-bold text-danger">{error}</p>;
 
   if (status.paired) {
     return (
-      <form onSubmit={pinLogin} className="mt-8 space-y-3 rounded-xl border border-slate-200 p-4">
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-          <KeyRound className="h-3.5 w-3.5 text-emerald-500" />
+      <form onSubmit={pinLogin} className="mt-8 space-y-3 rounded-xl border border-border p-4">
+        <p className="text-xs font-bold text-muted-foreground flex items-center gap-2">
+          <KeyRound className="h-3.5 w-3.5 text-primary" />
           PIN login · {status.deviceName} · {status.shopName}
         </p>
         {errorBox}
         <div className="flex gap-2">
           <Input
-            className="h-11 rounded-xl bg-slate-50 border-slate-200 text-slate-900 font-mono tracking-[0.5em] text-center"
+            className="h-11 rounded-xl bg-surface-muted border-border text-foreground font-mono tracking-[0.5em] text-center"
             type="password"
             inputMode="numeric"
             autoComplete="off"
@@ -86,7 +86,7 @@ export default function PosPinLogin({ onLoggedIn }: { onLoggedIn: (data: { user:
           <button
             type="submit"
             disabled={loading || pin.length !== 4}
-            className="h-11 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl disabled:opacity-60"
+            className="h-11 px-5 bg-primary hover:bg-primary-hover text-white font-bold text-sm rounded-xl disabled:opacity-60"
           >
             Enter
           </button>
@@ -100,7 +100,7 @@ export default function PosPinLogin({ onLoggedIn }: { onLoggedIn: (data: { user:
       <button
         type="button"
         onClick={() => setPairing(true)}
-        className="mt-6 w-full text-[11px] text-slate-500 hover:text-emerald-600 flex items-center justify-center gap-1.5"
+        className="mt-6 w-full text-[11px] text-muted-foreground hover:text-primary flex items-center justify-center gap-1.5"
       >
         <MonitorSmartphone className="h-3.5 w-3.5" />
         Pair this device for PIN login
@@ -109,14 +109,14 @@ export default function PosPinLogin({ onLoggedIn }: { onLoggedIn: (data: { user:
   }
 
   return (
-    <form onSubmit={pairDevice} className="mt-8 space-y-3 rounded-xl border border-slate-200 p-4">
-      <p className="text-xs text-slate-500">
+    <form onSubmit={pairDevice} className="mt-8 space-y-3 rounded-xl border border-border p-4">
+      <p className="text-xs text-muted-foreground">
         Enter the 8-character code from <span className="font-bold">Settings › POS Devices</span> (valid 10 minutes, one use).
       </p>
       {errorBox}
       <div className="flex gap-2">
         <Input
-          className="h-11 rounded-xl bg-slate-50 border-slate-200 text-slate-900 font-mono uppercase tracking-widest"
+          className="h-11 rounded-xl bg-surface-muted border-border text-foreground font-mono"
           autoComplete="off"
           maxLength={11}
           placeholder="ABCD-EFGH"
@@ -126,7 +126,7 @@ export default function PosPinLogin({ onLoggedIn }: { onLoggedIn: (data: { user:
         <button
           type="submit"
           disabled={loading || code.replace(/[\s-]/g, '').length !== 8}
-          className="h-11 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl disabled:opacity-60"
+          className="h-11 px-5 bg-primary hover:bg-primary-hover text-white font-bold text-sm rounded-xl disabled:opacity-60"
         >
           Pair
         </button>

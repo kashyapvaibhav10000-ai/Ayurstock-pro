@@ -180,10 +180,10 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl rounded-[32px] border-border bg-surface p-0 overflow-hidden shadow-2xl">
+      <DialogContent className="max-w-2xl rounded-card border-border bg-surface p-0 overflow-hidden shadow-2xl">
         <div className="bg-primary/5 p-6 border-b border-border">
-          <DialogTitle className="text-xl font-black text-foreground flex items-center gap-2">
-            <Badge variant="outline" className="bg-background text-primary border-primary/20 uppercase tracking-widest text-[10px]">
+          <DialogTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
+            <Badge variant="outline" className="bg-background text-primary border-primary/20 text-[11px]">
               {type}
             </Badge>
             Process New Return
@@ -192,7 +192,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
              <Button 
                 variant={type === 'CUSTOMER' ? 'default' : 'outline'}
                 size="sm"
-                className="rounded-full font-bold px-6 h-8 text-[11px] uppercase tracking-wider"
+                className="rounded-full font-bold px-6 h-8 text-[11px]"
                 onClick={() => setType('CUSTOMER')}
              >
                 Customer Return
@@ -200,7 +200,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
              <Button 
                 variant={type === 'SUPPLIER' ? 'default' : 'outline'}
                 size="sm"
-                className="rounded-full font-bold px-6 h-8 text-[11px] uppercase tracking-wider"
+                className="rounded-full font-bold px-6 h-8 text-[11px]"
                 onClick={() => setType('SUPPLIER')}
              >
                 Supplier Return
@@ -210,7 +210,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
 
         <div className="p-6">
           {error && (
-            <div className="mb-6 p-4 bg-danger/10 border border-danger/20 rounded-2xl text-xs text-danger font-black flex items-center gap-2">
+            <div className="mb-6 p-4 bg-danger/10 border border-danger/20 rounded-2xl text-xs text-danger font-semibold flex items-center gap-2">
               <Info className="h-4 w-4" /> {error}
             </div>
           )}
@@ -220,7 +220,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
               {step === 1 && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Search Sale</Label>
+                    <Label className="text-[11px] font-semibold text-muted-foreground ml-1">Search Sale</Label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -248,23 +248,23 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
                             className="w-full p-4 flex items-center justify-between hover:bg-primary/5 transition-colors text-left group"
                           >
                             <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 rounded-xl bg-surface flex items-center justify-center text-primary border border-border group-hover:border-primary/20 transition-colors shadow-soft">
+                              <div className="h-10 w-10 rounded-xl bg-surface flex items-center justify-center text-primary border border-border group-hover:border-primary/20 transition-colors shadow-card">
                                 <Receipt className="h-5 w-5" />
                               </div>
                               <div>
-                                <p className="text-sm font-black text-foreground">{sale.invoiceNumber}</p>
+                                <p className="text-sm font-semibold text-foreground">{sale.invoiceNumber}</p>
                                 <div className="flex items-center gap-3 mt-1">
-                                  <span className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
+                                  <span className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
                                     <User className="h-3 w-3" /> {sale.customer?.name || 'Cash Customer'}
                                   </span>
-                                  <span className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
+                                  <span className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground">
                                     <Calendar className="h-3 w-3" /> {format(new Date(sale.createdAt), 'dd MMM yyyy')}
                                   </span>
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-3">
-                              <span className="text-sm font-black text-foreground">₹{Number(sale.grandTotal).toLocaleString('en-IN')}</span>
+                              <span className="text-sm font-semibold text-foreground">₹{Number(sale.grandTotal).toLocaleString('en-IN')}</span>
                               <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-all group-hover:translate-x-0.5" />
                             </div>
                           </button>
@@ -283,16 +283,16 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
                 <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-300">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Selected Invoice</p>
-                      <p className="text-sm font-black text-primary">{selectedSale.invoiceNumber}</p>
+                      <p className="text-[11px] font-semibold text-muted-foreground">Selected Invoice</p>
+                      <p className="text-sm font-semibold text-primary">{selectedSale.invoiceNumber}</p>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">
+                    <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="rounded-full text-[11px] font-semibold text-muted-foreground hover:text-foreground">
                       <ArrowLeft className="h-3 w-3 mr-1" /> Change Sale
                     </Button>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Select Item to Return</Label>
+                    <Label className="text-[11px] font-semibold text-muted-foreground ml-1">Select Item to Return</Label>
                     <div className="rounded-2xl border border-border bg-background divide-y divide-border overflow-hidden">
                       {saleItems.map(item => (
                         <button 
@@ -301,16 +301,16 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
                           className="w-full p-4 flex items-center justify-between hover:bg-primary/5 transition-colors text-left group"
                         >
                           <div className="flex items-center gap-4">
-                            <div className="h-10 w-10 rounded-xl bg-surface flex items-center justify-center text-primary border border-border group-hover:border-primary/20 transition-colors shadow-soft">
+                            <div className="h-10 w-10 rounded-xl bg-surface flex items-center justify-center text-primary border border-border group-hover:border-primary/20 transition-colors shadow-card">
                               <Package className="h-5 w-5" />
                             </div>
                             <div>
-                              <p className="text-sm font-black text-foreground">{item.medicine.name}</p>
+                              <p className="text-sm font-semibold text-foreground">{item.medicine.name}</p>
                               <div className="flex items-center gap-3 mt-1">
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                <span className="text-[11px] font-bold text-muted-foreground">
                                   {batchLabel(item.batch)}
                                 </span>
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                <span className="text-[11px] font-bold text-muted-foreground bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                                   Qty: {item.quantity} Sold
                                 </span>
                               </div>
@@ -331,23 +331,23 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
                        <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Returning Item from {selectedSale.invoiceNumber}</p>
-                      <p className="text-sm font-black text-foreground">{selectedItem.medicine.name} — <span className="text-primary">{batchLabel(selectedItem.batch)}</span></p>
+                      <p className="text-[11px] font-semibold text-muted-foreground">Returning Item from {selectedSale.invoiceNumber}</p>
+                      <p className="text-sm font-semibold text-foreground">{selectedItem.medicine.name} — <span className="text-primary">{batchLabel(selectedItem.batch)}</span></p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5 p-4 rounded-2xl border border-border bg-surface-muted/30">
-                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Sold Price (MRP)</Label>
-                       <p className="text-lg font-black text-foreground">₹{Number(selectedItem.mrp).toFixed(2)}</p>
+                       <Label className="text-[11px] font-semibold text-muted-foreground/60">Sold Price (MRP)</Label>
+                       <p className="text-lg font-semibold text-foreground">₹{Number(selectedItem.mrp).toFixed(2)}</p>
                     </div>
                     <div className="space-y-1.5 p-4 rounded-2xl border border-border bg-surface-muted/30">
-                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Sold Quantity</Label>
-                       <p className="text-lg font-black text-foreground">{selectedItem.quantity} Units</p>
+                       <Label className="text-[11px] font-semibold text-muted-foreground/60">Sold Quantity</Label>
+                       <p className="text-lg font-semibold text-foreground">{selectedItem.quantity} Units</p>
                     </div>
 
                     <div className="space-y-2 col-span-2 sm:col-span-1">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Return Quantity *</Label>
+                      <Label className="text-[11px] font-semibold text-muted-foreground ml-1">Return Quantity *</Label>
                       <Input 
                         type="number"
                         max={selectedItem.quantity}
@@ -360,7 +360,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
                     </div>
 
                     <div className="space-y-2 col-span-2 sm:col-span-1">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Return Reason *</Label>
+                      <Label className="text-[11px] font-semibold text-muted-foreground ml-1">Return Reason *</Label>
                       <select
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
@@ -376,7 +376,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
                     </div>
 
                     <div className="space-y-2 col-span-2">
-                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 text-surface-action-primary-default">Extra Notes</Label>
+                       <Label className="text-[11px] font-semibold text-muted-foreground ml-1 text-surface-action-primary-default">Extra Notes</Label>
                        <Input 
                         placeholder="Optional details about this return..."
                         value={notes}
@@ -391,7 +391,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
           ) : (
             <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-300">
                <div className="col-span-2 sm:col-span-1 space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Company Name *</Label>
+                <Label className="text-[11px] font-semibold text-muted-foreground ml-1">Company Name *</Label>
                 <select
                   value={companyId}
                   onChange={(e) => setCompanyId(e.target.value)}
@@ -403,7 +403,7 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
               </div>
 
               <div className="col-span-2 sm:col-span-1 space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Medicine Name *</Label>
+                <Label className="text-[11px] font-semibold text-muted-foreground ml-1">Medicine Name *</Label>
                 <select
                   value={medicineId}
                   onChange={(e) => setMedicineId(e.target.value)}
@@ -417,27 +417,27 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
               </div>
 
               <div className="col-span-2 sm:col-span-1 space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Batch Number</Label>
+                <Label className="text-[11px] font-semibold text-muted-foreground ml-1">Batch Number</Label>
                 <Input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} className="rounded-xl h-11" placeholder="e.g. B-101" />
               </div>
 
               <div className="col-span-2 sm:col-span-1 space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Expiry Date *</Label>
+                <Label className="text-[11px] font-semibold text-muted-foreground ml-1">Expiry Date *</Label>
                 <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="rounded-xl h-11" />
               </div>
 
               <div className="col-span-2 sm:col-span-1 space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">MRP (₹) *</Label>
+                <Label className="text-[11px] font-semibold text-muted-foreground ml-1">MRP (₹) *</Label>
                 <Input type="number" step="0.01" value={mrp} onChange={(e) => setMrp(e.target.value)} className="rounded-xl h-11" placeholder="0.00" />
               </div>
 
               <div className="col-span-2 sm:col-span-1 space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Quantity *</Label>
+                <Label className="text-[11px] font-semibold text-muted-foreground ml-1">Quantity *</Label>
                 <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="rounded-xl h-11" placeholder="0" />
               </div>
 
               <div className="col-span-2 space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Reason *</Label>
+                <Label className="text-[11px] font-semibold text-muted-foreground ml-1">Reason *</Label>
                 <select
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
@@ -461,14 +461,14 @@ export default function AddReturnModal({ isOpen, onClose, onSuccess }: Props) {
           </Button>
           <div className="flex gap-3">
             {step > 1 && type === 'CUSTOMER' && (
-              <Button variant="outline" onClick={() => setStep(step - 1 as Step)} className="rounded-2xl font-bold bg-background h-12 shadow-soft">
+              <Button variant="outline" onClick={() => setStep(step - 1 as Step)} className="rounded-2xl font-bold bg-background h-12 shadow-card">
                 Back
               </Button>
             )}
             <Button 
               onClick={handleSubmit} 
               disabled={loading || (type === 'CUSTOMER' && step < 3)}
-              className="rounded-2xl bg-primary hover:bg-primary/90 text-background font-black tracking-widest uppercase h-12 px-8 shadow-soft"
+              className="rounded-2xl bg-primary hover:bg-primary/90 text-background font-semibold h-12 px-8 shadow-card"
             >
               {loading ? 'Processing...' : step === 3 || type === 'SUPPLIER' ? 'Confirm Return' : 'Next Step'}
             </Button>

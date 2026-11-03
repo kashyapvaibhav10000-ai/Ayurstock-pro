@@ -417,18 +417,18 @@ export default function InventoryPage() {
       label: 'Low Stock',
       value: displayStats.lowStock,
       icon: <AlertTriangle className="h-5 w-5" />,
-      color: 'border-amber-400/60 ring-amber-400/20',
-      textColor: 'text-amber-600 dark:text-amber-400',
-      bgColor: 'bg-amber-50 dark:bg-amber-950/30',
+      color: 'border-warning/60 ring-warning/20',
+      textColor: 'text-warning ',
+      bgColor: 'bg-warning/10 ',
     },
     {
       key: 'expiring30',
       label: 'Near Expiry 30d',
       value: displayStats.expiring30,
       icon: <Clock className="h-5 w-5" />,
-      color: 'border-orange-400/60 ring-orange-400/20',
-      textColor: 'text-orange-600 dark:text-orange-400',
-      bgColor: 'bg-orange-50 dark:bg-orange-950/30',
+      color: 'border-warning/60 ring-warning/20',
+      textColor: 'text-warning ',
+      bgColor: 'bg-warning/10 ',
     },
     {
       key: 'expiring60',
@@ -444,9 +444,9 @@ export default function InventoryPage() {
       label: 'Expired',
       value: displayStats.expired,
       icon: <ShieldAlert className="h-5 w-5" />,
-      color: 'border-red-400/60 ring-red-400/20',
-      textColor: 'text-red-600 dark:text-red-400',
-      bgColor: 'bg-red-50 dark:bg-red-950/30',
+      color: 'border-danger/60 ring-danger/20',
+      textColor: 'text-danger ',
+      bgColor: 'bg-danger/10 ',
     },
   ];
 
@@ -463,10 +463,10 @@ export default function InventoryPage() {
       {/* ========== 1. PAGE HEADER ========== */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground uppercase">
+          <h1 className="text-large-title text-foreground">
             Inventory
           </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          <p className="mt-1 text-callout text-muted-foreground">
             Track live stock, manage batches &amp; monitor expiry.
           </p>
         </div>
@@ -480,7 +480,7 @@ export default function InventoryPage() {
             placeholder="Medicine, batch or company…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 rounded-xl border border-border bg-surface pl-9 pr-9 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/25 transition-all"
+            className="w-full h-10 rounded-full border border-transparent bg-fill-strong pl-9 pr-9 text-[14px] placeholder:text-label-tertiary focus:outline-none focus:bg-surface focus:border-primary/60 focus:ring-[3px] focus:ring-primary/25 transition-[background-color,border-color,box-shadow] duration-200"
           />
           {searchQuery && (
             <button
@@ -493,18 +493,22 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="inline-flex h-9 items-center rounded-[10px] bg-fill-strong p-[3px]" role="tablist" aria-label="Stock view">
         <button
+          role="tab"
+          aria-selected={!showArchived}
           onClick={() => setShowArchived(false)}
-          className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${!showArchived ? 'bg-primary text-white shadow-soft' : 'text-muted-foreground hover:bg-muted'}`}
+          className={`h-full rounded-[8px] px-4 text-[13px] transition-[background-color,box-shadow] duration-200 ${!showArchived ? 'bg-surface font-semibold text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.12)]' : 'font-medium text-muted-foreground hover:text-foreground'}`}
         >
-          Active Stock
+          Active stock
         </button>
         <button
+          role="tab"
+          aria-selected={showArchived}
           onClick={() => setShowArchived(true)}
-          className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${showArchived ? 'bg-primary text-white shadow-soft' : 'text-muted-foreground hover:bg-muted'}`}
+          className={`h-full rounded-[8px] px-4 text-[13px] transition-[background-color,box-shadow] duration-200 ${showArchived ? 'bg-surface font-semibold text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.12)]' : 'font-medium text-muted-foreground hover:text-foreground'}`}
         >
-          Archived Items
+          Archived
         </button>
       </div>
 
@@ -517,18 +521,18 @@ export default function InventoryPage() {
               key={card.key}
               onClick={() => handleStatClick(card.key)}
               className={`
-                group relative flex flex-col gap-1.5 rounded-2xl border-2 p-4 text-left transition-all duration-200
+                group relative flex flex-col gap-3 rounded-card p-4 text-left shadow-card transition-[box-shadow,transform] duration-200 active:scale-[0.98]
                 ${isActive
-                  ? `${card.color} ring-2 ${card.bgColor} shadow-bento`
-                  : 'border-border bg-surface hover:shadow-bento hover:-translate-y-0.5'
+                  ? `bg-surface ring-2 ${card.color}`
+                  : 'bg-surface hover:ring-1 hover:ring-border'
                 }
               `}
             >
-              <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${isActive ? card.textColor : 'text-muted-foreground'}`}>
+              <div className={`flex items-center gap-2 text-[13px] font-medium ${isActive ? card.textColor : 'text-muted-foreground'}`}>
                 {card.icon}
                 {card.label}
               </div>
-              <span className={`text-3xl font-extrabold ${isActive ? card.textColor : 'text-foreground'}`}>
+              <span className={`text-[30px] font-bold leading-none tracking-[-0.03em] tabular-nums ${isActive ? card.textColor : 'text-foreground'}`}>
                 {card.value}
               </span>
             </button>
@@ -537,7 +541,7 @@ export default function InventoryPage() {
       </div>
 
       {/* ========== 3. TAB BAR ========== */}
-      <div className="flex gap-1 overflow-x-auto border-b border-border pb-px no-scrollbar">
+      <div className="inline-flex max-w-full gap-0.5 overflow-x-auto rounded-[10px] bg-fill-strong p-[3px] no-scrollbar" role="tablist" aria-label="Filter batches">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
@@ -545,26 +549,22 @@ export default function InventoryPage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`
-                relative flex items-center gap-2 whitespace-nowrap px-4 py-2.5 text-sm font-semibold transition-colors duration-200
+                relative flex h-[30px] items-center gap-2 whitespace-nowrap rounded-[8px] px-3 text-[13px] transition-[background-color,box-shadow] duration-200
                 ${isActive
-                  ? 'text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-surface font-semibold text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.12)]'
+                  : 'font-medium text-muted-foreground hover:text-foreground'
                 }
               `}
             >
               {tab.label}
               <span
                 className={`
-                  inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-bold leading-none
-                  ${isActive ? 'bg-primary text-white' : 'bg-surface-muted text-muted-foreground'}
+                  inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none tabular-nums
+                  ${isActive ? 'bg-primary/12 text-primary' : 'bg-surface/70 text-muted-foreground'}
                 `}
               >
                 {tab.count}
               </span>
-              {/* active underline */}
-              {isActive && (
-                <span className="absolute bottom-0 inset-x-1 h-[2.5px] rounded-t-full bg-primary" />
-              )}
             </button>
           );
         })}
@@ -650,13 +650,13 @@ export default function InventoryPage() {
           <Button
             variant="outline"
             size="sm"
-            className="rounded-xl gap-1.5 hover:border-orange-500 hover:text-orange-500"
+            className="rounded-xl gap-1.5 hover:border-warning hover:text-warning"
             onClick={() => setShowEmptyStockDrawer(true)}
           >
             <PackageX className="h-3.5 w-3.5" />
             Empty Stock
             {emptyStockCount > 0 && (
-              <Badge variant="secondary" className="ml-1 bg-orange-500/20 text-orange-600">
+              <Badge variant="secondary" className="ml-1 bg-warning/20 text-warning">
                 {emptyStockCount}
               </Badge>
             )}
@@ -665,7 +665,7 @@ export default function InventoryPage() {
           {/* add inventory */}
           <Button
             size="sm"
-            className="rounded-xl gap-1.5 shadow-soft"
+            className="rounded-xl gap-1.5 shadow-card"
             onClick={() => setShowAddInventoryModal(true)}
           >
             <Plus className="h-4 w-4" />
@@ -675,7 +675,7 @@ export default function InventoryPage() {
       </div>
 
       {/* ========== 5. TABLE ========== */}
-      <div className="rounded-2xl border border-border bg-surface shadow-soft overflow-hidden">
+      <div className="rounded-2xl bg-surface shadow-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -685,7 +685,7 @@ export default function InventoryPage() {
                     <th
                       key={h}
                       className={`
-                        px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground
+                        px-4 py-3 text-left text-[11px] font-bold   text-muted-foreground
                         ${['Purchase Rate', 'Packing'].includes(h) ? 'hidden md:table-cell' : ''}
                         ${h === 'Rack' ? 'hidden sm:table-cell' : ''}
                         ${h === 'Actions' ? 'text-right' : ''}
@@ -719,9 +719,9 @@ export default function InventoryPage() {
                     // row tint
                     const rowBg =
                       days < 0
-                        ? 'bg-red-50/70 dark:bg-red-950/20'
+                        ? 'bg-danger/10 '
                         : days <= 30
-                          ? 'bg-amber-50/70 dark:bg-amber-950/20'
+                          ? 'bg-warning/10 '
                           : days <= 60
                             ? 'bg-blue-50/50 dark:bg-blue-950/15'
                             : '';
@@ -731,10 +731,10 @@ export default function InventoryPage() {
                     let chipClass = '';
                     if (days < 0) {
                       chipLabel = `Expired ${Math.abs(days)}d ago`;
-                      chipClass = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+                      chipClass = 'bg-danger/10 text-danger  ';
                     } else if (days <= 30) {
                       chipLabel = `⚠ ${days}d left`;
-                      chipClass = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+                      chipClass = 'bg-warning/10 text-warning  ';
                     } else if (days <= 60) {
                       chipLabel = `${days}d left`;
                       chipClass = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
@@ -743,9 +743,9 @@ export default function InventoryPage() {
                     // stock color
                     const stockColor =
                       batch.stockQty === 0
-                        ? 'text-red-600 font-bold'
+                        ? 'text-danger font-bold'
                         : batch.stockQty <= 10
-                          ? 'text-amber-600 font-semibold'
+                          ? 'text-warning font-semibold'
                           : 'text-foreground';
 
                     return (
@@ -756,7 +756,7 @@ export default function InventoryPage() {
                             <td colSpan={9} className="px-4 py-2 bg-primary/5 border-y-2 border-primary/20">
                               <div className="flex items-center gap-2">
                                 <div className="h-1 w-1 rounded-full bg-primary" />
-                                <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                                <span className="text-xs font-bold text-primary">
                                   {currentCategory}
                                 </span>
                                 <div className="flex-1 h-px bg-primary/20" />
@@ -787,7 +787,7 @@ export default function InventoryPage() {
                           <td className="px-4 py-3">
                             <div className="text-sm">{new Date(batch.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                             {chipLabel && (
-                              <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold leading-none ${chipClass}`}>
+                              <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold leading-none ${chipClass}`}>
                                 {chipLabel}
                               </span>
                             )}
@@ -842,7 +842,7 @@ export default function InventoryPage() {
                               <button
                                 onClick={() => handleDeleteBatch(batch)}
                                 title={showArchived ? 'Delete permanently' : 'Archive inventory'}
-                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger/10 transition-colors"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>

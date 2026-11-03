@@ -101,15 +101,15 @@ function ErrorBanner({ errorCode, message }: { errorCode?: string; message: stri
   const guidance = getGuidance();
 
   return (
-    <div className={`p-4 rounded-lg border ${errorCode === 'NO_TEXT' ? 'bg-amber-50 border-amber-300' : 'bg-red-50 border-red-200'}`}>
+    <div className={`p-4 rounded-lg border ${errorCode === 'NO_TEXT' ? 'bg-warning/10 border-warning/30' : 'bg-danger/10 border-danger/30'}`}>
       <div className="flex items-start gap-3">
         <span className="text-xl flex-shrink-0">{getIcon()}</span>
         <div className="space-y-1">
-          <p className={`text-sm font-medium ${errorCode === 'NO_TEXT' ? 'text-amber-800' : 'text-red-700'}`}>
+          <p className={`text-sm font-medium ${errorCode === 'NO_TEXT' ? 'text-warning' : 'text-danger'}`}>
             {message}
           </p>
           {guidance && (
-            <p className={`text-xs ${errorCode === 'NO_TEXT' ? 'text-amber-600' : 'text-red-500'}`}>
+            <p className={`text-xs ${errorCode === 'NO_TEXT' ? 'text-warning' : 'text-danger'}`}>
               {guidance}
             </p>
           )}
@@ -141,16 +141,16 @@ function OcrProgressBar({ phase, page, totalPages, percent, message }: {
   return (
     <div className="space-y-3 py-4">
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-gray-700">{getPhaseLabel()}</span>
-        <span className="text-gray-500">{percent}%</span>
+        <span className="font-medium text-foreground">{getPhaseLabel()}</span>
+        <span className="text-muted-foreground">{percent}%</span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+      <div className="w-full bg-fill-strong rounded-full h-3 overflow-hidden">
         <div
           className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-300 ease-out"
           style={{ width: `${percent}%` }}
         />
       </div>
-      <p className="text-xs text-gray-500">{message}</p>
+      <p className="text-xs text-muted-foreground">{message}</p>
     </div>
   );
 }
@@ -722,22 +722,22 @@ export default function ImportMedicinesModal({
           maxHeight: '95vh'
         }}
       >
-        <DialogHeader className="px-6 py-4 border-b border-surface-border bg-slate-50 shrink-0">
+        <DialogHeader className="px-6 py-4 border-b border-surface-border bg-surface-muted shrink-0">
           <DialogTitle className="text-xl">Import Medicines</DialogTitle>
           <div className="flex items-center justify-between mt-4">
             <div className="flex space-x-6">
               <div className={`flex items-center gap-2 ${step === 'upload' ? 'text-primary font-bold' : 'text-text-secondary'}`}>
-                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === 'upload' ? 'bg-primary text-white' : 'bg-slate-200'}`}>1</div>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === 'upload' ? 'bg-primary text-white' : 'bg-fill-strong'}`}>1</div>
                 <span>Upload File</span>
               </div>
-              <div className="w-12 border-t-2 border-slate-200 my-auto" />
+              <div className="w-12 border-t-2 border-border my-auto" />
               <div className={`flex items-center gap-2 ${step === 'processing' || step === 'ocr' ? 'text-primary font-bold' : 'text-text-secondary'}`}>
-                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === 'processing' || step === 'ocr' ? 'bg-primary text-white' : 'bg-slate-200'}`}>2</div>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === 'processing' || step === 'ocr' ? 'bg-primary text-white' : 'bg-fill-strong'}`}>2</div>
                 <span>Processing</span>
               </div>
-              <div className="w-12 border-t-2 border-slate-200 my-auto" />
+              <div className="w-12 border-t-2 border-border my-auto" />
               <div className={`flex items-center gap-2 ${step === 'preview' ? 'text-primary font-bold' : 'text-text-secondary'}`}>
-                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === 'preview' ? 'bg-primary text-white' : 'bg-slate-200'}`}>3</div>
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${step === 'preview' ? 'bg-primary text-white' : 'bg-fill-strong'}`}>3</div>
                 <span>Review & Edit</span>
               </div>
             </div>
@@ -751,7 +751,7 @@ export default function ImportMedicinesModal({
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDragDrop}
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-green-500 transition-colors cursor-pointer"
+              className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
             >
               <input
                 type="file"
@@ -776,7 +776,7 @@ export default function ImportMedicinesModal({
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
                 <p className="text-sm">
                   <strong>Selected:</strong> {file.name}
-                  <span className="text-gray-500 ml-2">({(file.size / 1024).toFixed(1)} KB)</span>
+                  <span className="text-muted-foreground ml-2">({(file.size / 1024).toFixed(1)} KB)</span>
                 </p>
               </div>
             )}
@@ -810,7 +810,7 @@ export default function ImportMedicinesModal({
         ) : step === 'processing' ? (
           <div className="space-y-6 max-w-lg mx-auto py-16 text-center">
             <div className="relative h-24 w-24 mx-auto">
-              <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-border rounded-full"></div>
               <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
               <FileCog className="absolute inset-0 m-auto h-8 w-8 text-primary" />
             </div>
@@ -820,7 +820,7 @@ export default function ImportMedicinesModal({
                 Extracting structured medicine data. This may take 15-30 seconds.
               </p>
               {file && (
-                 <p className="text-sm font-medium bg-slate-100 px-3 py-1 rounded-full inline-block mt-4 text-slate-700">
+                 <p className="text-sm font-medium bg-surface-muted px-3 py-1 rounded-full inline-block mt-4 text-foreground">
                    {file.name}
                  </p>
               )}
@@ -833,9 +833,9 @@ export default function ImportMedicinesModal({
             <div className="py-4">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-xl">🔍</span>
-                <h3 className="text-lg font-medium text-gray-700">Running Client-Side OCR</h3>
+                <h3 className="text-lg font-medium text-foreground">Running Client-Side OCR</h3>
               </div>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-muted-foreground mb-4">
                 Extracting text from scanned PDF images. This runs entirely in your browser — no data sent to external OCR services.
               </p>
               <OcrProgressBar {...ocrProgress} />
@@ -856,7 +856,7 @@ export default function ImportMedicinesModal({
                 </div>
               </div>
               {provider && (
-                 <span className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium ml-auto whitespace-nowrap">
+                 <span className="text-xs px-3 py-1 bg-primary/10 text-primary rounded-full font-medium ml-auto whitespace-nowrap">
                    {provider === 'gemini' ? 'Processed by Google Gemini ✓' : provider === 'groq' ? 'Processed by Groq ✓' : provider === 'openrouter' ? 'Processed by OpenRouter (slow mode) ✓' : `Processed by ${provider} ✓`}
                  </span>
               )}
@@ -867,19 +867,19 @@ export default function ImportMedicinesModal({
               {pdfType && (
                 <span className={`text-xs px-2 py-1 rounded-full ${
                   pdfType === 'searchable'
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-primary/10 text-primary'
                     : 'bg-blue-100 text-blue-700'
                 }`}>
                   {pdfType === 'searchable' ? '✅ Searchable PDF' : '🔍 Scanned PDF (OCR)'}
                 </span>
               )}
-            <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1.5fr_1fr]">
+            <div className="grid gap-3 rounded-lg border border-border bg-surface-muted p-4 md:grid-cols-[1.5fr_1fr]">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Company for all medicines</label>
+                <label className="text-sm font-medium text-foreground">Company for all medicines</label>
                 <select
                   value={selectedCompany}
                   onChange={(event) => handleCompanySelect(event.target.value)}
-                  className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
+                  className="h-9 w-full rounded-md border border-border bg-surface px-3 text-sm"
                 >
                   <option value="">Select company</option>
                   {companies.map((company) => (
@@ -890,7 +890,7 @@ export default function ImportMedicinesModal({
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Create new company</label>
+                <label className="text-sm font-medium text-foreground">Create new company</label>
                 <div className="flex gap-2">
                   <Input
                     value={newCompany}
@@ -952,11 +952,11 @@ export default function ImportMedicinesModal({
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {medicine.status === 'pending' && <span className="text-gray-400">⏳</span>}
+                          {medicine.status === 'pending' && <span className="text-muted-foreground">⏳</span>}
                           {medicine.status === 'importing' && <span className="text-blue-500 animate-spin">🔄</span>}
-                          {medicine.status === 'imported' && <span className="text-green-500">✅</span>}
-                          {medicine.status === 'failed' && <span className="text-red-500">❌</span>}
-                          <span className="text-xs text-gray-500">
+                          {medicine.status === 'imported' && <span className="text-primary">✅</span>}
+                          {medicine.status === 'failed' && <span className="text-danger">❌</span>}
+                          <span className="text-xs text-muted-foreground">
                             {medicine.status === 'failed' && medicine.error ? medicine.error : medicine.status}
                           </span>
                         </div>
@@ -1052,8 +1052,8 @@ export default function ImportMedicinesModal({
               </Table>
             </div>
             {sequentialImport && importProgress.completed + importProgress.failed === importProgress.total && importProgress.total > 0 && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-700">
+              <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
+                <p className="text-sm text-primary">
                   ✅ Import completed: {importProgress.completed} imported, {importProgress.failed} skipped/failed
                 </p>
               </div>
@@ -1062,7 +1062,7 @@ export default function ImportMedicinesModal({
         )}
         </div>
 
-        <DialogFooter className="border-t border-surface-border bg-slate-50 p-6 shrink-0 flex items-center justify-between w-full">
+        <DialogFooter className="border-t border-surface-border bg-surface-muted p-6 shrink-0 flex items-center justify-between w-full">
           <div>
             {step === 'processing' && (
               <Button variant="destructive" onClick={handleCancelProcess} className="gap-2">
@@ -1092,7 +1092,7 @@ export default function ImportMedicinesModal({
               <Button
                 onClick={handleImport}
                 disabled={selectedRows.size === 0 || loading || sequentialImport}
-                className="bg-success-bg text-success-text hover:bg-emerald-200 border border-emerald-300 font-bold gap-2"
+                className="bg-success-bg text-success-text hover:bg-primary/20 border border-primary/30 font-bold gap-2"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 {loading ? 'Saving...' : 'Confirm & Save'}

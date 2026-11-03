@@ -147,7 +147,7 @@ export default function SalesHistoryPage() {
     <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Sales History</h1>
+          <h1 className="text-large-title text-foreground">Sales History</h1>
           <p className="mt-1 text-sm text-muted-foreground">Track revenue, purchases, returns, and overall profit.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
@@ -155,7 +155,7 @@ export default function SalesHistoryPage() {
             <Button
               key={p.key}
               size="sm"
-              className="rounded-xl font-bold shadow-sm transition-all hover:shadow-bento"
+              className="rounded-xl font-bold shadow-sm transition-all"
               variant={preset === p.key ? 'default' : 'outline'}
               onClick={() => setPreset(p.key)}
             >
@@ -177,7 +177,7 @@ export default function SalesHistoryPage() {
                 onChange={(e) => setCustomEnd(e.target.value)}
                 className="h-10 rounded-xl border border-border bg-surface px-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none font-medium"
               />
-              <Button size="sm" className="rounded-xl shadow-soft" onClick={load} disabled={!customStart || !customEnd}>Apply</Button>
+              <Button size="sm" className="rounded-xl shadow-card" onClick={load} disabled={!customStart || !customEnd}>Apply</Button>
             </>
           )}
         </div>
@@ -185,12 +185,12 @@ export default function SalesHistoryPage() {
 
       {/* Summary stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="rounded-[24px] shadow-soft border border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+        <Card className="rounded-card shadow-card bg-surface transition-all duration-300">
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs text-muted-foreground/60">
+            <CardDescription className="flex items-center gap-1.5 font-bold text-xs text-muted-foreground/60">
               <IndianRupee className="h-4 w-4 text-primary" /> Total Sales
             </CardDescription>
-            <CardTitle className="text-3xl font-extrabold text-primary">
+            <CardTitle className="text-3xl font-bold text-primary">
               {loading ? '—' : fmt(s?.totalSalesRevenue ?? 0)}
             </CardTitle>
           </CardHeader>
@@ -199,12 +199,12 @@ export default function SalesHistoryPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[24px] shadow-soft border border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+        <Card className="rounded-card shadow-card bg-surface transition-all duration-300">
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs text-muted-foreground/60">
+            <CardDescription className="flex items-center gap-1.5 font-bold text-xs text-muted-foreground/60">
               <ShoppingCart className="h-4 w-4 text-blue-400" /> Total Purchases
             </CardDescription>
-            <CardTitle className="text-3xl font-extrabold text-blue-400">
+            <CardTitle className="text-3xl font-bold text-blue-400">
               {loading ? '—' : fmt(s?.totalPurchaseCost ?? 0)}
             </CardTitle>
           </CardHeader>
@@ -213,12 +213,12 @@ export default function SalesHistoryPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-[24px] shadow-soft border border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+        <Card className="rounded-card shadow-card bg-surface transition-all duration-300">
           <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs text-muted-foreground/60">
-              <RotateCcw className="h-4 w-4 text-orange-400" /> Net Returns
+            <CardDescription className="flex items-center gap-1.5 font-bold text-xs text-muted-foreground/60">
+              <RotateCcw className="h-4 w-4 text-warning" /> Net Returns
             </CardDescription>
-            <CardTitle className="text-3xl font-extrabold text-orange-400">
+            <CardTitle className="text-3xl font-bold text-warning">
               {loading ? '—' : fmt(s?.totalReturnsAmount ?? 0)}
             </CardTitle>
           </CardHeader>
@@ -227,15 +227,15 @@ export default function SalesHistoryPage() {
           </CardContent>
         </Card>
 
-        <Card className={`rounded-[24px] shadow-soft hover:-translate-y-1 transition-all duration-300 hover:shadow-bento border-2 bg-surface ${isProfit ? 'border-primary/20' : 'border-danger/20'}`}>
+        <Card className={`rounded-card shadow-soft hover:-translate-y-1 transition-all duration-300 hover:shadow-bento border-2 bg-surface ${isProfit ? 'border-primary/20' : 'border-danger/20'}`}>
           <CardHeader className="pb-2">
-            <CardDescription className={`flex items-center gap-1.5 font-bold uppercase tracking-wider text-xs ${isProfit ? 'text-primary' : 'text-danger'}`}>
+            <CardDescription className={`flex items-center gap-1.5 font-bold   text-xs ${isProfit ? 'text-primary' : 'text-danger'}`}>
               {isProfit
                 ? <TrendingUp className="h-4 w-4" />
                 : <TrendingDown className="h-4 w-4" />}
               Gross Profit
             </CardDescription>
-            <CardTitle className={`text-3xl font-extrabold ${isProfit ? 'text-primary' : 'text-danger'}`}>
+            <CardTitle className={`text-3xl font-bold ${isProfit ? 'text-primary' : 'text-danger'}`}>
               {loading ? '—' : fmt(s?.grossProfit ?? 0)}
             </CardTitle>
           </CardHeader>
@@ -246,15 +246,17 @@ export default function SalesHistoryPage() {
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-1 border-b border-border">
+      <div className="inline-flex h-9 items-center rounded-[10px] bg-fill-strong p-[3px]" role="tablist" aria-label="History type">
         {(['sales', 'purchases', 'returns'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-3 text-sm font-bold capitalize transition-all border-b-2 -mb-px ${
+            role="tab"
+            aria-selected={activeTab === tab}
+            className={`h-full rounded-[8px] px-4 text-[13px] capitalize transition-[background-color,box-shadow] duration-200 ${
               activeTab === tab
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/50'
+                ? 'bg-surface font-semibold text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.12)]'
+                : 'font-medium text-muted-foreground hover:text-foreground'
             }`}
           >
             {tab === 'sales' ? `Sales ${data?.sales.length ? `(${data.sales.length})` : ''}` :
@@ -264,7 +266,7 @@ export default function SalesHistoryPage() {
         ))}
       </div>
 
-      <Card className="rounded-[24px] border-border bg-surface shadow-soft overflow-hidden">
+      <Card className="rounded-card border-border bg-surface shadow-card overflow-hidden">
         <CardContent className="p-0">
           {loading ? (
             <div className="py-16 text-center text-sm font-bold text-muted-foreground">Loading Data...</div>
@@ -273,14 +275,14 @@ export default function SalesHistoryPage() {
               <Table>
                 <TableHeader className="bg-surface-muted/50 border-b border-border">
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Date</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Invoice</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Customer</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Items</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Payment</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Type</TableHead>
-                    <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Total</TableHead>
-                    <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Actions</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Date</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Invoice</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Customer</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Items</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Payment</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Type</TableHead>
+                    <TableHead className="text-right font-bold text-muted-foreground text-[11px]">Total</TableHead>
+                    <TableHead className="text-right font-bold text-muted-foreground text-[11px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -297,31 +299,31 @@ export default function SalesHistoryPage() {
                       <TableCell className="font-bold text-foreground">{row.customer}</TableCell>
                       <TableCell className="font-bold text-muted-foreground">{row.itemCount}</TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-foreground shadow-sm">{row.paymentMode}</span>
+                        <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 py-1 text-[11px] font-bold text-foreground shadow-sm">{row.paymentMode}</span>
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${
+                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[11px]   font-bold shadow-sm ${
                           row.saleType === 'WHOLESALE' ? 'bg-surface-muted/50 text-muted-foreground' : 
-                          row.saleType === 'TRANSFER' ? 'bg-amber-100 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/40' :
+                          row.saleType === 'TRANSFER' ? 'bg-warning/10  text-warning  border-warning/30 ' :
                           'bg-primary/10 text-primary border-primary/20'
                         }`}>
                           {row.saleType}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right text-lg font-extrabold text-primary">
+                      <TableCell className="text-right text-lg font-bold text-primary">
                         {fmt(row.total)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <Link
                             href={`/dashboard/billing/invoice/${row.id}`}
-                            className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
+                            className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
                           >
                             <Eye className="h-3 w-3" /> View
                           </Link>
                           <Link
                             href={`/dashboard/returns?saleId=${row.id}`}
-                            className="inline-flex items-center gap-1 rounded-lg border border-orange-200 dark:border-orange-900/40 bg-orange-50 dark:bg-orange-950/30 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-950/50 transition-all"
+                            className="inline-flex items-center gap-1 rounded-lg border border-warning/30 bg-warning/10 px-2.5 py-1.5 text-[11px] font-semibold text-warning hover:bg-warning/10 transition-all"
                           >
                             <CornerUpLeft className="h-3 w-3" /> Return
                           </Link>
@@ -337,13 +339,13 @@ export default function SalesHistoryPage() {
               <Table>
                 <TableHeader className="bg-surface-muted/50 border-b border-border">
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Date</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Invoice</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Supplier</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Items</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Payment</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Status</TableHead>
-                    <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Total</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Date</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Invoice</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Supplier</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Items</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Payment</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Status</TableHead>
+                    <TableHead className="text-right font-bold text-muted-foreground text-[11px]">Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -360,14 +362,14 @@ export default function SalesHistoryPage() {
                       <TableCell className="font-bold text-foreground">{row.supplier}</TableCell>
                       <TableCell className="font-bold text-muted-foreground">{row.itemCount}</TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-foreground shadow-sm">{row.paymentType}</span>
+                        <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 py-1 text-[11px] font-bold text-foreground shadow-sm">{row.paymentType}</span>
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${row.status === 'PAID' ? 'bg-primary/20 text-primary border-primary/20' : 'bg-danger/20 text-danger border-danger/20'}`}>
+                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[11px]   font-bold shadow-sm ${row.status === 'PAID' ? 'bg-primary/20 text-primary border-primary/20' : 'bg-danger/20 text-danger border-danger/20'}`}>
                           {row.status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right text-lg font-extrabold text-blue-400">
+                      <TableCell className="text-right text-lg font-bold text-blue-400">
                         {fmt(row.total)}
                       </TableCell>
                     </TableRow>
@@ -380,12 +382,12 @@ export default function SalesHistoryPage() {
               <Table>
                 <TableHeader className="bg-surface-muted/50 border-b border-border">
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Date</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Type</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Medicine</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Qty</TableHead>
-                    <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Reason</TableHead>
-                    <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Amount</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Date</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Type</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Medicine</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Qty</TableHead>
+                    <TableHead className="font-bold text-muted-foreground text-[11px]">Reason</TableHead>
+                    <TableHead className="text-right font-bold text-muted-foreground text-[11px]">Amount</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -399,14 +401,14 @@ export default function SalesHistoryPage() {
                     <TableRow key={row.id} className="hover:bg-primary/5 transition-colors border-b border-border">
                       <TableCell className="text-sm font-medium text-muted-foreground">{fmtDate(row.date)}</TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase font-bold tracking-wider shadow-sm ${row.type === 'CUSTOMER_RETURN' ? 'bg-background text-muted-foreground' : 'bg-surface-muted/50 text-foreground'}`}>
+                        <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[11px]  font-bold  shadow-sm ${row.type === 'CUSTOMER_RETURN' ? 'bg-background text-muted-foreground' : 'bg-surface-muted/50 text-foreground'}`}>
                           {row.type === 'CUSTOMER_RETURN' ? 'Customer' : 'Supplier'}
                         </span>
                       </TableCell>
                       <TableCell className="font-bold text-foreground">{row.medicine}</TableCell>
                       <TableCell className="font-bold text-muted-foreground">{row.quantity}</TableCell>
                       <TableCell className="text-sm font-medium text-muted-foreground">{row.reason}</TableCell>
-                      <TableCell className="text-right text-lg font-extrabold text-orange-400">
+                      <TableCell className="text-right text-lg font-bold text-warning">
                         {fmt(row.amount)}
                       </TableCell>
                     </TableRow>

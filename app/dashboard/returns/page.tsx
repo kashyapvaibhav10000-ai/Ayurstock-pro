@@ -60,7 +60,7 @@ export default function ReturnsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Returns Management</h1>
+          <h1 className="text-large-title text-foreground">Returns Management</h1>
           <p className="mt-1 text-sm font-medium text-muted-foreground">
             Track and process customer and supplier medicine returns
           </p>
@@ -68,13 +68,13 @@ export default function ReturnsPage() {
         <div className="flex gap-2">
           <Button 
             onClick={() => { window.location.href = '/api/returns/export'; }}
-            className="rounded-xl font-bold bg-primary/10 hover:bg-primary/20 text-primary shadow-sm flex items-center gap-2 transition-all hover:-translate-y-1"
+            className="rounded-xl font-bold bg-primary/10 hover:bg-primary/20 text-primary shadow-sm flex items-center gap-2 transition-all"
           >
             <FileDown className="h-4 w-4" /> Export Report
           </Button>
           <Button 
             onClick={() => setIsAddModalOpen(true)}
-            className="rounded-xl font-bold bg-primary hover:bg-primary/90 text-background shadow-sm flex items-center gap-2 transition-all hover:-translate-y-1"
+            className="rounded-xl font-bold bg-primary hover:bg-primary/90 text-background shadow-sm flex items-center gap-2 transition-all"
           >
             <Plus className="h-4 w-4" /> Add Return
           </Button>
@@ -89,27 +89,27 @@ export default function ReturnsPage() {
             placeholder="Search by medicine, batch, or reason..."
             value={searchQuery}
             onChange={handleSearch}
-            className="pl-12 h-12 rounded-[20px] shadow-soft border-border bg-surface font-medium text-foreground focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+            className="pl-12 h-12 rounded-[20px] shadow-card border-border bg-surface font-medium text-foreground focus:ring-4 focus:ring-primary/10 transition-all outline-none"
           />
         </div>
       </div>
 
       {/* Returns Table */}
-      <div className="rounded-[24px] shadow-soft border border-border bg-surface overflow-hidden">
+      <div className="rounded-card shadow-card bg-surface overflow-hidden">
         <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-surface-muted/50 border-b border-border text-muted-foreground font-bold">
               <tr>
-                <th className="px-6 py-4 font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Date</th>
-                <th className="px-6 py-4 font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Type</th>
-                <th className="px-6 py-4 font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Medicine Name</th>
-                <th className="px-6 py-4 font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Batch Number</th>
-                <th className="px-6 py-4 font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Expiry Date</th>
-                <th className="px-6 py-4 font-bold text-muted-foreground uppercase text-[11px] tracking-wider">MRP</th>
-                <th className="px-6 py-4 font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Qty</th>
-                <th className="px-6 py-4 font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Reason</th>
-                <th className="px-6 py-4 font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Processed By</th>
-                <th className="px-6 py-4 font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Status</th>
+                <th className="px-6 py-4 font-bold text-muted-foreground text-[11px]">Date</th>
+                <th className="px-6 py-4 font-bold text-muted-foreground text-[11px]">Type</th>
+                <th className="px-6 py-4 font-bold text-muted-foreground text-[11px]">Medicine Name</th>
+                <th className="px-6 py-4 font-bold text-muted-foreground text-[11px]">Batch Number</th>
+                <th className="px-6 py-4 font-bold text-muted-foreground text-[11px]">Expiry Date</th>
+                <th className="px-6 py-4 font-bold text-muted-foreground text-[11px]">MRP</th>
+                <th className="px-6 py-4 font-bold text-muted-foreground text-[11px]">Qty</th>
+                <th className="px-6 py-4 font-bold text-muted-foreground text-[11px]">Reason</th>
+                <th className="px-6 py-4 font-bold text-muted-foreground text-[11px]">Processed By</th>
+                <th className="px-6 py-4 font-bold text-muted-foreground text-[11px]">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -141,7 +141,7 @@ export default function ReturnsPage() {
                       {format(new Date(ret.createdAt), 'dd MMM yyyy')}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex px-3 py-1 text-[10px] font-bold tracking-widest uppercase rounded-xl shadow-sm ${
+                      <span className={`inline-flex px-3 py-1 text-[11px] font-bold   rounded-xl shadow-sm ${
                         ret.type === 'CUSTOMER' ? 'bg-primary/20 text-primary border border-primary/20' : 'bg-surface text-muted-foreground border border-border'
                       }`}>
                         {ret.type}
@@ -156,10 +156,10 @@ export default function ReturnsPage() {
                     <td className="px-6 py-4 font-bold text-muted-foreground">
                       {format(new Date(ret.expiryDate), 'MM/yyyy')}
                     </td>
-                    <td className="px-6 py-4 font-extrabold text-primary">
+                    <td className="px-6 py-4 font-bold text-primary">
                       ₹{Number(ret.mrp).toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 font-extrabold text-foreground">
+                    <td className="px-6 py-4 font-bold text-foreground">
                       {Number(ret.quantity)}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground font-bold max-w-[150px] truncate" title={ret.reason}>
@@ -169,7 +169,7 @@ export default function ReturnsPage() {
                       {ret.createdBy?.name || 'Unknown'}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold tracking-widest uppercase rounded-xl border shadow-sm ${ret.status === 'COMPLETED' ? 'bg-primary/20 text-primary border-primary/20' : 'bg-surface-muted text-muted-foreground border-border'}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold   rounded-xl border shadow-sm ${ret.status === 'COMPLETED' ? 'bg-primary/20 text-primary border-primary/20' : 'bg-surface-muted text-muted-foreground border-border'}`}>
                         {ret.status}
                       </span>
                     </td>

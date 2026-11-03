@@ -94,14 +94,14 @@ export default function PosDevicesSettings() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <MonitorSmartphone className="h-5 w-5 text-emerald-600" /> POS Devices
+            <MonitorSmartphone className="h-5 w-5 text-primary" /> POS Devices
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             PIN login only works on devices paired here. Pair a device, then on its login screen choose
             &quot;Pair this device&quot; and enter the code.
           </p>
         </div>
-        <Button onClick={openPairModal} className="bg-emerald-600 hover:bg-emerald-700 shrink-0">
+        <Button onClick={openPairModal} className="bg-primary hover:bg-primary-hover shrink-0">
           <Plus className="h-4 w-4 mr-1" /> Pair device
         </Button>
       </div>
@@ -129,13 +129,13 @@ export default function PosDevicesSettings() {
                   <td className="p-3 font-medium">
                     {device.name}
                     {device.lockedUntil && new Date(device.lockedUntil) > new Date() && (
-                      <span className="ml-2 text-[11px] text-amber-600">locked (wrong PINs)</span>
+                      <span className="ml-2 text-[11px] text-warning">locked (wrong PINs)</span>
                     )}
                   </td>
                   <td className="p-3">{fmt(device.pairedAt)}</td>
                   <td className="p-3">{fmt(device.lastUsedAt)}</td>
                   <td className="p-3 text-right">
-                    <Button variant="ghost" size="sm" onClick={() => revoke(device)} className="text-red-600">
+                    <Button variant="ghost" size="sm" onClick={() => revoke(device)} className="text-danger">
                       <Trash2 className="h-4 w-4 mr-1" /> Revoke
                     </Button>
                   </td>
@@ -177,7 +177,7 @@ export default function PosDevicesSettings() {
             {pairing ? (
               <Button onClick={closeModal}>Done</Button>
             ) : (
-              <Button onClick={createCode} disabled={actionLoading} className="bg-emerald-600 hover:bg-emerald-700">
+              <Button onClick={createCode} disabled={actionLoading} className="bg-primary hover:bg-primary-hover">
                 {actionLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Create code
               </Button>
             )}

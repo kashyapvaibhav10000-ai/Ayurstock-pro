@@ -80,7 +80,7 @@ export default function InvoiceSettings() {
           <p className="text-sm text-muted-foreground">Control invoice numbering and print styling.</p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/70 dark:bg-emerald-950/30 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+        <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
           Shop name, address, GSTIN, and contact details now come from Shop Settings.
         </div>
         <div className="grid gap-3 md:grid-cols-2">
@@ -116,7 +116,7 @@ export default function InvoiceSettings() {
             onChange={handleChange}
             disabled={loading || !formData.watermarkEnabled}
             rows={3}
-            className="mt-3 w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:bg-surface-muted"
+            className="mt-3 w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-4 focus:ring-primary disabled:bg-surface-muted"
           />
           <div className="mt-2 text-xs text-muted-foreground">
             Tip: Use line breaks for multi-line watermark text.
@@ -124,7 +124,7 @@ export default function InvoiceSettings() {
         </div>
 
         <Button
-          className="bg-emerald-600 hover:bg-emerald-700"
+          className="bg-primary hover:bg-primary-hover"
           onClick={handleSave}
           disabled={loading || saving}
         >

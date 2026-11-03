@@ -145,7 +145,7 @@ export default function EmptyStockBatchesDrawer({
           /* ── List view ─────────────────────────────────────────── */
           <>
             <SheetHeader>
-              <SheetTitle className="text-2xl font-extrabold">Empty Stock Batches</SheetTitle>
+              <SheetTitle className="text-2xl font-bold">Empty Stock Batches</SheetTitle>
               <SheetDescription className="font-medium">
                 Review and manage batches with zero stock
               </SheetDescription>
@@ -203,12 +203,12 @@ export default function EmptyStockBatchesDrawer({
                     <Table>
                       <TableHeader className="bg-surface-muted/50 border-b border-border">
                         <TableRow className="border-border hover:bg-transparent">
-                          <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Medicine</TableHead>
-                          <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Company</TableHead>
-                          <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Batch</TableHead>
-                          <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Expiry</TableHead>
-                          <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Last Activity</TableHead>
-                          <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Action</TableHead>
+                          <TableHead className="font-bold text-muted-foreground text-[11px]">Medicine</TableHead>
+                          <TableHead className="font-bold text-muted-foreground text-[11px]">Company</TableHead>
+                          <TableHead className="font-bold text-muted-foreground text-[11px]">Batch</TableHead>
+                          <TableHead className="font-bold text-muted-foreground text-[11px]">Expiry</TableHead>
+                          <TableHead className="font-bold text-muted-foreground text-[11px]">Last Activity</TableHead>
+                          <TableHead className="text-right font-bold text-muted-foreground text-[11px]">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

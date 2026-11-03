@@ -122,13 +122,13 @@ export default function InventoryEditModal({
         </DialogHeader>
 
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
             {error}
           </div>
         ) : null}
 
         <div className="grid gap-4 py-2">
-          <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+          <div className="rounded-lg bg-surface-muted px-4 py-3 text-sm font-medium text-foreground">
             {batch?.medicine.name}
           </div>
           <div className="grid gap-2">
@@ -248,7 +248,7 @@ export default function InventoryEditModal({
                   }`}
                 >
                   <span className="text-sm font-bold">{opt.label}</span>
-                  <span className="text-[10px] opacity-80 font-normal">{opt.category}</span>
+                  <span className="text-[11px] opacity-80 font-normal">{opt.category}</span>
                 </button>
               ))}
             </div>

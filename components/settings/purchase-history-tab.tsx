@@ -97,7 +97,7 @@ function LineItems({ purchaseId }: { purchaseId: string }) {
     <div className="overflow-x-auto">
       <table className="w-full text-[12px]">
         <thead>
-          <tr className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+          <tr className="text-[11px] font-semibold text-muted-foreground">
             <th className="text-left py-2 px-3">Medicine</th>
             <th className="text-left py-2 px-3">Batch</th>
             <th className="text-left py-2 px-3">Pack</th>
@@ -113,7 +113,7 @@ function LineItems({ purchaseId }: { purchaseId: string }) {
             <tr key={line.id} className="border-t border-border/50">
               <td className="py-2 px-3">
                 <div className="font-bold text-foreground">{line.medicine.name}</div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{line.medicine.company}</div>
+                <div className="text-[11px] text-muted-foreground">{line.medicine.company}</div>
               </td>
               <td className="py-2 px-3 font-mono whitespace-nowrap">{batchLabel(line.batch)}</td>
               <td className="py-2 px-3 whitespace-nowrap">{packInfo(line)}</td>
@@ -233,9 +233,9 @@ export default function PurchaseHistoryTab() {
     'h-10 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium focus:border-primary focus:ring-2 focus:ring-primary/20';
 
   return (
-    <Card className="border-border bg-surface shadow-soft">
+    <Card className="border-border bg-surface shadow-card">
       <CardHeader className="pb-6 border-b border-border">
-        <CardTitle className="text-xl font-black flex items-center gap-3 text-foreground tracking-tight uppercase">
+        <CardTitle className="text-xl font-semibold flex items-center gap-3 text-foreground tracking-tight uppercase">
           <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
             <ReceiptText className="h-5 w-5 text-primary" />
           </div>
@@ -248,15 +248,15 @@ export default function PurchaseHistoryTab() {
       <CardContent className="pt-6 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 items-end">
           <label className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">From</span>
+            <span className="text-[11px] font-semibold text-muted-foreground">From</span>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={fieldClass} />
           </label>
           <label className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">To</span>
+            <span className="text-[11px] font-semibold text-muted-foreground">To</span>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={fieldClass} />
           </label>
           <label className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Distributor</span>
+            <span className="text-[11px] font-semibold text-muted-foreground">Distributor</span>
             <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className={fieldClass}>
               <option value="">All distributors</option>
               {suppliers.map((s) => (
@@ -267,7 +267,7 @@ export default function PurchaseHistoryTab() {
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Source</span>
+            <span className="text-[11px] font-semibold text-muted-foreground">Source</span>
             <select value={source} onChange={(e) => setSource(e.target.value as Source | '')} className={fieldClass}>
               <option value="">All sources</option>
               {(Object.keys(SOURCE_LABEL) as Source[]).map((s) => (
@@ -278,7 +278,7 @@ export default function PurchaseHistoryTab() {
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Invoice No</span>
+            <span className="text-[11px] font-semibold text-muted-foreground">Invoice No</span>
             <Input value={invoice} onChange={(e) => setInvoice(e.target.value)} placeholder="Search invoice" className="h-10 rounded-xl" />
           </label>
           <Button variant="outline" onClick={exportCsv} disabled={exporting || total === 0} className="h-10 rounded-xl gap-2 font-bold">
@@ -295,7 +295,7 @@ export default function PurchaseHistoryTab() {
                   <TableHead
                     key={h || i}
                     className={cn(
-                      'text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground whitespace-nowrap',
+                      'text-[11px] font-semibold   text-muted-foreground whitespace-nowrap',
                       ['Items', 'Taxable', 'GST', 'Total'].includes(h) && 'text-right'
                     )}
                   >
@@ -333,7 +333,7 @@ export default function PurchaseHistoryTab() {
                           {new Date(row.invoiceDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </TableCell>
                         <TableCell>
-                          <span className={cn('px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border whitespace-nowrap', SOURCE_STYLE[row.source])}>
+                          <span className={cn('px-2.5 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap', SOURCE_STYLE[row.source])}>
                             {SOURCE_LABEL[row.source]}
                           </span>
                         </TableCell>
@@ -358,7 +358,7 @@ export default function PurchaseHistoryTab() {
                         <TableCell className="text-right font-bold">{row.itemCount}</TableCell>
                         <TableCell className="text-right font-mono">{inr(row.taxable)}</TableCell>
                         <TableCell className="text-right font-mono">{inr(row.gst)}</TableCell>
-                        <TableCell className="text-right font-mono font-black text-foreground">{inr(row.total)}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold text-foreground">{inr(row.total)}</TableCell>
                         <TableCell className="text-[12px] font-bold whitespace-nowrap">{row.enteredBy || '—'}</TableCell>
                       </TableRow>
                       {isOpen && (
@@ -392,7 +392,7 @@ export default function PurchaseHistoryTab() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            <span className="text-[11px] font-semibold text-muted-foreground">
               Page <span className="text-primary">{page}</span> of {totalPages}
             </span>
             <Button

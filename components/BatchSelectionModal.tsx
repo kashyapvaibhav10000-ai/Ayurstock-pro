@@ -35,7 +35,7 @@ export default function BatchSelectionModal({ isOpen, onClose, batches, selected
               {batches.map((batch) => {
                 const days = Math.ceil((new Date(batch.expiryDate).getTime() - new Date().getTime())/(1000*60*60*24));
                 return (
-                  <TableRow key={batch.id} className={`${batch.id === selectedId ? 'bg-blue-50' : ''} hover:bg-gray-100 cursor-pointer`} onClick={() => onSelect(batch)}>
+                  <TableRow key={batch.id} className={`${batch.id === selectedId ? 'bg-blue-50' : ''} hover:bg-surface-muted cursor-pointer`} onClick={() => onSelect(batch)}>
                     <TableCell>{batchLabel(batch, batch.stockQty)}{batch.id === selectedId && ' (recommended)'}</TableCell>
                     <TableCell>{new Date(batch.expiryDate).toLocaleDateString()} {days<0? '(expired)': days<=30?`(${days}d)`:''}</TableCell>
                     <TableCell>{batch.stockQty}</TableCell>

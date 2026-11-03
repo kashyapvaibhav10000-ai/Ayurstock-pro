@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,46 @@ const SAMPLE_SALE: SaleDetails = {
     },
   ],
 };
+
+// Invoice is laid out for A4 (~794px wide). Render it at that width and
+// scale it down to whatever the preview column allows.
+const INVOICE_WIDTH = 794;
+
+function ScaledInvoicePreview({ children }: { children: React.ReactNode }) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    const page = pageRef.current;
+    if (!frame || !page) return;
+    const update = () => {
+      // The invoice table can be wider than A4; fit whatever it really needs.
+      const natural = Math.max(INVOICE_WIDTH, page.scrollWidth);
+      const next = Math.min(1, frame.clientWidth / natural);
+      setScale(next);
+      setHeight(page.offsetHeight * next);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(frame);
+    observer.observe(page);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={frameRef} className="w-full overflow-hidden" style={{ height }}>
+      <div
+        ref={pageRef}
+        style={{ width: 'max-content', minWidth: INVOICE_WIDTH, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function ShopSettings() {
   const [formData, setFormData] = useState({
@@ -139,7 +179,7 @@ export default function ShopSettings() {
   };
 
   const Label = ({ children }: { children: React.ReactNode }) => (
-    <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+    <label className="block text-footnote font-medium text-muted-foreground mb-1.5">
       {children}
     </label>
   );
@@ -147,16 +187,17 @@ export default function ShopSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <Store className="h-5 w-5 text-stitch-primary" />
+        <h2 className="text-title-2 text-foreground flex items-center gap-2">
+          <Store className="h-5 w-5 stroke-[1.75] text-primary" />
           Shop Information
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-callout text-muted-foreground mt-1">
           Manage your shop name and contact details. Changes appear on printed bills instantly.
         </p>
       </div>
 
-      <div className="max-w-2xl space-y-4">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] items-start">
+      <div className="space-y-4">
         <div>
           <Label>Shop Name</Label>
           <Input
@@ -265,11 +306,11 @@ export default function ShopSettings() {
             onChange={handleChange}
             disabled={loading}
             rows={2}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+            className="w-full rounded-control border border-transparent bg-fill px-3 py-2 text-[15px] text-foreground placeholder:text-label-tertiary focus:bg-surface focus:border-primary/60 focus:outline-none focus:ring-[3px] focus:ring-primary/25 disabled:opacity-50 transition-[background-color,border-color,box-shadow] duration-200"
           />
         </div>
         <Button
-          className="w-full bg-stitch-primary hover:bg-stitch-primary/90 text-white font-bold gap-2"
+          className="w-full font-semibold"
           onClick={handleSave}
           disabled={loading || saving}
         >
@@ -278,14 +319,17 @@ export default function ShopSettings() {
       </div>
 
       {/* Invoice preview: the real invoice layout with a sample sale */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <Eye className="h-4 w-4 text-stitch-primary" />
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Invoice Preview</p>
+      <div className="xl:sticky xl:top-6">
+        <div className="flex items-center gap-2 mb-2.5">
+          <Eye className="h-4 w-4 stroke-[1.75] text-muted-foreground" />
+          <p className="text-footnote font-semibold text-muted-foreground">Invoice preview</p>
         </div>
-        <div className="overflow-x-auto rounded-xl border border-border bg-slate-50 p-2 sm:p-4">
-          <InvoiceTemplate sale={SAMPLE_SALE} settings={invoiceSettings} shopSettings={formData} />
+        <div className="rounded-card bg-surface-muted p-3 sm:p-4">
+          <ScaledInvoicePreview>
+            <InvoiceTemplate sale={SAMPLE_SALE} settings={invoiceSettings} shopSettings={formData} />
+          </ScaledInvoicePreview>
         </div>
+      </div>
       </div>
     </div>
   );

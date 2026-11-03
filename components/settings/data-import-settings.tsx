@@ -97,11 +97,11 @@ export default function DataImportSettings() {
             
             {/* Left Col - Info & Template */}
             <div className="flex-1 space-y-4">
-              <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 p-4">
-                <h4 className="font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2 mb-2">
+              <div className="rounded-lg bg-primary/10 border border-primary/30 p-4">
+                <h4 className="font-semibold text-primary flex items-center gap-2 mb-2">
                   <FileText className="h-4 w-4" /> Formatting Guidelines
                 </h4>
-                <ul className="text-sm text-emerald-700 dark:text-emerald-400 space-y-1 list-disc list-inside">
+                <ul className="text-sm text-primary space-y-1 list-disc list-inside">
                   <li>Maximum length is capped at <strong>5000 rows</strong> in a single chunk.</li>
                   <li>Columns must exactly match the internal template layout.</li>
                   <li>Dates must strictly adhere to HTML5 <code>YYYY-MM-DD</code> constraints.</li>
@@ -110,7 +110,7 @@ export default function DataImportSettings() {
                 <Button 
                   onClick={generateTemplate}
                   variant="outline" 
-                  className="mt-4 bg-surface hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/40"
+                  className="mt-4 bg-surface hover:bg-primary/10 text-primary border-primary/30"
                 >
                   <FileDown className="h-4 w-4 mr-2" />
                   Download Blueprint Template
@@ -128,7 +128,7 @@ export default function DataImportSettings() {
                 disabled={loading}
               />
               
-              <div className="h-16 w-16 bg-surface shadow-sm border border-border rounded-full flex items-center justify-center mb-4 text-emerald-600 dark:text-emerald-400">
+              <div className="h-16 w-16 bg-surface shadow-sm border border-border rounded-full flex items-center justify-center mb-4 text-primary">
                 <Upload className="h-8 w-8" />
               </div>
               
@@ -157,7 +157,7 @@ export default function DataImportSettings() {
           {/* Feedback Section */}
           {status.type !== 'idle' && (
             <div className={`mt-6 p-4 rounded-lg flex items-start gap-3 border ${
-              status.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              status.type === 'error' ? 'bg-danger/10 border-danger/30 text-danger' : 'bg-primary/10 border-primary/30 text-primary'
             }`}>
               {status.type === 'error' ? <AlertTriangle className="h-5 w-5 shrink-0" /> : <CheckCircle2 className="h-5 w-5 shrink-0" />}
               <div>

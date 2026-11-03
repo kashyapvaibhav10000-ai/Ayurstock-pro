@@ -35,10 +35,10 @@ function GaugeCard({ provider, used, loading }: { provider: keyof typeof LIMITS;
 
   return (
     <Card className={`border-border bg-surface shadow-soft overflow-hidden hover:border-primary/30 transition-all duration-300`}>
-      <div className={`h-1 w-full ${pct !== null ? (isOverHalf ? 'bg-red-500' : config.bar) : config.bar}`} 
+      <div className={`h-1 w-full ${pct !== null ? (isOverHalf ? 'bg-danger' : config.bar) : config.bar}`} 
            style={pct !== null ? { width: `${pct}%`, transition: 'width 1s ease' } : {}} />
       <CardHeader className="pb-2 pt-4">
-        <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+        <CardTitle className="text-[11px] font-semibold text-muted-foreground flex items-center gap-2">
           <div className="h-2.5 w-2.5 rounded-full shadow-[0_0_5px_var(--primary)] shadow-primary/50" style={{ backgroundColor: config.color }} />
           {config.label}
         </CardTitle>
@@ -49,12 +49,12 @@ function GaugeCard({ provider, used, loading }: { provider: keyof typeof LIMITS;
         ) : (
           <>
             <div className="flex items-end gap-1.5 leading-none">
-              <span className="text-3xl font-black text-foreground tracking-tighter">{used.toLocaleString()}</span>
+              <span className="text-3xl font-semibold text-foreground tracking-tight">{used.toLocaleString()}</span>
               {config.daily && (
-                <span className="text-[10px] font-bold text-muted-foreground mb-1 uppercase tracking-widest">/ {config.daily.toLocaleString()}</span>
+                <span className="text-[11px] font-bold text-muted-foreground mb-1">/ {config.daily.toLocaleString()}</span>
               )}
             </div>
-            <p className="text-[9px] font-black text-muted-foreground mt-2 uppercase tracking-[0.2em]">calls processed</p>
+            <p className="text-[11px] font-semibold text-muted-foreground mt-2">calls processed</p>
 
             {/* Progress bar for capped providers */}
             {pct !== null && (
@@ -65,7 +65,7 @@ function GaugeCard({ provider, used, loading }: { provider: keyof typeof LIMITS;
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <p className={`text-[9px] mt-2 font-black uppercase tracking-[0.1em] ${isOverHalf ? 'text-danger' : 'text-muted-foreground'}`}>
+                <p className={`text-[11px] mt-2 font-semibold   ${isOverHalf ? 'text-danger' : 'text-muted-foreground'}`}>
                   {pct.toFixed(1)}% usage intensity
                 </p>
               </div>
@@ -73,7 +73,7 @@ function GaugeCard({ provider, used, loading }: { provider: keyof typeof LIMITS;
 
             {/* Unlimited indicator */}
             {pct === null && (
-              <p className="text-[10px] text-primary font-black mt-3 uppercase tracking-widest bg-primary/10 px-2 py-1 rounded inline-block">Uncapped Pipeline</p>
+              <p className="text-[11px] text-primary font-semibold mt-3 bg-primary/10 px-2 py-1 rounded inline-block">Uncapped Pipeline</p>
             )}
           </>
         )}
@@ -124,24 +124,24 @@ export default function AiUsageTab() {
       {/* Header Row */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-black text-foreground tracking-tight uppercase flex items-center gap-3">
+          <h2 className="text-xl font-semibold text-foreground tracking-tight uppercase flex items-center gap-3">
             <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
               <Sparkles className="h-5 w-5 text-primary" />
             </div>
             AI Engine Pulse
           </h2>
-          <p className="text-[11px] font-bold text-muted-foreground mt-2 uppercase tracking-widest leading-relaxed">
+          <p className="text-[11px] font-bold text-muted-foreground mt-2 leading-relaxed">
             Call volume across distributed providers. Refresh resets at <span className="text-foreground">UTC 00:00</span>.
           </p>
         </div>
         <div className="flex items-center gap-3">
           {timeToReset && (
-            <div className="flex items-center gap-2 text-[10px] font-black text-primary bg-primary/10 border border-primary/20 rounded-xl px-4 py-2.5 uppercase tracking-[0.15em] shadow-soft">
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-primary bg-primary/10 border border-primary/20 rounded-xl px-4 py-2.5 shadow-card">
               <Clock className="h-3.5 w-3.5" />
               Reset in {timeToReset}
             </div>
           )}
-          <Button variant="outline" size="sm" onClick={fetchUsage} disabled={loading} className="h-10 gap-2 px-4 rounded-xl border-border bg-background hover:bg-primary/5 hover:text-primary font-black uppercase tracking-widest text-[10px] transition-all">
+          <Button variant="outline" size="sm" onClick={fetchUsage} disabled={loading} className="h-10 gap-2 px-4 rounded-xl border-border bg-background hover:bg-primary/5 hover:text-primary font-semibold text-[11px] transition-all">
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             Sync
           </Button>
@@ -156,10 +156,10 @@ export default function AiUsageTab() {
       </div>
 
       {/* Cost Estimate Card */}
-      <div className="rounded-2xl border border-border bg-surface shadow-soft p-6">
+      <div className="rounded-2xl bg-surface shadow-card p-6">
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-          <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground">Cost Estimate</h3>
+          <div className="h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+          <h3 className="text-[11px] font-semibold text-muted-foreground">Cost Estimate</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           {[
@@ -169,19 +169,19 @@ export default function AiUsageTab() {
           ].map((p) => (
             <div key={p.name} className="flex items-center justify-between rounded-xl border border-border bg-surface-muted/30 px-4 py-3">
               <div>
-                <p className="text-[11px] font-black text-foreground uppercase tracking-wider">{p.name}</p>
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{p.limit}</p>
+                <p className="text-[11px] font-semibold text-foreground">{p.name}</p>
+                <p className="text-[11px] font-bold text-muted-foreground mt-0.5">{p.limit}</p>
               </div>
-              <span className="text-lg font-black text-emerald-600">{p.cost}</span>
+              <span className="text-lg font-semibold text-primary">{p.cost}</span>
             </div>
           ))}
         </div>
-        <div className="flex items-center justify-between rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 px-5 py-3">
+        <div className="flex items-center justify-between rounded-xl bg-primary/10 border border-primary/30 px-5 py-3">
           <div>
-            <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-[0.2em]">Estimated Monthly Cost</p>
-            <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">All active AI tiers are currently on free plans</p>
+            <p className="text-[11px] font-semibold text-primary">Estimated Monthly Cost</p>
+            <p className="text-[11px] font-bold text-primary mt-0.5">All active AI tiers are currently on free plans</p>
           </div>
-          <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300 tracking-tighter">₹0</span>
+          <span className="text-2xl font-semibold text-primary tracking-tight">₹0</span>
         </div>
       </div>
 
@@ -191,28 +191,28 @@ export default function AiUsageTab() {
           <Cpu className="w-32 h-32 text-primary" />
         </div>
         <div>
-          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-2">Aggregate Volume</p>
-          <p className="text-3xl font-black text-foreground tracking-tighter">{totalCalls.toLocaleString()}</p>
+          <p className="text-[11px] font-semibold text-muted-foreground mb-2">Aggregate Volume</p>
+          <p className="text-3xl font-semibold text-foreground tracking-tight">{totalCalls.toLocaleString()}</p>
         </div>
         <div className="w-px h-12 bg-border" />
         <div>
-          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-2">Intraday Total</p>
-          <p className="text-3xl font-black text-primary tracking-tighter drop-shadow-[0_0_10px_var(--primary)] drop-shadow-primary/30">{(todayGemini + todayGroq + todayOR).toLocaleString()}</p>
+          <p className="text-[11px] font-semibold text-muted-foreground mb-2">Intraday Total</p>
+          <p className="text-3xl font-semibold text-primary tracking-tight drop-shadow-[0_0_10px_var(--primary)] drop-shadow-primary/30">{(todayGemini + todayGroq + todayOR).toLocaleString()}</p>
         </div>
         <div className="w-px h-12 bg-border" />
         <div>
-          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-2">active pipeline</p>
-          <p className="text-[11px] font-black text-primary mt-1 uppercase tracking-widest flex items-center gap-2">
+          <p className="text-[11px] font-semibold text-muted-foreground mb-2">active pipeline</p>
+          <p className="text-[11px] font-semibold text-primary mt-1 flex items-center gap-2">
             GEMINI <span className="h-1 w-4 bg-primary/20 rounded-full" /> GROQ <span className="h-1 w-4 bg-primary/20 rounded-full" /> OPENROUTER
           </p>
         </div>
       </div>
 
       {/* Historical Chart */}
-      <Card className="border-border bg-surface shadow-soft">
+      <Card className="border-border bg-surface shadow-card">
         <CardHeader>
-          <CardTitle className="text-[13px] font-black tracking-[0.2em] uppercase text-foreground">Timeline Distribution</CardTitle>
-          <CardDescription className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Provider processing load over time.</CardDescription>
+          <CardTitle className="text-[13px] font-semibold text-foreground">Timeline Distribution</CardTitle>
+          <CardDescription className="text-[11px] font-bold text-muted-foreground mt-1">Provider processing load over time.</CardDescription>
         </CardHeader>
         <CardContent className="h-[360px]">
           {loading ? (

@@ -129,7 +129,7 @@ function CapabilityBadges({ pdf, image }: { pdf: boolean; image: boolean }) {
       {badges.map((badge) => (
         <span
           key={badge}
-          className="rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary"
+          className="rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary"
         >
           {badge}
         </span>
@@ -231,11 +231,11 @@ function ProviderInstanceCard({
           <span className="cursor-grab text-muted-foreground hover:text-foreground" title="Drag to change fallback order">
             <GripVertical className="h-5 w-5" />
           </span>
-          <span className="h-7 w-7 shrink-0 rounded-full bg-primary/10 text-primary text-xs font-black flex items-center justify-center">
+          <span className="h-7 w-7 shrink-0 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">
             {position + 1}
           </span>
           <div className="min-w-0 space-y-1">
-            <div className="text-[15px] font-black text-foreground truncate">{card.displayName}</div>
+            <div className="text-[15px] font-semibold text-foreground truncate">{card.displayName}</div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <span className={cn('h-2 w-2 rounded-full', status.dot)} />
@@ -336,13 +336,13 @@ function ProviderInstanceCard({
 
       {card.lastCallError && (
         <p className="rounded-lg bg-danger/10 border border-danger/20 px-3 py-2 text-[11px] text-danger break-words">
-          <span className="font-black">Last call error · {featureLabel(card.lastCallError.feature)}</span> ({when(card.lastCallError.at)}):{' '}
+          <span className="font-semibold">Last call error · {featureLabel(card.lastCallError.feature)}</span> ({when(card.lastCallError.at)}):{' '}
           {card.lastCallError.error || 'failed'}
         </p>
       )}
       {card.lastError && (
         <p className="rounded-lg bg-danger/10 border border-danger/20 px-3 py-2 text-[11px] text-danger break-words">
-          <span className="font-black">Test:</span> {card.lastError}
+          <span className="font-semibold">Test:</span> {card.lastError}
         </p>
       )}
 
@@ -540,7 +540,7 @@ function AddProviderDialog({
                 onClick={() => setAdapterId(option.id)}
                 className="rounded-xl border border-border p-3 text-left hover:border-primary hover:bg-primary/5 space-y-1.5"
               >
-                <div className="text-[13px] font-black text-foreground">{option.name}</div>
+                <div className="text-[13px] font-semibold text-foreground">{option.name}</div>
                 <CapabilityBadges pdf={option.supportsPdf} image={option.supportsImage} />
               </button>
             ))}
@@ -549,7 +549,7 @@ function AddProviderDialog({
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <div className="space-y-1">
-                <div className="text-[13px] font-black text-foreground">{adapter.name}</div>
+                <div className="text-[13px] font-semibold text-foreground">{adapter.name}</div>
                 <CapabilityBadges pdf={adapter.supportsPdf} image={adapter.supportsImage} />
               </div>
               <Button variant="ghost" size="sm" onClick={reset}>
@@ -662,7 +662,7 @@ function FeatureRouteDialog({
             if (!provider) return null;
             return (
               <li key={id} className="flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-[13px]">
-                <span className="w-5 text-center font-black text-primary">{index + 1}</span>
+                <span className="w-5 text-center font-semibold text-primary">{index + 1}</span>
                 <span className="flex-1 font-bold truncate">{provider.displayName}</span>
                 {!provider.enabled && <span className="text-[11px] text-muted-foreground">disabled</span>}
                 <Button variant="ghost" size="icon" className="h-7 w-7" disabled={index === 0} onClick={() => move(index, -1)} aria-label="Move up">
@@ -711,11 +711,11 @@ function FeaturesSection({ state, busy, onAction }: { state: AiState; busy: bool
 
   return (
     <div>
-      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2">Features</h3>
+      <h3 className="text-[11px] font-semibold text-muted-foreground mb-2">Features</h3>
       <div className="rounded-2xl border border-border overflow-x-auto">
         <table className="w-full text-[12px]">
           <thead className="bg-surface-muted/30">
-            <tr className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            <tr className="text-[11px] font-semibold text-muted-foreground">
               <th className="text-left py-2 px-3">Feature</th>
               <th className="text-left py-2 px-3">Last served by</th>
               <th className="text-right py-2 px-3">Success 7d</th>
@@ -838,10 +838,10 @@ export default function AiSettingsTab() {
 
   return (
     <div className="space-y-8">
-      <Card className="border-border bg-surface shadow-soft">
+      <Card className="border-border bg-surface shadow-card">
         <CardHeader className="pb-6 border-b border-border">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <CardTitle className="text-xl font-black flex items-center gap-3 text-foreground tracking-tight uppercase">
+            <CardTitle className="text-xl font-semibold flex items-center gap-3 text-foreground tracking-tight uppercase">
               <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
                 <KeyRound className="h-5 w-5 text-primary" />
               </div>
@@ -915,11 +915,11 @@ export default function AiSettingsTab() {
           <FeaturesSection state={state} busy={busy} onAction={runAction} />
 
           <div>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2">Audit log</h3>
+            <h3 className="text-[11px] font-semibold text-muted-foreground mb-2">Audit log</h3>
             <div className="rounded-2xl border border-border overflow-x-auto max-h-72 overflow-y-auto">
               <table className="w-full text-[12px]">
                 <thead className="bg-surface-muted/30 sticky top-0">
-                  <tr className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  <tr className="text-[11px] font-semibold text-muted-foreground">
                     <th className="text-left py-2 px-3">When</th>
                     <th className="text-left py-2 px-3">Who</th>
                     <th className="text-left py-2 px-3">Provider</th>

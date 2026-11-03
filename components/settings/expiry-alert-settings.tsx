@@ -130,7 +130,7 @@ export default function ExpiryAlertSettings() {
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-sm font-semibold text-muted-foreground">
             Notification Channels
           </h3>
           <div className="grid gap-4 bg-muted/30 p-4 rounded-xl border border-border">
@@ -179,7 +179,7 @@ export default function ExpiryAlertSettings() {
         </div>
 
         <div className="space-y-4 pt-4 border-t border-border">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-sm font-semibold text-muted-foreground">
             Send Report Now
           </h3>
           <div className="space-y-6 bg-muted/30 p-5 rounded-xl border border-border">

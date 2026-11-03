@@ -84,13 +84,13 @@ export default function GstCategorySettings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-black text-foreground tracking-tight uppercase flex items-center gap-3">
+          <h2 className="text-xl font-semibold text-foreground tracking-tight uppercase flex items-center gap-3">
             <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
               <ReceiptText className="h-5 w-5 text-primary" />
             </div>
             GST by Category
           </h2>
-          <p className="text-[11px] font-bold text-muted-foreground mt-2 uppercase tracking-widest leading-relaxed">
+          <p className="text-[11px] font-bold text-muted-foreground mt-2 leading-relaxed">
             Set default GST% per Ayurvedic medicine category. These defaults auto-fill when adding new inventory.
           </p>
         </div>
@@ -104,9 +104,9 @@ export default function GstCategorySettings() {
         </Button>
       </div>
 
-      <Card className="border-border bg-surface shadow-soft">
+      <Card className="border-border bg-surface shadow-card">
         <CardHeader className="pb-4 border-b border-border">
-          <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+          <CardTitle className="text-[11px] font-semibold text-muted-foreground">
             Category → GST Rate Mapping
           </CardTitle>
           <CardDescription className="text-[11px] text-muted-foreground mt-1">
@@ -126,7 +126,7 @@ export default function GstCategorySettings() {
                   className="flex items-center justify-between px-6 py-3 hover:bg-primary/[0.02] transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-primary/10 text-primary text-[10px] font-black">
+                    <span className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-primary/10 text-primary text-[11px] font-semibold">
                       {i + 1}
                     </span>
                     <span className="font-bold text-[13px] text-foreground tracking-wide">

@@ -1,6 +1,7 @@
 'use client';
 
 import axios from 'axios';
+import { clearAccent } from '@/lib/accent';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LogOut, Store, FileText, User, Users, Building, CreditCard, Package, Archive, Settings as SettingsIcon, UploadCloud, Database, Sparkles, ShieldCheck, BellRing, ReceiptText, History, MonitorSmartphone } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,6 +83,7 @@ export default function SettingsPage() {
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      clearAccent();
       router.replace('/login');
       router.refresh();
     }
@@ -117,21 +119,22 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 md:space-y-8 p-4 md:p-8 max-w-[1600px] mx-auto">
       <div>
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">Settings</h1>
-        <p className="mt-2 text-sm font-medium text-muted-foreground">
-          Manage your account settings and set preferences.
+        <h1 className="text-large-title text-foreground">Settings</h1>
+        <p className="mt-1 text-callout text-muted-foreground">
+          Manage your shop, account and preferences.
         </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
         {/* Sidebar Navigation */}
-        <aside className="w-full lg:w-64 shrink-0">
-          <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible pb-4 lg:pb-0 gap-2 lg:gap-1 scrollbar-hide no-scrollbar">
+        <aside className="w-full lg:w-60 shrink-0 lg:sticky lg:top-6 lg:self-start">
+          <nav className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 gap-2 lg:gap-5 no-scrollbar">
             {['General', 'Account', 'Billing', 'Advanced'].map(group => (
-              <div key={group} className="flex lg:flex-col shrink-0 lg:mb-6 last:mb-0 items-center lg:items-stretch gap-2 lg:gap-0">
-                <h4 className="hidden lg:block mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <div key={group} className="flex lg:flex-col shrink-0 items-center lg:items-stretch gap-2 lg:gap-0">
+                <h4 className="hidden lg:block mb-1.5 px-3 text-footnote font-semibold text-muted-foreground">
                   {group}
                 </h4>
+                <div className="flex lg:flex-col gap-2 lg:gap-0.5 lg:rounded-card lg:bg-surface lg:p-1.5 lg:shadow-card">
                 {SETTINGS_CATEGORIES.filter(c => c.group === group && (!('superAdminOnly' in c) || isSuperAdmin)).map(category => {
                   const Icon = category.icon;
                   return (
@@ -139,45 +142,39 @@ export default function SettingsPage() {
                       key={category.id}
                       onClick={() => setActiveTab(category.id)}
                       className={cn(
-                        "flex items-center gap-2 lg:gap-3 rounded-xl lg:rounded-lg px-4 py-2 lg:px-3 lg:py-2 text-sm font-medium transition-all whitespace-nowrap",
-                        activeTab === category.id 
-                          ? "bg-primary/20 text-primary shadow-sm lg:shadow-none border border-primary/20"
-                          : "text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent lg:border-none"
+                        "flex items-center gap-2.5 rounded-full lg:rounded-[10px] px-4 py-2 lg:px-2.5 lg:py-[7px] text-[13px] font-medium transition-colors duration-200 whitespace-nowrap",
+                        activeTab === category.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-surface lg:bg-transparent text-foreground hover:bg-surface-muted"
                       )}
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
+                      <Icon className={cn("h-4 w-4 shrink-0 stroke-[1.75]", activeTab === category.id ? "text-primary-foreground" : "text-muted-foreground")} />
                       {category.label}
                     </button>
                   );
                 })}
+                </div>
                 {/* Visual separator for mobile */}
                 <div className="lg:hidden w-px h-4 bg-border mx-2 last:hidden" />
               </div>
             ))}
           </nav>
 
-          <div className="hidden lg:block mt-8">
-            <Card className="border-danger/20 bg-danger/10 shadow-none rounded-xl">
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-semibold text-danger">Session</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <Button 
-                  variant="destructive" 
-                  className="w-full justify-start gap-2 h-9 px-3" 
-                  onClick={handleLogout}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </Button>
-              </CardContent>
-            </Card>
+          <div className="hidden lg:block mt-5 rounded-card bg-surface p-1.5 shadow-card">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-[7px] text-[13px] font-medium text-danger transition-colors duration-200 hover:bg-danger/10"
+            >
+              <LogOut className="h-4 w-4 stroke-[1.75]" />
+              Log out
+            </button>
           </div>
         </aside>
 
         {/* Dynamic Content Area */}
         <main className="flex-1 min-w-0">
-          <Card className="rounded-[24px] shadow-soft hover:shadow-bento transition-all duration-300 border-border bg-surface">
+          <Card>
             <CardContent className="p-4 md:p-8">
               {renderContent()}
               

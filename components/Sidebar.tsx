@@ -89,7 +89,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
       {/* Mobile Backdrop */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm xl:hidden"
+          className="fixed inset-0 z-40 bg-[var(--scrim)] xl:hidden"
           onClick={onMobileClose}
         />
       )}
@@ -97,28 +97,28 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 flex flex-col
-          border-r border-border bg-surface shadow-2xl
-          transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
+          border-r border-border bg-surface shadow-pop
+          transition-[width,transform] duration-300 ease-apple
           xl:static xl:shadow-none xl:translate-x-0
           ${isMobileOpen ? 'translate-x-0 w-[260px]' : '-translate-x-full xl:translate-x-0'}
-          ${isExpanded ? 'xl:w-[240px]' : 'xl:w-[72px]'}
+          ${isExpanded ? 'xl:w-[232px]' : 'xl:w-[68px]'}
         `}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-5 h-[72px] overflow-hidden shrink-0">
+        <div className="flex items-center justify-between px-[14px] h-[68px] overflow-hidden shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="h-10 w-10 shrink-0 rounded-[12px] bg-gradient-to-br from-primary to-primary/80 shadow-primary/20 shadow-lg flex items-center justify-center">
+            <div className="h-10 w-10 shrink-0 rounded-[11px] bg-primary flex items-center justify-center">
               <Image src="/logo.png" width={24} height={24} alt="AyurStock Pro" className="brightness-0 invert opacity-100" />
             </div>
             {isExpanded && (
               <div className="overflow-hidden transition-all duration-300 opacity-100 whitespace-nowrap">
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-primary">
-                  AyurStock Pro
+                <p className="text-[15px] font-bold leading-tight tracking-[-0.01em] text-foreground">
+                  <span className="text-primary">Ayur</span>Stock
                 </p>
-                <p className="text-[12px] font-black text-foreground mt-0.5 uppercase tracking-tight">
-                  Archival Center
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Ayurvedic pharmacy
                 </p>
               </div>
             )}
@@ -133,7 +133,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
           {isExpanded && (
             <button
               onClick={() => setIsPinned((p) => !p)}
-              className="hidden xl:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              className="hidden xl:flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-fill transition-colors"
               title={isPinned ? 'Unpin sidebar' : 'Pin sidebar open'}
             >
               {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
@@ -143,34 +143,38 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
 
         {/* User pill */}
         <div className="px-3 pb-2 pt-1 shrink-0">
-          <div className={`flex items-center gap-3 rounded-[14px] bg-surface-muted px-2.5 py-2.5 transition-all duration-200 ${!isExpanded ? 'justify-center px-0 bg-transparent' : ''}`}>
-            <div className="h-8 w-8 shrink-0 flex items-center justify-center rounded-[10px] bg-primary/10 text-xs font-bold text-primary">
+          <div className={`flex items-center gap-2.5 rounded-xl bg-fill px-2 py-2 transition-colors duration-200 ${!isExpanded ? 'justify-center px-0 bg-transparent' : ''}`}>
+            <div className="h-8 w-8 shrink-0 flex items-center justify-center rounded-full bg-primary/15 text-[12px] font-semibold text-primary overflow-hidden">
               {user.avatarUrl
-                ? <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover rounded-[10px]" />
+                ? <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover rounded-full" />
                 : user.name.slice(0, 2).toUpperCase()
               }
             </div>
             {isExpanded && (
               <div className="min-w-0 overflow-hidden">
-                <p className="text-[12px] font-extrabold text-foreground truncate leading-tight">{user.name}</p>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-0.5">{user.role}</p>
+                <p className="text-[13px] font-semibold text-foreground truncate leading-tight">{user.name}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 capitalize">{user.role.toLowerCase()}</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Scrollable Nav Items */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-4 pb-6 space-y-6 no-scrollbar">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-3 pb-6 space-y-4 no-scrollbar">
           {visibleGroups.map((group, groupIndex) => (
             <div key={groupIndex} className="flex flex-col">
               {/* Group Title Box */}
-              <div className={`flex items-center h-6 mb-1 overflow-hidden transition-all duration-300 ${!isExpanded ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
-                <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.3em] pl-4 whitespace-nowrap">
-                  {group.label}
-                </span>
+              <div className="flex items-center h-6 mb-0.5 overflow-hidden">
+                {isExpanded ? (
+                  <span className="text-[11px] font-semibold text-muted-foreground pl-2.5 whitespace-nowrap">
+                    {group.label}
+                  </span>
+                ) : (
+                  <span className="mx-auto h-px w-6 bg-border" aria-hidden="true" />
+                )}
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
@@ -184,23 +188,18 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
                       }}
                       title={!isExpanded ? item.label : undefined}
                       className={`
-                        group relative flex items-center gap-3.5 rounded-[12px] px-3 py-3 text-[12px] font-black transition-all duration-200 uppercase tracking-widest
-                        ${isExpanded ? '' : 'xl:justify-center px-0 mx-1 w-12 h-12 flex items-center justify-center'}
+                        group relative flex items-center gap-3 rounded-[10px] px-2.5 h-9 text-[13px] font-medium transition-colors duration-200
+                        ${isExpanded ? '' : 'xl:justify-center px-0 mx-auto w-10 h-10'}
                         ${isActive
-                          ? 'bg-primary/15 text-primary shadow-[inset_3px_0_0_var(--primary)] border border-primary/10'
-                          : 'text-muted-foreground hover:bg-surface-muted hover:text-foreground border border-transparent'
+                          ? 'bg-primary/12 text-primary font-semibold'
+                          : 'text-foreground/80 hover:bg-fill hover:text-foreground'
                         }
                       `}
                     >
-                      {/* Active indicator bar (mobile + expanded desktop) */}
-                      {isActive && isExpanded && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-r-full bg-stitch-primary" />
-                      )}
-
                       <Icon
-                        className={`shrink-0 transition-transform duration-200 
-                          ${isExpanded ? 'w-[18px] h-[18px]' : 'w-5 h-5 group-hover:scale-110'}
-                          ${isActive ? 'text-primary drop-shadow-[0_2px_4px_var(--primary)] drop-shadow-primary/20' : 'text-muted-foreground group-hover:text-primary'}
+                        className={`shrink-0 stroke-[1.75]
+                          ${isExpanded ? 'w-[18px] h-[18px]' : 'w-5 h-5'}
+                          ${isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}
                         `}
                       />
 
@@ -212,7 +211,7 @@ export default function Sidebar({ user, isMobileOpen, onMobileClose }: SidebarPr
 
                       {/* Tooltip on collapsed desktop */}
                       {!isExpanded && (
-                        <span className="pointer-events-none absolute left-full ml-3 hidden xl:block whitespace-nowrap rounded-[8px] bg-foreground px-3 py-2 text-[11px] font-bold tracking-wide text-background opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-xl z-50">
+                        <span className="pointer-events-none absolute left-full ml-3 hidden xl:block whitespace-nowrap rounded-[8px] bg-foreground px-2.5 py-1.5 text-[12px] font-medium text-background opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-pop z-50">
                           {item.label}
                         </span>
                       )}

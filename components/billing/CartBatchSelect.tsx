@@ -66,7 +66,7 @@ export default function CartBatchSelect({ medicineId, value, fallbackLabel, onCh
 
   if (!batches || batches.length <= 1) {
     return (
-      <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded uppercase">
+      <span className="text-[11px] font-bold bg-fill-strong text-muted-foreground px-1.5 py-0.5 rounded uppercase">
         {fallbackLabel}
       </span>
     );
@@ -80,7 +80,7 @@ export default function CartBatchSelect({ medicineId, value, fallbackLabel, onCh
         if (next) onChange(next);
       }}
       title="Batch (default: earliest expiry first)"
-      className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-1.5 py-0.5 rounded uppercase border-none focus:ring-1 focus:ring-primary cursor-pointer"
+      className="text-[11px] font-bold bg-fill-strong text-foreground px-1.5 py-0.5 rounded uppercase border-none focus:ring-1 focus:ring-primary cursor-pointer"
     >
       {!batches.some((b) => b.id === value) && <option value={value}>{fallbackLabel}</option>}
       {batches.map((b, i) => (

@@ -700,7 +700,7 @@ export default function PurchasesPage() {
     <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Purchases</h1>
+          <h1 className="text-large-title text-foreground">Purchases</h1>
           <p className="mt-1 text-sm font-medium text-muted-foreground">
             Create distributor invoices manually or scan them automatically.
           </p>
@@ -729,34 +729,34 @@ export default function PurchasesPage() {
 
       {stats ? (
         <div className="grid gap-4 md:grid-cols-4">
-          <Card className="rounded-[24px] shadow-soft border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+          <Card className="rounded-card shadow-card border-border bg-surface transition-all duration-300">
             <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60">Today Purchases</CardTitle>
-              <CardDescription className="text-3xl font-extrabold text-primary">
+              <CardTitle className="text-xs font-bold text-muted-foreground/60">Today Purchases</CardTitle>
+              <CardDescription className="text-3xl font-bold text-primary">
                 {stats.todayPurchases}
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="rounded-[24px] shadow-soft border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+          <Card className="rounded-card shadow-card border-border bg-surface transition-all duration-300">
             <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60">Month Purchases</CardTitle>
-              <CardDescription className="text-3xl font-extrabold text-blue-400">
+              <CardTitle className="text-xs font-bold text-muted-foreground/60">Month Purchases</CardTitle>
+              <CardDescription className="text-3xl font-bold text-blue-400">
                 {stats.monthPurchases}
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="rounded-[24px] shadow-soft border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+          <Card className="rounded-card shadow-card border-border bg-surface transition-all duration-300">
             <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60">Pending Invoices</CardTitle>
-              <CardDescription className="text-3xl font-extrabold text-orange-400">
+              <CardTitle className="text-xs font-bold text-muted-foreground/60">Pending Invoices</CardTitle>
+              <CardDescription className="text-3xl font-bold text-warning">
                 {stats.pendingInvoices}
               </CardDescription>
             </CardHeader>
           </Card>
-          <Card className="rounded-[24px] shadow-soft border-border bg-surface hover:-translate-y-1 transition-all duration-300 hover:shadow-bento">
+          <Card className="rounded-card shadow-card border-border bg-surface transition-all duration-300">
             <CardHeader>
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground/60">Low Stock</CardTitle>
-              <CardDescription className="text-3xl font-extrabold text-danger">
+              <CardTitle className="text-xs font-bold text-muted-foreground/60">Low Stock</CardTitle>
+              <CardDescription className="text-3xl font-bold text-danger">
                 {stats.lowStockMedicines}
               </CardDescription>
             </CardHeader>
@@ -778,11 +778,11 @@ export default function PurchasesPage() {
         </TabsList>
 
         <TabsContent value="new">
-          <Card className="rounded-[24px] shadow-soft border-border bg-surface">
+          <Card className="rounded-card shadow-card border-border bg-surface">
             <CardHeader>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <CardTitle className="text-xl font-extrabold text-foreground">Distributor Invoice Entry</CardTitle>
+                  <CardTitle className="text-xl font-bold text-foreground">Distributor Invoice Entry</CardTitle>
                   <CardDescription className="font-medium text-muted-foreground">
                     Create invoices manually or scan them automatically
                   </CardDescription>
@@ -980,14 +980,14 @@ export default function PurchasesPage() {
                 <Table>
                   <TableHeader className="bg-surface-muted/50 border-b border-border">
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Medicine</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Batch</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Expiry</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Pack</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Qty (packs)</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Price / Pack</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">MRP / Unit</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Rack (Optional)</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Medicine</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Batch</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Expiry</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Pack</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground text-[11px] py-3">Qty (packs)</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground text-[11px] py-3">Price / Pack</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground text-[11px] py-3">MRP / Unit</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Rack (Optional)</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -1130,7 +1130,7 @@ export default function PurchasesPage() {
                               )
                             }
                           />
-                          <div className="mt-1 text-[10px] font-bold text-muted-foreground whitespace-nowrap">
+                          <div className="mt-1 text-[11px] font-bold text-muted-foreground whitespace-nowrap">
                             {packPreview(item.quantity, item.unitsPerPack, item.purchaseRate)}
                           </div>
                         </TableCell>
@@ -1218,9 +1218,9 @@ export default function PurchasesPage() {
         </TabsContent>
 
         <TabsContent value="history">
-          <Card className="rounded-[24px] border-border bg-surface shadow-soft">
+          <Card className="rounded-card border-border bg-surface shadow-card">
             <CardHeader>
-              <CardTitle className="text-xl font-extrabold text-foreground">Purchase History</CardTitle>
+              <CardTitle className="text-xl font-bold text-foreground">Purchase History</CardTitle>
               <CardDescription className="font-medium text-muted-foreground">Track invoices and quick filters.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1266,11 +1266,11 @@ export default function PurchasesPage() {
                 <Table>
                   <TableHeader className="bg-surface-muted/50 border-b border-border">
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Invoice</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Supplier</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Status</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Payment</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Total</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px]">Invoice</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px]">Supplier</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px]">Status</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px]">Payment</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground text-[11px]">Total</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -1287,14 +1287,14 @@ export default function PurchasesPage() {
                           <TableCell className="font-bold text-foreground">{purchase.invoiceNumber}</TableCell>
                           <TableCell className="font-bold text-foreground">{purchase.supplier.name}</TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[10px] uppercase tracking-wider font-bold shadow-sm ${purchase.status === 'PAID' ? 'bg-primary/20 text-primary border-primary/20' : 'bg-danger/20 text-danger border-danger/20'}`}>
+                            <span className={`inline-flex items-center rounded-xl border border-border px-3 py-1 text-[11px]   font-bold shadow-sm ${purchase.status === 'PAID' ? 'bg-primary/20 text-primary border-primary/20' : 'bg-danger/20 text-danger border-danger/20'}`}>
                               {purchase.status}
                             </span>
                           </TableCell>
                           <TableCell>
-                            <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-foreground shadow-sm">{purchase.paymentType}</span>
+                            <span className="inline-flex items-center rounded-xl border border-border bg-background px-3 py-1 text-[11px] font-bold text-foreground shadow-sm">{purchase.paymentType}</span>
                           </TableCell>
-                          <TableCell className="text-right text-lg font-extrabold text-blue-400">₹{purchase.totalAmount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-lg font-bold text-blue-400">₹{purchase.totalAmount.toFixed(2)}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="outline" size="sm" className="rounded-xl font-bold" onClick={() => void handleLoadPurchaseDetail(purchase.id)}>
                               View
@@ -1309,9 +1309,9 @@ export default function PurchasesPage() {
               </div>
 
               {selectedPurchase ? (
-                <Card className="rounded-[24px] border-border bg-surface shadow-soft mt-8 border-2 border-primary/10">
+                <Card className="rounded-card border-border bg-surface shadow-card mt-8 border-2 border-primary/10">
                   <CardHeader>
-                    <CardTitle className="text-xl font-extrabold text-primary">Create Return</CardTitle>
+                    <CardTitle className="text-xl font-bold text-primary">Create Return</CardTitle>
                     <CardDescription className="font-medium text-muted-foreground">Selected invoice: {selectedPurchase.invoiceNumber}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -1371,9 +1371,9 @@ export default function PurchasesPage() {
         </TabsContent>
 
         <TabsContent value="returns">
-          <Card className="rounded-[24px] border-border bg-surface shadow-soft">
+          <Card className="rounded-card border-border bg-surface shadow-card">
             <CardHeader>
-              <CardTitle className="text-xl font-extrabold text-foreground">Purchase Returns</CardTitle>
+              <CardTitle className="text-xl font-bold text-foreground">Purchase Returns</CardTitle>
               <CardDescription className="font-medium text-muted-foreground">Track supplier returns logged in the system.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -1382,11 +1382,11 @@ export default function PurchasesPage() {
                 <Table>
                   <TableHeader className="bg-surface-muted/50 border-b border-border">
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Date</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Medicine</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Batch</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Qty</TableHead>
-                      <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider py-3">Reason</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Date</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Medicine</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Batch</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground text-[11px] py-3">Qty</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Reason</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1429,7 +1429,7 @@ export default function PurchasesPage() {
       {showNewMedicineDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-3xl border border-border bg-surface p-6 shadow-lg">
-            <h3 className="text-xl font-extrabold text-foreground mb-4">Add New Medicine</h3>
+            <h3 className="text-xl font-bold text-foreground mb-4">Add New Medicine</h3>
             <div className="space-y-4">
               <div>
                 <Label>Medicine Name</Label>

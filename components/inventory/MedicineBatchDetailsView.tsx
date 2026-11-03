@@ -151,10 +151,10 @@ export default function MedicineBatchDetailsView({
 
       {/* Medicine Info Header */}
       <div className="rounded-2xl border border-border bg-surface p-6 space-y-2">
-        <div className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+        <div className="text-sm font-bold text-muted-foreground">
           Medicine Details
         </div>
-        <div className="text-2xl font-extrabold text-foreground">{data.medicine.name}</div>
+        <div className="text-2xl font-bold text-foreground">{data.medicine.name}</div>
         <div className="flex flex-wrap gap-3 text-sm">
           <div>
             <span className="text-muted-foreground">Company:</span>{' '}
@@ -178,22 +178,22 @@ export default function MedicineBatchDetailsView({
         <Table>
           <TableHeader className="bg-surface-muted/50 border-b border-border">
             <TableRow className="border-border hover:bg-transparent">
-              <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">
+              <TableHead className="font-bold text-muted-foreground text-[11px]">
                 Batch Number
               </TableHead>
-              <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">
+              <TableHead className="font-bold text-muted-foreground text-[11px]">
                 Expiry Date
               </TableHead>
-              <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">
+              <TableHead className="text-right font-bold text-muted-foreground text-[11px]">
                 Stock
               </TableHead>
-              <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">
+              <TableHead className="text-right font-bold text-muted-foreground text-[11px]">
                 MRP
               </TableHead>
-              <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">
+              <TableHead className="font-bold text-muted-foreground text-[11px]">
                 Status
               </TableHead>
-              <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">
+              <TableHead className="text-right font-bold text-muted-foreground text-[11px]">
                 Action
               </TableHead>
             </TableRow>
@@ -204,15 +204,15 @@ export default function MedicineBatchDetailsView({
                 key={batch.id}
                 className={`border-border transition-colors ${
                   batch.isHighlighted
-                    ? 'bg-amber-500/10 hover:bg-amber-500/20'
+                    ? 'bg-warning/10 hover:bg-warning/20'
                     : 'hover:bg-primary/5'
                 }`}
               >
                 <TableCell className="font-bold text-foreground">
-                  {batch.isHighlighted && <span className="text-amber-500 mr-2">🔸</span>}
+                  {batch.isHighlighted && <span className="text-warning mr-2">🔸</span>}
                   {batchLabel(batch)}
                   {batch.isHighlighted && (
-                    <Badge variant="outline" className="ml-2 text-[10px] border-amber-500 text-amber-600">
+                    <Badge variant="outline" className="ml-2 text-[11px] border-warning text-warning">
                       From List
                     </Badge>
                   )}
@@ -232,7 +232,7 @@ export default function MedicineBatchDetailsView({
                 </TableCell>
                 <TableCell>
                   {batch.status === 'ZERO_STOCK' ? (
-                    <Badge variant="secondary" className="bg-orange-500/20 text-orange-600">
+                    <Badge variant="secondary" className="bg-warning/20 text-warning">
                       Zero Stock
                     </Badge>
                   ) : (
@@ -268,24 +268,24 @@ export default function MedicineBatchDetailsView({
           <Card
             key={batch.id}
             className={`rounded-2xl border-border shadow-sm ${
-              batch.isHighlighted ? 'bg-amber-500/10 border-amber-500/30' : 'bg-surface'
+              batch.isHighlighted ? 'bg-warning/10 border-warning/30' : 'bg-surface'
             }`}
           >
             <CardContent className="p-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="font-bold text-foreground text-base flex items-center gap-2">
-                    {batch.isHighlighted && <span className="text-amber-500">🔸</span>}
+                    {batch.isHighlighted && <span className="text-warning">🔸</span>}
                     {batchLabel(batch)}
                   </div>
                   {batch.isHighlighted && (
-                    <Badge variant="outline" className="mt-1 text-[10px] border-amber-500 text-amber-600">
+                    <Badge variant="outline" className="mt-1 text-[11px] border-warning text-warning">
                       From Empty List
                     </Badge>
                   )}
                 </div>
                 {batch.status === 'ZERO_STOCK' ? (
-                  <Badge variant="secondary" className="bg-orange-500/20 text-orange-600">
+                  <Badge variant="secondary" className="bg-warning/20 text-warning">
                     Zero
                   </Badge>
                 ) : (
@@ -339,7 +339,7 @@ export default function MedicineBatchDetailsView({
         <AlertDialogContent className="rounded-3xl border-border bg-surface">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-xl">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              <AlertTriangle className="h-5 w-5 text-warning" />
               Archive Batch?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3 pt-2">
@@ -368,7 +368,7 @@ export default function MedicineBatchDetailsView({
                     </div>
                     <div>
                       <span className="text-muted-foreground">Current Stock:</span>{' '}
-                      <span className="font-semibold text-orange-600">0</span>
+                      <span className="font-semibold text-warning">0</span>
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground">

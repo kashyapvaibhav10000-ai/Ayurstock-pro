@@ -301,8 +301,8 @@ export default function ItemDetailPopup({
       <DialogContent
         onKeyDown={handleDialogKeyDown}
         className="p-0 gap-0 flex flex-col overflow-hidden
-          w-screen h-[100dvh] max-w-none max-h-none rounded-none top-0 left-0 translate-x-0 translate-y-0
-          sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[85vh] sm:rounded-lg sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]"
+ w-screen h-[100dvh] max-w-none max-h-none rounded-none top-0 left-0 translate-x-0 translate-y-0
+ sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[85vh] sm:rounded-lg sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]"
       >
         <DialogHeader className="p-4 sm:p-5 border-b border-border shrink-0 text-left">
           <DialogTitle className="text-base sm:text-lg font-bold text-foreground pr-6">
@@ -316,12 +316,12 @@ export default function ItemDetailPopup({
           {/* Badges: near-expiry (Req 11), stock (Req 13) */}
           <div className="flex flex-wrap gap-2">
             {isNearExpiry && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-warning/10 text-warning">
                 <AlertTriangle className="h-3 w-3" /> Near Expiry ({Math.max(daysToExpiry, 0)}d)
               </span>
             )}
             {isExpired && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold bg-danger/10 text-danger">
                 <AlertTriangle className="h-3 w-3" /> Expired
               </span>
             )}
@@ -329,8 +329,8 @@ export default function ItemDetailPopup({
               <span
                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold ${
                   isLowStock
-                    ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
-                    : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
+                    ? 'bg-danger/10  text-danger '
+                    : 'bg-primary/10  text-primary '
                 }`}
               >
                 <PackageSearch className="h-3 w-3" />
@@ -459,13 +459,13 @@ export default function ItemDetailPopup({
           {/* Live subtotal — Requirement 12 */}
           <div className="rounded-xl bg-primary/10 border border-primary/20 p-4 flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wide text-primary">Item Amount</span>
-            <span className="text-xl font-black text-primary">₹{calculation.amount.toFixed(2)}</span>
+            <span className="text-xl font-semibold text-primary">₹{calculation.amount.toFixed(2)}</span>
           </div>
 
           {validationMessage && (
-            <div className="flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 p-3">
-              <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-xs font-semibold text-red-700 dark:text-red-400">{validationMessage}</p>
+            <div className="flex items-start gap-2 rounded-lg bg-danger/10 border border-danger/30 p-3">
+              <AlertTriangle className="h-4 w-4 text-danger shrink-0 mt-0.5" />
+              <p className="text-xs font-semibold text-danger">{validationMessage}</p>
             </div>
           )}
         </div>
@@ -492,7 +492,7 @@ export default function ItemDetailPopup({
 function DetailField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className={`text-sm font-semibold text-foreground ${mono ? 'font-mono' : ''}`}>{value}</p>
     </div>
   );

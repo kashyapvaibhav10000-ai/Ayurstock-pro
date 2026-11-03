@@ -27,8 +27,8 @@ function ColorSlider({
 }) {
   const pct = ((value - min) / (max - min)) * 100;
   const color = value <= greenThreshold ? '#22c55e' : value <= yellowThreshold ? '#f59e0b' : '#ef4444';
-  const textColor = value <= greenThreshold ? 'text-green-600 dark:text-green-400' : value <= yellowThreshold ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
-  const bgColor = value <= greenThreshold ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-900/40' : value <= yellowThreshold ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/40' : 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900/40';
+  const textColor = value <= greenThreshold ? 'text-primary ' : value <= yellowThreshold ? 'text-warning ' : 'text-danger ';
+  const bgColor = value <= greenThreshold ? 'bg-primary/10 border-primary/30  ' : value <= yellowThreshold ? 'bg-warning/10 border-warning/30  ' : 'bg-danger/10 border-danger/30  ';
   const statusLabel = value <= greenThreshold ? '🟢 Comfortable' : value <= yellowThreshold ? '🟡 Moderate' : '🔴 Alert Zone';
 
   return (
@@ -42,8 +42,8 @@ function ColorSlider({
           </div>
         </div>
         <div className="text-right">
-          <p className={`text-2xl font-extrabold ${textColor}`}>{value}</p>
-          <p className="text-[10px] text-muted-foreground">{unit}</p>
+          <p className={`text-2xl font-bold ${textColor}`}>{value}</p>
+          <p className="text-[11px] text-muted-foreground">{unit}</p>
         </div>
       </div>
 
@@ -63,9 +63,9 @@ function ColorSlider({
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-muted-foreground">{min} {unit}</span>
-        <span className={`text-[10px] font-semibold ${textColor}`}>{statusLabel}</span>
-        <span className="text-[10px] text-muted-foreground">{max} {unit}</span>
+        <span className="text-[11px] text-muted-foreground">{min} {unit}</span>
+        <span className={`text-[11px] font-semibold ${textColor}`}>{statusLabel}</span>
+        <span className="text-[11px] text-muted-foreground">{max} {unit}</span>
       </div>
     </div>
   );
@@ -156,7 +156,7 @@ export default function InventorySettings() {
 
       {/* Toggle Switches */}
       <div className="space-y-3">
-        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Tracking Rules</p>
+        <p className="text-[11px] font-bold text-muted-foreground">Tracking Rules</p>
         <ToggleRow
           label="Batch Tracking"
           description="Track individual medicine batches for precise stock management"
@@ -176,7 +176,7 @@ export default function InventorySettings() {
 
       {/* Color-Coded Sliders */}
       <div className="space-y-3">
-        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Alert Thresholds</p>
+        <p className="text-[11px] font-bold text-muted-foreground">Alert Thresholds</p>
 
         <ColorSlider
           label="Low Stock Alert"

@@ -121,9 +121,9 @@ export default function ActivityLogTab() {
   }, [page]);
 
   return (
-    <Card className="border-border bg-surface shadow-soft">
+    <Card className="border-border bg-surface shadow-card">
       <CardHeader className="flex flex-row items-center justify-between pb-6 space-y-0 border-b border-border">
-        <CardTitle className="text-xl font-black flex items-center gap-3 text-foreground tracking-tight uppercase">
+        <CardTitle className="text-xl font-semibold flex items-center gap-3 text-foreground tracking-tight uppercase">
           <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
             <Activity className="h-5 w-5 text-primary" />
           </div>
@@ -139,7 +139,7 @@ export default function ActivityLogTab() {
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div className="bg-background border border-border px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+          <div className="bg-background border border-border px-4 py-2 rounded-xl text-[11px] font-semibold text-muted-foreground">
             Page <span className="text-primary">{page}</span> of {totalPages}
           </div>
           <Button 
@@ -157,10 +157,10 @@ export default function ActivityLogTab() {
         <Table>
           <TableHeader className="bg-surface-muted/30">
             <TableRow className="border-b border-border hover:bg-transparent">
-              <TableHead className="w-[180px] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground pl-6">Date / Time</TableHead>
-              <TableHead className="w-[150px] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Officer</TableHead>
-              <TableHead className="w-[200px] text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Operation</TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground pr-6">Data Trace</TableHead>
+              <TableHead className="w-[180px] text-[11px] font-semibold text-muted-foreground pl-6">Date / Time</TableHead>
+              <TableHead className="w-[150px] text-[11px] font-semibold text-muted-foreground">Officer</TableHead>
+              <TableHead className="w-[200px] text-[11px] font-semibold text-muted-foreground">Operation</TableHead>
+              <TableHead className="text-[11px] font-semibold text-muted-foreground pr-6">Data Trace</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -182,11 +182,11 @@ export default function ActivityLogTab() {
                   <TableCell className="text-[11px] font-bold text-muted-foreground whitespace-nowrap pl-6">
                     {new Date(log.createdAt).toLocaleString()}
                   </TableCell>
-                  <TableCell className="font-extrabold text-[13px] text-foreground">
+                  <TableCell className="font-bold text-[13px] text-foreground">
                     {log.user?.name || 'SYSTEM_CORE'}
                   </TableCell>
                   <TableCell>
-                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-semibold border border-primary/20">
                       {log.action}
                     </span>
                   </TableCell>

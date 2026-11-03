@@ -104,7 +104,7 @@ export default function RackLocationsSettings() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -120,7 +120,7 @@ export default function RackLocationsSettings() {
         </div>
         <Button 
           onClick={openAddModal}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
+          className="bg-primary hover:bg-primary-hover text-white flex items-center gap-2"
         >
           <Plus className="h-4 w-4" /> Add Blueprint Limit
         </Button>
@@ -149,7 +149,7 @@ export default function RackLocationsSettings() {
               ) : (
                 locations.map((loc) => (
                   <tr key={loc.id} className="hover:bg-surface-muted transition-colors">
-                    <td className="px-6 py-4 font-bold tracking-wide text-emerald-800">
+                    <td className="px-6 py-4 font-bold tracking-wide text-primary">
                       {loc.name}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
@@ -168,9 +168,9 @@ export default function RackLocationsSettings() {
                           variant="outline" 
                           size="icon"
                           onClick={() => handleDelete(loc.id, loc.name)}
-                          className="hover:bg-red-50"
+                          className="hover:bg-danger/10"
                         >
-                          <Trash2 className="h-4 w-4 text-red-600" />
+                          <Trash2 className="h-4 w-4 text-danger" />
                         </Button>
                       </div>
                     </td>
@@ -216,7 +216,7 @@ export default function RackLocationsSettings() {
             <Button 
               onClick={handleSave} 
               disabled={actionLoading || !name.trim()}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="bg-primary hover:bg-primary-hover"
             >
               {actionLoading ? 'Saving Mapping...' : 'Lock Location Tuple'}
             </Button>

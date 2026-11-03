@@ -650,7 +650,7 @@ export default function AddInventoryModal({
         </DialogHeader>
 
         {error.global && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
             {error.global}
           </div>
         )}
@@ -681,14 +681,14 @@ export default function AddInventoryModal({
                   </option>
                 ))}
               </select>
-              {error.companyId && <span className="text-xs text-red-600 font-medium">{error.companyId}</span>}
+              {error.companyId && <span className="text-xs text-danger font-medium">{error.companyId}</span>}
             </div>
 
             <div className="grid gap-2 relative" ref={dropdownRef}>
               <Label className="text-sm">Medicine Name *</Label>
               {sameMedicineMode ? (
                 // Locked medicine display
-                <div className="flex h-11 w-full items-center rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-base font-medium text-emerald-800">
+                <div className="flex h-11 w-full items-center rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-base font-medium text-primary">
                   {medicineSearch}
                 </div>
               ) : (
@@ -716,7 +716,7 @@ export default function AddInventoryModal({
                 />
               )}
               {isSearchingMedicines && (
-                <div className="absolute right-3 top-9 h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-white" />
+                <div className="absolute right-3 top-9 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-white" />
               )}
               {isCreatingNewMedicine && (
                 <span className="text-xs text-blue-600 font-medium">✨ New medicine will be created</span>
@@ -724,8 +724,8 @@ export default function AddInventoryModal({
 
               {/* Recent medicines dropdown */}
               {showRecents && (
-                <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-                  <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 flex items-center gap-1">
+                <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-border bg-surface shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-muted-foreground bg-surface-muted flex items-center gap-1">
                     <Clock className="h-3 w-3" /> Recent
                   </div>
                   {recentMedicines
@@ -737,14 +737,14 @@ export default function AddInventoryModal({
                     .map((med, idx) => (
                     <div 
                       key={med.id} 
-                      className={`px-4 py-2 text-sm cursor-pointer border-b last:border-0 border-gray-100 transition-colors ${
-                        idx === highlightedIndex ? 'bg-emerald-100 text-emerald-900' : 'hover:bg-emerald-50'
+                      className={`px-4 py-2 text-sm cursor-pointer border-b last:border-0 border-border transition-colors ${
+                        idx === highlightedIndex ? 'bg-primary/10 text-primary' : 'hover:bg-primary/10'
                       }`}
                       onClick={() => handleSelectMedicine(med)}
                       onMouseEnter={() => setHighlightedIndex(idx)}
                     >
-                      <div className="font-medium text-emerald-800">{med.name}</div>
-                      <div className="text-xs text-gray-500">{med.category}{med.packing ? ` • ${med.packing}` : ''}</div>
+                      <div className="font-medium text-primary">{med.name}</div>
+                      <div className="text-xs text-muted-foreground">{med.category}{med.packing ? ` • ${med.packing}` : ''}</div>
                     </div>
                   ))}
                 </div>
@@ -752,19 +752,19 @@ export default function AddInventoryModal({
 
               {/* Search results dropdown */}
               {showMedicineDropdown && medicineSearch.length >= 2 && searchRows.length > 0 && !formData.medicineId && (
-                <div ref={dropdownListRef} className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                <div ref={dropdownListRef} className="absolute top-full z-50 mt-1 w-full rounded-md border border-border bg-surface shadow-lg overflow-hidden max-h-48 overflow-y-auto">
                   {searchRows.map(({ med, batch }, idx) => (
                     <div 
                       key={batch ? batch.id : med.id} 
                       data-highlighted={idx === highlightedIndex ? 'true' : undefined}
-                      className={`px-4 py-2 text-sm cursor-pointer border-b last:border-0 border-gray-100 transition-colors ${
-                        idx === highlightedIndex ? 'bg-emerald-100 text-emerald-900' : 'hover:bg-emerald-50'
+                      className={`px-4 py-2 text-sm cursor-pointer border-b last:border-0 border-border transition-colors ${
+                        idx === highlightedIndex ? 'bg-primary/10 text-primary' : 'hover:bg-primary/10'
                       }`}
                       onClick={() => handleSelectMedicine(med, batch)}
                       onMouseEnter={() => setHighlightedIndex(idx)}
                     >
-                      <div className="font-medium text-emerald-800">{med.name}</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="font-medium text-primary">{med.name}</div>
+                      <div className="text-xs text-muted-foreground">
                         {batch
                           ? `Batch ${batch.batchNumber} • Exp ${formatExpiryShort(batch.expiryDate)} • MRP ₹${Number(batch.mrp).toFixed(2)}${batch.packing ? ` • ${batch.packing}` : ''}`
                           : `${med.category}${med.packing ? ` • ${med.packing}` : ''} • No batches yet`}
@@ -773,8 +773,8 @@ export default function AddInventoryModal({
                   ))}
                   <div 
                     data-highlighted={highlightedIndex === searchRows.length ? 'true' : undefined}
-                    className={`px-4 py-2 text-sm cursor-pointer border-t border-gray-200 flex items-center gap-2 transition-colors ${
-                      highlightedIndex === searchRows.length ? 'bg-blue-100 text-blue-900' : 'bg-gray-50 hover:bg-blue-50'
+                    className={`px-4 py-2 text-sm cursor-pointer border-t border-border flex items-center gap-2 transition-colors ${
+                      highlightedIndex === searchRows.length ? 'bg-blue-100 text-blue-900' : 'bg-surface-muted hover:bg-blue-50'
                     }`}
                     onClick={handleCreateNewMedicine}
                     onMouseEnter={() => setHighlightedIndex(searchRows.length)}
@@ -785,8 +785,8 @@ export default function AddInventoryModal({
                 </div>
               )}
               {showMedicineDropdown && medicineSearch.length >= 2 && searchRows.length === 0 && !isSearchingMedicines && !formData.medicineId && (
-                <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg overflow-hidden">
-                  <div className="px-4 py-3 text-sm text-amber-700 bg-amber-50 border-b border-amber-100">
+                <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-border bg-surface shadow-lg overflow-hidden">
+                  <div className="px-4 py-3 text-sm text-warning bg-warning/10 border-b border-warning/30">
                     No existing medicines found for &quot;{medicineSearch}&quot;
                   </div>
                   <div 
@@ -801,14 +801,14 @@ export default function AddInventoryModal({
                   </div>
                 </div>
               )}
-              {error.medicineId && <span className="text-xs text-red-600 font-medium">{error.medicineId}</span>}
+              {error.medicineId && <span className="text-xs text-danger font-medium">{error.medicineId}</span>}
             </div>
           </div>
 
           {/* Category selector — shown when creating a new medicine */}
           {isCreatingNewMedicine && (
             <div className="grid gap-2 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-              <Label className="text-blue-800 font-semibold text-xs uppercase tracking-wider">Category for new medicine *</Label>
+              <Label className="text-blue-800 font-semibold text-xs">Category for new medicine *</Label>
               <div className="flex flex-wrap gap-1.5">
                 {CATEGORY_OPTIONS.map((cat) => (
                   <button
@@ -827,14 +827,14 @@ export default function AddInventoryModal({
                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
                       selectedCategory === cat
                         ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                        : 'border-blue-200 bg-white text-blue-800 hover:bg-blue-100'
+                        : 'border-blue-200 bg-surface text-blue-800 hover:bg-blue-100'
                     }`}
                   >
                     {cat}
                   </button>
                 ))}
               </div>
-              {error.category && <span className="text-xs text-red-600 font-medium">{error.category}</span>}
+              {error.category && <span className="text-xs text-danger font-medium">{error.category}</span>}
             </div>
           )}
 
@@ -853,11 +853,11 @@ export default function AddInventoryModal({
                 onKeyDown={(e) => handleFieldEnter(e, expiryRef)}
                 className="h-11 text-base"
               />
-              {error.batchNumber && <span className="text-xs text-red-600 font-medium">{error.batchNumber}</span>}
+              {error.batchNumber && <span className="text-xs text-danger font-medium">{error.batchNumber}</span>}
             </div>
             
             <div className="grid gap-2">
-              <Label className="text-sm">Expiry Date * <span className="text-[10px] text-gray-400 font-normal">(type MMYY)</span></Label>
+              <Label className="text-sm">Expiry Date * <span className="text-[11px] text-muted-foreground font-normal">(type MMYY)</span></Label>
               <div className="flex gap-2">
                 <Input
                   ref={expiryRef}
@@ -886,13 +886,13 @@ export default function AddInventoryModal({
                 />
               </div>
               {formData.expiryDate && (
-                <span className="text-[10px] text-emerald-600 font-medium">
+                <span className="text-[11px] text-primary font-medium">
                   → {new Date(formData.expiryDate + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
                 </span>
               )}
-              {error.expiryDate && <span className="text-xs text-red-600 font-medium">{error.expiryDate}</span>}
+              {error.expiryDate && <span className="text-xs text-danger font-medium">{error.expiryDate}</span>}
               {isExpiringSoon() && !error.expiryDate && (
-                <div className="flex items-start text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 p-2 rounded w-full">
+                <div className="flex items-start text-xs font-semibold text-warning bg-warning/10 border border-warning/30 p-2 rounded w-full">
                   ⚠️ This batch expires soon
                 </div>
               )}
@@ -916,7 +916,7 @@ export default function AddInventoryModal({
                 onKeyDown={(e) => handleFieldEnter(e, mrpRef)}
                 className="h-11 text-base"
               />
-              {error.stockQty && <span className="text-xs text-red-600 font-medium">{error.stockQty}</span>}
+              {error.stockQty && <span className="text-xs text-danger font-medium">{error.stockQty}</span>}
             </div>
             <div className="grid gap-2">
               <Label className="text-sm">MRP *</Label>
@@ -934,7 +934,7 @@ export default function AddInventoryModal({
                 onKeyDown={(e) => handleFieldEnter(e, packingRef)}
                 className="h-11 text-base"
               />
-              {error.mrp && <span className="text-xs text-red-600 font-medium">{error.mrp}</span>}
+              {error.mrp && <span className="text-xs text-danger font-medium">{error.mrp}</span>}
             </div>
             <div className="grid gap-2">
               <Label className="text-sm">Packing</Label>
@@ -979,7 +979,7 @@ export default function AddInventoryModal({
                   <option key={rack} value={rack}>{rack}</option>
                 ))}
               </select>
-              {error.rackLocation && <span className="text-xs text-red-600 font-medium">{error.rackLocation}</span>}
+              {error.rackLocation && <span className="text-xs text-danger font-medium">{error.rackLocation}</span>}
             </div>
             
             <div className="grid gap-2 sm:col-span-2">
@@ -1002,8 +1002,8 @@ export default function AddInventoryModal({
                     }}
                     className={`flex-1 flex flex-col items-center justify-center rounded-md border p-3 py-4 transition-all min-h-[60px] ${
                       Number(formData.gstPercent) === Number(opt.value)
-                        ? 'bg-emerald-600 border-emerald-600 text-white'
-                        : 'border-input bg-background text-muted-foreground hover:bg-emerald-50'
+                        ? 'bg-primary border-primary text-white'
+                        : 'border-input bg-background text-muted-foreground hover:bg-primary/10'
                     }`}
                   >
                     <span className="text-base font-bold">{opt.label}</span>
@@ -1014,7 +1014,7 @@ export default function AddInventoryModal({
             </div>
 
             <div className="grid gap-2">
-              <Label className="text-sm">Distributor <span className="text-[10px] text-gray-400 font-normal">(optional)</span></Label>
+              <Label className="text-sm">Distributor <span className="text-[11px] text-muted-foreground font-normal">(optional)</span></Label>
               <select
                 className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
                 value={purchaseSupplierId}
@@ -1028,7 +1028,7 @@ export default function AddInventoryModal({
             </div>
 
             <div className="grid gap-2">
-              <Label className="text-sm">Invoice No <span className="text-[10px] text-gray-400 font-normal">(optional)</span></Label>
+              <Label className="text-sm">Invoice No <span className="text-[11px] text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 value={purchaseInvoiceNo}
                 onChange={(e) => setPurchaseInvoiceNo(e.target.value)}
@@ -1043,9 +1043,9 @@ export default function AddInventoryModal({
 
         {/* Success bar with "Same Medicine +" */}
         {batchesAdded > 0 && (
-          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm">
-            <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-600 text-white text-xs font-bold shrink-0">{batchesAdded}</span>
-            <span className="text-emerald-800 font-medium flex-1 truncate">
+          <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
+            <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-primary text-white text-xs font-bold shrink-0">{batchesAdded}</span>
+            <span className="text-primary font-medium flex-1 truncate">
               {batchesAdded === 1 ? 'batch' : 'batches'} added{lastAddedName ? ` — ${lastAddedName}` : ''}
             </span>
             {lockedMedicine && !sameMedicineMode && (
@@ -1053,7 +1053,7 @@ export default function AddInventoryModal({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="shrink-0 gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 h-8 text-xs font-semibold"
+                className="shrink-0 gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary h-8 text-xs font-semibold"
                 onClick={handleSameMedicine}
               >
                 <Copy className="h-3.5 w-3.5" />
@@ -1097,7 +1097,7 @@ export default function AddInventoryModal({
             tabIndex={14}
             onClick={handleSubmit} 
             disabled={isSubmitDisabled} 
-            className="w-full sm:w-auto h-11 text-base bg-emerald-600 hover:bg-emerald-700"
+            className="w-full sm:w-auto h-11 text-base bg-primary hover:bg-primary-hover"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();

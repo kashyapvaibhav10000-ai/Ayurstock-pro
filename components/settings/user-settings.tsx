@@ -340,7 +340,7 @@ export default function UserSettings() {
      return (
        <Card>
          <CardContent className="p-6 text-center">
-            <h3 className="text-red-600 font-semibold mb-2">Access Denied</h3>
+            <h3 className="text-danger font-semibold mb-2">Access Denied</h3>
             <p className="text-muted-foreground text-sm">{error}</p>
          </CardContent>
        </Card>
@@ -355,7 +355,7 @@ export default function UserSettings() {
             <h2 className="font-semibold text-lg text-foreground">User Management</h2>
             <p className="text-xs text-muted-foreground">Manage employee accounts, role escalations, and reset passwords.</p>
           </div>
-          <Button onClick={openAddModal} className="bg-green-600 hover:bg-green-700 text-white">
+          <Button onClick={openAddModal} className="bg-primary hover:bg-primary-hover text-white">
             Add New User
           </Button>
         </div>
@@ -383,22 +383,22 @@ export default function UserSettings() {
                  return (
                 <tr key={user.id} className={`border-b border-border hover:bg-surface-muted transition-colors ${!user.isActive ? 'opacity-60 grayscale' : ''}`}>
                   <td className="p-3 font-medium text-foreground">
-                    {user.name} {isSelf && <span className="text-[9px] text-blue-600 font-bold ml-1">(YOU)</span>}
+                    {user.name} {isSelf && <span className="text-[11px] text-blue-600 font-bold ml-1">(YOU)</span>}
                   </td>
                   <td className="p-3 text-muted-foreground">{user.email}</td>
                   <td className="p-3 text-muted-foreground font-mono text-xs">{user.username || "—"}</td>
                   <td className="p-3">
-                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase ${
+                     <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase ${
                         user.role === 'ADMIN' ? 'bg-indigo-100 text-indigo-700' :
-                        user.role === 'MANAGER' ? 'bg-emerald-100 text-emerald-700' :
-                        'bg-amber-100 text-amber-700'
+                        user.role === 'MANAGER' ? 'bg-primary/10 text-primary' :
+                        'bg-warning/10 text-warning'
                      }`}>
                        {user.role}
                      </span>
                   </td>
                   <td className="p-3">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        user.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                        user.isActive ? "bg-primary/10 text-primary" : "bg-danger/10 text-danger"
                       }`}
                     >
                       {user.isActive ? 'Active' : 'Inactive'}
@@ -407,15 +407,15 @@ export default function UserSettings() {
                   <td className="p-3 text-right">
                     <button onClick={() => openEditModal(user)} className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Edit</button>
                     <span className="text-muted-foreground">|</span>
-                    <button onClick={() => openPasswordModal(user)} className="text-orange-500 hover:text-orange-700 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Reset Password</button>
+                    <button onClick={() => openPasswordModal(user)} className="text-warning hover:text-warning hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Reset Password</button>
                     <span className="text-muted-foreground">|</span>
                     {user.isActive ? (
                       // Wrapped so the tooltip shows even though the button is disabled.
                       <span title={isSelf ? "You can't delete your own account" : undefined}>
-                        <button onClick={() => handleDelete(user)} disabled={isSelf} className="text-red-500 hover:text-red-700 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Delete</button>
+                        <button onClick={() => handleDelete(user)} disabled={isSelf} className="text-danger hover:text-danger hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Delete</button>
                       </span>
                     ) : (
-                      <button onClick={() => handleReactivate(user)} disabled={isSelf} className="text-green-600 hover:text-green-800 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Reactivate</button>
+                      <button onClick={() => handleReactivate(user)} disabled={isSelf} className="text-primary hover:text-primary hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Reactivate</button>
                     )}
                   </td>
                 </tr>
@@ -436,12 +436,12 @@ export default function UserSettings() {
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
                   <Input id="name" {...register("name")} placeholder="John Doe" />
-                  {errors.name && <p className="text-[10px] text-red-500">{errors.name.message}</p>}
+                  {errors.name && <p className="text-[11px] text-danger">{errors.name.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
                   <Input id="email" type="email" {...register("email")} placeholder="john@shop.com" />
-                  {errors.email && <p className="text-[10px] text-red-500">{errors.email.message}</p>}
+                  {errors.email && <p className="text-[11px] text-danger">{errors.email.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="username">Username (optional)</Label>
@@ -451,7 +451,7 @@ export default function UserSettings() {
                 <div className="space-y-2">
                   <Label htmlFor="password">Temporary Password</Label>
                   <Input id="password" type="password" {...register("password")} placeholder="•••••••• (Min 8)" />
-                  {errors.password && <p className="text-[10px] text-red-500">{errors.password.message}</p>}
+                  {errors.password && <p className="text-[11px] text-danger">{errors.password.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role">Account Role</Label>
@@ -464,7 +464,7 @@ export default function UserSettings() {
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={isSubmitting || usernameBlocked(usernameStatus)} className="bg-green-600 hover:bg-green-700 text-white">
+                <Button type="submit" disabled={isSubmitting || usernameBlocked(usernameStatus)} className="bg-primary hover:bg-primary-hover text-white">
                   {isSubmitting ? "Creating..." : "Create Account"}
                 </Button>
               </DialogFooter>
@@ -485,12 +485,12 @@ export default function UserSettings() {
                 <div className="space-y-2">
                   <Label htmlFor="edit-name">Full Name</Label>
                   <Input id="edit-name" {...register("name")} />
-                  {errors.name && <p className="text-[10px] text-red-500">{errors.name.message}</p>}
+                  {errors.name && <p className="text-[11px] text-danger">{errors.name.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-email">Email Address</Label>
                   <Input id="edit-email" type="email" {...register("email")} />
-                  {errors.email && <p className="text-[10px] text-red-500">{errors.email.message}</p>}
+                  {errors.email && <p className="text-[11px] text-danger">{errors.email.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-username">Username</Label>
@@ -501,7 +501,7 @@ export default function UserSettings() {
                   <div className="space-y-2">
                     <Label htmlFor="edit-phone">Phone</Label>
                     <Input id="edit-phone" type="tel" {...register("phone")} placeholder="Not set" />
-                    {errors.phone && <p className="text-[10px] text-red-500">{errors.phone.message}</p>}
+                    {errors.phone && <p className="text-[11px] text-danger">{errors.phone.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-pin">POS PIN</Label>
@@ -514,9 +514,9 @@ export default function UserSettings() {
                       {...register("pin")}
                       placeholder={editingUser?.hasPin ? "•••• (keep)" : "4 digits"}
                     />
-                    {errors.pin && <p className="text-[10px] text-red-500">{errors.pin.message}</p>}
+                    {errors.pin && <p className="text-[11px] text-danger">{errors.pin.message}</p>}
                     {editingUser?.hasPin && (
-                      <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                         <input type="checkbox" {...register("removePin")} />
                         Remove PIN
                       </label>
@@ -538,8 +538,8 @@ export default function UserSettings() {
                       <option value="ADMIN">Admin</option>
                     </select>
                   </div>
-                  {editingUser?.role === 'ADMIN' && !editingSelf && <p className="text-[10px] text-muted-foreground">Another Admin manages their own account.</p>}
-                  {editingSelf && isLastActiveAdmin(editingUser) && <p className="text-[10px] text-muted-foreground">{LAST_ADMIN_TIP}</p>}
+                  {editingUser?.role === 'ADMIN' && !editingSelf && <p className="text-[11px] text-muted-foreground">Another Admin manages their own account.</p>}
+                  {editingSelf && isLastActiveAdmin(editingUser) && <p className="text-[11px] text-muted-foreground">{LAST_ADMIN_TIP}</p>}
                 </div>
                 {editingSelf && (
                   <div title={isLastActiveAdmin(editingUser) ? LAST_ADMIN_TIP : undefined}>
@@ -586,12 +586,12 @@ export default function UserSettings() {
                     <div className="space-y-2">
                       <Label htmlFor="new-password">New Password (Min 8 Characters)</Label>
                       <Input id="new-password" type="password" autoComplete="new-password" {...registerPassword("newPassword")} />
-                      {passwordErrors.newPassword && <p className="text-[10px] text-red-500">{passwordErrors.newPassword.message}</p>}
+                      {passwordErrors.newPassword && <p className="text-[11px] text-danger">{passwordErrors.newPassword.message}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirm-password">Confirm New Password</Label>
                       <Input id="confirm-password" type="password" autoComplete="new-password" {...registerPassword("confirmPassword")} />
-                      {passwordErrors.confirmPassword && <p className="text-[10px] text-red-500">{passwordErrors.confirmPassword.message}</p>}
+                      {passwordErrors.confirmPassword && <p className="text-[11px] text-danger">{passwordErrors.confirmPassword.message}</p>}
                     </div>
                   </>
                 ) : (
@@ -600,14 +600,14 @@ export default function UserSettings() {
                     <div className="space-y-2">
                       <Label htmlFor="new-password">New Password (Min 8 Characters)</Label>
                       <Input id="new-password" type="text" {...registerPassword("newPassword")} placeholder="Must be 8+ characters..." />
-                      {passwordErrors.newPassword && <p className="text-[10px] text-red-500">{passwordErrors.newPassword.message}</p>}
+                      {passwordErrors.newPassword && <p className="text-[11px] text-danger">{passwordErrors.newPassword.message}</p>}
                     </div>
                   </>
                 )}
               </div>
               <DialogFooter>
                  <Button type="button" variant="outline" onClick={() => setIsPasswordOpen(false)}>Abort</Button>
-                 <Button type="submit" disabled={isPasswordSubmitting} className="bg-orange-600 hover:bg-orange-700 text-white">
+                 <Button type="submit" disabled={isPasswordSubmitting} className="bg-warning hover:bg-warning/90 text-white">
                    {isPasswordSubmitting ? "Overriding..." : "Confirm Override"}
                  </Button>
               </DialogFooter>

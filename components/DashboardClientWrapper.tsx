@@ -49,14 +49,14 @@ export default function DashboardClientWrapper({
             user={user}
             onMenuToggle={() => setIsMobileSidebarOpen(true)}
           />
-          <div className="flex-1 overflow-auto pb-16 xl:pb-0 bg-background bg-[radial-gradient(circle_at_top_left,_var(--primary),_transparent_40%)] shadow-primary/5">
+          <div className="flex-1 overflow-auto pb-16 xl:pb-0 bg-background">
             {children}
           </div>
         </main>
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-xl border-t border-border flex items-stretch shadow-[0_-8px_24px_rgba(0,0,0,0.4)]">
+      <nav className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-separator flex items-stretch pb-[env(safe-area-inset-bottom)]">
         {visibleMobileNav.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -64,14 +64,14 @@ export default function DashboardClientWrapper({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-all ${
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors duration-200 ${
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
-              <div className={`relative flex items-center justify-center h-10 w-10 rounded-2xl transition-all duration-300 ${isActive ? 'bg-primary/20 shadow-[0_0_15px_var(--primary)] shadow-primary/20 border border-primary/20' : ''}`}>
-                <Icon className={`h-5 w-5 transition-all duration-300 ${isActive ? 'text-primary scale-110 drop-shadow-[0_0_8px_var(--primary)] drop-shadow-primary/40' : 'text-muted-foreground'}`} />
+              <div className="relative flex items-center justify-center h-7 w-7">
+                <Icon className={`h-[22px] w-[22px] stroke-[1.75] ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
               </div>
-              <span className={`text-[9px] font-black uppercase tracking-[0.15em] mt-1 ${isActive ? 'text-primary' : 'text-muted-foreground/60'}`}>
+              <span className={`text-[11px] font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
                 {item.label}
               </span>
             </Link>

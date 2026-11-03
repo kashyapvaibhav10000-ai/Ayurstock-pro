@@ -69,11 +69,11 @@ export default function AddMedicineChoiceModal({
             }}
             className="group relative flex items-center gap-5 p-5 rounded-2xl border-2 border-surface-border bg-surface hover:border-secondary-hover hover:bg-surface-muted transition-all text-left duration-200"
           >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-text-secondary group-hover:bg-slate-200 group-hover:text-text-primary transition-colors">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-text-secondary group-hover:bg-fill-strong group-hover:text-text-primary transition-colors">
               <Keyboard className="h-6 w-6" />
             </div>
             <div className="flex-1">
-              <h3 className="text-base font-bold text-text-primary group-hover:text-slate-800 transition-colors">
+              <h3 className="text-base font-bold text-text-primary group-hover:text-foreground transition-colors">
                 Manual Entry Form
               </h3>
               <p className="text-sm text-text-secondary mt-0.5 pr-4">

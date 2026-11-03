@@ -2,19 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design tokens. Brand colors are the original AyurStock palette (green in
+   light, gold in dark). Colors used through Tailwind are RGB channels so
+   opacity modifiers (bg-primary/10) work. All surfaces are solid. */
 :root {
-  --background: #F8FAF8;
-  --surface: #ffffff;
-  --surface-muted: #f4f6f4;
-  --surface-elevated: #ffffff;
-  --border: #e2e8e2;
-  --foreground: #1a1f1a;
-  --muted-foreground: #9ca3af;
-  --primary: #16a34a;
-  --primary-hover: #15803d;
+  --bg-rgb: 248 250 248;            /* #F8FAF8 */
+  --surface-rgb: 255 255 255;
+  --surface-2-rgb: 255 255 255;
+  --fill-rgb: 244 246 244;          /* #f4f6f4 */
+  --fill-strong-rgb: 226 232 226;   /* #e2e8e2 */
+  --label-rgb: 26 31 26;            /* #1a1f1a */
+  --label-2-rgb: 107 114 128;       /* #6b7280, 4.8:1 on white (was #9ca3af, 2.5:1) */
+  --label-3-rgb: 156 163 175;       /* #9ca3af, placeholders only */
+  --on-primary-rgb: 255 255 255;
+  --accent-rgb: 22 163 74;          /* #16a34a */
+  --accent-fill-rgb: 22 163 74;
+  --accent-fill-hover-rgb: 21 128 61; /* #15803d */
+  --red-rgb: 239 68 68;             /* #ef4444 */
+  --orange-rgb: 245 158 11;         /* #f59e0b */
+  --yellow-rgb: 234 179 8;
+  --green-rgb: 16 185 129;          /* #10b981 */
+  --separator: #e2e8e2;
+  --separator-strong: #e2e8e2;
+  --success-bg: #ecfdf5;  --success-text: #064e3b;
+  --danger-bg: #fef2f2;   --danger-text: #7f1d1d;
+  --warning-bg: #fffbeb;  --warning-text: #78350f;
+  --scrim: rgba(0, 0, 0, 0.4);
+  --focus-ring: rgb(var(--accent-rgb) / 0.3);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-pop: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  --background: rgb(var(--bg-rgb));
+  --surface: rgb(var(--surface-rgb));
+  --surface-muted: rgb(var(--fill-rgb));
+  --surface-elevated: rgb(var(--surface-2-rgb));
+  --border: var(--separator);
+  --foreground: rgb(var(--label-rgb));
+  --muted-foreground: rgb(var(--label-2-rgb));
+  --primary: rgb(var(--accent-fill-rgb));
+  --primary-hover: rgb(var(--accent-fill-hover-rgb));
   --secondary: #e2e8e2;
   --accent: #22c55e;
-  
+
   --stitch-surface: #f7faf6;
   --stitch-surface-low: #eff5ef;
   --stitch-surface-lowest: #ffffff;
@@ -26,29 +56,74 @@
   --stitch-outline-variant: #aab4ad;
 }
 
+/* Dark: "neem and turmeric". Forest-charcoal surfaces, turmeric accent,
+   warm white text. Contrast on the card surface #161b18: label 15.6:1,
+   secondary 6.9:1, turmeric 9.1:1. Text on turmeric fills is dark. */
 .dark {
-  --background: #0A0A0A;
-  --surface: #1A1A1A;
-  --surface-muted: #1F1F1F;
-  --surface-elevated: #242424;
-  --border: #2A2A2A;
-  --foreground: #F5F5F5;
-  --muted-foreground: #A1A1AA;
-  --primary: #D4AF37;
-  --primary-hover: #B8860B;
-  --secondary: #1F1F1F;
-  --accent: #D4AF37;
+  --bg-rgb: 14 18 16;               /* #0e1210 page */
+  --surface-rgb: 22 27 24;          /* #161b18 cards, bars, sheets */
+  --surface-2-rgb: 29 35 32;        /* #1d2320 nested */
+  --fill-rgb: 29 35 32;             /* inputs, secondary buttons */
+  --fill-strong-rgb: 38 46 42;      /* #262e2a pressed, tracks */
+  --label-rgb: 237 239 234;         /* #edefea */
+  --label-2-rgb: 157 165 159;       /* #9da59f */
+  --label-3-rgb: 110 118 112;       /* placeholders only */
+  --on-primary-rgb: 26 20 5;        /* #1a1405 on turmeric */
+  --accent-rgb: 224 178 74;         /* #e0b24a turmeric */
+  --accent-fill-rgb: 224 178 74;
+  --accent-fill-hover-rgb: 236 194 98;
+  --red-rgb: 248 113 113;           /* #f87171 */
+  --orange-rgb: 251 191 36;         /* #fbbf24 */
+  --yellow-rgb: 250 204 21;
+  --green-rgb: 52 211 153;          /* #34d399 */
+  --separator: #262e2a;
+  --separator-strong: #313b36;
+  --success-bg: rgb(52 211 153 / 0.12);  --success-text: #6ee7b7;
+  --danger-bg: rgb(248 113 113 / 0.12);  --danger-text: #fca5a5;
+  --warning-bg: rgb(251 191 36 / 0.12);  --warning-text: #fcd34d;
+  --scrim: rgba(4, 6, 5, 0.7);
+  --focus-ring: rgb(224 178 74 / 0.4);
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-pop: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --secondary: #1d2320;
+  --accent: #e0b24a;
 
-  --stitch-background: #0A0A0A;
-  --stitch-surface: #1A1A1A;
-  --stitch-surface-low: #1F1F1F;
-  --stitch-surface-lowest: #0A0A0A;
-  --stitch-on-surface: #F5F5F5;
-  --stitch-on-surface-variant: #A1A1AA;
-  --stitch-primary: #D4AF37;
-  --stitch-primary-dim: #B8860B;
-  --stitch-primary-container: #2A2100;
-  --stitch-outline-variant: #3F3F46;
+  --stitch-background: #0e1210;
+  --stitch-surface: #161b18;
+  --stitch-surface-low: #1d2320;
+  --stitch-surface-lowest: #0e1210;
+  --stitch-on-surface: #edefea;
+  --stitch-on-surface-variant: #9da59f;
+  --stitch-primary: #e0b24a;
+  --stitch-primary-dim: #c99a33;
+  --stitch-primary-container: rgb(224 178 74 / 0.14);
+  --stitch-outline-variant: #313b36;
+  color-scheme: dark;
+}
+
+/* Light-mode accent colours picked from the theme menu (lib/accent.ts).
+   Green is the default :root palette. White text on each fill is >= 3.5:1. */
+:root[data-accent="blue"]:not(.dark) {
+  --accent-rgb: 37 99 235; --accent-fill-rgb: 37 99 235; --accent-fill-hover-rgb: 29 78 216;
+  --stitch-primary: #1d4ed8; --stitch-primary-dim: #1e40af; --stitch-primary-container: #dbeafe;
+}
+:root[data-accent="purple"]:not(.dark) {
+  --accent-rgb: 124 58 237; --accent-fill-rgb: 124 58 237; --accent-fill-hover-rgb: 109 40 217;
+  --stitch-primary: #6d28d9; --stitch-primary-dim: #5b21b6; --stitch-primary-container: #ede9fe;
+}
+:root[data-accent="cocoa"]:not(.dark) {
+  --accent-rgb: 124 74 45; --accent-fill-rgb: 124 74 45; --accent-fill-hover-rgb: 100 58 34;
+  --stitch-primary: #7c4a2d; --stitch-primary-dim: #643a22; --stitch-primary-container: #f3e8df;
+}
+:root[data-accent="graphite"]:not(.dark) {
+  --accent-rgb: 51 65 85; --accent-fill-rgb: 51 65 85; --accent-fill-hover-rgb: 30 41 59;
+  --stitch-primary: #334155; --stitch-primary-dim: #1e293b; --stitch-primary-container: #e2e8f0;
+}
+
+/* Pages hard-code `bg-primary text-white`; on turmeric that text needs to be dark. */
+.dark :is(.bg-primary, .bg-stitch-primary).text-white,
+.dark :is(.bg-primary, .bg-stitch-primary) .text-white {
+  color: rgb(var(--on-primary-rgb));
 }
 
 @media print {
@@ -65,7 +140,10 @@ body {
   min-height: 100vh;
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-plus-jakarta), 'Plus Jakarta Sans', Inter, 'Segoe UI', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.47;
+  letter-spacing: -0.003em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: 'kern' 1, 'liga' 1;
@@ -137,7 +215,28 @@ code {
 }
 
 ::selection {
-  background: rgba(22, 163, 74, 0.18);
+  background: rgb(var(--accent-rgb) / 0.2);
+}
+
+h1, h2, h3 {
+  letter-spacing: -0.02em;
+}
+
+.tabular-nums, td {
+  font-variant-numeric: tabular-nums;
+}
+
+:is(a, button, input, select, textarea, summary, [role="tab"], [role="menuitem"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Sidebar hover expand transition */
@@ -147,7 +246,7 @@ code {
 
 /* Smooth sidebar width transition */
 aside {
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.25s var(--ease);
 }
 
 /* Hide scrollbar but keep functionality */
@@ -181,5 +280,80 @@ aside {
 }
 
 .page-enter {
-  animation: fadeSlideUp 0.3s ease forwards;
+  animation: fadeSlideUp 0.3s var(--ease) forwards;
+}
+
+/* App preloader: wordmark rises in, bar fills, overlay fades away. */
+.app-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--bg-rgb));
+  pointer-events: none;
+  animation: preloader-out 0.4s var(--ease) 1.05s forwards;
+}
+.app-preloader__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  animation: preloader-rise 0.45s var(--ease) both;
+}
+.app-preloader__wordmark {
+  display: flex;
+  align-items: baseline;
+  font-size: clamp(36px, 7vw, 52px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: rgb(var(--label-rgb));
+}
+.app-preloader__ayur {
+  color: rgb(var(--accent-rgb));
+}
+.app-preloader__pro {
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgb(var(--accent-rgb) / 0.12);
+  color: rgb(var(--accent-rgb));
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  align-self: center;
+}
+.app-preloader__bar {
+  width: min(260px, 70vw);
+  height: 3px;
+  border-radius: 999px;
+  background: rgb(var(--fill-strong-rgb));
+  overflow: hidden;
+}
+.app-preloader__fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: rgb(var(--accent-rgb));
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation: preloader-fill 0.8s var(--ease) 0.15s forwards;
+}
+@keyframes preloader-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes preloader-fill {
+  to { transform: scaleX(1); }
+}
+@keyframes preloader-out {
+  to { opacity: 0; visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-preloader { display: none; }
+}
+@media print {
+  .app-preloader { display: none; }
 }

@@ -29,9 +29,9 @@ function AlertRow({
   sub: string
 }) {
   const colors = {
-    red:    { dot: "bg-red-500",    bg: "bg-red-50",    text: "text-red-700",    sub: "text-red-500",    ring: "ring-red-100"    },
-    amber:  { dot: "bg-amber-500",  bg: "bg-amber-50",  text: "text-amber-800",  sub: "text-amber-600",  ring: "ring-amber-100"  },
-    orange: { dot: "bg-orange-500", bg: "bg-orange-50", text: "text-orange-800", sub: "text-orange-600", ring: "ring-orange-100" },
+    red:    { dot: "bg-danger",    bg: "bg-danger/10",    text: "text-danger",    sub: "text-danger",    ring: "ring-danger"    },
+    amber:  { dot: "bg-warning",  bg: "bg-warning/10",  text: "text-warning",  sub: "text-warning",  ring: "ring-warning"  },
+    orange: { dot: "bg-warning", bg: "bg-warning/10", text: "text-warning", sub: "text-warning", ring: "ring-warning" },
     blue:   { dot: "bg-blue-500",   bg: "bg-blue-50",   text: "text-blue-800",   sub: "text-blue-600",   ring: "ring-blue-100"   },
   }
   const c = colors[color]
@@ -53,8 +53,8 @@ function AlertRow({
 function SectionHeader({ label, count, color }: { label: string; count: number; color: string }) {
   return (
     <div className="flex items-center justify-between px-1 mb-2">
-      <p className={`text-[11px] font-bold uppercase tracking-wider ${color}`}>{label}</p>
-      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-current/10 ${color}`}>
+      <p className={`text-[11px] font-bold   ${color}`}>{label}</p>
+      <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-current/10 ${color}`}>
         {count}
       </span>
     </div>
@@ -98,16 +98,16 @@ export function AlertsPanel() {
   const totalAlerts = expiryAlerts.length + lowStockMedicines.length + (hasHealthIssues ? 1 : 0)
 
   return (
-    <Card className="h-full flex flex-col rounded-2xl border-surface-border shadow-soft overflow-hidden">
+    <Card className="h-full flex flex-col rounded-2xl border-surface-border shadow-card overflow-hidden">
       {/* ── Header ── */}
       <CardHeader className="px-5 py-4 border-b border-surface-border bg-surface shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-bold text-text-primary flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-orange-500" />
+            <ShieldAlert className="h-4 w-4 text-warning" />
             Alerts & Health
           </CardTitle>
           {!isLoading && totalAlerts > 0 && (
-            <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-orange-500 text-white text-[10px] font-bold">
+            <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-warning text-white text-[11px] font-bold">
               {totalAlerts}
             </span>
           )}
@@ -125,7 +125,7 @@ export function AlertsPanel() {
         ) : totalAlerts === 0 ? (
           /* ── All clear state ── */
           <div className="flex flex-col items-center justify-center text-center py-10 gap-3">
-            <div className="h-14 w-14 rounded-2xl bg-green-50 border border-green-100 flex items-center justify-center">
+            <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center">
               <CheckCircle2 className="h-7 w-7 text-primary" />
             </div>
             <div>
@@ -138,7 +138,7 @@ export function AlertsPanel() {
             {/* ── Expiry Alerts ── */}
             {expiryAlerts.length > 0 && (
               <div>
-                <SectionHeader label="Expiry Alerts" count={expiryAlerts.length} color="text-red-600" />
+                <SectionHeader label="Expiry Alerts" count={expiryAlerts.length} color="text-danger" />
                 <div className="space-y-1.5">
                   {expiryAlerts.slice(0, 5).map((item: any) => {
                     const days = Math.ceil((new Date(item.expiryDate).getTime() - Date.now()) / 86400000)
@@ -162,7 +162,7 @@ export function AlertsPanel() {
             {/* ── Low Stock ── */}
             {lowStockMedicines.length > 0 && (
               <div>
-                <SectionHeader label="Low Stock" count={lowStockMedicines.length} color="text-orange-600" />
+                <SectionHeader label="Low Stock" count={lowStockMedicines.length} color="text-warning" />
                 <div className="space-y-1.5">
                   {lowStockMedicines.slice(0, 6).map((item: any, i: number) => (
                     <AlertRow
@@ -224,7 +224,7 @@ export function AlertsPanel() {
             {reconciling ? "Reconciling…" : "Run stock reconciliation"}
           </button>
           {reconcileMsg && (
-            <p className="mt-1 text-[10px] text-text-muted">{reconcileMsg}</p>
+            <p className="mt-1 text-[11px] text-text-muted">{reconcileMsg}</p>
           )}
         </div>
       </CardContent>

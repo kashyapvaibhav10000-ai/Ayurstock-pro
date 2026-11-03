@@ -247,15 +247,15 @@ export default function StockAdjustmentPage() {
           <SlidersHorizontal className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/80">Logistics</div>
-          <h1 className="text-2xl font-black tracking-tight text-foreground">Stock Adjustment</h1>
+          <div className="text-[11px] font-semibold text-primary/80">Logistics</div>
+          <h1 className="text-large-title text-foreground">Stock Adjustment</h1>
         </div>
       </div>
 
       <Tabs defaultValue="adjust-stock" className="space-y-6">
         <TabsList className="bg-surface border border-border">
-          <TabsTrigger value="adjust-stock" className="text-xs font-black tracking-widest uppercase">Adjust Stock</TabsTrigger>
-          <TabsTrigger value="ledger" className="text-xs font-black tracking-widest uppercase gap-2">
+          <TabsTrigger value="adjust-stock" className="text-xs font-semibold">Adjust Stock</TabsTrigger>
+          <TabsTrigger value="ledger" className="text-xs font-semibold gap-2">
             <BookOpen className="w-3.5 h-3.5" />
             Stock Ledger
           </TabsTrigger>
@@ -264,16 +264,16 @@ export default function StockAdjustmentPage() {
         <TabsContent value="adjust-stock" className="m-0 focus-visible:outline-none focus-visible:ring-0">
       <div className="grid grid-cols-1 xl:grid-cols-[480px_1fr] gap-6">
         {/* LEFT — Adjust Stock Form */}
-        <div className="rounded-2xl border border-border bg-surface shadow-bento overflow-hidden">
+        <div className="rounded-2xl bg-surface shadow-card overflow-hidden">
           <div className="border-b border-border bg-surface-muted/30 px-6 py-5">
-            <h2 className="text-lg font-black tracking-tight text-foreground uppercase">Adjust Stock</h2>
-            <p className="text-[11px] font-bold text-muted-foreground mt-1 uppercase tracking-wider">Add or remove inventory manually</p>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground uppercase">Adjust Stock</h2>
+            <p className="text-[11px] font-bold text-muted-foreground mt-1">Add or remove inventory manually</p>
           </div>
 
           <div className="p-6 space-y-5">
             {/* Batch Selector */}
             <div ref={dropdownRef} className="relative">
-              <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground mb-2">
+              <label className="block text-[11px] font-semibold text-muted-foreground mb-2">
                 Select Batch
               </label>
               <div className="relative">
@@ -300,14 +300,14 @@ export default function StockAdjustmentPage() {
                       className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-surface-muted/50 transition-colors border-b border-surface-muted last:border-0"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-black text-foreground truncate">{batch.medicineName}</div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-0.5">
+                        <div className="text-sm font-semibold text-foreground truncate">{batch.medicineName}</div>
+                        <div className="text-[11px] font-bold text-muted-foreground mt-0.5">
                           {batch.company} • {batchLabel(batch)}
                         </div>
                       </div>
                       <div className="text-right shrink-0 ml-3">
-                        <div className="text-sm font-black text-primary">₹{batch.mrp.toFixed(2)}</div>
-                        <div className="text-[10px] font-bold text-muted-foreground">Stock: {batch.currentStock}</div>
+                        <div className="text-sm font-semibold text-primary">₹{batch.mrp.toFixed(2)}</div>
+                        <div className="text-[11px] font-bold text-muted-foreground">Stock: {batch.currentStock}</div>
                       </div>
                     </button>
                   ))}
@@ -320,27 +320,27 @@ export default function StockAdjustmentPage() {
               <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4 space-y-2 animate-in fade-in duration-200">
                 <div className="flex items-center gap-2 mb-1">
                   <PackageCheck className="h-4 w-4 text-primary" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Selected Batch</span>
+                  <span className="text-[11px] font-semibold text-primary">Selected Batch</span>
                 </div>
-                <div className="font-black text-foreground text-[15px]">{selectedBatch.medicineName}</div>
+                <div className="font-semibold text-foreground text-[15px]">{selectedBatch.medicineName}</div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
                   <div>
-                    <span className="font-bold text-muted-foreground uppercase tracking-wider">Batch: </span>
-                    <span className="font-black text-foreground">{batchLabel(selectedBatch)}</span>
+                    <span className="font-bold text-muted-foreground">Batch: </span>
+                    <span className="font-semibold text-foreground">{batchLabel(selectedBatch)}</span>
                   </div>
                   <div>
-                    <span className="font-bold text-muted-foreground uppercase tracking-wider">Stock: </span>
-                    <span className="font-black text-foreground">{selectedBatch.currentStock} units</span>
+                    <span className="font-bold text-muted-foreground">Stock: </span>
+                    <span className="font-semibold text-foreground">{selectedBatch.currentStock} units</span>
                   </div>
                   <div>
-                    <span className="font-bold text-muted-foreground uppercase tracking-wider">Expiry: </span>
-                    <span className="font-black text-foreground">
+                    <span className="font-bold text-muted-foreground">Expiry: </span>
+                    <span className="font-semibold text-foreground">
                       {new Date(selectedBatch.expiryDate).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })}
                     </span>
                   </div>
                   <div>
-                    <span className="font-bold text-muted-foreground uppercase tracking-wider">MRP: </span>
-                    <span className="font-black text-primary">₹{selectedBatch.mrp.toFixed(2)}</span>
+                    <span className="font-bold text-muted-foreground">MRP: </span>
+                    <span className="font-semibold text-primary">₹{selectedBatch.mrp.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -348,13 +348,13 @@ export default function StockAdjustmentPage() {
 
             {/* Type Toggle */}
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground mb-2">
+              <label className="block text-[11px] font-semibold text-muted-foreground mb-2">
                 Adjustment Type
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setAdjustType('ADD')}
-                  className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-[11px] font-black tracking-widest uppercase transition-all border shadow-sm ${
+                  className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-[11px] font-semibold   transition-all border shadow-sm ${
                     adjustType === 'ADD'
                       ? 'bg-primary border-primary text-white shadow-primary/20 ring-4 ring-primary/10'
                       : 'border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground'
@@ -365,7 +365,7 @@ export default function StockAdjustmentPage() {
                 </button>
                 <button
                   onClick={() => setAdjustType('REMOVE')}
-                  className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-[11px] font-black tracking-widest uppercase transition-all border shadow-sm ${
+                  className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-[11px] font-semibold   transition-all border shadow-sm ${
                     adjustType === 'REMOVE'
                       ? 'bg-danger border-danger text-white shadow-danger/20 ring-4 ring-danger/10'
                       : 'border-border bg-surface text-muted-foreground hover:bg-surface-muted hover:text-foreground'
@@ -379,7 +379,7 @@ export default function StockAdjustmentPage() {
 
             {/* Quantity */}
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground mb-2">
+              <label className="block text-[11px] font-semibold text-muted-foreground mb-2">
                 Quantity
               </label>
               <input
@@ -388,10 +388,10 @@ export default function StockAdjustmentPage() {
                 max={maxQty}
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, Math.min(maxQty, parseInt(e.target.value) || 1)))}
-                className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-lg font-black outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 text-foreground"
+                className="w-full rounded-xl border-2 border-border bg-background px-4 py-3 text-lg font-semibold outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 text-foreground"
               />
               {adjustType === 'REMOVE' && selectedBatch && (
-                <p className="text-[10px] font-bold text-muted-foreground mt-1.5 uppercase tracking-wider">
+                <p className="text-[11px] font-bold text-muted-foreground mt-1.5">
                   Max: {selectedBatch.currentStock} units
                 </p>
               )}
@@ -404,19 +404,19 @@ export default function StockAdjustmentPage() {
                   ? 'bg-primary/5 border-primary/15 text-primary'
                   : 'bg-danger/5 border-danger/15 text-danger'
               }`}>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Stock after adjustment</span>
-                <span className="flex items-center gap-2 font-black text-[15px]">
+                <span className="text-[11px] font-semibold">Stock after adjustment</span>
+                <span className="flex items-center gap-2 font-semibold text-[15px]">
                   {selectedBatch.currentStock}
                   <ArrowRight className="h-4 w-4 opacity-50" />
                   {stockAfter}
-                  <span className="text-[10px] font-bold opacity-60 uppercase">units</span>
+                  <span className="text-[11px] font-bold opacity-60 uppercase">units</span>
                 </span>
               </div>
             )}
 
             {/* Reason */}
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground mb-2">
+              <label className="block text-[11px] font-semibold text-muted-foreground mb-2">
                 Reason
               </label>
               <select
@@ -433,7 +433,7 @@ export default function StockAdjustmentPage() {
 
             {/* Notes */}
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground mb-2">
+              <label className="block text-[11px] font-semibold text-muted-foreground mb-2">
                 Notes <span className="text-muted-foreground/40">(Optional)</span>
               </label>
               <textarea
@@ -447,13 +447,13 @@ export default function StockAdjustmentPage() {
 
             {/* Feedback */}
             {successMsg && (
-              <div className="rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm font-black text-primary flex items-center gap-2 animate-in fade-in duration-200">
+              <div className="rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm font-semibold text-primary flex items-center gap-2 animate-in fade-in duration-200">
                 <PackageCheck className="h-4 w-4 shrink-0" />
                 {successMsg}
               </div>
             )}
             {errorMsg && (
-              <div className="rounded-xl bg-danger/10 border border-danger/20 px-4 py-3 text-sm font-black text-danger flex items-center gap-2 animate-in fade-in duration-200">
+              <div className="rounded-xl bg-danger/10 border border-danger/20 px-4 py-3 text-sm font-semibold text-danger flex items-center gap-2 animate-in fade-in duration-200">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 {errorMsg}
               </div>
@@ -463,7 +463,7 @@ export default function StockAdjustmentPage() {
             <button
               onClick={handleSubmit}
               disabled={!selectedBatch || !reason || submitting}
-              className="w-full rounded-xl bg-primary px-4 py-4 font-black text-sm tracking-[0.2em] text-white uppercase transition-all hover:bg-primary/90 shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:bg-primary"
+              className="w-full rounded-xl bg-primary px-4 py-4 font-semibold text-sm text-white transition-all hover:bg-primary/90 shadow-lg shadow-primary/20 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:bg-primary"
             >
               {submitting ? 'Applying...' : 'Apply Adjustment'}
             </button>
@@ -471,10 +471,10 @@ export default function StockAdjustmentPage() {
         </div>
 
         {/* RIGHT — Recent Adjustments Table */}
-        <div className="rounded-2xl border border-border bg-surface shadow-bento overflow-hidden flex flex-col">
+        <div className="rounded-2xl bg-surface shadow-card overflow-hidden flex flex-col">
           <div className="border-b border-border bg-surface-muted/30 px-6 py-5">
-            <h2 className="text-lg font-black tracking-tight text-foreground uppercase">Recent Adjustments</h2>
-            <p className="text-[11px] font-bold text-muted-foreground mt-1 uppercase tracking-wider">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground uppercase">Recent Adjustments</h2>
+            <p className="text-[11px] font-bold text-muted-foreground mt-1">
               {totalAdjustments} total adjustment{totalAdjustments !== 1 ? 's' : ''}
             </p>
           </div>
@@ -486,7 +486,7 @@ export default function StockAdjustmentPage() {
                 <button
                   key={t}
                   onClick={() => { setFilterType(t); setPage(0); }}
-                  className={`px-4 py-2 text-[10px] font-black tracking-widest uppercase transition-all ${
+                  className={`px-4 py-2 text-[11px] font-semibold   transition-all ${
                     filterType === t
                       ? t === 'ADD'
                         ? 'bg-primary text-white'
@@ -523,7 +523,7 @@ export default function StockAdjustmentPage() {
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-muted/50 border border-border">
                   <FileText className="h-7 w-7 text-muted-foreground/30" />
                 </div>
-                <div className="text-sm font-black text-muted-foreground uppercase tracking-wider">No adjustments found</div>
+                <div className="text-sm font-semibold text-muted-foreground">No adjustments found</div>
                 <p className="text-[11px] font-bold text-muted-foreground/60 max-w-[240px]">
                   Use the form to make your first stock adjustment
                 </p>
@@ -532,13 +532,13 @@ export default function StockAdjustmentPage() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-border bg-surface-muted/30">
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Date</th>
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Medicine</th>
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Type</th>
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Qty</th>
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Before</th>
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">After</th>
-                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Reason</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-muted-foreground">Medicine</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-muted-foreground">Type</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-muted-foreground text-right">Qty</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-muted-foreground text-right">Before</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-muted-foreground text-right">After</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-muted-foreground">Reason</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -546,13 +546,13 @@ export default function StockAdjustmentPage() {
                     <tr key={adj.id} className="border-b border-surface-muted hover:bg-surface-muted/30 transition-colors">
                       <td className="px-4 py-3 text-[11px] font-bold text-muted-foreground whitespace-nowrap">
                         {new Date(adj.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
-                        <span className="block text-[9px] text-muted-foreground/60 mt-0.5">
+                        <span className="block text-[11px] text-muted-foreground/60 mt-0.5">
                           {new Date(adj.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[12px] font-black text-foreground max-w-[160px] truncate">{adj.medicineName}</td>
+                      <td className="px-4 py-3 text-[12px] font-semibold text-foreground max-w-[160px] truncate">{adj.medicineName}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-widest ${
+                        <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold   ${
                           adj.type === 'ADD'
                             ? 'bg-primary/10 text-primary border border-primary/20'
                             : 'bg-danger/10 text-danger border border-danger/20'
@@ -561,10 +561,10 @@ export default function StockAdjustmentPage() {
                           {adj.type === 'ADD' ? 'Added' : 'Removed'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[13px] font-black text-foreground text-right">{adj.quantity}</td>
+                      <td className="px-4 py-3 text-[13px] font-semibold text-foreground text-right">{adj.quantity}</td>
                       <td className="px-4 py-3 text-[12px] font-bold text-muted-foreground text-right">{adj.stockBefore}</td>
-                      <td className="px-4 py-3 text-[12px] font-black text-foreground text-right">{adj.stockAfter}</td>
-                      <td className="px-4 py-3 text-[10px] font-bold text-muted-foreground max-w-[130px] truncate">{adj.reason}</td>
+                      <td className="px-4 py-3 text-[12px] font-semibold text-foreground text-right">{adj.stockAfter}</td>
+                      <td className="px-4 py-3 text-[11px] font-bold text-muted-foreground max-w-[130px] truncate">{adj.reason}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -575,21 +575,21 @@ export default function StockAdjustmentPage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-surface-muted/30">
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-muted-foreground">
                 Page {page + 1} of {totalPages}
               </span>
               <div className="flex gap-2">
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-surface-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition-all hover:bg-surface-muted disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   Prev
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
-                  className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-surface-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition-all hover:bg-surface-muted disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -601,7 +601,7 @@ export default function StockAdjustmentPage() {
         </TabsContent>
 
         <TabsContent value="ledger" className="m-0 focus-visible:outline-none focus-visible:ring-0">
-          <div className="rounded-2xl border border-border bg-surface shadow-bento p-6">
+          <div className="rounded-2xl bg-surface shadow-card p-6">
             <InventoryHistoryTable key={ledgerVersion} />
           </div>
         </TabsContent>

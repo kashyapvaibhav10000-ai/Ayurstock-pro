@@ -119,7 +119,7 @@ export default function SuppliersPage() {
     <div className="space-y-6 p-4 md:p-8 max-w-[1600px] mx-auto">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-3">
+          <h1 className="text-large-title text-foreground flex items-center gap-3">
             <Building2 className="h-8 w-8 text-primary" />
             Suppliers & Distributors
           </h1>
@@ -185,7 +185,7 @@ export default function SuppliersPage() {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60" />
         <Input 
           placeholder="Search by name or city..." 
-          className="pl-12 h-12 rounded-[20px] shadow-soft border-border bg-surface font-medium text-foreground focus:ring-4 focus:ring-primary/10 transition-all focus:shadow-bento outline-none"
+          className="pl-12 h-12 rounded-[20px] shadow-card border-border bg-surface font-medium text-foreground focus:ring-4 focus:ring-primary/10 transition-all focus:shadow-bento outline-none"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -204,7 +204,7 @@ export default function SuppliersPage() {
           </div>
         ) : (
           filteredSuppliers.map((supplier) => (
-            <Card key={supplier.id} className="group hover:-translate-y-1 rounded-[24px] shadow-soft hover:shadow-bento transition-all duration-300 border-border bg-surface overflow-hidden">
+            <Card key={supplier.id} className="group rounded-card shadow-card transition-all duration-300 border-border bg-surface overflow-hidden">
               <CardHeader className="pb-3 border-b border-border bg-surface-muted/30">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
@@ -212,8 +212,8 @@ export default function SuppliersPage() {
                       <Building2 className="h-6 w-6" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg font-extrabold text-foreground tracking-tight">{supplier.name}</CardTitle>
-                      <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate max-w-[150px]">{supplier.city || 'Location N/A'}</CardDescription>
+                      <CardTitle className="text-lg font-bold text-foreground tracking-tight">{supplier.name}</CardTitle>
+                      <CardDescription className="text-xs font-semibold text-muted-foreground truncate max-w-[150px]">{supplier.city || 'Location N/A'}</CardDescription>
                     </div>
                   </div>
                   <div className="flex gap-1">
@@ -256,7 +256,7 @@ export default function SuppliersPage() {
                 </div>
                 
                 <div className="pt-5 mt-2 flex items-center justify-between border-t border-border">
-                  <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-muted-foreground bg-surface-muted/50 px-3 py-1 rounded-lg">
+                  <div className="text-[11px] font-bold text-muted-foreground bg-surface-muted/50 px-3 py-1 rounded-lg">
                     {supplier._count?.purchases || 0} Purchases
                   </div>
                   <Button 
@@ -339,7 +339,7 @@ export default function SuppliersPage() {
           <div className="flex-1 overflow-y-auto p-6 bg-surface">
              <div className="space-y-4">
                 {currentSupplier?.purchases?.length === 0 ? (
-                  <div className="text-center py-10 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">No purchase records found.</div>
+                  <div className="text-center py-10 text-muted-foreground/40 font-bold text-xs">No purchase records found.</div>
                 ) : (
                   currentSupplier?.purchases?.map((p: any) => (
                     <div key={p.id} className="p-4 bg-surface-muted/30 rounded-xl border border-border shadow-sm flex items-center justify-between group-hover:bg-primary/5 transition-colors">
@@ -349,7 +349,7 @@ export default function SuppliersPage() {
                        </div>
                        <div className="text-right">
                          <div className="font-bold text-foreground">₹{p.totalAmount}</div>
-                         <div className={`text-[10px] font-bold ${p.status === 'PAID' ? 'text-primary' : 'text-orange-400'}`}>
+                         <div className={`text-[11px] font-bold ${p.status === 'PAID' ? 'text-primary' : 'text-warning'}`}>
                            {p.status}
                          </div>
                        </div>

@@ -81,7 +81,7 @@ export default function MedicineEditModal({
         </DialogHeader>
 
         {error ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
             {error}
           </div>
         ) : null}
@@ -162,7 +162,7 @@ export default function MedicineEditModal({
                   }`}
                 >
                   <span className="text-sm font-bold">{opt.label}</span>
-                  <span className="text-[10px] opacity-80 font-normal">{opt.category}</span>
+                  <span className="text-[11px] opacity-80 font-normal">{opt.category}</span>
                 </button>
               ))}
             </div>

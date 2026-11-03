@@ -128,7 +128,7 @@ export default function BillingSettings() {
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-sm font-semibold text-muted-foreground">
             General Toggles
           </h3>
           <div className="grid gap-4 bg-muted/30 p-4 rounded-xl border border-border">
@@ -171,7 +171,7 @@ export default function BillingSettings() {
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-sm font-semibold text-muted-foreground">
             GST & Pricing
           </h3>
           <div className="space-y-6 bg-muted/30 p-5 rounded-xl border border-border">

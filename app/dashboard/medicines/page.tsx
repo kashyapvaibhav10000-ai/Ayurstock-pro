@@ -417,7 +417,7 @@ export default function MedicinesPage() {
     <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Medicines</h1>
+          <h1 className="text-large-title text-foreground">Medicines</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage your medicine master and move selected items into inventory when stock arrives.
           </p>
@@ -429,14 +429,14 @@ export default function MedicinesPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search medicine, company, barcode..."
-              className="pl-9 rounded-2xl bg-surface shadow-soft border-border transition-all focus-visible:shadow-bento"
+              className="pl-9 rounded-2xl bg-surface shadow-card border-border transition-all focus-visible:shadow-bento"
             />
           </div>
-          <Button variant="outline" className="gap-2 rounded-2xl shadow-soft hover:shadow-bento transition-all" onClick={() => setShowImportModal(true)}>
+          <Button variant="outline" className="gap-2 rounded-2xl shadow-card transition-all" onClick={() => setShowImportModal(true)}>
             <Upload className="h-4 w-4" />
             Import Medicines
           </Button>
-          <Button className="gap-2 rounded-2xl shadow-soft hover:shadow-bento transition-all" onClick={() => setShowAddModal(true)}>
+          <Button className="gap-2 rounded-2xl shadow-card transition-all" onClick={() => setShowAddModal(true)}>
             <Plus className="h-4 w-4" />
             Add Medicine
           </Button>
@@ -467,7 +467,7 @@ export default function MedicinesPage() {
             </CardDescription>
           </div>
           {selectedMedicines.size > 0 ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-primary/20 px-4 py-2 text-sm text-primary font-bold shadow-soft border border-primary/20">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-primary/20 px-4 py-2 text-sm text-primary font-bold shadow-card border border-primary/20">
               <span>{selectedMedicines.size} selected</span>
               <Button size="sm" className="gap-2 rounded-xl" onClick={() => setShowMoveModal(true)}>
                 <Boxes className="h-4 w-4" />
@@ -489,7 +489,7 @@ export default function MedicinesPage() {
           {/* Filter bar */}
           <div className="mb-4 flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground/60 font-semibold uppercase tracking-wider pl-1">Category</Label>
+              <Label className="text-xs text-muted-foreground/60 font-semibold pl-1">Category</Label>
               <select
                 value={activeFilter}
                 onChange={(e) => setActiveFilter(e.target.value)}
@@ -501,7 +501,7 @@ export default function MedicinesPage() {
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground/60 font-semibold uppercase tracking-wider pl-1">Company</Label>
+              <Label className="text-xs text-muted-foreground/60 font-semibold pl-1">Company</Label>
               <select
                 value={companyFilter}
                 onChange={(e) => setCompanyFilter(e.target.value)}
@@ -533,13 +533,13 @@ export default function MedicinesPage() {
                   <TableHead className="w-12">
                     <Checkbox checked={selectedAll} onCheckedChange={toggleSelectAll} />
                   </TableHead>
-                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Medicine</TableHead>
-                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Company</TableHead>
-                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Category</TableHead>
-                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden sm:table-cell">Packing</TableHead>
-                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden lg:table-cell">Barcode</TableHead>
-                  <TableHead className="font-bold text-muted-foreground uppercase text-[11px] tracking-wider hidden md:table-cell">GST %</TableHead>
-                  <TableHead className="text-right font-bold text-muted-foreground uppercase text-[11px] tracking-wider">Actions</TableHead>
+                  <TableHead className="font-bold text-muted-foreground text-[11px]">Medicine</TableHead>
+                  <TableHead className="font-bold text-muted-foreground text-[11px]">Company</TableHead>
+                  <TableHead className="font-bold text-muted-foreground text-[11px]">Category</TableHead>
+                  <TableHead className="font-bold text-muted-foreground text-[11px] hidden sm:table-cell">Packing</TableHead>
+                  <TableHead className="font-bold text-muted-foreground text-[11px] hidden lg:table-cell">Barcode</TableHead>
+                  <TableHead className="font-bold text-muted-foreground text-[11px] hidden md:table-cell">GST %</TableHead>
+                  <TableHead className="text-right font-bold text-muted-foreground text-[11px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -678,7 +678,7 @@ export default function MedicinesPage() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                            className="h-8 w-8 text-muted-foreground hover:text-danger hover:bg-danger/10"
                             onClick={() => handleDeleteMedicine(medicine)}
                             title={view === 'active' ? 'Archive medicine' : 'Delete permanently'}
                           >

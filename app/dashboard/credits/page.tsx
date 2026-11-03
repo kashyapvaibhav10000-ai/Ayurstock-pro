@@ -15,17 +15,17 @@ function getDaysOverdue(createdAt: string): number {
 
 function OverdueBadge({ days }: { days: number }) {
   if (days < 7) return (
-    <span className="inline-flex items-center gap-1 rounded-lg border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-green-600 dark:text-green-400">
+    <span className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
       <Clock className="h-3 w-3" />{days}d
     </span>
   );
   if (days < 30) return (
-    <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+    <span className="inline-flex items-center gap-1 rounded-lg border border-warning/30 bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning">
       <AlertTriangle className="h-3 w-3" />{days}d overdue
     </span>
   );
   return (
-    <span className="inline-flex items-center gap-1 rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-400">
+    <span className="inline-flex items-center gap-1 rounded-lg border border-danger/30 bg-danger/10 px-2 py-0.5 text-[11px] font-semibold text-danger">
       <AlertOctagon className="h-3 w-3" />{days}d overdue
     </span>
   );
@@ -124,7 +124,7 @@ export default function CreditsPage() {
   return (
     <div className="space-y-6 p-6 md:p-8 max-w-[1200px] mx-auto">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Credit Tracking</h1>
+        <h1 className="text-large-title text-foreground">Credit Tracking</h1>
         <p className="mt-1 text-sm font-medium text-muted-foreground">
           Customers with outstanding credit balances.
         </p>
@@ -136,7 +136,7 @@ export default function CreditsPage() {
           <button
             key={f}
             onClick={() => setOverdueFilter(f)}
-            className={`rounded-xl border px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+            className={`rounded-xl border px-4 py-1.5 text-[11px] font-semibold   transition-all ${
               overdueFilter === f
                 ? 'border-primary bg-primary/10 text-primary'
                 : 'border-border bg-background text-muted-foreground hover:border-primary/30'
@@ -149,37 +149,37 @@ export default function CreditsPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="rounded-[24px] border-border bg-surface shadow-soft border-l-[6px] border-l-primary/30">
+        <Card className="rounded-card border-border bg-surface shadow-card border-l-[6px] border-l-primary/30">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 rounded-xl bg-primary/10 text-primary">
               <IndianRupee className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Outstanding</p>
-              <p className="text-2xl font-extrabold text-foreground mt-1">
+              <p className="text-xs font-bold text-muted-foreground">Total Outstanding</p>
+              <p className="text-2xl font-bold text-foreground mt-1">
                 ₹{totalOutstanding.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
               </p>
             </div>
           </CardContent>
         </Card>
-        <Card className="rounded-[24px] border-border bg-surface shadow-soft border-l-[6px] border-l-primary/30">
+        <Card className="rounded-card border-border bg-surface shadow-card border-l-[6px] border-l-primary/30">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="p-3 rounded-xl bg-primary/10 text-primary">
               <User className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Customers with Credit</p>
-              <p className="text-2xl font-extrabold text-foreground mt-1">{credits.length}</p>
+              <p className="text-xs font-bold text-muted-foreground">Customers with Credit</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{credits.length}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {credits.length === 0 ? (
-        <Card className="rounded-[24px] border-border bg-surface shadow-soft border-l-[6px] border-l-primary/30">
+        <Card className="rounded-card border-border bg-surface shadow-card border-l-[6px] border-l-primary/30">
           <CardContent className="py-16 flex flex-col items-center gap-3 text-center">
             <CheckCircle2 className="h-12 w-12 text-primary" />
-            <h3 className="text-lg font-extrabold text-foreground">All Clear!</h3>
+            <h3 className="text-lg font-bold text-foreground">All Clear!</h3>
             <p className="text-sm font-medium text-muted-foreground">No outstanding credit balances.</p>
           </CardContent>
         </Card>
@@ -189,7 +189,7 @@ export default function CreditsPage() {
             const maxDays = Math.max(...customer.sales.map((s) => getDaysOverdue(s.createdAt)));
             const isOverdue = maxDays >= 7;
             return (
-            <Card key={customer.customerId} className="overflow-hidden rounded-[24px] border-border bg-surface shadow-soft">
+            <Card key={customer.customerId} className="overflow-hidden rounded-card border-border bg-surface shadow-card">
               <CardHeader
                 className="cursor-pointer select-none py-4 px-5 hover:bg-primary/5 transition-colors"
                 onClick={() => toggleExpand(customer.customerId)}
@@ -197,12 +197,12 @@ export default function CreditsPage() {
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                      isOverdue ? 'bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400' : 'bg-primary/10 text-primary'
+                      isOverdue ? 'bg-danger/10  text-danger ' : 'bg-primary/10 text-primary'
                     }`}>
                       {customer.customerName.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <CardTitle className="text-base font-extrabold text-foreground truncate">{customer.customerName}</CardTitle>
+                      <CardTitle className="text-base font-bold text-foreground truncate">{customer.customerName}</CardTitle>
                       {customer.customerPhone && (
                         <CardDescription className="flex items-center gap-1 text-xs mt-0.5 font-bold text-muted-foreground">
                           <Phone className="h-3 w-3" />
@@ -214,8 +214,8 @@ export default function CreditsPage() {
                   <div className="flex items-center gap-3 shrink-0">
                     {isOverdue && <OverdueBadge days={maxDays} />}
                     <div className="text-right">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Due</p>
-                      <p className="text-lg font-extrabold text-primary">
+                      <p className="text-[11px] font-bold text-muted-foreground">Due</p>
+                      <p className="text-lg font-bold text-primary">
                         ₹{customer.totalDue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                       </p>
                     </div>
@@ -246,7 +246,7 @@ export default function CreditsPage() {
                           <OverdueBadge days={getDaysOverdue(sale.createdAt)} />
                         </div>
                         <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                          <span className="text-sm font-extrabold text-primary">
+                          <span className="text-sm font-bold text-primary">
                             ₹{sale.creditDue.toLocaleString('en-IN', { maximumFractionDigits: 2 })} due
                           </span>
                           <Button

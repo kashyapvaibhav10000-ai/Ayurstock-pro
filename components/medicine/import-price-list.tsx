@@ -111,11 +111,11 @@ function SmartErrorBanner({ errorCode, message }: { errorCode?: string; message:
   const guidance = getGuidance()
 
   return (
-    <div className={`rounded-lg p-4 flex items-start gap-3 ${isScanned ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800" : "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40"}`}>
-      {isScanned ? <span className="text-xl">📄</span> : <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />}
+    <div className={`rounded-lg p-4 flex items-start gap-3 ${isScanned ? "bg-warning/10  border border-warning/30 " : "bg-danger/10  border border-danger/30 "}`}>
+      {isScanned ? <span className="text-xl">📄</span> : <AlertCircle className="h-5 w-5 text-danger flex-shrink-0 mt-0.5" />}
       <div className="space-y-1">
-        <span className={`text-sm font-medium ${isScanned ? "text-amber-800 dark:text-amber-300" : "text-red-700 dark:text-red-400"}`}>{message}</span>
-        {guidance && <p className={`text-xs ${isScanned ? "text-amber-600 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>{guidance}</p>}
+        <span className={`text-sm font-medium ${isScanned ? "text-warning " : "text-danger "}`}>{message}</span>
+        {guidance && <p className={`text-xs ${isScanned ? "text-warning " : "text-danger "}`}>{guidance}</p>}
       </div>
     </div>
   )
@@ -607,9 +607,9 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
   }
 
   const getConfClass = (conf?: string) => {
-    if (conf === 'high') return 'bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/40 focus:border-emerald-400'
-    if (conf === 'medium') return 'bg-amber-50/40 dark:bg-amber-950/20 text-amber-900 dark:text-amber-300 border-amber-200 dark:border-amber-900/40 focus:border-amber-400'
-    if (conf === 'low') return 'bg-red-50/40 dark:bg-red-950/20 text-red-900 dark:text-red-300 border-red-200 dark:border-red-900/40 focus:border-red-400'
+    if (conf === 'high') return 'bg-primary/10  text-primary  border-primary/30  focus:border-primary'
+    if (conf === 'medium') return 'bg-warning/10  text-warning  border-warning/30  focus:border-warning'
+    if (conf === 'low') return 'bg-danger/10  text-danger  border-danger/30  focus:border-danger'
     return 'bg-surface border-border focus:border-primary'
   }
 
@@ -805,17 +805,17 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
             
             {/* ── Upgrade 1: Duplicate Invoice Banner ─────────────────── */}
             {duplicateWarning && (
-              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg p-4 mb-4 shadow-sm animate-in fade-in slide-in-from-top-4">
+              <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mb-4 shadow-sm animate-in fade-in slide-in-from-top-4">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-300">Duplicate Invoice Detected</h4>
-                    <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">{duplicateWarning.message}</p>
+                    <h4 className="text-sm font-semibold text-warning">Duplicate Invoice Detected</h4>
+                    <p className="text-sm text-warning mt-1">{duplicateWarning.message}</p>
                     <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:gap-3">
-                      <Button onClick={() => { setForceImport(true); handleImport(true); }} className="h-11 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
+                      <Button onClick={() => { setForceImport(true); handleImport(true); }} className="h-11 bg-warning/10 hover:bg-warning/20 text-warning border border-warning/30">
                         {loading && forceImport ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Yes, Import Anyway"}
                       </Button>
-                      <Button variant="ghost" onClick={resetModal} className="h-11 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30">
+                      <Button variant="ghost" onClick={resetModal} className="h-11 text-warning hover:bg-warning/10">
                         Cancel Import
                       </Button>
                     </div>
@@ -824,24 +824,24 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
               </div>
             )}
 
-            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/40 rounded-lg p-4">
+            <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />
-                  <span className="text-green-700 dark:text-green-400 text-sm">
+                  <CheckCircle className="h-5 w-5 text-primary shrink-0" />
+                  <span className="text-primary text-sm">
                     Successfully parsed {parsedMedicines.length} medicines
                   </span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {pdfType && (
                     <span className={`text-xs px-2 py-1 rounded-full ${
-                      pdfType === "searchable" ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400" : "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400"
+                      pdfType === "searchable" ? "bg-primary/10  text-primary " : "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400"
                     }`}>
                       {pdfType === "searchable" ? "✅ Searchable PDF" : (provider.includes("ocr") ? "🔍 OCR Extracted" : "🖼️ Vision API Scanned")}
                     </span>
                   )}
                   {provider && (
-                    <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 rounded-full font-medium whitespace-nowrap hidden md:inline-block">
+                    <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full font-medium whitespace-nowrap hidden md:inline-block">
                        AI: {provider.toUpperCase()}
                     </span>
                   )}
@@ -888,7 +888,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
             </div>
 
             {hasBlockingIssues && (
-              <div className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+              <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
                 Fix the highlighted rows (missing category/packing or long names) before importing.
               </div>
             )}
@@ -904,14 +904,14 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={sortProblemsFirst} className="h-11 sm:h-8 text-xs font-medium border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/50">
+                  <Button variant="outline" size="sm" onClick={sortProblemsFirst} className="h-11 sm:h-8 text-xs font-medium border-warning/30 bg-warning/10 text-warning hover:bg-warning/10">
                     Sort Problems First ⚠️
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={handleAddManualRow} 
-                    className="h-11 sm:h-8 text-xs font-medium border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 bg-surface"
+                    className="h-11 sm:h-8 text-xs font-medium border-primary/30 text-primary hover:bg-primary/10 bg-surface"
                   >
                     <Plus className="w-3 h-3 mr-1" /> Add Row Manually
                   </Button>
@@ -972,17 +972,17 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                     <TableHead className="w-10 text-center">
                       <input type="checkbox" checked={parsedMedicines.length > 0 && parsedMedicines.every(m => m.selected !== false)} onChange={toggleSelectAll} className="w-4 h-4 rounded border-border text-primary focus:ring-primary/20 cursor-pointer" />
                     </TableHead>
-                    <TableHead className="w-12 text-center text-sm font-bold uppercase tracking-wider text-foreground">#</TableHead>
-                    <TableHead className="min-w-[280px] text-sm font-bold uppercase tracking-wider text-foreground">Medicine Name</TableHead>
-                    <TableHead className="min-w-[150px] text-sm font-bold uppercase tracking-wider text-foreground">Company</TableHead>
-                    <TableHead className="min-w-[130px] text-sm font-bold uppercase tracking-wider text-foreground">Category</TableHead>
-                    <TableHead className="min-w-[120px] text-sm font-bold uppercase tracking-wider text-foreground">Packing</TableHead>
-                    <TableHead className="min-w-[100px] text-sm font-bold uppercase tracking-wider text-foreground">Batch</TableHead>
-                    <TableHead className="min-w-[100px] text-sm font-bold uppercase tracking-wider text-foreground">Expiry</TableHead>
-                    <TableHead className="min-w-[90px] text-sm font-bold uppercase tracking-wider text-foreground text-right">MRP</TableHead>
-                    <TableHead className="min-w-[90px] text-sm font-bold uppercase tracking-wider text-foreground text-right">PTS</TableHead>
-                    <TableHead className="min-w-[80px] text-sm font-bold uppercase tracking-wider text-foreground text-center">Qty</TableHead>
-                    <TableHead className="w-[100px] text-sm font-bold uppercase tracking-wider text-foreground text-center">Action</TableHead>
+                    <TableHead className="w-12 text-center text-sm font-bold text-foreground">#</TableHead>
+                    <TableHead className="min-w-[280px] text-sm font-bold text-foreground">Medicine Name</TableHead>
+                    <TableHead className="min-w-[150px] text-sm font-bold text-foreground">Company</TableHead>
+                    <TableHead className="min-w-[130px] text-sm font-bold text-foreground">Category</TableHead>
+                    <TableHead className="min-w-[120px] text-sm font-bold text-foreground">Packing</TableHead>
+                    <TableHead className="min-w-[100px] text-sm font-bold text-foreground">Batch</TableHead>
+                    <TableHead className="min-w-[100px] text-sm font-bold text-foreground">Expiry</TableHead>
+                    <TableHead className="min-w-[90px] text-sm font-bold text-foreground text-right">MRP</TableHead>
+                    <TableHead className="min-w-[90px] text-sm font-bold text-foreground text-right">PTS</TableHead>
+                    <TableHead className="min-w-[80px] text-sm font-bold text-foreground text-center">Qty</TableHead>
+                    <TableHead className="w-[100px] text-sm font-bold text-foreground text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -995,7 +995,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                     return (
                     <TableRow
                       key={index}
-                      className={`group transition-colors ${hasIssues ? "bg-red-50/60 dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/30" : "hover:bg-surface-muted/80"} ${duplicate ? "opacity-60" : ""} ${medicine.selected === false ? "opacity-50 bg-surface-muted grayscale" : ""} ${medicine.isManual ? "border-l-4 border-l-blue-500 bg-blue-50/20 dark:bg-blue-950/20" : ""}`}
+                      className={`group transition-colors ${hasIssues ? "bg-danger/10  hover:bg-danger/10 " : "hover:bg-surface-muted/80"} ${duplicate ? "opacity-60" : ""} ${medicine.selected === false ? "opacity-50 bg-surface-muted grayscale" : ""} ${medicine.isManual ? "border-l-4 border-l-blue-500 bg-blue-50/20 dark:bg-blue-950/20" : ""}`}
                     >
                       {/* Checkbox */}
                       <TableCell className="text-center py-4">
@@ -1011,7 +1011,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                           if (medicine.isManual) {
                             return (
                               <div className="mt-1" title="Manually added medicine row">
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 whitespace-nowrap">MANUAL</span>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 whitespace-nowrap">MANUAL</span>
                               </div>
                             )
                           }
@@ -1019,13 +1019,13 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                           if (rd.exists) {
                             return (
                               <div className="mt-1" title={`In stock: ${rd.currentStock}. Last bought: ${rd.lastPurchasePrice ? '₹'+rd.lastPurchasePrice : 'N/A'}`}>
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 whitespace-nowrap">RESTOCK</span>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-primary/10 text-primary whitespace-nowrap">RESTOCK</span>
                               </div>
                             )
                           } else {
                             return (
                               <div className="mt-1" title="New medicine not found in your inventory">
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 whitespace-nowrap">NEW</span>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 whitespace-nowrap">NEW</span>
                               </div>
                             )
                           }
@@ -1043,7 +1043,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                         {hasIssues && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {issues.map((issue) => (
-                              <span key={issue} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
+                              <span key={issue} className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-danger/10 text-danger">
                                 {issue}
                               </span>
                             ))}
@@ -1092,7 +1092,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                       </TableCell>
 
                       {/* Batch No */}
-                      <TableCell className="font-mono text-sm text-slate-700 py-4">
+                      <TableCell className="font-mono text-sm text-foreground py-4">
                         <Input
                           value={medicine.batchNo || ""}
                           onChange={(event) => updateMedicine(index, "batchNo", event.target.value)}
@@ -1106,10 +1106,10 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                           <Input
                             value={medicine.expiryDate || ""}
                             onChange={(event) => updateMedicine(index, "expiryDate", event.target.value)}
-                            className={`h-8 text-xs border ${getConfClass(medicine.confidence?.expiry)} ${isExpired(medicine.expiryDate) ? "text-red-700 font-bold bg-red-50" : isNearExpiry(medicine.expiryDate) ? "text-amber-700 font-bold bg-amber-50" : ""}`}
+                            className={`h-8 text-xs border ${getConfClass(medicine.confidence?.expiry)} ${isExpired(medicine.expiryDate) ? "text-danger font-bold bg-danger/10" : isNearExpiry(medicine.expiryDate) ? "text-warning font-bold bg-warning/10" : ""}`}
                           />
-                          {isExpired(medicine.expiryDate) && <span className="text-[10px] font-medium text-red-600 leading-tight">Expired ❌</span>}
-                          {isNearExpiry(medicine.expiryDate) && <span className="text-[10px] font-medium text-amber-600 leading-tight">Near Expiry ⚠️</span>}
+                          {isExpired(medicine.expiryDate) && <span className="text-[11px] font-medium text-danger leading-tight">Expired ❌</span>}
+                          {isNearExpiry(medicine.expiryDate) && <span className="text-[11px] font-medium text-warning leading-tight">Near Expiry ⚠️</span>}
                         </div>
                       </TableCell>
 
@@ -1152,7 +1152,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                               onChange={(event) =>
                                 updateMedicine(index, "action", event.target.value as any)
                               }
-                              className="h-7 w-20 rounded border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-1 text-[10px] font-medium text-amber-800 dark:text-amber-300 focus:ring-1 focus:ring-amber-500"
+                              className="h-7 w-20 rounded border border-warning/30 bg-warning/10 px-1 text-[11px] font-medium text-warning focus:ring-1 focus:ring-warning"
                             >
                               <option value="skip">Skip</option>
                               <option value="update">Update</option>
@@ -1162,7 +1162,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                               variant="ghost"
                               size="sm"
                               onClick={() => removeMedicine(index)}
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-danger hover:bg-danger/10 opacity-0 group-hover:opacity-100 transition-opacity"
                               title="Delete Row"
                             >
                               <AlertCircle className="w-4 h-4" />
@@ -1181,7 +1181,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
 
         {step === "importing" && (
           <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Importing medicines...</p>
           </div>
         )}
@@ -1205,7 +1205,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
               <Button
                 onClick={handleUpload}
                 disabled={!file || loading}
-                className="h-11 sm:h-10 bg-green-600 hover:bg-green-700 text-white"
+                className="h-11 sm:h-10 bg-primary hover:bg-primary-hover text-white"
               >
                 {loading ? "Processing..." : "Upload & Preview"}
               </Button>
@@ -1230,7 +1230,7 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
                   hasBlockingIssues ||
                   loading
                 }
-                className="h-11 sm:h-10 flex-1 sm:flex-initial bg-green-600 hover:bg-green-700 text-white font-semibold"
+                className="h-11 sm:h-10 flex-1 sm:flex-initial bg-primary hover:bg-primary-hover text-white font-semibold"
               >
                 {loading
                   ? "Importing..."

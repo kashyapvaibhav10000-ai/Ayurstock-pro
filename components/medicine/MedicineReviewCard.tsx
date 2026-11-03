@@ -103,7 +103,7 @@ export default function MedicineReviewCard({
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 420px" }}
       className={`rounded-2xl border-2 p-4 space-y-4 transition-colors ${
         hasIssues
-          ? "border-red-300 bg-red-50/60 dark:border-red-900/50 dark:bg-red-950/20"
+          ? "border-danger/30 bg-danger/10  "
           : "border-border bg-surface"
       } ${isDeselected ? "opacity-50" : ""} ${
         medicine.isManual ? "border-l-4 border-l-blue-500" : ""
@@ -122,9 +122,9 @@ export default function MedicineReviewCard({
           <span className="text-xs font-bold text-muted-foreground shrink-0">#{index + 1}</span>
           {restockLabel && (
             <span
-              className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${
+              className={`inline-flex items-center px-2 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${
                 restockLabel === "RESTOCK"
-                  ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
+                  ? "bg-primary/10 text-primary  "
                   : restockLabel === "MANUAL"
                     ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
                     : "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
@@ -140,7 +140,7 @@ export default function MedicineReviewCard({
             aria-label="Action for duplicate medicine"
             value={medicine.action || "skip"}
             onChange={(e) => onChange(index, "action", e.target.value)}
-            className={`rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-3 text-xs font-bold text-amber-800 dark:text-amber-300 ${TOUCH}`}
+            className={`rounded-lg border border-warning/30 bg-warning/10   px-3 text-xs font-bold text-warning  ${TOUCH}`}
           >
             <option value="skip">Skip</option>
             <option value="update">Update</option>
@@ -152,7 +152,7 @@ export default function MedicineReviewCard({
             size="icon"
             onClick={() => onDelete(index)}
             aria-label={`Remove ${medicine.name || "this row"}`}
-            className="h-12 w-12 shrink-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+            className="h-12 w-12 shrink-0 text-muted-foreground hover:text-danger hover:bg-danger/10"
           >
             <Trash2 className="w-5 h-5" />
           </Button>
@@ -165,7 +165,7 @@ export default function MedicineReviewCard({
           {issues.map((issue) => (
             <span
               key={issue}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-danger/10 text-danger"
             >
               <AlertCircle className="w-3 h-3" />
               {issue}
@@ -251,17 +251,17 @@ export default function MedicineReviewCard({
             placeholder="MM/YYYY"
             className={`text-base border-2 ${TOUCH} ${confClass(medicine.confidence?.expiry)} ${
               isExpired
-                ? "text-red-700 font-bold bg-red-50 dark:bg-red-950/30 dark:text-red-400"
+                ? "text-danger font-bold bg-danger/10  "
                 : isNearExpiry
-                  ? "text-amber-700 font-bold bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400"
+                  ? "text-warning font-bold bg-warning/10  "
                   : ""
             }`}
           />
           {isExpired && (
-            <p className="text-[11px] font-bold text-red-600 dark:text-red-400 mt-1">Expired ❌</p>
+            <p className="text-[11px] font-bold text-danger mt-1">Expired ❌</p>
           )}
           {isNearExpiry && (
-            <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-1">Near Expiry ⚠️</p>
+            <p className="text-[11px] font-bold text-warning mt-1">Near Expiry ⚠️</p>
           )}
         </div>
       </div>

@@ -76,13 +76,13 @@ export default function MedicineBatchesModal({
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-sm text-gray-500">
+                  <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
                     Loading batches...
                   </TableCell>
                 </TableRow>
               ) : batches.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-sm text-gray-500">
+                  <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
                     No batches found for this medicine.
                   </TableCell>
                 </TableRow>

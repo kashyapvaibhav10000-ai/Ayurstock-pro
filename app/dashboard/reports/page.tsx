@@ -50,15 +50,15 @@ function StatCard({
   label, value, sub, icon: Icon, color = 'primary',
 }: { label: string; value: string; sub?: string; icon: any; color?: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface shadow-bento p-5 flex flex-col gap-3">
+    <div className="rounded-2xl bg-surface shadow-card p-5 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground">{label}</span>
+        <span className="text-[11px] font-semibold text-muted-foreground">{label}</span>
         <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-${color}/10 border border-${color}/20`}>
           <Icon className={`h-4 w-4 text-${color}`} />
         </div>
       </div>
       <div>
-        <div className="text-2xl font-black tracking-tight text-foreground">{value}</div>
+        <div className="text-2xl font-semibold tracking-tight text-foreground">{value}</div>
         {sub && <div className="text-[11px] font-bold text-muted-foreground mt-0.5">{sub}</div>}
       </div>
     </div>
@@ -172,13 +172,13 @@ export default function ReportsPage() {
           <FileBarChart className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <div className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/80">Sales</div>
-          <h1 className="text-2xl font-black tracking-tight text-foreground">Reports & Analytics</h1>
+          <div className="text-[11px] font-semibold text-primary/80">Sales</div>
+          <h1 className="text-large-title text-foreground">Reports & Analytics</h1>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="rounded-2xl border border-border bg-surface shadow-bento p-5 space-y-4">
+      <div className="rounded-2xl bg-surface shadow-card p-5 space-y-4">
         {/* Presets */}
         <div className="flex flex-wrap gap-2">
           {[
@@ -191,7 +191,7 @@ export default function ReportsPage() {
             <button
               key={label}
               onClick={() => setPreset(days)}
-              className="rounded-xl border border-border bg-background px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-all"
+              className="rounded-xl border border-border bg-background px-3 py-1.5 text-[11px] font-semibold text-muted-foreground hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-all"
             >
               {label}
             </button>
@@ -205,7 +205,7 @@ export default function ReportsPage() {
             { label: 'End Date', value: endDate, onChange: setEndDate },
           ].map(({ label, value, onChange }) => (
             <div key={label} className="flex-1 min-w-[160px] space-y-1.5">
-              <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground">{label}</label>
+              <label className="block text-[11px] font-semibold text-muted-foreground">{label}</label>
               <input
                 type="date"
                 value={value}
@@ -218,7 +218,7 @@ export default function ReportsPage() {
           <button
             onClick={generate}
             disabled={loading}
-            className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-[11px] font-black tracking-widest uppercase text-white hover:bg-primary/90 shadow-lg shadow-primary/20 disabled:opacity-50 transition-all"
+            className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-[11px] font-semibold text-white hover:bg-primary/90 shadow-lg shadow-primary/20 disabled:opacity-50 transition-all"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Filter className="h-4 w-4" />}
             {loading ? 'Generating...' : 'Generate'}
@@ -227,7 +227,7 @@ export default function ReportsPage() {
           {generated && (
             <button
               onClick={exportCsv}
-              className="flex items-center gap-2 rounded-xl border border-border bg-surface px-6 py-2.5 text-[11px] font-black tracking-widest uppercase text-muted-foreground hover:bg-surface-muted transition-all"
+              className="flex items-center gap-2 rounded-xl border border-border bg-surface px-6 py-2.5 text-[11px] font-semibold text-muted-foreground hover:bg-surface-muted transition-all"
             >
               <Download className="h-4 w-4" />
               Export CSV
@@ -243,7 +243,7 @@ export default function ReportsPage() {
             <FileBarChart className="h-10 w-10 text-muted-foreground/30" />
           </div>
           <div>
-            <div className="text-xl font-black text-foreground">Select a date range to begin</div>
+            <div className="text-xl font-semibold text-foreground">Select a date range to begin</div>
             <p className="text-sm font-bold text-muted-foreground mt-1 max-w-xs">
               Choose your dates above and click Generate to view full analytics
             </p>
@@ -263,14 +263,14 @@ export default function ReportsPage() {
           </div>
 
           {/* Revenue Trend Chart */}
-          <div className="rounded-2xl border border-border bg-surface shadow-bento overflow-hidden">
+          <div className="rounded-2xl bg-surface shadow-card overflow-hidden">
             <div className="border-b border-border px-6 py-5 bg-surface-muted/30">
-              <h2 className="text-lg font-black tracking-tight text-foreground uppercase">Revenue Trend</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-foreground uppercase">Revenue Trend</h2>
               <p className="text-[11px] font-bold text-muted-foreground mt-0.5">Daily sales over the selected period</p>
             </div>
             <div className="p-4 md:p-6">
               {dailyData.length === 0 ? (
-                <div className="flex items-center justify-center h-64 text-sm font-black text-muted-foreground">No sales data for this period</div>
+                <div className="flex items-center justify-center h-64 text-sm font-semibold text-muted-foreground">No sales data for this period</div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={dailyData} margin={{ top: 5, right: 5, bottom: 5, left: 10 }}>
@@ -296,14 +296,14 @@ export default function ReportsPage() {
           </div>
 
           {/* Bills Trend Chart */}
-          <div className="rounded-2xl border border-border bg-surface shadow-bento overflow-hidden">
+          <div className="rounded-2xl bg-surface shadow-card overflow-hidden">
             <div className="border-b border-border px-6 py-5 bg-surface-muted/30">
-              <h2 className="text-lg font-black tracking-tight text-foreground uppercase">Daily Bill Volume</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-foreground uppercase">Daily Bill Volume</h2>
               <p className="text-[11px] font-bold text-muted-foreground mt-0.5">Number of invoices generated per day</p>
             </div>
             <div className="p-4 md:p-6">
               {dailyData.length === 0 ? (
-                <div className="flex items-center justify-center h-52 text-sm font-black text-muted-foreground">No data</div>
+                <div className="flex items-center justify-center h-52 text-sm font-semibold text-muted-foreground">No data</div>
               ) : (
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={dailyData} margin={{ top: 5, right: 5, bottom: 5, left: 10 }}>
@@ -339,14 +339,14 @@ export default function ReportsPage() {
           {/* Bottom Row: Payment Breakdown + Top Medicines */}
           <div className="grid grid-cols-1 xl:grid-cols-[340px_1fr] gap-6">
             {/* Payment Mode Pie */}
-            <div className="rounded-2xl border border-border bg-surface shadow-bento overflow-hidden">
+            <div className="rounded-2xl bg-surface shadow-card overflow-hidden">
               <div className="border-b border-border px-6 py-5 bg-surface-muted/30">
-                <h2 className="text-lg font-black tracking-tight text-foreground uppercase">Payment Modes</h2>
+                <h2 className="text-lg font-semibold tracking-tight text-foreground uppercase">Payment Modes</h2>
                 <p className="text-[11px] font-bold text-muted-foreground mt-0.5">Breakdown by payment method</p>
               </div>
               <div className="p-4 md:p-6">
                 {paymentData.length === 0 ? (
-                  <div className="flex items-center justify-center h-52 text-sm font-black text-muted-foreground">No data</div>
+                  <div className="flex items-center justify-center h-52 text-sm font-semibold text-muted-foreground">No data</div>
                 ) : (
                   <div className="space-y-4">
                     <ResponsiveContainer width="100%" height={200}>
@@ -378,11 +378,11 @@ export default function ReportsPage() {
                               <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: `${color}20`, border: `1px solid ${color}40` }}>
                                 <Icon className="h-3.5 w-3.5" style={{ color }} />
                               </div>
-                              <span className="text-[11px] font-black text-foreground uppercase tracking-wider">{p.paymentMode}</span>
+                              <span className="text-[11px] font-semibold text-foreground">{p.paymentMode}</span>
                             </div>
                             <div className="text-right">
-                              <div className="text-[12px] font-black text-foreground">{fmt(p.total)}</div>
-                              <div className="text-[9px] font-bold text-muted-foreground">{p.count} bills</div>
+                              <div className="text-[12px] font-semibold text-foreground">{fmt(p.total)}</div>
+                              <div className="text-[11px] font-bold text-muted-foreground">{p.count} bills</div>
                             </div>
                           </div>
                         );
@@ -394,38 +394,38 @@ export default function ReportsPage() {
             </div>
 
             {/* Top Medicines */}
-            <div className="rounded-2xl border border-border bg-surface shadow-bento overflow-hidden">
+            <div className="rounded-2xl bg-surface shadow-card overflow-hidden">
               <div className="border-b border-border px-6 py-5 bg-surface-muted/30">
-                <h2 className="text-lg font-black tracking-tight text-foreground uppercase">Top 10 Medicines</h2>
+                <h2 className="text-lg font-semibold tracking-tight text-foreground uppercase">Top 10 Medicines</h2>
                 <p className="text-[11px] font-bold text-muted-foreground mt-0.5">By quantity sold in the period</p>
               </div>
               <div className="overflow-auto">
                 {topMedicines.length === 0 ? (
-                  <div className="flex items-center justify-center h-52 text-sm font-black text-muted-foreground">No data</div>
+                  <div className="flex items-center justify-center h-52 text-sm font-semibold text-muted-foreground">No data</div>
                 ) : (
                   <table className="w-full text-left">
                     <thead>
                       <tr className="border-b border-border bg-surface-muted/30">
-                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">#</th>
-                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Medicine</th>
-                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Qty Sold</th>
-                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Revenue</th>
+                        <th className="px-5 py-3 text-[11px] font-semibold text-muted-foreground">#</th>
+                        <th className="px-5 py-3 text-[11px] font-semibold text-muted-foreground">Medicine</th>
+                        <th className="px-5 py-3 text-[11px] font-semibold text-muted-foreground text-right">Qty Sold</th>
+                        <th className="px-5 py-3 text-[11px] font-semibold text-muted-foreground text-right">Revenue</th>
                       </tr>
                     </thead>
                     <tbody>
                       {topMedicines.map((med, i) => (
                         <tr key={med.name + i} className="border-b border-surface-muted hover:bg-surface-muted/30 transition-colors">
                           <td className="px-5 py-3">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-[10px] font-black text-primary">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-semibold text-primary">
                               {i + 1}
                             </span>
                           </td>
                           <td className="px-5 py-3">
-                            <div className="text-[13px] font-black text-foreground">{med.name}</div>
-                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{med.company}</div>
+                            <div className="text-[13px] font-semibold text-foreground">{med.name}</div>
+                            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">{med.company}</div>
                           </td>
-                          <td className="px-5 py-3 text-right text-[13px] font-black text-foreground">{med.totalQuantity}</td>
-                          <td className="px-5 py-3 text-right text-[13px] font-black text-primary">{fmt(Number(med.totalAmount))}</td>
+                          <td className="px-5 py-3 text-right text-[13px] font-semibold text-foreground">{med.totalQuantity}</td>
+                          <td className="px-5 py-3 text-right text-[13px] font-semibold text-primary">{fmt(Number(med.totalAmount))}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -436,8 +436,8 @@ export default function ReportsPage() {
           </div>
 
           {/* Profit Summary Card */}
-          <div className="rounded-2xl border border-border bg-surface shadow-bento p-6">
-            <h2 className="text-lg font-black tracking-tight text-foreground uppercase mb-5">Profit Summary</h2>
+          <div className="rounded-2xl bg-surface shadow-card p-6">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground uppercase mb-5">Profit Summary</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {[
                 { label: 'Total Revenue', value: fmt(summary.totalRevenue), color: 'text-foreground' },
@@ -446,21 +446,21 @@ export default function ReportsPage() {
                 { label: 'Profit Margin', value: `${summary.profitMargin.toFixed(1)}%`, color: summary.profitMargin >= 0 ? 'text-primary' : 'text-danger' },
               ].map(({ label, value, color }) => (
                 <div key={label} className="space-y-1">
-                  <div className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground">{label}</div>
-                  <div className={`text-xl font-black ${color}`}>{value}</div>
+                  <div className="text-[11px] font-semibold text-muted-foreground">{label}</div>
+                  <div className={`text-xl font-semibold ${color}`}>{value}</div>
                 </div>
               ))}
             </div>
             {/* Simple bar: Revenue vs COGS */}
             <div className="mt-5 space-y-2">
-              <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              <div className="flex items-center gap-3 text-[11px] font-semibold text-muted-foreground">
                 <span>Revenue</span>
                 <div className="flex-1 h-2.5 rounded-full bg-surface-muted overflow-hidden">
                   <div className="h-full rounded-full bg-primary" style={{ width: '100%' }} />
                 </div>
                 <span>{fmt(summary.totalRevenue)}</span>
               </div>
-              <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              <div className="flex items-center gap-3 text-[11px] font-semibold text-muted-foreground">
                 <span>COGS &nbsp;&nbsp;</span>
                 <div className="flex-1 h-2.5 rounded-full bg-surface-muted overflow-hidden">
                   <div

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { clearAccent } from '@/lib/accent';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import Image from 'next/image';
@@ -28,6 +29,7 @@ export default function LoginPage() {
     try {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      clearAccent();
       await axios.post('/api/auth/logout').catch(() => {});
 
       const response = await axios.post('/api/auth/login', { identifier, password });
@@ -51,70 +53,58 @@ export default function LoginPage() {
     <div className="light min-h-screen flex font-sans" data-theme="light">
 
       {/* ── LEFT BRAND PANEL ── */}
-      <div className="hidden lg:flex lg:w-[58%] flex-col relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-900">
+      <div className="hidden lg:flex lg:w-[56%] flex-col relative overflow-hidden bg-primary-hover">
         <div className="relative z-10 flex flex-col items-center justify-center flex-1 px-12 xl:px-20 py-16">
 
           {/* Logo */}
           <div className="flex flex-col items-center gap-4 mb-10">
-            <div className="h-[168px] w-[168px] rounded-full bg-white shadow-[0_0_40px_rgba(16,185,129,0.3)] overflow-hidden ring-4 ring-white/20 flex items-center justify-center p-1">
+            <div className="h-[148px] w-[148px] rounded-full bg-white overflow-hidden flex items-center justify-center p-1 shadow-[0_12px_40px_rgba(0,0,0,0.25)]">
               <Image
                 src="/logo.png"
-                width={168}
-                height={168}
+                width={148}
+                height={148}
                 alt="AyurStock Pro"
                 className="object-cover rounded-full w-full h-full"
               />
             </div>
-            <p className="text-emerald-200/70 text-xs font-bold uppercase tracking-[0.25em]">
-              Ayurvedic Pharmacy Management
+            <p className="text-white/75 text-[13px] font-medium">
+              Ayurvedic pharmacy management
             </p>
           </div>
 
-          {/* Badge */}
-          <div className="flex items-center gap-2 mb-8">
-            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-emerald-400/30 bg-emerald-500/20 backdrop-blur-sm">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
-              <span className="text-xs font-bold text-emerald-100 uppercase tracking-[0.15em]">
-                Trusted by Ayurvedic Shops
-              </span>
-            </div>
-          </div>
-
           {/* Heading */}
-          <h1 className="text-4xl xl:text-5xl font-black text-white leading-[1.1] tracking-tighter text-center">
+          <h1 className="text-[44px] xl:text-[56px] font-bold text-white leading-[1.05] tracking-[-0.035em] text-center">
             Your pharmacy,<br />
-            <span className="text-emerald-300">fully in control.</span>
+            fully in control.
           </h1>
 
-          <p className="mt-6 text-emerald-200/60 font-medium text-sm text-center max-w-md leading-relaxed">
-            From billing to batch expiry — manage every corner of your shop from one place.
+          <p className="mt-5 text-white/75 text-[17px] text-center max-w-md leading-relaxed">
+            From billing to batch expiry, run every corner of your shop from one place.
           </p>
 
           {/* Feature Cards */}
-          <div className="grid grid-cols-2 gap-3 mt-10 w-full max-w-md">
+          <div className="grid grid-cols-2 gap-3 mt-12 w-full max-w-md">
             {features.map((f) => (
-              <div key={f.title} className="rounded-2xl border border-emerald-500/20 bg-emerald-800/40 backdrop-blur-sm p-4 hover:bg-emerald-700/40 transition-all duration-300">
-                <div className="h-9 w-9 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-3">
-                  <f.icon className="h-4 w-4 text-emerald-300" />
-                </div>
-                <p className="text-[11px] font-bold text-white uppercase tracking-wider">{f.title}</p>
-                <p className="text-[10px] text-emerald-300/60 mt-1.5 leading-relaxed">{f.desc}</p>
+              <div key={f.title} className="rounded-card bg-white/10 p-4">
+                <f.icon className="h-5 w-5 stroke-[1.75] text-white mb-3" />
+                <p className="text-[14px] font-semibold text-white">{f.title}</p>
+                <p className="text-[13px] text-white/70 mt-1 leading-snug">{f.desc}</p>
               </div>
             ))}
           </div>
 
           {/* Footer */}
-          <p className="mt-10 text-[10px] text-emerald-400/40 uppercase tracking-[0.3em] font-bold">
-            Built with care by <span className="text-emerald-300/60">Vaibhav</span>
+          <p className="mt-12 text-[12px] text-white/55">
+            Built with care by <span className="text-white/80">Vaibhav</span>
           </p>
         </div>
       </div>
 
       {/* ── RIGHT LOGIN PANEL ── */}
-      <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 lg:px-16 xl:px-20 bg-white">
+      <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 lg:px-16 xl:px-20 bg-surface">
         {/* Mobile logo */}
         <div className="lg:hidden flex flex-col items-center gap-3 mb-10">
-          <div className="h-24 w-24 rounded-full bg-emerald-600 shadow-xl overflow-hidden border-4 border-emerald-200/40 flex items-center justify-center">
+          <div className="h-24 w-24 rounded-full bg-primary shadow-xl overflow-hidden border-4 border-primary/30 flex items-center justify-center">
             <Image
               src="/logo.png"
               width={80}
@@ -123,27 +113,27 @@ export default function LoginPage() {
               className="object-contain"
             />
           </div>
-          <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">AyurStock Pro</h2>
+          <h2 className="text-title-3 text-foreground"><span className="text-primary">Ayur</span>Stock Pro</h2>
         </div>
 
         <div className="w-full max-w-sm mx-auto">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Welcome back</h2>
-          <p className="mt-2 text-sm text-slate-500">Sign into your workspace to continue.</p>
+          <h2 className="text-large-title text-foreground">Welcome back</h2>
+          <p className="mt-1.5 text-[15px] text-muted-foreground">Sign in to your workspace to continue.</p>
 
           <form onSubmit={handleLogin} className="mt-10 space-y-6">
             {error && (
-              <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-xs font-bold flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+              <div className="bg-danger/10 border border-danger/30 text-danger p-4 rounded-xl text-[13px] font-medium flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-danger animate-pulse" />
                 {error}
               </div>
             )}
 
             <div className="space-y-2">
-              <label htmlFor="identifier" className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">Username or email</label>
+              <label htmlFor="identifier" className="text-footnote font-medium text-muted-foreground pl-1">Username or email</label>
               <div className="relative group">
-                <UserRound className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                <UserRound className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input
-                  className="pl-12 h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-medium"
+                  className="pl-11 h-12 text-[15px]"
                   id="identifier"
                   type="text"
                   autoComplete="username"
@@ -158,11 +148,11 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">Password</label>
+              <label className="text-footnote font-medium text-muted-foreground pl-1">Password</label>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input
-                  className="pl-12 h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-medium"
+                  className="pl-11 h-12 text-[15px]"
                   type="password"
                   placeholder="Enter your password"
                   value={password}
@@ -175,7 +165,7 @@ export default function LoginPage() {
             <button
               disabled={loading}
               type="submit"
-              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98] disabled:opacity-70"
+              className="w-full h-12 bg-primary hover:bg-primary-hover text-white font-semibold text-[15px] rounded-full flex items-center justify-center gap-2 transition-[background-color,transform] duration-200 active:scale-[0.98] disabled:opacity-60"
             >
               {loading ? (
                 <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -190,8 +180,8 @@ export default function LoginPage() {
 
           <PosPinLogin onLoggedIn={finishLogin} />
 
-          <p className="mt-8 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+          <p className="mt-8 text-center text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
             Your data is stored locally and never shared.
           </p>
         </div>
