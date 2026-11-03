@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { Package, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,17 +33,37 @@ function daysUntilExpiry(expiryDate: string): number {
 }
 
 export default function PrintInventoryPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const company = searchParams.get('company');
-  const companyName = searchParams.get('companyName');
+  // Company name; 'all' or empty means every company.
+  const company = searchParams.get('company') || 'all';
   
   const [batches, setBatches] = useState<InventoryBatch[]>([]);
+  const [companies, setCompanies] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     loadInventory();
   }, [company]);
+
+  useEffect(() => {
+    axios
+      .get('/api/companies')
+      .then((res) => {
+        if (res.data.success) setCompanies(res.data.data.map((c: { name: string }) => c.name));
+      })
+      .catch(() => setCompanies([]));
+  }, []);
+
+  const handleCompanyChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('companyName');
+    if (value === 'all') params.delete('company');
+    else params.set('company', value);
+    const query = params.toString();
+    router.replace(`/dashboard/inventory/print${query ? `?${query}` : ''}`);
+  };
 
   const loadInventory = async () => {
     try {
@@ -119,8 +139,19 @@ export default function PrintInventoryPage() {
 
   return (
     <>
-      {/* Print button - hidden when printing */}
-      <div id="inventory-print-btn" className="fixed top-4 right-4 z-50">
+      {/* Company filter + print button - hidden when printing */}
+      <div id="inventory-print-btn" className="fixed top-4 right-4 z-50 flex items-center gap-2">
+        <select
+          value={company}
+          onChange={(e) => handleCompanyChange(e.target.value)}
+          className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 shadow-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          aria-label="Filter by company"
+        >
+          <option value="all">All Companies</option>
+          {companies.map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
         <Button onClick={handlePrint} className="gap-2 shadow-lg">
           <Printer className="h-4 w-4" />
           Print
@@ -135,7 +166,7 @@ export default function PrintInventoryPage() {
           <div className="flex justify-between items-center mt-2 text-sm text-gray-600">
             <div>
               <p className="font-medium">
-                {companyName && companyName !== 'all' ? `Company: ${companyName}` : 'All Companies'}
+                {company !== 'all' ? `Company: ${company}` : 'All Companies'}
               </p>
               <p>Total Batches: {batches.length}</p>
             </div>
@@ -168,7 +199,7 @@ export default function PrintInventoryPage() {
                 <th className="text-right py-2 px-2 font-bold text-gray-900">Stock</th>
                 <th className="text-right py-2 px-2 font-bold text-gray-900">MRP</th>
                 <th className="text-right py-2 px-2 font-bold text-gray-900">Value</th>
-                <th className="text-left py-2 px-2 font-bold text-gray-900">Rack</th>
+                <th className="text-left py-2 px-2 font-bold text-gray-900">Packing</th>
               </tr>
             </thead>
             <tbody>
@@ -207,22 +238,11 @@ export default function PrintInventoryPage() {
                     <td className="py-2 px-2 text-right font-medium text-gray-900">{batch.stockQty}</td>
                     <td className="py-2 px-2 text-right text-gray-700">₹{Number(batch.mrp).toFixed(2)}</td>
                     <td className="py-2 px-2 text-right font-medium text-gray-900">₹{rowValue.toFixed(2)}</td>
-                    <td className="py-2 px-2 text-gray-600">{batch.rackLocation || '—'}</td>
+                    <td className="py-2 px-2 text-gray-600">{batch.packing || '—'}</td>
                   </tr>
                 );
               })}
             </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-gray-800 font-bold">
-                <td colSpan={5} className="py-3 px-2 text-right text-gray-900">TOTAL:</td>
-                <td className="py-3 px-2 text-right text-gray-900">
-                  {batches.reduce((sum, b) => sum + b.stockQty, 0)}
-                </td>
-                <td className="py-3 px-2"></td>
-                <td className="py-3 px-2 text-right text-gray-900">₹{totalValue.toFixed(2)}</td>
-                <td className="py-3 px-2"></td>
-              </tr>
-            </tfoot>
           </table>
         )}
 
@@ -275,7 +295,6 @@ export default function PrintInventoryPage() {
           table  { page-break-inside: auto; }
           tr     { page-break-inside: avoid; page-break-after: auto; }
           thead  { display: table-header-group; }
-          tfoot  { display: table-footer-group; }
         }
       `}</style>
     </>
