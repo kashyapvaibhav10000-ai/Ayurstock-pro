@@ -301,7 +301,7 @@ model InventoryBatch {
   purchaseRate  Decimal?
   sellingRate   Decimal
   rackLocation  String?
-  packing       String?        @default("")
+  packing       String         @default("")
   deletedAt     DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -316,8 +316,9 @@ model InventoryBatch {
   stockMovements StockMovement[]
 
   // Batch identity = medicine + batch number + expiry (normalized to the last
-  // day of the month). Same number with a different expiry is a new batch.
-  @@unique([shopId, medicineId, batchNumber, expiryDate])
+  // day of the month) + MRP + packing. The same number with a different
+  // expiry, MRP or packing is a separate batch.
+  @@unique([shopId, medicineId, batchNumber, expiryDate, mrp, packing])
   @@index([shopId, medicineId, expiryDate])
   @@index([shopId, medicineId])
   @@index([expiryDate])

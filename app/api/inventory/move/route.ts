@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
           throw new Error('Each item needs batch number, expiry and a whole-number quantity');
         }
 
-        // Same medicine + batch number + expiry adds to the existing batch.
+        // Same medicine + batch number + expiry + MRP + packing adds to the
+        // existing batch.
         const { batch } = await findOrCreateBatch(
           tx,
           {
@@ -61,15 +62,12 @@ export async function POST(req: NextRequest) {
             medicineId: item.medicineId,
             batchNumber: String(item.batchNumber),
             expiryDate: item.expiryDate,
+            mrp: Number(item.mrp),
+            packing: typeof item.packing === 'string' ? item.packing : null,
           },
           {
-            mrp: Number(item.mrp),
             purchaseRate: Number(item.purchaseRate) || null,
             sellingRate: Number(item.mrp),
-            packing:
-              typeof item.packing === 'string' && item.packing.trim()
-                ? item.packing.trim()
-                : null,
             rackLocation:
               typeof item.rackLocation === 'string' && item.rackLocation.trim()
                 ? item.rackLocation.trim()

@@ -13,42 +13,61 @@ export interface BatchIdentity {
   medicineId: string;
   batchNumber: string;
   expiryDate: Date | string;
+  mrp: Prisma.Decimal | number | string;
+  /**
+   * Blank/omitted matches a batch with any packing (callers that do not
+   * track packing, e.g. distributor invoices); a new batch then gets ''.
+   */
+  packing?: string | null;
 }
 
-/** Build the unique-key where clause for a batch (normalizes number + expiry). */
-export function batchIdentityWhere(key: BatchIdentity): Prisma.InventoryBatchWhereUniqueInput {
-  return {
-    shopId_medicineId_batchNumber_expiryDate: {
-      shopId: key.shopId,
-      medicineId: key.medicineId,
-      batchNumber: key.batchNumber.trim(),
-      expiryDate: normalizeExpiry(key.expiryDate),
-    },
-  };
+/** MRP as stored in the batch key: 2 decimal places. */
+export function normalizeMrp(mrp: Prisma.Decimal | number | string) {
+  return new Prisma.Decimal(mrp).toDecimalPlaces(2);
 }
 
-export function findBatchByIdentity(tx: Tx, key: BatchIdentity) {
-  return tx.inventoryBatch.findUnique({ where: batchIdentityWhere(key) });
+/** Packing as stored in the batch key: trimmed, inner whitespace collapsed. */
+export function normalizePacking(packing: string | null | undefined) {
+  return (packing ?? '').trim().replace(/\s+/g, ' ');
 }
 
 /**
- * Find the batch matching all four identity fields, or create it with zero
+ * Find the batch matching medicine + batch number + expiry + MRP + packing.
+ * With a blank packing, the oldest batch matching the rest is returned.
+ */
+export function findBatchByIdentity(tx: Tx, key: BatchIdentity) {
+  const packing = normalizePacking(key.packing);
+  const base = {
+    shopId: key.shopId,
+    medicineId: key.medicineId,
+    batchNumber: key.batchNumber.trim(),
+    expiryDate: normalizeExpiry(key.expiryDate),
+    mrp: normalizeMrp(key.mrp),
+  };
+  if (packing) {
+    return tx.inventoryBatch.findUnique({
+      where: { shopId_medicineId_batchNumber_expiryDate_mrp_packing: { ...base, packing } },
+    });
+  }
+  return tx.inventoryBatch.findFirst({ where: base, orderBy: { createdAt: 'asc' } });
+}
+
+/**
+ * Find the batch matching all identity fields, or create it with zero
  * stock. Callers add stock afterwards via recordMovement()
  * (lib/stock-movement.ts). `update` is applied only to an existing batch (e.g. latest
- * purchase rate); expiry is never rewritten since it is part of the key.
+ * purchase rate); identity fields are never rewritten since they are the key.
  */
 export async function findOrCreateBatch(
   tx: Tx,
   key: BatchIdentity,
   data: {
-    mrp: Prisma.Decimal | number;
     sellingRate: Prisma.Decimal | number;
     purchaseRate?: Prisma.Decimal | number | null;
     rackLocation?: string | null;
-    packing?: string | null;
   },
   // Stock goes through recordMovement; identity fields are part of the key.
-  update?: Omit<Prisma.InventoryBatchUpdateInput, 'stockQty' | 'expiryDate' | 'batchNumber'>
+  update?: Omit<Prisma.InventoryBatchUpdateInput, 'stockQty' | 'expiryDate' | 'batchNumber' | 'mrp' | 'packing'>
 ) {
   const existing = await findBatchByIdentity(tx, key);
   if (existing) {
@@ -66,11 +85,11 @@ export async function findOrCreateBatch(
       batchNumber: key.batchNumber.trim(),
       expiryDate: normalizeExpiry(key.expiryDate),
       stockQty: 0,
-      mrp: data.mrp,
+      mrp: normalizeMrp(key.mrp),
       sellingRate: data.sellingRate,
       purchaseRate: data.purchaseRate ?? null,
       rackLocation: data.rackLocation ?? null,
-      packing: data.packing ?? '',
+      packing: normalizePacking(key.packing),
     },
   });
   return { batch, created: true };

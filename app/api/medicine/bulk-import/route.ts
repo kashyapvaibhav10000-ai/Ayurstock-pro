@@ -336,13 +336,14 @@ export async function POST(req: NextRequest) {
         const purchase = await (async () => {
           const lines: InflowLine[] = [];
           for (const line of stockLines) {
-            // Same medicine + batch number + expiry adds stock; a different
-            // expiry is a separate batch.
+            // Same medicine + batch number + expiry + MRP adds stock (packing
+            // is not on the invoice, so any packing matches); otherwise a
+            // separate batch.
             const { batch } = await findOrCreateBatch(
               tx,
-              { shopId: user.shopId, medicineId: line.medicineId, batchNumber: line.batchNo, expiryDate: line.expiryDate },
-              { mrp: line.mrp, sellingRate: line.mrp, purchaseRate: line.purchaseRate || null },
-              { mrp: line.mrp, sellingRate: line.mrp, purchaseRate: line.purchaseRate || null }
+              { shopId: user.shopId, medicineId: line.medicineId, batchNumber: line.batchNo, expiryDate: line.expiryDate, mrp: line.mrp },
+              { sellingRate: line.mrp, purchaseRate: line.purchaseRate || null },
+              { sellingRate: line.mrp, purchaseRate: line.purchaseRate || null }
             );
             lines.push({
               medicineId: line.medicineId,

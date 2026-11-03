@@ -204,18 +204,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Same medicine + batch number + expiry adds to the existing batch; a
-    // different expiry creates a new batch.
+    // Same medicine + batch number + expiry + MRP + packing adds to the
+    // existing batch; any difference creates a new batch.
     const batch = await prisma.$transaction(async (tx) => {
       const { batch: target, created } = await findOrCreateBatch(
         tx,
-        { shopId: auth.user.shopId, medicineId, batchNumber, expiryDate },
+        { shopId: auth.user.shopId, medicineId, batchNumber, expiryDate, mrp, packing },
         {
-          mrp,
           purchaseRate,
           sellingRate,
           rackLocation: rackLocation?.trim() || null,
-          packing: packing?.trim() || '',
         }
       );
       if (stockQty > 0) {

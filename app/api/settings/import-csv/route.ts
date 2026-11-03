@@ -4,7 +4,8 @@ import { clientErrorMessage } from '@/lib/errors';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
 import Papa from 'papaparse';
 import { normalizeExpiry } from '@/lib/batch';
-import { findOrCreateBatch } from '@/services/inventory';
+import { Prisma } from '@prisma/client';
+import { findOrCreateBatch, normalizeMrp } from '@/services/inventory';
 import { recordMovement } from '@/lib/stock-movement';
 import { createInflowPurchase, InflowLine, resolveSupplierId, uniqueInvoiceNumber } from '@/lib/purchase-record';
 
@@ -74,12 +75,16 @@ export async function POST(req: NextRequest) {
     const medMap = new Map();
     existingMedicines.forEach(m => medMap.set(`${m.name.toLowerCase().trim()}|${m.company.toLowerCase().trim()}`, m.id));
 
-    const existingBatches = await prisma.inventoryBatch.findMany({ where: { shopId } });
+    const existingBatches = await prisma.inventoryBatch.findMany({ where: { shopId }, orderBy: { createdAt: 'asc' } });
     const batchMap = new Map();
-    // Batch identity includes expiry: same number + different expiry = new batch.
-    const csvBatchKey = (medicineId: string, batchNumber: string, expiry: Date) =>
-      `${medicineId}|${batchNumber.toLowerCase().trim()}|${normalizeExpiry(expiry).toISOString().slice(0, 10)}`;
-    existingBatches.forEach(b => batchMap.set(csvBatchKey(b.medicineId, b.batchNumber, b.expiryDate), b));
+    // Batch identity includes expiry and MRP: same number + different expiry
+    // or MRP = new batch. The CSV has no packing column, so any packing matches.
+    const csvBatchKey = (medicineId: string, batchNumber: string, expiry: Date, mrp: Prisma.Decimal | number) =>
+      `${medicineId}|${batchNumber.toLowerCase().trim()}|${normalizeExpiry(expiry).toISOString().slice(0, 10)}|${normalizeMrp(mrp).toFixed(2)}`;
+    existingBatches.forEach(b => {
+      const key = csvBatchKey(b.medicineId, b.batchNumber, b.expiryDate, b.mrp);
+      if (!batchMap.has(key)) batchMap.set(key, b);
+    });
 
     // Counters for the requested final UI output
     let added = 0;
@@ -127,23 +132,22 @@ export async function POST(req: NextRequest) {
         // Analyze Batch logical bounds
         const mBatch = row['Batch Number'].trim();
         const mExpiry = normalizeExpiry(row['Expiry Date']);
-        const batchKey = csvBatchKey(medId, mBatch, mExpiry);
-        const existingBatch = batchMap.get(batchKey);
-
         const mQty = parseInt(row['Quantity']);
         const mPr = parseFloat(row['Purchase Rate']);
         const mMrp = parseFloat(row['MRP']);
         const mRack = row['Rack Location'].trim();
 
+        const batchKey = csvBatchKey(medId, mBatch, mExpiry, mMrp);
+        const existingBatch = batchMap.get(batchKey);
+
         if (existingBatch?.pendingRow) {
           // Repeated row for a batch created by this import: last row wins.
-          Object.assign(existingBatch.pendingRow, { quantity: mQty, purchaseRate: mPr, mrp: mMrp, rackLocation: mRack });
+          Object.assign(existingBatch.pendingRow, { quantity: mQty, purchaseRate: mPr, rackLocation: mRack });
           updated++;
         } else if (existingBatch) {
           // Did anything actually change requiring an update?
           if (
             existingBatch.stockQty === mQty &&
-            Number(existingBatch.mrp) === mMrp &&
             Number(existingBatch.purchaseRate) === mPr &&
             existingBatch.rackLocation === mRack
           ) {
@@ -153,7 +157,7 @@ export async function POST(req: NextRequest) {
             const updatedBatch = await (async () => {
               await tx.inventoryBatch.update({
                 where: { id: existingBatch.id },
-                data: { purchaseRate: mPr, mrp: mMrp, sellingRate: mMrp, rackLocation: mRack },
+                data: { purchaseRate: mPr, sellingRate: mMrp, rackLocation: mRack },
               });
               const current = await tx.inventoryBatch.findUniqueOrThrow({ where: { id: existingBatch.id } });
               if (mQty !== current.stockQty) {
@@ -186,8 +190,8 @@ export async function POST(req: NextRequest) {
           for (const row of newBatchRows) {
             const { batch } = await findOrCreateBatch(
               tx,
-              { shopId, medicineId: row.medicineId, batchNumber: row.batchNumber, expiryDate: row.expiryDate },
-              { mrp: row.mrp, purchaseRate: row.purchaseRate, sellingRate: row.mrp, rackLocation: row.rackLocation }
+              { shopId, medicineId: row.medicineId, batchNumber: row.batchNumber, expiryDate: row.expiryDate, mrp: row.mrp },
+              { purchaseRate: row.purchaseRate, sellingRate: row.mrp, rackLocation: row.rackLocation }
             );
             lines.push({
               medicineId: row.medicineId,

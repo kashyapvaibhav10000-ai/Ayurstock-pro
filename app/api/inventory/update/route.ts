@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyAuth } from '@/lib/auth';
 import { batchLabel, normalizeExpiry } from '@/lib/batch';
-import { findBatchByIdentity } from '@/services/inventory';
+import { normalizeMrp, normalizePacking } from '@/services/inventory';
 import { recordMovement } from '@/lib/stock-movement';
 
 export async function PUT(req: NextRequest) {
@@ -60,14 +60,22 @@ export async function PUT(req: NextRequest) {
 
     const nextBatchNumber = String(batchNumber).trim();
     const nextExpiry = normalizeExpiry(expiryDate);
+    const nextMrp = normalizeMrp(mrp);
+    const nextPacking = normalizePacking(typeof packing === 'string' ? packing : '');
 
-    // Batch identity is medicine + batch number + expiry; editing either must
-    // not collide with another existing batch.
-    const conflict = await findBatchByIdentity(prisma, {
-      shopId: authResult.user.shopId,
-      medicineId: existingBatch.medicineId,
-      batchNumber: nextBatchNumber,
-      expiryDate: nextExpiry,
+    // Batch identity is medicine + batch number + expiry + MRP + packing;
+    // editing any of them must not collide with another existing batch.
+    const conflict = await prisma.inventoryBatch.findUnique({
+      where: {
+        shopId_medicineId_batchNumber_expiryDate_mrp_packing: {
+          shopId: authResult.user.shopId,
+          medicineId: existingBatch.medicineId,
+          batchNumber: nextBatchNumber,
+          expiryDate: nextExpiry,
+          mrp: nextMrp,
+          packing: nextPacking,
+        },
+      },
     });
     if (conflict && conflict.id !== id) {
       return NextResponse.json(
@@ -100,12 +108,11 @@ export async function PUT(req: NextRequest) {
           batchNumber: nextBatchNumber,
           expiryDate: nextExpiry,
           purchaseRate: Number(purchaseRate),
-          mrp: Number(mrp),
+          mrp: nextMrp,
           sellingRate: Number(mrp),
           rackLocation:
             typeof rackLocation === 'string' && rackLocation.trim() ? rackLocation.trim() : null,
-          packing:
-            typeof packing === 'string' ? packing.trim() : '',
+          packing: nextPacking,
         },
         include: {
           medicine: {

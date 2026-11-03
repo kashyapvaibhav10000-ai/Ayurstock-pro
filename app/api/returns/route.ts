@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Priority: find by verifiedBatchId, fallback to batch identity
-      // (medicine + batch number + expiry).
+      // (medicine + batch number + expiry + MRP, any packing).
       let existingBatch;
       if (verifiedBatchId) {
         existingBatch = await tx.inventoryBatch.findFirst({
@@ -192,6 +192,7 @@ export async function POST(req: NextRequest) {
           medicineId: verifiedMedicineId,
           batchNumber: returnBatchNumber || 'RETURN_BATCH',
           expiryDate: returnExpiry,
+          mrp: returnMrp,
         });
       }
 
@@ -233,9 +234,9 @@ export async function POST(req: NextRequest) {
             medicineId: verifiedMedicineId,
             batchNumber: returnBatchNumber || 'RETURN_BATCH',
             expiryDate: returnExpiry,
+            mrp: returnMrp,
           },
           {
-            mrp: returnMrp,
             purchaseRate: referenceBatch?.purchaseRate ?? null,
             sellingRate: returnMrp,
           }

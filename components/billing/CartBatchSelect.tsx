@@ -12,6 +12,7 @@ export interface CartBatchOption {
   mrp: number;
   sellingRate: number;
   purchaseRate: number;
+  packing?: string | null;
 }
 
 // One request per medicine per page session; cleared on reload.
@@ -85,6 +86,8 @@ export default function CartBatchSelect({ medicineId, value, fallbackLabel, onCh
       {batches.map((b, i) => (
         <option key={b.id} value={b.id}>
           {batchLabel(b, b.stockQty)}
+          {` · ₹${Number(b.mrp).toFixed(2)}`}
+          {b.packing ? ` · ${b.packing}` : ''}
           {i === 0 ? ' (FEFO)' : ''}
         </option>
       ))}
