@@ -36,13 +36,13 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 grid w-full gap-4 bg-surface p-6 text-foreground shadow-pop duration-300 ease-apple max-h-[92vh] overflow-y-auto inset-x-0 bottom-0 rounded-t-sheet sm:inset-x-auto sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-sheet data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
+        "fixed z-50 grid w-full gap-4 bg-surface p-6 text-foreground shadow-pop duration-300 ease-apple max-h-[92vh] max-h-[92dvh] overflow-y-auto overscroll-contain inset-x-0 bottom-0 rounded-t-sheet pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 sm:inset-x-auto sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-sheet data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
         className
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-fill text-label-secondary transition-colors hover:bg-fill-strong hover:text-foreground focus:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35 disabled:pointer-events-none">
+      <DialogPrimitive.Close className="absolute right-4 top-4 flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-fill text-label-secondary transition-colors hover:bg-fill-strong hover:text-foreground focus:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35 disabled:pointer-events-none">
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>

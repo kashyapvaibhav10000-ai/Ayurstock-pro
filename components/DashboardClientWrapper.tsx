@@ -37,7 +37,7 @@ export default function DashboardClientWrapper({
 
   return (
     <AuthProvider user={user}>
-      <div className="flex h-screen bg-background text-foreground overflow-hidden">
+      <div className="flex h-screen h-[100dvh] bg-background text-foreground overflow-hidden">
         <Sidebar
           user={user}
           isMobileOpen={isMobileSidebarOpen}
@@ -49,7 +49,7 @@ export default function DashboardClientWrapper({
             user={user}
             onMenuToggle={() => setIsMobileSidebarOpen(true)}
           />
-          <div className="flex-1 overflow-auto pb-16 xl:pb-0 bg-background">
+          <div className="flex-1 overflow-auto overscroll-y-contain pb-[calc(4rem+env(safe-area-inset-bottom))] xl:pb-0 bg-background">
             {children}
           </div>
         </main>

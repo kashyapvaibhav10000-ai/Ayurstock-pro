@@ -357,3 +357,43 @@ aside {
 @media print {
   .app-preloader { display: none; }
 }
+
+/* ── Phones (iOS Safari + Android Chrome) ───────────────────────────────
+ * iOS zooms the page when a focused field's font is under 16px and never
+ * zooms back, which broke every form on phones. Keep fields at 16px on
+ * small screens; desktop keeps the denser 14–15px sizes.
+ */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* No grey flash on tap; pinch zoom stays, double-tap zoom delay goes. */
+a, button, select, label, [role='button'], input, textarea {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Native date / number fields on iOS render with their own height and
+ * alignment; keep them the same size as text fields. */
+input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 2.5rem;
+  text-align: left;
+}
+input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}

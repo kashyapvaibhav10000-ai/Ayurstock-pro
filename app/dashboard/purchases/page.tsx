@@ -178,6 +178,8 @@ export default function PurchasesPage() {
   const [showNewMedicineDialog, setShowNewMedicineDialog] = useState(false);
   const [newMedicineName, setNewMedicineName] = useState('');
   const [newMedicineCategory, setNewMedicineCategory] = useState('');
+  const [newMedicineCompany, setNewMedicineCompany] = useState('');
+  const [newCompanyName, setNewCompanyName] = useState('');
   const [newMedicineForRow, setNewMedicineForRow] = useState<string | null>(null);
   const [creatingMedicine, setCreatingMedicine] = useState(false);
   // setMessage and setError removed in favor of toast
@@ -596,8 +598,9 @@ export default function PurchasesPage() {
       toast.error('Medicine name is required');
       return;
     }
-    if (!selectedCompany) {
-      toast.error('Please select a company first');
+    const companyName = (newMedicineCompany === '__new__' ? newCompanyName : newMedicineCompany).trim();
+    if (!companyName) {
+      toast.error('Please choose the company');
       return;
     }
     if (!newMedicineCategory.trim()) {
@@ -608,11 +611,9 @@ export default function PurchasesPage() {
     try {
       setCreatingMedicine(true);
       const response = await axios.post('/api/medicines/search', {
-        name: newMedicineName.trim(),
-        company: selectedCompany,
+        name: newMedicineName.trim().toUpperCase(),
+        company: companyName,
         category: newMedicineCategory.trim(),
-        hsn: '',
-        barcode: '',
       });
 
       if (response.data.success) {
@@ -643,24 +644,39 @@ export default function PurchasesPage() {
           }));
         }
 
+        if (!companies.some((company) => company.name === newMedicine.company)) {
+          setCompanies((prev) => [...prev, { id: newMedicine.company, name: newMedicine.company }]);
+        }
+
         // Reset dialog
-        setShowNewMedicineDialog(false);
-        setNewMedicineName('');
-        setNewMedicineCategory('');
-        setNewMedicineForRow(null);
+        closeNewMedicineDialog();
       }
     } catch (error) {
       console.error('Failed to create medicine:', error);
-      toast.error('Failed to create medicine');
+      const serverMessage = axios.isAxiosError(error)
+        ? error.response?.data?.error || error.response?.data?.message
+        : null;
+      toast.error(serverMessage || 'Failed to create medicine');
     } finally {
       setCreatingMedicine(false);
     }
   };
 
   const handleMedicineNotFound = (tempId: string, searchValue: string) => {
-    setNewMedicineName(searchValue);
+    setNewMedicineName(searchValue.toUpperCase());
+    setNewMedicineCompany(selectedCompany);
+    setNewCompanyName('');
     setNewMedicineForRow(tempId);
     setShowNewMedicineDialog(true);
+  };
+
+  const closeNewMedicineDialog = () => {
+    setShowNewMedicineDialog(false);
+    setNewMedicineName('');
+    setNewMedicineCategory('');
+    setNewMedicineCompany('');
+    setNewCompanyName('');
+    setNewMedicineForRow(null);
   };
 
   // Filter medicines by selected company
@@ -672,15 +688,21 @@ export default function PurchasesPage() {
   const getMedicineOptionsForRow = (item: PurchaseItemForm) => {
     const query = item.medicineSearch?.trim().toLowerCase() || '';
 
-    if (!query) {
-      return companyFilteredMedicines;
-    }
+    const options = !query
+      ? companyFilteredMedicines
+      : companyFilteredMedicines.filter(
+          (medicine) =>
+            medicine.name.toLowerCase().includes(query) ||
+            medicine.company.toLowerCase().includes(query)
+        );
 
-    return companyFilteredMedicines.filter(
-      (medicine) =>
-        medicine.name.toLowerCase().includes(query) ||
-        medicine.company.toLowerCase().includes(query)
-    );
+    // Keep the row's chosen medicine listed even when the company filter or
+    // search text would hide it (e.g. one just created for another company).
+    if (item.medicineId && !options.some((medicine) => medicine.id === item.medicineId)) {
+      const chosen = medicines.find((medicine) => medicine.id === item.medicineId);
+      if (chosen) return [chosen, ...options];
+    }
+    return options;
   };
 
   const hasExactMedicineName = (name: string) => {
@@ -696,8 +718,192 @@ export default function PurchasesPage() {
     return <div className="p-8 text-center text-muted-foreground">Loading purchases...</div>;
   }
 
+  const fieldClass = 'h-11 md:h-9 w-full rounded-xl border-border bg-surface focus-visible:ring-primary/20';
+  const selectClass =
+    'h-11 md:h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 transition-all';
+
+  /** Every input of one purchase line; laid out as a table row or a phone card. */
+  const renderItemFields = (item: PurchaseItemForm) => {
+    const meta = appliedScanMeta[item.tempId];
+    const rowMedicineOptions = getMedicineOptionsForRow(item);
+    const rowSearch = item.medicineSearch?.trim() || '';
+    const canCreateMedicine = Boolean(rowSearch) && !item.medicineId && !hasExactMedicineName(rowSearch);
+
+    return {
+      medicine: (
+        <div>
+          <Input
+            value={item.medicineSearch || ''}
+            className={`mb-2 ${fieldClass}`}
+            placeholder="Search or type medicine name"
+            autoComplete="off"
+            autoCapitalize="characters"
+            enterKeyHint="next"
+            onChange={(event) =>
+              setPurchaseForm((current) => ({
+                ...current,
+                items: current.items.map((row) =>
+                  row.tempId === item.tempId
+                    ? { ...row, medicineSearch: event.target.value, medicineId: '' }
+                    : row
+                ),
+              }))
+            }
+          />
+          <select
+            className={selectClass}
+            value={item.medicineId}
+            aria-label="Medicine"
+            onChange={(event) => handleMedicineSelect(item.tempId, event.target.value)}
+          >
+            <option value="">
+              {rowMedicineOptions.length ? `Select medicine (${rowMedicineOptions.length})` : 'No match — add as new'}
+            </option>
+            {rowMedicineOptions.map((medicine) => (
+              <option key={medicine.id} value={medicine.id}>
+                {medicine.name} ({medicine.company})
+              </option>
+            ))}
+          </select>
+          {meta && (
+            <div className="mt-1 text-[11px] font-medium text-muted-foreground">
+              Scan: {meta.status} ({Math.round(meta.score * 100)}%)
+            </div>
+          )}
+          {canCreateMedicine && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 h-10 md:h-8 w-full justify-start gap-1.5 rounded-xl border-dashed text-xs text-primary"
+              onClick={() => handleMedicineNotFound(item.tempId, rowSearch)}
+            >
+              <Plus className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Add &quot;{rowSearch}&quot; as new medicine</span>
+            </Button>
+          )}
+        </div>
+      ),
+      batch: (
+        <Input
+          value={item.batchNumber}
+          className={fieldClass}
+          placeholder="Batch no."
+          autoComplete="off"
+          autoCapitalize="characters"
+          onChange={(event) => handlePurchaseItemChange(item.tempId, 'batchNumber', event.target.value)}
+        />
+      ),
+      expiry: (
+        <Input
+          type="date"
+          value={item.expiryDate}
+          className={fieldClass}
+          onChange={(event) => handlePurchaseItemChange(item.tempId, 'expiryDate', event.target.value)}
+        />
+      ),
+      pack: (
+        <div className="flex items-center gap-1.5">
+          <select
+            value={item.packType}
+            aria-label="Pack type"
+            className={`${selectClass} md:w-auto px-2`}
+            onChange={(event) => {
+              const packType = event.target.value as PackTypeValue;
+              handlePurchaseItemChange(item.tempId, 'packType', packType);
+              if (packType === 'LOOSE') handlePurchaseItemChange(item.tempId, 'unitsPerPack', 1);
+            }}
+          >
+            {PACK_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {PACK_TYPE_LABEL[type]}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">×</span>
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            step={1}
+            value={item.unitsPerPack}
+            aria-label="Units per pack"
+            title="Units per pack"
+            disabled={item.packType === 'LOOSE'}
+            className={`${fieldClass} w-24 md:w-16 shrink-0 text-right`}
+            onChange={(event) =>
+              handlePurchaseItemChange(item.tempId, 'unitsPerPack', Math.floor(Number(event.target.value)) || 1)
+            }
+          />
+        </div>
+      ),
+      quantity: (
+        <Input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          step={1}
+          value={item.quantity}
+          aria-label="Quantity in packs"
+          className={`${fieldClass} text-right`}
+          onChange={(event) =>
+            handlePurchaseItemChange(item.tempId, 'quantity', Math.floor(Number(event.target.value)))
+          }
+        />
+      ),
+      quantityHint: (
+        <div className="mt-1 text-[11px] font-bold text-muted-foreground md:whitespace-nowrap">
+          {packPreview(item.quantity, item.unitsPerPack, item.purchaseRate)}
+        </div>
+      ),
+      price: (
+        <Input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          step="0.01"
+          value={item.purchaseRate}
+          aria-label="Price per pack"
+          className={`${fieldClass} text-right`}
+          onChange={(event) => handlePurchaseItemChange(item.tempId, 'purchaseRate', Number(event.target.value))}
+        />
+      ),
+      mrp: (
+        <Input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          step="0.01"
+          value={item.mrp}
+          aria-label="MRP per unit"
+          className={`${fieldClass} text-right`}
+          onChange={(event) => handlePurchaseItemChange(item.tempId, 'mrp', Number(event.target.value))}
+        />
+      ),
+      rack: (
+        <Input
+          value={item.rackLocation}
+          placeholder="Optional"
+          autoComplete="off"
+          className={fieldClass}
+          onChange={(event) => handlePurchaseItemChange(item.tempId, 'rackLocation', event.target.value)}
+        />
+      ),
+      remove: (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Remove item"
+          className="h-10 w-10 md:h-8 md:w-8 text-muted-foreground hover:bg-danger/10 hover:text-danger rounded-lg"
+          onClick={() => removePurchaseRow(item.tempId)}
+        >
+          <Plus className="h-4 w-4 rotate-45" />
+        </Button>
+      ),
+    };
+  };
+
   return (
-    <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
+    <div className="space-y-5 md:space-y-6 p-4 sm:p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-large-title text-foreground">Purchases</h1>
@@ -728,7 +934,7 @@ export default function PurchasesPage() {
 
 
       {stats ? (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
           <Card className="rounded-card shadow-card border-border bg-surface transition-all duration-300">
             <CardHeader>
               <CardTitle className="text-xs font-bold text-muted-foreground/60">Today Purchases</CardTitle>
@@ -765,14 +971,14 @@ export default function PurchasesPage() {
       ) : null}
 
       <Tabs defaultValue="new" className="space-y-6">
-        <TabsList className="grid w-full rounded-2xl bg-surface-muted/50 p-1.5 md:grid-cols-3 shadow-inner">
-          <TabsTrigger value="new" className="rounded-xl font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
+        <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl bg-surface-muted/50 p-1.5 shadow-inner">
+          <TabsTrigger value="new" className="rounded-xl px-1 text-xs sm:text-sm font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
             New Invoice
           </TabsTrigger>
-          <TabsTrigger value="history" className="rounded-xl font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
+          <TabsTrigger value="history" className="rounded-xl px-1 text-xs sm:text-sm font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
             Invoice History
           </TabsTrigger>
-          <TabsTrigger value="returns" className="rounded-xl font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
+          <TabsTrigger value="returns" className="rounded-xl px-1 text-xs sm:text-sm font-bold py-2.5 data-[state=active]:bg-surface data-[state=active]:text-primary data-[state=active]:shadow-sm">
             Returns
           </TabsTrigger>
         </TabsList>
@@ -787,18 +993,19 @@ export default function PurchasesPage() {
                     Create invoices manually or scan them automatically
                   </CardDescription>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                   <Button
                     variant="outline"
-                    className="gap-2"
+                    className="h-11 sm:h-10 gap-2"
                     onClick={() => setShowPriceListModal(true)}
                   >
                     <FileScan className="h-4 w-4" />
                     Scan Invoice
                   </Button>
-                  <Button className="gap-2" onClick={addPurchaseRow}>
+                  <Button className="h-11 sm:h-10 gap-2" onClick={addPurchaseRow}>
                     <Plus className="h-4 w-4" />
-                    Add Medicine Row
+                    <span className="sm:hidden">Add Row</span>
+                    <span className="hidden sm:inline">Add Medicine Row</span>
                   </Button>
                 </div>
               </div>
@@ -911,7 +1118,7 @@ export default function PurchasesPage() {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div className="space-y-2">
                   <Label>GST Type</Label>
                   <Input
@@ -975,7 +1182,68 @@ export default function PurchasesPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-border mt-4">
+              {/* Phones: one card per medicine, fields stacked and full width. */}
+              <div className="space-y-3 md:hidden">
+                {purchaseForm.items.map((item, index) => {
+                  const f = renderItemFields(item);
+                  return (
+                    <div key={item.tempId} className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                          Item {index + 1}
+                        </span>
+                        {f.remove}
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="mb-1.5 block text-xs text-muted-foreground">Medicine</Label>
+                          {f.medicine}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="mb-1.5 block text-xs text-muted-foreground">Batch</Label>
+                            {f.batch}
+                          </div>
+                          <div>
+                            <Label className="mb-1.5 block text-xs text-muted-foreground">Expiry</Label>
+                            {f.expiry}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="mb-1.5 block text-xs text-muted-foreground">Pack</Label>
+                          {f.pack}
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <Label className="mb-1.5 block text-xs text-muted-foreground">Qty (packs)</Label>
+                            {f.quantity}
+                          </div>
+                          <div>
+                            <Label className="mb-1.5 block text-xs text-muted-foreground">Price / Pack</Label>
+                            {f.price}
+                          </div>
+                          <div>
+                            <Label className="mb-1.5 block text-xs text-muted-foreground">MRP / Unit</Label>
+                            {f.mrp}
+                          </div>
+                        </div>
+                        {f.quantityHint}
+                        <div>
+                          <Label className="mb-1.5 block text-xs text-muted-foreground">Rack (optional)</Label>
+                          {f.rack}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <Button variant="outline" className="h-12 w-full gap-2 rounded-2xl border-dashed" onClick={addPurchaseRow}>
+                  <Plus className="h-4 w-4" />
+                  Add another medicine
+                </Button>
+              </div>
+
+              {/* Tablets and desktop: the dense table. */}
+              <div className="hidden md:block overflow-hidden rounded-2xl border border-border mt-4">
                 <div className="overflow-x-auto">
                 <Table>
                   <TableHeader className="bg-surface-muted/50 border-b border-border">
@@ -993,203 +1261,30 @@ export default function PurchasesPage() {
                   </TableHeader>
                   <TableBody>
                     {purchaseForm.items.map((item) => {
-                      const meta = appliedScanMeta[item.tempId];
-                      const rowMedicineOptions = getMedicineOptionsForRow(item);
-                      const rowSearch = item.medicineSearch?.trim() || '';
-                      const canCreateMedicine =
-                        Boolean(selectedCompany) &&
-                        Boolean(rowSearch) &&
-                        !hasExactMedicineName(rowSearch);
+                      const f = renderItemFields(item);
                       return (
-                      <TableRow key={item.tempId} className="border-border">
-                        <TableCell className="min-w-[250px]">
-                          <Input
-                            value={item.medicineSearch || ''}
-                            className="mb-2 h-9 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
-                            placeholder="Search or type medicine name"
-                            onChange={(event) =>
-                              setPurchaseForm((current) => ({
-                                ...current,
-                                items: current.items.map((row) =>
-                                  row.tempId === item.tempId
-                                    ? {
-                                        ...row,
-                                        medicineSearch: event.target.value,
-                                        medicineId: '',
-                                      }
-                                    : row
-                                ),
-                              }))
-                            }
-                          />
-                          <select
-                            className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
-                            value={item.medicineId}
-                            onChange={(event) =>
-                              handleMedicineSelect(item.tempId, event.target.value)
-                            }
-                          >
-                            <option value="">Select medicine</option>
-                            {rowMedicineOptions.map((medicine) => (
-                              <option key={medicine.id} value={medicine.id}>
-                                {medicine.name} ({medicine.company})
-                              </option>
-                            ))}
-                          </select>
-                          {meta && (
-                            <div className="mt-1 text-[11px] font-medium text-muted-foreground">
-                              OCR: {meta.status} ({Math.round(meta.score)}%)
-                            </div>
-                          )}
-                          {!selectedCompany && rowSearch && (
-                            <div className="mt-1 text-[11px] font-medium text-muted-foreground">
-                              Select a company before adding a new medicine.
-                            </div>
-                          )}
-                          {canCreateMedicine && (
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="mt-1 h-auto p-0 text-xs text-primary"
-                              onClick={() => handleMedicineNotFound(item.tempId, rowSearch)}
-                            >
-                              + Add "{rowSearch}" as New Medicine
-                            </Button>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            value={item.batchNumber}
-                            className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
-                            placeholder="Batch number"
-                            onChange={(event) =>
-                              handlePurchaseItemChange(item.tempId, 'batchNumber', event.target.value)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="date"
-                            value={item.expiryDate}
-                            className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
-                            onChange={(event) =>
-                              handlePurchaseItemChange(item.tempId, 'expiryDate', event.target.value)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <select
-                              value={item.packType}
-                              aria-label="Pack type"
-                              className="h-9 rounded-xl border border-border bg-surface px-2 text-sm font-medium focus:ring-2 focus:ring-primary/20"
-                              onChange={(event) => {
-                                const packType = event.target.value as PackTypeValue;
-                                handlePurchaseItemChange(item.tempId, 'packType', packType);
-                                if (packType === 'LOOSE') handlePurchaseItemChange(item.tempId, 'unitsPerPack', 1);
-                              }}
-                            >
-                              {PACK_TYPES.map((type) => (
-                                <option key={type} value={type}>
-                                  {PACK_TYPE_LABEL[type]}
-                                </option>
-                              ))}
-                            </select>
-                            <span className="text-xs text-muted-foreground">×</span>
-                            <Input
-                              type="number"
-                              min={1}
-                              step={1}
-                              value={item.unitsPerPack}
-                              aria-label="Units per pack"
-                              title="Units per pack"
-                              disabled={item.packType === 'LOOSE'}
-                              className="w-16 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
-                              onChange={(event) =>
-                                handlePurchaseItemChange(
-                                  item.tempId,
-                                  'unitsPerPack',
-                                  Math.floor(Number(event.target.value)) || 1
-                                )
-                              }
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            min={0}
-                            step={1}
-                            value={item.quantity}
-                            className="w-20 ml-auto rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
-                            onChange={(event) =>
-                              handlePurchaseItemChange(
-                                item.tempId,
-                                'quantity',
-                                Math.floor(Number(event.target.value))
-                              )
-                            }
-                          />
-                          <div className="mt-1 text-[11px] font-bold text-muted-foreground whitespace-nowrap">
-                            {packPreview(item.quantity, item.unitsPerPack, item.purchaseRate)}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={item.purchaseRate}
-                            className="w-24 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
-                            onChange={(event) =>
-                              handlePurchaseItemChange(
-                                item.tempId,
-                                'purchaseRate',
-                                Number(event.target.value)
-                              )
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={item.mrp}
-                            className="w-24 rounded-xl border-border bg-surface focus-visible:ring-primary/20 text-right"
-                            onChange={(event) =>
-                              handlePurchaseItemChange(item.tempId, 'mrp', Number(event.target.value))
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            value={item.rackLocation}
-                            placeholder="Optional"
-                            className="w-24 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
-                            onChange={(event) =>
-                              handlePurchaseItemChange(item.tempId, 'rackLocation', event.target.value)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary rounded-lg"
-                            onClick={() => removePurchaseRow(item.tempId)}
-                          >
-                            <Plus className="h-4 w-4 rotate-45" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )})}
+                        <TableRow key={item.tempId} className="border-border align-top">
+                          <TableCell className="min-w-[250px]">{f.medicine}</TableCell>
+                          <TableCell className="min-w-[130px]">{f.batch}</TableCell>
+                          <TableCell className="min-w-[150px]">{f.expiry}</TableCell>
+                          <TableCell>{f.pack}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="w-20 ml-auto">{f.quantity}</div>
+                            {f.quantityHint}
+                          </TableCell>
+                          <TableCell className="text-right"><div className="w-24 ml-auto">{f.price}</div></TableCell>
+                          <TableCell className="text-right"><div className="w-24 ml-auto">{f.mrp}</div></TableCell>
+                          <TableCell><div className="w-24">{f.rack}</div></TableCell>
+                          <TableCell>{f.remove}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
                 </div>
               </div>
 
-              <div className="flex flex-col items-end gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col items-stretch gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="rounded-2xl border border-border bg-surface-muted px-4 py-3 text-sm text-muted-foreground">
                   Subtotal: <span className="font-semibold text-foreground">₹{totals.subtotal.toFixed(2)}</span>
                   {totals.discountTotal > 0 && (
@@ -1208,7 +1303,7 @@ export default function PurchasesPage() {
                   Grand Total:{' '}
                   <span className="font-semibold text-foreground">₹{totals.grandTotal.toFixed(2)}</span>
                 </div>
-                <Button className="gap-2" onClick={handleSavePurchase} disabled={saving}>
+                <Button className="h-12 md:h-10 gap-2 text-base md:text-sm" onClick={handleSavePurchase} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Purchase'}
                   <Printer className="h-4 w-4" />
                 </Button>
@@ -1425,35 +1520,75 @@ export default function PurchasesPage() {
         }}
       />
 
-      {/* New Medicine Dialog */}
+      {/* New Medicine Dialog: bottom sheet on phones, centred card on larger screens. */}
       {showNewMedicineDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-3xl border border-border bg-surface p-6 shadow-lg">
-            <h3 className="text-xl font-bold text-foreground mb-4">Add New Medicine</h3>
-            <div className="space-y-4">
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !creatingMedicine) closeNewMedicineDialog();
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="new-medicine-title"
+            className="w-full max-h-[90dvh] overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-surface p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-lg sm:max-w-md sm:rounded-3xl sm:p-6"
+          >
+            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-border sm:hidden" />
+            <h3 id="new-medicine-title" className="text-xl font-bold text-foreground mb-4">Add New Medicine</h3>
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleCreateNewMedicine();
+              }}
+            >
               <div>
-                <Label>Medicine Name</Label>
+                <Label htmlFor="new-medicine-name">Medicine Name</Label>
                 <Input
+                  id="new-medicine-name"
                   value={newMedicineName}
                   onChange={(e) => setNewMedicineName(e.target.value)}
-                  className="rounded-xl border-border bg-surface focus-visible:ring-primary/20"
+                  className="mt-1.5 h-11 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
                   placeholder="Enter medicine name"
+                  autoComplete="off"
+                  autoCapitalize="characters"
                 />
               </div>
               <div>
-                <Label>Company</Label>
-                <Input
-                  value={selectedCompany}
-                  disabled
-                  className="rounded-xl border-border bg-surface-muted focus-visible:ring-primary/20"
-                />
-              </div>
-              <div>
-                <Label>Category</Label>
+                <Label htmlFor="new-medicine-company">Company</Label>
                 <select
-                  value={newMedicineCategory}
+                  id="new-medicine-company"
+                  value={newMedicineCompany}
+                  onChange={(e) => setNewMedicineCompany(e.target.value)}
+                  className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                >
+                  <option value="">Select company</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.name}>
+                      {company.name}
+                    </option>
+                  ))}
+                  <option value="__new__">+ New company…</option>
+                </select>
+                {newMedicineCompany === '__new__' && (
+                  <Input
+                    value={newCompanyName}
+                    onChange={(e) => setNewCompanyName(e.target.value)}
+                    className="mt-2 h-11 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
+                    placeholder="New company name"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                  />
+                )}
+              </div>
+              <div>
+                <Label htmlFor="new-medicine-category">Category</Label>
+                <select
+                  id="new-medicine-category"
+                  value={categories.includes(newMedicineCategory) ? newMedicineCategory : ''}
                   onChange={(e) => setNewMedicineCategory(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                  className="mt-1.5 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                 >
                   <option value="">Select category</option>
                   {categories.map((cat) => (
@@ -1462,39 +1597,29 @@ export default function PurchasesPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Or type a new category name in the field above
-                </p>
                 <Input
                   value={newMedicineCategory}
                   onChange={(e) => setNewMedicineCategory(e.target.value)}
-                  className="rounded-xl border-border bg-surface focus-visible:ring-primary/20 mt-2"
-                  placeholder="Or enter new category"
+                  className="mt-2 h-11 rounded-xl border-border bg-surface focus-visible:ring-primary/20"
+                  placeholder="Or type a new category"
+                  autoComplete="off"
                 />
               </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <Button
-                variant="outline"
-                className="flex-1 rounded-xl"
-                onClick={() => {
-                  setShowNewMedicineDialog(false);
-                  setNewMedicineName('');
-                  setNewMedicineCategory('');
-                  setNewMedicineForRow(null);
-                }}
-                disabled={creatingMedicine}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 rounded-xl"
-                onClick={handleCreateNewMedicine}
-                disabled={creatingMedicine}
-              >
-                {creatingMedicine ? 'Creating...' : 'Add Medicine'}
-              </Button>
-            </div>
+              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 flex-1 rounded-xl"
+                  onClick={closeNewMedicineDialog}
+                  disabled={creatingMedicine}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="h-11 flex-1 rounded-xl" disabled={creatingMedicine}>
+                  {creatingMedicine ? 'Creating...' : 'Add Medicine'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
