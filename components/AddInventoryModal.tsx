@@ -40,6 +40,55 @@ function formatExpiryShort(date: string) {
   return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCFullYear()).slice(-2)}`;
 }
 
+function isExpired(date: string) {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  return d.getUTCFullYear() * 12 + d.getUTCMonth() < now.getUTCFullYear() * 12 + now.getUTCMonth();
+}
+
+const TAG_TONES = {
+  batch: 'bg-primary/10 text-primary ring-primary/20',
+  expiry: 'bg-warning/15 text-warning ring-warning/25',
+  expired: 'bg-danger/15 text-danger ring-danger/25',
+  mrp: 'bg-success/15 text-success ring-success/25',
+  muted: 'bg-secondary text-muted-foreground ring-border',
+} as const;
+
+/** Small pill for one batch detail; the label is for screen readers / hover only. */
+function InfoTag({ label, tone, children }: { label: string; tone: keyof typeof TAG_TONES; children: React.ReactNode }) {
+  return (
+    <span
+      title={label}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-4 tabular-nums ring-1 ring-inset ${TAG_TONES[tone]}`}
+    >
+      <span className="sr-only">{label}: </span>
+      {children}
+    </span>
+  );
+}
+
+function BatchTags({ med, batch }: { med: MedicineOption; batch: BatchOption | null }) {
+  if (!batch) {
+    return (
+      <div className="mt-1 flex flex-wrap gap-1">
+        {med.category ? <InfoTag label="Category" tone="muted">{med.category}</InfoTag> : null}
+        {med.packing ? <InfoTag label="Packing" tone="muted">{med.packing}</InfoTag> : null}
+        <span className="text-[11px] text-muted-foreground self-center">No batches yet</span>
+      </div>
+    );
+  }
+  const expiry = formatExpiryShort(batch.expiryDate);
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      <InfoTag label="Batch" tone="batch">{batch.batchNumber}</InfoTag>
+      {expiry ? <InfoTag label="Expiry" tone={isExpired(batch.expiryDate) ? 'expired' : 'expiry'}>{expiry}</InfoTag> : null}
+      <InfoTag label="MRP" tone="mrp">{`₹${Number(batch.mrp).toFixed(2)}`}</InfoTag>
+      {batch.packing ? <InfoTag label="Packing" tone="muted">{batch.packing}</InfoTag> : null}
+    </div>
+  );
+}
+
 const GST_OPTIONS = [
   { value: 5, label: '5%', category: 'Standard' },
   { value: 12, label: '12%', category: 'Proprietary' },
@@ -724,7 +773,7 @@ export default function AddInventoryModal({
 
               {/* Recent medicines dropdown */}
               {showRecents && (
-                <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-border bg-surface shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                <div className="absolute top-full z-50 mt-1 w-full rounded-md border border-border bg-surface shadow-lg overflow-hidden max-h-64 overflow-y-auto overscroll-contain">
                   <div className="px-3 py-1.5 text-[11px] font-semibold text-muted-foreground bg-surface-muted flex items-center gap-1">
                     <Clock className="h-3 w-3" /> Recent
                   </div>
@@ -744,7 +793,10 @@ export default function AddInventoryModal({
                       onMouseEnter={() => setHighlightedIndex(idx)}
                     >
                       <div className="font-medium text-primary">{med.name}</div>
-                      <div className="text-xs text-muted-foreground">{med.category}{med.packing ? ` • ${med.packing}` : ''}</div>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {med.category ? <InfoTag label="Category" tone="muted">{med.category}</InfoTag> : null}
+                        {med.packing ? <InfoTag label="Packing" tone="muted">{med.packing}</InfoTag> : null}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -752,7 +804,7 @@ export default function AddInventoryModal({
 
               {/* Search results dropdown */}
               {showMedicineDropdown && medicineSearch.length >= 2 && searchRows.length > 0 && !formData.medicineId && (
-                <div ref={dropdownListRef} className="absolute top-full z-50 mt-1 w-full rounded-md border border-border bg-surface shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                <div ref={dropdownListRef} className="absolute top-full z-50 mt-1 w-full rounded-md border border-border bg-surface shadow-lg overflow-hidden max-h-64 overflow-y-auto overscroll-contain">
                   {searchRows.map(({ med, batch }, idx) => (
                     <div 
                       key={batch ? batch.id : med.id} 
@@ -764,11 +816,7 @@ export default function AddInventoryModal({
                       onMouseEnter={() => setHighlightedIndex(idx)}
                     >
                       <div className="font-medium text-primary">{med.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {batch
-                          ? `Batch ${batch.batchNumber} • Exp ${formatExpiryShort(batch.expiryDate)} • MRP ₹${Number(batch.mrp).toFixed(2)}${batch.packing ? ` • ${batch.packing}` : ''}`
-                          : `${med.category}${med.packing ? ` • ${med.packing}` : ''} • No batches yet`}
-                      </div>
+                      <BatchTags med={med} batch={batch} />
                     </div>
                   ))}
                   <div 
