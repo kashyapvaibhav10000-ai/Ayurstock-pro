@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { AlertCircle, CheckCircle, Upload, FileText, Loader2, Play, CheckCircle2, Plus } from "lucide-react"
+import { AlertCircle, CheckCircle, Upload, FileText, Loader2, Play, CheckCircle2, Plus, Camera } from "lucide-react"
 import { toast } from "sonner"
 import MedicineReviewCard from "./MedicineReviewCard"
 
@@ -144,6 +144,37 @@ function OcrProgress({ phase, page, totalPages, percent, message }: {
   )
 }
 
+// Phone photos are often 4–12 MB; the server takes 10 MB and vision models
+// read a ~2000px image just as well. Shrink big photos before upload.
+const MAX_IMAGE_EDGE = 2000
+const SHRINK_ABOVE_BYTES = 2.5 * 1024 * 1024
+
+async function shrinkPhoto(file: File): Promise<File> {
+  if (!file.type.startsWith("image/") || file.size <= SHRINK_ABOVE_BYTES) return file
+  try {
+    const url = URL.createObjectURL(file)
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error("Could not read image"))
+      el.src = url
+    })
+    URL.revokeObjectURL(url)
+    const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(img.naturalWidth, img.naturalHeight))
+    const canvas = document.createElement("canvas")
+    canvas.width = Math.round(img.naturalWidth * scale)
+    canvas.height = Math.round(img.naturalHeight * scale)
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return file
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85))
+    if (!blob || blob.size >= file.size) return file
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" })
+  } catch {
+    return file
+  }
+}
+
 export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPriceListProps) {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
@@ -274,9 +305,15 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
     setParsedMedicines(prev => prev.map((m, i) => i === index ? { ...m, selected: m.selected === false ? true : false } : m))
   }
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files?.[0]
+    e.target.value = ""
+    if (picked) {
+      const selectedFile = await shrinkPhoto(picked)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        toast.error("File is larger than 10 MB. Use a smaller PDF or photo.")
+        return
+      }
       setFile(selectedFile)
       setDocumentId(null)
       setError("")
@@ -745,16 +782,34 @@ export default function ImportPriceList({ isOpen, onClose, onSuccess }: ImportPr
           <div className="space-y-4">
             <div className="border-2 border-dashed border-border rounded-lg p-6 sm:p-8 text-center">
               <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-foreground mb-2">Upload Distributor Price List</p>
+              <p className="text-foreground mb-2">Upload Distributor Invoice or Price List</p>
               <p className="text-sm text-muted-foreground mb-4">
-                Supports PDF, Excel (.xlsx), and Images (.png, .jpg)
+                PDF or photo (JPG, PNG, WebP)
               </p>
-              <Input
-                type="file"
-                accept=".pdf,.xlsx,.png,.jpg,.jpeg"
-                onChange={handleFileSelect}
-                className="max-w-xs mx-auto h-12"
-              />
+              <div className="mx-auto flex max-w-sm flex-col gap-2 sm:flex-row sm:justify-center">
+                <label className="inline-flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm active:opacity-80">
+                  <Upload className="h-4 w-4" />
+                  Choose file
+                  {/* MIME types (not extensions) make iOS convert HEIC photos to JPEG. */}
+                  <input
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    onChange={handleFileSelect}
+                    className="sr-only"
+                  />
+                </label>
+                <label className="inline-flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-foreground shadow-sm active:opacity-80 sm:hidden">
+                  <Camera className="h-4 w-4" />
+                  Take photo
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    capture="environment"
+                    onChange={handleFileSelect}
+                    className="sr-only"
+                  />
+                </label>
+              </div>
             </div>
 
             {file && (

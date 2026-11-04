@@ -1,11 +1,16 @@
+export const maxDuration = 300;
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { aiAllowanceError } from '@/lib/ai/allowance';
+import { ParsedMedicine, parseImageWithGeminiVision, parsePDFWithAI } from '@/lib/aiParser';
 import { parseMedicineImportFile } from '@/lib/medicine-importer';
 import { parsePurchaseInvoiceText } from '@/lib/purchase-invoice-parser';
 import { prisma } from '@/lib/db';
 import { storePurchaseDocument } from '@/lib/purchase-record';
 import Tesseract from 'tesseract.js';
-import { detectFileType, runLimited, withTimeout } from '@/lib/upload';
+import { UploadKind, detectFileType, withTimeout, runLimited } from '@/lib/upload';
 
 const MAX_TEXT_PAGES = 50;
 const OCR_TIMEOUT_MS = 60_000;
@@ -35,6 +40,97 @@ function similarityScore(a: string, b: string) {
   const intersection = [...aTokens].filter((token) => bTokens.has(token)).length;
   const union = new Set([...aTokens, ...bTokens]).size;
   return union === 0 ? 0 : intersection / union;
+}
+
+interface ScannedRow {
+  name: string;
+  company?: string;
+  mrp?: number;
+  tradePrice?: number;
+  purchaseRate?: number;
+  batchNumber?: string;
+  expiryDate?: string;
+  quantity?: number;
+}
+
+const positive = (value: unknown) =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+
+function fromAi(m: ParsedMedicine): ScannedRow {
+  const expiry = m.expiryDate && /^\d{4}-\d{2}-\d{2}$/.test(m.expiryDate) ? m.expiryDate : undefined;
+  const batch = m.batchNo && m.batchNo.toUpperCase() !== 'NA' ? m.batchNo : undefined;
+  return {
+    name: m.name.trim(),
+    company: m.company || undefined,
+    mrp: positive(m.mrp),
+    purchaseRate: positive(m.purchaseRate) ?? positive(m.tradePrice),
+    batchNumber: batch,
+    expiryDate: expiry,
+    quantity: positive(m.quantity),
+  };
+}
+
+/**
+ * Text of a PDF with its line breaks kept: the invoice parser works line by
+ * line, so joining a page into one string made every page one "line" that
+ * the header filter (GST/Total) then threw away. The legacy build is the
+ * one that runs on Node 20 (the modern build needs Promise.withResolvers).
+ */
+async function pdfText(buffer: Buffer): Promise<string> {
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), isEvalSupported: false }).promise;
+  let fullText = '';
+  for (let i = 1; i <= Math.min(pdf.numPages, MAX_TEXT_PAGES); i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    for (const item of content.items) {
+      if (!('str' in item)) continue;
+      fullText += item.str;
+      fullText += item.hasEOL ? '\n' : ' ';
+    }
+    fullText += '\n';
+  }
+  await pdf.destroy();
+  return fullText;
+}
+
+async function parseLocally(buffer: Buffer, kind: UploadKind, fileName: string, fileType: string): Promise<ScannedRow[]> {
+  let rows: ScannedRow[] = [];
+
+  if (kind === 'pdf') {
+    try {
+      rows = parsePurchaseInvoiceText(await pdfText(buffer));
+    } catch (error) {
+      console.warn('PDF text parse failed, falling back to OCR:', error);
+    }
+
+    if (rows.length === 0) {
+      try {
+        const { pdf } = await import('pdf-to-img');
+        const document = await pdf(buffer, { scale: 2 });
+        let combinedText = '';
+        let pageCount = 0;
+        for await (const image of document) {
+          const result = await withTimeout(Tesseract.recognize(image, 'eng', { logger: () => {} }), OCR_TIMEOUT_MS, 'OCR');
+          combinedText += `\n${result.data.text || ''}`;
+          pageCount += 1;
+          if (pageCount >= 2) break;
+        }
+        rows = parsePurchaseInvoiceText(combinedText);
+      } catch (error) {
+        console.warn('PDF OCR fallback failed:', error);
+      }
+    }
+  } else {
+    const result = await withTimeout(Tesseract.recognize(buffer, 'eng', { logger: () => {} }), OCR_TIMEOUT_MS, 'OCR');
+    rows = parsePurchaseInvoiceText(result.data.text || '');
+  }
+
+  if (rows.length === 0) {
+    const typedFile = new File([new Uint8Array(buffer)], fileName, { type: fileType });
+    rows = await withTimeout(parseMedicineImportFile(typedFile, buffer), OCR_TIMEOUT_MS * 2, 'Import parse');
+  }
+  return rows;
 }
 
 export async function POST(req: NextRequest) {
@@ -79,83 +175,60 @@ export async function POST(req: NextRequest) {
       data: buffer,
     });
 
-    let parsedRows: Array<{
-      name: string;
-      company?: string;
-      mrp?: number;
-      tradePrice?: number;
-      purchaseRate?: number;
-      batchNumber?: string;
-      expiryDate?: string;
-      quantity?: number;
-    }> = [];
+    // AI first (reads tables far better than OCR + regex); local OCR is the
+    // fallback when no provider is configured, the shop cap is hit, or AI
+    // finds nothing.
+    let parsedRows: ScannedRow[] = [];
+    let source: 'ai' | 'ocr' = 'ocr';
+    let aiError: string | undefined;
 
-    // OCR needs hundreds of MB; run one at a time on this server.
-    const parsed = await runLimited('ocr', 1, async () => {
-      if (fileType === 'application/pdf') {
-        try {
-          const pdfjsLib = await import('pdfjs-dist');
-          const loadingTask = pdfjsLib.getDocument({ data: buffer });
-          const pdf = await loadingTask.promise;
-          let fullText = '';
-          for (let i = 1; i <= Math.min(pdf.numPages, MAX_TEXT_PAGES); i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            const pageText = textContent.items
-              .map((item: any) => item.str)
-              .join(' ');
-            fullText += pageText + '\n';
-          }
-          parsedRows = parsePurchaseInvoiceText(fullText);
-        } catch (error) {
-          console.warn('PDF text parse failed, falling back to OCR:', error);
-        }
+    const aiDenied = await aiAllowanceError(auth.user);
+    if (!aiDenied) {
+      try {
+        const ctx = { feature: 'INVOICE_IMPORT' as const, shopId: auth.user.shopId };
+        const result = detected.kind === 'pdf'
+          ? await parsePDFWithAI(buffer, ctx)
+          : await parseImageWithGeminiVision(buffer, fileType, ctx);
+        parsedRows = result.medicines.filter((m) => m.name?.trim()).map(fromAi);
+        if (parsedRows.length > 0) source = 'ai';
+        else aiError = result.errorMessage;
+      } catch (error) {
+        aiError = error instanceof Error ? error.message : String(error);
+        console.warn('AI invoice parse failed, falling back to OCR:', aiError);
       }
-
-      if (parsedRows.length === 0 && fileType === 'application/pdf') {
-        try {
-          const { pdf } = await import('pdf-to-img');
-          const dataUrl = `data:application/pdf;base64,${buffer.toString('base64')}`;
-          const document = await pdf(dataUrl, { scale: 2 });
-          let combinedText = '';
-          let pageCount = 0;
-
-          for await (const image of document) {
-            const result = await withTimeout(Tesseract.recognize(image, 'eng+hin', { logger: () => {} }), OCR_TIMEOUT_MS, 'OCR');
-            combinedText += `\n${result.data.text || ''}`;
-            pageCount += 1;
-            if (pageCount >= 2) break;
-          }
-
-          parsedRows = parsePurchaseInvoiceText(combinedText);
-        } catch (error) {
-          console.warn('PDF OCR fallback failed:', error);
-        }
-      }
-
-      if (parsedRows.length === 0 && detected.kind === 'image') {
-        const result = await withTimeout(Tesseract.recognize(buffer, 'eng+hin', { logger: () => {} }), OCR_TIMEOUT_MS, 'OCR');
-        parsedRows = parsePurchaseInvoiceText(result.data.text || '');
-      }
-
-      if (parsedRows.length === 0) {
-        const typedFile = new File([new Uint8Array(buffer)], file.name, { type: fileType });
-        parsedRows = await withTimeout(parseMedicineImportFile(typedFile, buffer), OCR_TIMEOUT_MS * 2, 'Import parse');
-      }
-      return parsedRows;
-    }).catch((error) => {
-      console.warn('Invoice parse failed:', error instanceof Error ? error.message : error);
-      return { busy: false as const, value: [] as typeof parsedRows };
-    });
-    if (parsed.busy) {
-      return NextResponse.json({ success: false, message: 'Another invoice is being read. Try again in a minute.' }, { status: 429 });
     }
-    parsedRows = parsed.value;
+
+    if (parsedRows.length === 0) {
+      // OCR needs hundreds of MB; run one at a time on this server.
+      const parsed = await runLimited('ocr', 1, () => parseLocally(buffer, detected.kind, file.name, fileType))
+        .catch((error) => {
+          console.warn('Invoice parse failed:', error instanceof Error ? error.message : error);
+          return { busy: false as const, value: [] as ScannedRow[] };
+        });
+      if (parsed.busy) {
+        return NextResponse.json({ success: false, message: 'Another invoice is being read. Try again in a minute.' }, { status: 429 });
+      }
+      parsedRows = parsed.value;
+    }
+
+    if (parsedRows.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          documentId,
+          message: aiError
+            ? `Could not read any medicine lines from this invoice (${aiError}). Try a clearer photo or a PDF.`
+            : 'Could not read any medicine lines from this invoice. Try a clearer photo or a PDF.',
+        },
+        { status: 422 }
+      );
+    }
 
     const medicines = await prisma.medicine.findMany({
       where: {
         shopId: auth.user.shopId,
         isActive: true,
+        deletedAt: null,
       },
       select: {
         id: true,
@@ -226,15 +299,10 @@ export async function POST(req: NextRequest) {
             : 'new',
         batchNumber: row.batchNumber || '',
         expiryDate: row.expiryDate || '',
-        quantity: typeof row.quantity === 'number' ? row.quantity : 1,
+        quantity: positive(row.quantity) ?? 1,
         freeQty: 0,
-        purchaseRate:
-          typeof row.tradePrice === 'number'
-            ? row.tradePrice
-            : typeof row.purchaseRate === 'number'
-              ? row.purchaseRate
-              : 0,
-        mrp: typeof row.mrp === 'number' ? row.mrp : 0,
+        purchaseRate: positive(row.purchaseRate) ?? positive(row.tradePrice) ?? 0,
+        mrp: positive(row.mrp) ?? 0,
         discount: 0,
         gst: 0,
         scheme: '',
@@ -246,6 +314,7 @@ export async function POST(req: NextRequest) {
       success: true,
       data: items,
       documentId,
+      source,
       message: `Detected ${items.length} purchase lines from invoice`,
     });
   } catch (error) {

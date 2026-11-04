@@ -12,6 +12,10 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // OCR / PDF libraries load workers, wasm and data files by path at runtime;
+  // bundled into the server build they cannot find them, so invoice scan and
+  // PDF import fail. Load them from node_modules instead.
+  serverExternalPackages: ['tesseract.js', 'pdfjs-dist', 'pdf-to-img', 'pdf-parse', 'pdf2json'],
   experimental: {
     // The proxy reads every /api request (CSRF check). Uploads are capped at
     // 20 MB by the routes; anything larger is refused in proxy.ts first.
