@@ -228,10 +228,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validation = CreateMedicineSchema.safeParse(body);
     if (!validation.success) {
-      return createErrorResponse('Invalid medicine data', 400);
+      const issue = validation.error.issues[0];
+      const field = issue?.path.join('.');
+      return createErrorResponse(issue ? `${field ? `${field}: ` : ''}${issue.message}` : 'Invalid medicine data', 400);
     }
 
     const data = validation.data;
+
+    if (data.barcode) {
+      const clash = await prisma.medicine.findFirst({
+        where: { shopId: auth.user.shopId, barcode: data.barcode },
+        select: { name: true },
+      });
+      if (clash) {
+        return createErrorResponse(`Barcode ${data.barcode} is already used by ${clash.name}`, 409);
+      }
+    }
 
     const medicine = await prisma.medicine.create({
       data: {
@@ -239,10 +251,10 @@ export async function POST(request: NextRequest) {
         name: data.name,
         company: data.company,
         category: data.category,
-        barcode: data.barcode,
-        hsn: data.hsn,
-        packing: data.packing || null,
-        unit: data.unit || 'strip',
+        barcode: data.barcode ?? null,
+        hsn: data.hsn ?? '',
+        packing: data.packing ?? null,
+        unit: data.unit ?? 'strip',
         gstPercent: data.gstPercent ?? 0,
       },
     });

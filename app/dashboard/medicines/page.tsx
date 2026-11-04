@@ -38,6 +38,8 @@ interface CompanyOption {
   name: string;
 }
 
+const NEW_COMPANY = '__new__';
+
 const emptyForm = {
   name: '',
   company: '',
@@ -109,6 +111,7 @@ export default function MedicinesPage() {
   const [selectedAll, setSelectedAll] = useState(false);
   const [selectedMedicines, setSelectedMedicines] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState(emptyForm);
+  const [newCompanyName, setNewCompanyName] = useState('');
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditableMedicine & { packing?: string | null } | null>(null);
   const [activeFilter, setActiveFilter] = useState('All');
@@ -229,7 +232,8 @@ export default function MedicinesPage() {
       toast.error('Medicine name must be at least 3 characters long');
       return;
     }
-    if (!formData.company) {
+    const company = (formData.company === NEW_COMPANY ? newCompanyName : formData.company).trim();
+    if (!company) {
       toast.error('Please select a company');
       return;
     }
@@ -247,19 +251,23 @@ export default function MedicinesPage() {
     }
 
     try {
-      const response = await axios.post('/api/medicines/search', formData);
+      const response = await axios.post('/api/medicines/search', { ...formData, company });
       if (!response.data.success) {
         throw new Error(response.data.error || 'Failed to add medicine');
       }
 
       setFormData(emptyForm);
+      setNewCompanyName('');
       setShowAddModal(false);
       toast.success('Medicine added successfully. Ready for inventory.');
       await loadCompanies();
       await loadMedicines();
     } catch (error) {
       console.error('Failed to add medicine:', error);
-      toast.error('Failed to add medicine');
+      const serverMessage = axios.isAxiosError(error)
+        ? error.response?.data?.error || error.response?.data?.message
+        : null;
+      toast.error(serverMessage || 'Failed to add medicine');
     }
   };
 
@@ -414,7 +422,7 @@ export default function MedicinesPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 md:p-8 max-w-[1600px] mx-auto">
+    <div className="space-y-6 p-4 sm:p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-large-title text-foreground">Medicines</h1>
@@ -727,7 +735,7 @@ export default function MedicinesPage() {
       </Card>
 
       {/* Add Medicine Modal */}
-      <Dialog open={showAddModal} onOpenChange={(open) => { if (!open) { setShowAddModal(false); setFormData(emptyForm); } }}>
+      <Dialog open={showAddModal} onOpenChange={(open) => { if (!open) { setShowAddModal(false); setFormData(emptyForm); setNewCompanyName(''); } }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add New Medicine</DialogTitle>
@@ -749,7 +757,7 @@ export default function MedicinesPage() {
                 id="medicine-create-company"
                 value={formData.company}
                 onChange={(e) => setFormData((current) => ({ ...current, company: e.target.value }))}
-                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="h-11 sm:h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                 required
               >
                 <option value="">Select company</option>
@@ -758,16 +766,27 @@ export default function MedicinesPage() {
                     {company.name}
                   </option>
                 ))}
+                <option value={NEW_COMPANY}>+ New company…</option>
               </select>
+              {formData.company === NEW_COMPANY && (
+                <Input
+                  value={newCompanyName}
+                  onChange={(e) => setNewCompanyName(e.target.value)}
+                  placeholder="New company name"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  required
+                />
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="medicine-create-category">Category</Label>
                 <select
                   id="medicine-create-category"
                   value={formData.category}
                   onChange={(e) => setFormData((current) => ({ ...current, category: e.target.value }))}
-                  className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="h-11 sm:h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                   required
                 >
                   <option value="">Select category</option>
@@ -783,10 +802,12 @@ export default function MedicinesPage() {
                   value={formData.hsn}
                   onChange={(e) => setFormData((current) => ({ ...current, hsn: e.target.value }))}
                   placeholder="e.g. 30049099"
+                  inputMode="numeric"
+                  autoComplete="off"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="medicine-create-barcode">Barcode (optional)</Label>
                 <Input
@@ -794,6 +815,8 @@ export default function MedicinesPage() {
                   value={formData.barcode}
                   onChange={(e) => setFormData((current) => ({ ...current, barcode: e.target.value }))}
                   placeholder="Numeric barcode"
+                  inputMode="numeric"
+                  autoComplete="off"
                 />
               </div>
               <div className="grid gap-2">
@@ -802,7 +825,7 @@ export default function MedicinesPage() {
                   id="medicine-create-gst"
                   value={formData.gstPercent}
                   onChange={(e) => setFormData((current) => ({ ...current, gstPercent: Number(e.target.value) }))}
-                  className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="h-11 sm:h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value={0}>0% (Exempt)</option>
                   <option value={5}>5%</option>

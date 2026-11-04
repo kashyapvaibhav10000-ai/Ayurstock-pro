@@ -67,15 +67,25 @@ export const ShopSettingsSchema = z.strictObject({
 });
 
 // Medicine Schemas
+/** Blank text inputs arrive as "": treat them as not given. */
+const optionalText = (max: number) =>
+  z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().trim().max(max).optional()
+  );
+
 export const CreateMedicineSchema = z.strictObject({
-  name: z.string().min(2, 'Medicine name is required').max(200),
-  company: z.string().min(1, 'Company is required').max(200),
-  category: z.string().min(1, 'Category is required').max(100),
-  barcode: z.string().max(100).optional(),
-  hsn: z.string().min(1, 'HSN is required').max(20),
-  unit: z.string().max(30).default('strip'),
-  packing: z.string().trim().max(100).optional(),
-  gstPercent: z.number().int().min(0).max(28).optional(),
+  name: z.string().trim().min(2, 'Medicine name must be at least 2 characters').max(200),
+  company: z.string().trim().min(1, 'Company is required').max(200),
+  category: z.string().trim().min(1, 'Category is required').max(100),
+  // Optional: a blank barcode must be stored as NULL, not "", because
+  // (shopId, barcode) is unique and a second "" would collide.
+  barcode: optionalText(100),
+  // Optional in every create form; stored as "" when not known.
+  hsn: optionalText(20),
+  unit: optionalText(30),
+  packing: optionalText(100),
+  gstPercent: z.coerce.number().int().min(0).max(28).optional(),
 });
 
 // Batch Schemas
