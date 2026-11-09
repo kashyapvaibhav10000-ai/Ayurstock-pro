@@ -64,6 +64,7 @@ export default function DatabaseAdmin() {
   const [selectedCompany, setSelectedCompany] = useState<CompanyEntry | null>(null);
   const [isCompanyDialogOpen, setIsCompanyDialogOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [companyPassword, setCompanyPassword] = useState('');
   const [isDeletingCompany, setIsDeletingCompany] = useState(false);
 
   // Backup & Restore state
@@ -105,17 +106,19 @@ export default function DatabaseAdmin() {
   };
 
   const handleDeleteByCompany = async () => {
-    if (!selectedCompany || confirmText !== selectedCompany.name) return;
+    if (!selectedCompany || confirmText !== selectedCompany.name || !companyPassword) return;
     setIsDeletingCompany(true);
     try {
       const response = await axios.delete('/api/medicines/by-company', {
-        data: { companyName: selectedCompany.name },
+        // The server re-checks the password; this dialog's checks are only UX.
+        data: { companyName: selectedCompany.name, password: companyPassword },
       });
       if (response.data.success) {
         toast.success(`Deleted ${response.data.deletedCount} medicines from ${selectedCompany.name}`);
         setIsCompanyDialogOpen(false);
         setSelectedCompany(null);
         setConfirmText('');
+        setCompanyPassword('');
         fetchStats(); fetchCompanies(); fetchMedicines();
       }
     } catch (error: any) {
@@ -179,7 +182,8 @@ export default function DatabaseAdmin() {
     }
     setIsDeleting(true);
     try {
-      const response = await axios.delete('/api/medicines/clear-all');
+      // The server re-checks the password; the Verify step above is only UX.
+      const response = await axios.delete('/api/medicines/clear-all', { data: { password: clearPassword } });
       if (response.data.success) {
         toast.success("Database cleared successfully");
         setIsDialogOpen(false);
@@ -740,7 +744,7 @@ export default function DatabaseAdmin() {
             open={isCompanyDialogOpen}
             onOpenChange={(open) => {
               setIsCompanyDialogOpen(open);
-              if (!open) setConfirmText('');
+              if (!open) { setConfirmText(''); setCompanyPassword(''); }
             }}
           >
             <DialogTrigger asChild>
@@ -781,11 +785,18 @@ export default function DatabaseAdmin() {
                   onChange={(e) => setConfirmText(e.target.value)}
                   className="font-mono"
                 />
+                <Input
+                  type="password"
+                  placeholder="Your login password"
+                  value={companyPassword}
+                  onChange={(e) => setCompanyPassword(e.target.value)}
+                  className="font-mono"
+                />
               </div>
               <DialogFooter className="mt-4">
                 <Button
                   variant="outline"
-                  onClick={() => { setIsCompanyDialogOpen(false); setConfirmText(''); }}
+                  onClick={() => { setIsCompanyDialogOpen(false); setConfirmText(''); setCompanyPassword(''); }}
                   disabled={isDeletingCompany}
                 >
                   Cancel
@@ -793,7 +804,7 @@ export default function DatabaseAdmin() {
                 <Button
                   variant="destructive"
                   onClick={handleDeleteByCompany}
-                  disabled={isDeletingCompany || confirmText !== selectedCompany?.name}
+                  disabled={isDeletingCompany || confirmText !== selectedCompany?.name || !companyPassword}
                   className="gap-2 font-bold"
                 >
                   {isDeletingCompany ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}

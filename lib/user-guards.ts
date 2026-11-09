@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { hashPin } from '@/lib/pin';
+import { verifyPassword } from '@/lib/auth';
 
 /**
  * Account-management rules shared by Team (/api/users) and My Profile.
@@ -68,3 +69,10 @@ export function pinData(shopId: string, pin: string | null | undefined) {
 export const PIN_TAKEN = 'Another user in this shop already uses this PIN.';
 export const CURRENT_PASSWORD_REQUIRED = 'Enter your current password to change your email, username or password.';
 export const CURRENT_PASSWORD_WRONG = 'Current password is incorrect.';
+
+/** True when `password` is this user's current password (re-auth for destructive actions). */
+export async function passwordConfirms(userId: string, password: unknown): Promise<boolean> {
+  if (typeof password !== 'string' || !password) return false;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+  return Boolean(user && (await verifyPassword(password, user.passwordHash)));
+}

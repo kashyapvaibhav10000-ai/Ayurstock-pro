@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { passwordConfirms } from '@/lib/user-guards';
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -13,10 +14,15 @@ export async function DELETE(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { companyName } = body as { companyName: string };
+    const { companyName, password } = body as { companyName: string; password?: unknown };
 
     if (!companyName || typeof companyName !== 'string' || companyName.trim() === '') {
       return NextResponse.json({ success: false, message: 'companyName is required' }, { status: 400 });
+    }
+
+    // Re-check the password here: the browser's own check can be skipped.
+    if (!(await passwordConfirms(auth.user.id, password))) {
+      return NextResponse.json({ success: false, message: 'Password is incorrect' }, { status: 403 });
     }
 
     const shopId = auth.user.shopId;
@@ -32,12 +38,18 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Delete dependent records in order to avoid FK violations
-    await prisma.stockLedger.deleteMany({ where: { shopId, medicine: { company } } });
-    await prisma.saleItem.deleteMany({ where: { medicine: { shopId, company } } });
-    await prisma.purchaseItem.deleteMany({ where: { medicine: { shopId, company } } });
-    await prisma.medicineReturn.deleteMany({ where: { shopId, medicine: { company } } });
-    await prisma.inventoryBatch.deleteMany({ where: { shopId, medicine: { company } } });
-    await prisma.medicine.deleteMany({ where: { shopId, company } });
+    // One transaction: a failure part-way leaves nothing half-deleted.
+    await prisma.$transaction(async (tx) => {
+      await tx.stockLedger.deleteMany({ where: { shopId, medicine: { company } } });
+      await tx.saleItem.deleteMany({ where: { medicine: { shopId, company } } });
+      await tx.purchaseItem.deleteMany({ where: { medicine: { shopId, company } } });
+      await tx.medicineReturn.deleteMany({ where: { shopId, medicine: { company } } });
+      await tx.inventoryBatch.deleteMany({ where: { shopId, medicine: { company } } });
+      await tx.medicine.deleteMany({ where: { shopId, company } });
+      await tx.activityLog.create({
+        data: { shopId, userId: auth.user!.id, action: 'CLEAR_BY_COMPANY', meta: JSON.stringify({ company, medicineCount }) },
+      });
+    }, { timeout: 60_000 });
 
     return NextResponse.json({
       success: true,
