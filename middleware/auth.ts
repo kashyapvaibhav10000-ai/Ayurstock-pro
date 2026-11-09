@@ -74,20 +74,23 @@ export function staffOnlyResponse(role: string): NextResponse | null {
 }
 
 /**
- * Cost prices (purchaseRate) are back-office data. A cashier sees them only
- * while pricing a wholesale/transfer sale, which bills at trade price.
+ * Cost prices (batch purchaseRate, medicine tradePrice) are back-office data
+ * and never reach a cashier. Wholesale prices are checked against cost on the
+ * server, so the POS does not need it.
  */
-export function canSeeCost(role: string, saleType?: string | null): boolean {
-  return role === 'ADMIN' || role === 'MANAGER' || saleType === 'WHOLESALE' || saleType === 'TRANSFER';
+export function canSeeCost(role: string): boolean {
+  return role === 'ADMIN' || role === 'MANAGER';
 }
 
-/** Copy of `value` with every purchaseRate key removed (plain objects and arrays only). */
+const COST_KEYS = new Set(['purchaseRate', 'tradePrice']);
+
+/** Copy of `value` with every cost key removed (plain objects and arrays only). */
 export function hideCost<T>(value: T): T {
   if (Array.isArray(value)) return value.map((item) => hideCost(item)) as T;
   if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
-        .filter(([key]) => key !== 'purchaseRate')
+        .filter(([key]) => !COST_KEYS.has(key))
         .map(([key, item]) => [key, hideCost(item)])
     ) as T;
   }

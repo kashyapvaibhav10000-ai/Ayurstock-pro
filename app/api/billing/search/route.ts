@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
     const query = (request.nextUrl.searchParams.get('q') || '').trim();
     const company = (request.nextUrl.searchParams.get('company') || '').trim();
     const limit = Math.min(parseInt(request.nextUrl.searchParams.get('limit') || '10', 10), 20);
-    // Cost goes to a cashier only for wholesale/transfer pricing.
-    const showCost = canSeeCost(auth.user.role, request.nextUrl.searchParams.get('saleType'));
+    // Cost never goes to a cashier.
+    const showCost = canSeeCost(auth.user.role);
 
     // Company filter is applied as an exact match on Medicine.company (a plain
     // string field, not a relation) — see Requirement 2.1.

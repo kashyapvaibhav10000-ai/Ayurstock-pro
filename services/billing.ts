@@ -42,22 +42,36 @@ type PricedBatch = { sellingRate: Decimal; mrp: Decimal; purchaseRate?: Decimal 
 const PRICE_EPSILON = 0.005;
 
 /**
- * The rate a batch sells at when nobody overrides it: trade price for
- * wholesale/transfer (when known), else the selling rate, else MRP; never
- * above MRP. Matches getBillingRate() on the POS screen.
+ * The rate a batch sells at when nobody sets one: the selling rate, else MRP
+ * (retail only); never above MRP. Matches getBillingRate() on the POS screen.
+ * The purchase rate is cost, never a sale price: a wholesale/transfer line
+ * with no selling rate needs a price entered.
  */
-export function defaultRate(batch: PricedBatch, saleType: SaleType): number {
-  const purchaseRate = Number(batch.purchaseRate || 0);
+export function defaultRate(batch: PricedBatch, saleType: SaleType, label = 'this item'): number {
   const sellingRate = Number(batch.sellingRate || 0);
   const mrp = Number(batch.mrp || 0);
 
-  const rate =
-    (saleType === 'WHOLESALE' || saleType === 'TRANSFER') && purchaseRate > 0
-      ? purchaseRate
-      : sellingRate > 0
-        ? sellingRate
-        : mrp;
+  if (saleType !== 'RETAIL' && sellingRate <= 0) {
+    throw new BillingError(`${label} has no selling rate. Enter a ${saleType.toLowerCase()} price.`);
+  }
+  const rate = sellingRate > 0 ? sellingRate : mrp;
   return mrp > 0 ? Math.min(rate, mrp) : rate;
+}
+
+/**
+ * Wholesale/transfer price check, for every role: never above MRP and never
+ * below the batch's purchase cost. The message does not state the cost, since
+ * cashiers see it.
+ */
+function checkTradePrice(rate: number, batch: PricedBatch, label: string) {
+  const mrp = Number(batch.mrp || 0);
+  if (mrp > 0 && rate > mrp + PRICE_EPSILON) {
+    throw new BillingError(`Price ₹${rate.toFixed(2)} for ${label} is above MRP ₹${mrp.toFixed(2)}.`);
+  }
+  const cost = Number(batch.purchaseRate || 0);
+  if (cost > 0 && rate < cost - PRICE_EPSILON) {
+    throw new BillingError(`Price ₹${rate.toFixed(2)} for ${label} is below the lowest allowed wholesale price.`);
+  }
 }
 
 export type SellerRole = 'ADMIN' | 'MANAGER' | 'CASHIER';
@@ -223,6 +237,17 @@ export async function createSale(params: {
       : DEFAULT_DISCOUNT_CAPS[params.sellerRole];
     const allowDiscounts = billingSettings?.allowDiscounts ?? true;
 
+    // Server-side sale-type rules (the POS only hides the tabs).
+    if (params.saleType === 'TRANSFER' && params.sellerRole === 'CASHIER') {
+      throw new BillingError('Only a manager or admin can bill a stock transfer.');
+    }
+    if (params.saleType === 'WHOLESALE' && billingSettings?.enableWholesale === false) {
+      throw new BillingError('Wholesale billing is turned off for this shop.');
+    }
+    if (params.saleType === 'RETAIL' && billingSettings?.enableRetail === false) {
+      throw new BillingError('Retail billing is turned off for this shop.');
+    }
+
     if (params.customerId) {
       const customer = await tx.customer.findFirst({
         where: { id: params.customerId, shopId: params.shopId },
@@ -362,20 +387,31 @@ export async function createSale(params: {
         );
       }
 
-      // The client's rate is an override only when it differs from what the
-      // first batch drawn would sell at; otherwise every batch uses its own rate.
       const requested = Number(item.rate || 0);
-      const isOverride =
-        requested > 0 && Math.abs(requested - defaultRate(slices[0].batch, params.saleType)) > PRICE_EPSILON;
-      const priced = slices.map(({ batch, qty }) => {
-        let rate = defaultRate(batch, params.saleType);
-        if (isOverride) {
-          const warning = checkOverride(requested, batch, params.sellerRole, medicine.name);
-          if (warning) warnings.push(warning);
-          rate = requested;
-        }
-        return { batch, qty, rate };
-      });
+      let priced: { batch: (typeof slices)[number]['batch']; qty: number; rate: number }[];
+      if (params.saleType === 'RETAIL') {
+        // The client's rate is an override only when it differs from what the
+        // first batch drawn would sell at; otherwise every batch uses its own rate.
+        const isOverride =
+          requested > 0 && Math.abs(requested - defaultRate(slices[0].batch, params.saleType)) > PRICE_EPSILON;
+        priced = slices.map(({ batch, qty }) => {
+          let rate = defaultRate(batch, params.saleType);
+          if (isOverride) {
+            const warning = checkOverride(requested, batch, params.sellerRole, medicine.name);
+            if (warning) warnings.push(warning);
+            rate = requested;
+          }
+          return { batch, qty, rate };
+        });
+      } else {
+        // Wholesale/transfer: the price sent (else the selling rate), between
+        // cost and MRP on every batch drawn, whatever the role.
+        priced = slices.map(({ batch, qty }) => {
+          const rate = requested > 0 ? requested : defaultRate(batch, params.saleType, medicine.name);
+          checkTradePrice(rate, batch, medicine.name);
+          return { batch, qty, rate };
+        });
+      }
 
       const lineTotal = priced.reduce((sum, p) => sum + p.qty * p.rate, 0);
       const discount = Number(item.discount || 0);

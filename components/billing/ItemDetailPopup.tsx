@@ -119,7 +119,7 @@ export default function ItemDetailPopup({
     let cancelled = false;
     setLoadingBatches(true);
     axios
-      .get('/api/inventory/batches', { params: { medicineId: suggestion.medicineId, saleType } })
+      .get('/api/inventory/batches', { params: { medicineId: suggestion.medicineId } })
       .then((res) => {
         if (cancelled) return;
         if (res.data?.success && Array.isArray(res.data.data)) {
@@ -173,14 +173,11 @@ export default function ItemDetailPopup({
 
   const unitPrice = useMemo(() => {
     if (!activeBatch) return 0;
-    const purchaseRate = Number(activeBatch.purchaseRate || 0);
+    // Same default as the server: selling rate, else MRP. Cost is never a sale price.
     const sellingRate = Number(activeBatch.rate || 0);
     const mrp = Number(activeBatch.mrp || 0);
-    if ((saleType === 'WHOLESALE' || saleType === 'TRANSFER') && purchaseRate > 0) {
-      return purchaseRate;
-    }
     return sellingRate > 0 ? sellingRate : mrp;
-  }, [activeBatch, saleType]);
+  }, [activeBatch]);
 
   const daysToExpiry = useMemo(() => {
     if (!activeBatch) return 0;

@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
     const company = searchParams.get('company')?.trim();
     const tab = searchParams.get('tab'); // 'all' | 'lowStock' | 'expiring30' | 'expiring60' | 'expired'
     const includeStats = searchParams.get('includeStats') === 'true';
-    // Cost goes to a cashier only for wholesale/transfer pricing.
-    const costView = <T,>(rows: T): T => (canSeeCost(auth.user.role, searchParams.get('saleType')) ? rows : hideCost(rows));
+    // Cost never goes to a cashier.
+    const costView = <T,>(rows: T): T => (canSeeCost(auth.user.role) ? rows : hideCost(rows));
 
     // Low stock report
     if (reportType === 'low-stock') {

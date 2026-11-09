@@ -2,9 +2,8 @@
  * Finding #9 (Low): cashiers could read cost prices (purchaseRate) through
  * sale details, the sale response, inventory batches, billing search and
  * dashboard alerts, and list every sale with customer phones via GET
- * /api/sales. Cost now reaches a cashier only on the wholesale/transfer
- * pricing path (?saleType=WHOLESALE|TRANSFER), and the sales list is
- * staff-only.
+ * /api/sales. Cost no longer reaches a cashier (the wholesale-path exception
+ * was removed in sec-4), and the sales list is staff-only.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { call, makeReq, prisma, resetDb, seedShop, tokenFor, Seed } from '../helpers';
@@ -77,12 +76,12 @@ describe('#9 cashier cannot read cost prices', () => {
   });
 });
 
-describe('#9 cost still reaches the wholesale path and staff', () => {
-  it('cashier gets purchaseRate when pricing a wholesale/transfer sale', async () => {
+describe('#9 cost still reaches staff (never a cashier, see sec-4)', () => {
+  it('cashier gets no purchaseRate even when pricing a wholesale/transfer sale', async () => {
     const search = await call(billingSearch.GET, asCashier(`/api/billing/search?q=${encodeURIComponent(A.medicine.name)}&saleType=WHOLESALE`));
-    expect(hasCost(search.json)).toBe(true);
+    expect(hasCost(search.json)).toBe(false);
     const batches = await call(inventoryBatches.GET, asCashier(`/api/inventory/batches?medicineId=${A.medicine.id}&saleType=TRANSFER`));
-    expect(hasCost(batches.json)).toBe(true);
+    expect(hasCost(batches.json)).toBe(false);
   });
 
   it('a manager still sees purchaseRate', async () => {
