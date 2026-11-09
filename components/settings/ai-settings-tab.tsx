@@ -37,7 +37,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import AiUsageTab from '@/components/settings/ai-usage-tab';
 import { cn } from '@/lib/utils';
 
-type Feature = 'INVOICE_IMPORT' | 'MEDICINE_IMPORT' | 'MEDICINE_BATCH_REPARSE';
+type Feature = 'INVOICE_IMPORT' | 'MEDICINE_IMPORT' | 'MEDICINE_BATCH_REPARSE' | 'LABEL_SCAN';
 
 interface AdapterInfo {
   id: string;

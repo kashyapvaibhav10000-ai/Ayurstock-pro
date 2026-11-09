@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useRef, KeyboardEvent } from 'react';
 import axios from 'axios';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Copy, Clock } from 'lucide-react';
+import { Plus, Copy, Clock, Camera, Loader2, X, CalendarDays } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface BatchOption {
   id: string;
@@ -164,6 +165,94 @@ function parseExpiryShorthand(input: string): string | null {
   return null;
 }
 
+// ─── Camera label scan helpers ────────────────────────────────────────────────
+
+/** Fields a label scan can pre-fill; highlighted until the user edits them. */
+type AutoField = 'company' | 'medicine' | 'batch' | 'expiry' | 'mrp' | 'packing';
+
+interface LabelScan {
+  medicine_name: string | null;
+  company: string | null;
+  batch: string | null;
+  expiry_month: number | null;
+  expiry_year: number | null;
+  mrp: number | null;
+  packing: string | null;
+  confidence: number | null;
+}
+
+const LABEL_SCAN_ERROR = "Couldn't read label, enter manually";
+const LABEL_UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Shrink a camera photo before upload: longest side ~1280px, JPEG ~0.7. The
+ * server is small; full-size phone photos (5-12 MB) are never sent.
+ */
+async function compressPhoto(file: File): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Could not open the photo'));
+      image.src = url;
+    });
+    const encode = (maxSide: number, quality: number) => {
+      const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas unavailable');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      return new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not compress the photo'))), 'image/jpeg', quality)
+      );
+    };
+    let blob = await encode(1280, 0.7);
+    if (blob.size > LABEL_UPLOAD_MAX_BYTES) blob = await encode(1024, 0.5);
+    return blob;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function normalizeName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** 0..1 overlap of two names (token Jaccard; full containment counts as a match). */
+function nameSimilarity(a: string, b: string) {
+  const na = normalizeName(a);
+  const nb = normalizeName(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  const ca = na.replace(/ /g, '');
+  const cb = nb.replace(/ /g, '');
+  if (Math.min(ca.length, cb.length) >= 4 && (ca.includes(cb) || cb.includes(ca))) return 0.9;
+  const ta = new Set(na.split(' '));
+  const tb = new Set(nb.split(' '));
+  const common = [...ta].filter((t) => tb.has(t)).length;
+  return common / new Set([...ta, ...tb]).size;
+}
+
+/** The searched medicine closest to the scanned name, if it is close enough. */
+function closestMedicine(options: MedicineOption[], scannedName: string): MedicineOption | null {
+  let best: MedicineOption | null = null;
+  let bestScore = 0;
+  for (const med of options) {
+    const score = nameSimilarity(med.name, scannedName);
+    if (score > bestScore) {
+      best = med;
+      bestScore = score;
+    }
+  }
+  return bestScore >= 0.6 ? best : null;
+}
+
+/** Light yellow while a field holds a scanned value the user has not touched yet. */
+const AUTO_FILLED_CLASS = 'bg-yellow-100/80 dark:bg-yellow-400/15 ring-1 ring-yellow-300/80';
+
 export default function AddInventoryModal({
   isOpen,
   onClose,
@@ -205,6 +294,20 @@ export default function AddInventoryModal({
 
   // GST category defaults cache
   const [gstCategoryMap, setGstCategoryMap] = useState<Record<string, number>>({});
+
+  // Camera label scan
+  const [scanningLabel, setScanningLabel] = useState(false);
+  const [autoFilled, setAutoFilled] = useState<Set<AutoField>>(() => new Set());
+  const scanAbortRef = useRef<AbortController | null>(null);
+  const labelInputRef = useRef<HTMLInputElement>(null);
+  const clearAuto = (field: AutoField) =>
+    setAutoFilled((current) => {
+      if (!current.has(field)) return current;
+      const next = new Set(current);
+      next.delete(field);
+      return next;
+    });
+  const autoClass = (field: AutoField) => (autoFilled.has(field) ? AUTO_FILLED_CLASS : '');
 
   // Auto-scroll dropdown to highlighted item
   useEffect(() => {
@@ -255,6 +358,8 @@ export default function AddInventoryModal({
     setSameMedicineMode(false);
     setExpiryText('');
     setRecentMedicines([...recentMedicinesStore]);
+    setAutoFilled(new Set());
+    setScanningLabel(false);
 
     // Restore locked medicine from localStorage
     try {
@@ -293,6 +398,11 @@ export default function AddInventoryModal({
         companyRef.current?.focus();
       }
     }, 150);
+  }, [isOpen]);
+
+  // Closing the modal cancels a scan in flight.
+  useEffect(() => {
+    if (!isOpen) scanAbortRef.current?.abort();
   }, [isOpen]);
 
   useEffect(() => {
@@ -340,7 +450,7 @@ export default function AddInventoryModal({
   };
 
   useEffect(() => {
-    if (!selectedCompanyId || medicineSearch.length < 2 || formData.medicineId) {
+    if (!selectedCompanyId || medicineSearch.length < 2 || formData.medicineId || isCreatingNewMedicine) {
       if (formData.medicineId) return;
       setMedicineOptions([]);
       return;
@@ -365,12 +475,15 @@ export default function AddInventoryModal({
     }, 400);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [medicineSearch, selectedCompanyId, formData.medicineId]);
+  }, [medicineSearch, selectedCompanyId, formData.medicineId, isCreatingNewMedicine]);
 
   const handleCompanyChange = (val: string) => {
     setSelectedCompanyId(val);
     localStorage.setItem('inv_lastCompany', val);
-    setMedicineSearch('');
+    clearAuto('company');
+    // A scanned name waiting for its company is kept and searched under it.
+    const keepScannedName = autoFilled.has('medicine') && !formData.medicineId && medicineSearch.trim().length >= 2;
+    if (!keepScannedName) setMedicineSearch('');
     setIsCreatingNewMedicine(false);
     setSelectedCategory('');
     setFormData(c => ({ ...c, medicineId: '' }));
@@ -378,10 +491,14 @@ export default function AddInventoryModal({
     setTimeout(() => medicineRef.current?.focus(), 50);
   };
 
-  const handleSelectMedicine = async (med: MedicineOption, batch: BatchOption | null = null) => {
+  type FormOverrides = Partial<Pick<typeof formData, 'batchNumber' | 'expiryDate' | 'mrp' | 'packing'>>;
+
+  // `overrides` (from a label scan) are applied after the batch / last-MRP
+  // fill, so values read off the package win over history.
+  const handleSelectMedicine = async (med: MedicineOption, batch: BatchOption | null = null, overrides: FormOverrides = {}) => {
     setSelectedCategory(med.category || '');
     setIsCreatingNewMedicine(false);
-    setFormData(c => ({ ...c, medicineId: med.id, mrp: '', packing: med.packing || '', gstPercent: med.gstPercent || 5 }));
+    setFormData(c => ({ ...c, medicineId: med.id, mrp: '', packing: med.packing || '', gstPercent: med.gstPercent || 5, ...overrides }));
     setMedicineSearch(med.name);
     setShowMedicineDropdown(false);
     setHighlightedIndex(-1);
@@ -401,6 +518,7 @@ export default function AddInventoryModal({
         mrp: batch.mrp || c.mrp,
         packing: batch.packing || c.packing,
         rackLocation: batch.rackLocation || c.rackLocation,
+        ...overrides,
       }));
       return;
     }
@@ -414,9 +532,143 @@ export default function AddInventoryModal({
           mrp: d.mrp || c.mrp,
           packing: d.packing || c.packing,
           rackLocation: d.rackLocation || c.rackLocation,
+          ...overrides,
         }));
       }
     } catch(e) { /* silent */ }
+  };
+
+  // ─── Camera label scan ───────────────────────────────────────────────
+  const cancelLabelScan = () => {
+    scanAbortRef.current?.abort();
+    scanAbortRef.current = null;
+    setScanningLabel(false);
+  };
+
+  /**
+   * Photo → compressed JPEG → /api/inventory/scan-label → fill only the
+   * fields that are still empty. Nothing is saved: the user reviews the
+   * highlighted fields and presses Add & Next.
+   */
+  const handleLabelPhoto = async (file: File) => {
+    scanAbortRef.current?.abort();
+    const controller = new AbortController();
+    scanAbortRef.current = controller;
+    setScanningLabel(true);
+
+    // What the user had already typed; never overwritten.
+    const before = {
+      companyId: selectedCompanyId,
+      medicineSearch: medicineSearch.trim(),
+      medicineId: formData.medicineId,
+      batchNumber: formData.batchNumber,
+      expiryText,
+      mrp: formData.mrp,
+      packing: formData.packing,
+    };
+
+    try {
+      const photo = await compressPhoto(file);
+      const upload = new FormData();
+      upload.append('image', photo, 'label.jpg');
+      const res = await axios.post('/api/inventory/scan-label', upload, { signal: controller.signal });
+      const scan: LabelScan | undefined = res.data?.data;
+      if (!res.data?.success || !scan) throw new Error('unreadable');
+      if (controller.signal.aborted) return;
+
+      const filled = new Set<AutoField>();
+      const overrides: FormOverrides = {};
+
+      let companyId = before.companyId;
+      if (!companyId && scan.company) {
+        const match = companies
+          .map((c) => ({ c, score: nameSimilarity(c.name, scan.company!) }))
+          .sort((x, y) => y.score - x.score)[0];
+        if (match && match.score >= 0.6) {
+          companyId = match.c.id;
+          setSelectedCompanyId(match.c.id);
+          localStorage.setItem('inv_lastCompany', match.c.id);
+          filled.add('company');
+        }
+      }
+
+      if (!before.batchNumber && scan.batch) {
+        overrides.batchNumber = scan.batch;
+        filled.add('batch');
+      }
+      if (!before.expiryText && scan.expiry_month && scan.expiry_year) {
+        const mmyy = `${String(scan.expiry_month).padStart(2, '0')}${String(scan.expiry_year).slice(-2)}`;
+        const parsed = parseExpiryShorthand(mmyy);
+        if (parsed) {
+          setExpiryText(mmyy);
+          overrides.expiryDate = parsed;
+          filled.add('expiry');
+        }
+      }
+      if ((before.mrp === '' || Number(before.mrp) <= 0) && scan.mrp) {
+        overrides.mrp = scan.mrp;
+        filled.add('mrp');
+      }
+      if (!before.packing && scan.packing) {
+        overrides.packing = scan.packing;
+        filled.add('packing');
+      }
+
+      let linked = false;
+      if (!before.medicineId && !before.medicineSearch && scan.medicine_name && !sameMedicineMode) {
+        filled.add('medicine');
+        // Link to an existing medicine when one is close enough, so the batch
+        // lands on it instead of a duplicate.
+        if (companyId) {
+          const firstWord = normalizeName(scan.medicine_name).split(' ').find((w) => w.length >= 3) || scan.medicine_name;
+          try {
+            const found = await axios.get('/api/medicines/search', {
+              params: { company: companyId, q: firstWord, includeBatches: 'true' },
+              signal: controller.signal,
+            });
+            const match = found.data?.success ? closestMedicine(found.data.data || [], scan.medicine_name) : null;
+            if (match) {
+              const sameBatch = overrides.batchNumber
+                ? match.batches?.find((b) => b.batchNumber.toUpperCase() === overrides.batchNumber!.toUpperCase()) ?? null
+                : null;
+              await handleSelectMedicine(match, sameBatch, overrides);
+              linked = true;
+            }
+          } catch (e) {
+            if (controller.signal.aborted) return;
+          }
+        }
+        if (!linked) {
+          // No close match: keep the name as typed text for a new medicine.
+          setMedicineSearch(scan.medicine_name);
+          setMedicineOptions([]);
+          setShowMedicineDropdown(false);
+          if (companyId) {
+            setIsCreatingNewMedicine(true);
+          }
+        }
+      }
+      if (!linked) {
+        setFormData((c) => ({ ...c, ...overrides }));
+        setError((er) => ({ ...er, batchNumber: '', expiryDate: '', mrp: '' }));
+      }
+      if (controller.signal.aborted) return;
+
+      if (filled.size === 0) {
+        toast.message('Nothing new to fill from this label');
+      } else {
+        setAutoFilled((current) => new Set([...current, ...filled]));
+        toast.success('Label read. Check the highlighted fields, then Add & Next.');
+      }
+    } catch (scanError) {
+      if (controller.signal.aborted || axios.isCancel(scanError)) return;
+      toast.error(LABEL_SCAN_ERROR);
+    } finally {
+      if (scanAbortRef.current === controller) {
+        scanAbortRef.current = null;
+        setScanningLabel(false);
+      }
+    }
   };
 
   const handleCreateNewMedicine = () => {
@@ -491,13 +743,14 @@ export default function AddInventoryModal({
     // Sync text display
     if (value) {
       const [y, m] = value.split('-');
-      setExpiryText(`${m}/${y.slice(2)}`);
+      setExpiryText(`${m}${y.slice(2)}`);
+      clearAuto('expiry');
     }
   };
 
   const handleMedicineKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (!showMedicineDropdown) {
-      if (e.key === 'Enter' && formData.medicineId) {
+      if (e.key === 'Enter' && (formData.medicineId || isCreatingNewMedicine)) {
         e.preventDefault();
         batchRef.current?.focus();
       }
@@ -651,6 +904,7 @@ export default function AddInventoryModal({
       setMedicineOptions([]);
       setHighlightedIndex(-1);
       setExpiryText('');
+      setAutoFilled(new Set());
       setFormData({
         medicineId: '',
         batchNumber: '',
@@ -693,10 +947,27 @@ export default function AddInventoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[calc(100vw-1rem)] w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl">Add Inventory</DialogTitle>
+      <DialogContent
+        hideClose
+        className="box-border w-full max-w-[100vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden px-4 pt-4 sm:p-6"
+      >
+        <DialogHeader className="flex-row items-center justify-between gap-3 space-y-0 text-left min-w-0">
+          <DialogTitle className="min-w-0 truncate text-lg sm:text-xl">Add Inventory</DialogTitle>
+          <DialogClose className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-fill text-label-secondary transition-colors hover:bg-fill-strong hover:text-foreground focus:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/35">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogClose>
         </DialogHeader>
+
+        {scanningLabel && (
+          <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary" role="status">
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            <span className="min-w-0 flex-1 font-medium">Reading label...</span>
+            <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 text-xs" onClick={cancelLabelScan}>
+              Cancel
+            </Button>
+          </div>
+        )}
 
         {error.global && (
           <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
@@ -704,15 +975,15 @@ export default function AddInventoryModal({
           </div>
         )}
 
-        <div className="grid gap-4 py-2 px-1">
+        <div className="grid min-w-0 grid-cols-1 gap-4 py-2 px-0.5">
           
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-            <div className="grid gap-2">
+          <div className="grid min-w-0 gap-3 grid-cols-1 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-2">
               <Label className="text-sm">Company Name *</Label>
               <select
                 ref={companyRef}
                 tabIndex={1}
-                className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                className={`flex h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 ${autoClass('company')}`}
                 value={selectedCompanyId}
                 onChange={(e) => handleCompanyChange(e.target.value)}
                 onKeyDown={(e) => {
@@ -733,39 +1004,73 @@ export default function AddInventoryModal({
               {error.companyId && <span className="text-xs text-danger font-medium">{error.companyId}</span>}
             </div>
 
-            <div className="grid gap-2 relative" ref={dropdownRef}>
+            <div className="grid min-w-0 gap-2 relative" ref={dropdownRef}>
               <Label className="text-sm">Medicine Name *</Label>
               {sameMedicineMode ? (
                 // Locked medicine display
-                <div className="flex h-11 w-full items-center rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-base font-medium text-primary">
-                  {medicineSearch}
+                <div className="flex h-11 w-full min-w-0 items-center rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-base font-medium text-primary">
+                  <span className="truncate">{medicineSearch}</span>
                 </div>
               ) : (
-                <Input
-                  ref={medicineRef}
-                  tabIndex={2}
-                  placeholder="Type 2 chars to search..."
-                  value={medicineSearch}
-                  onChange={(e) => {
-                    setMedicineSearch(e.target.value);
-                    setFormData(c => ({ ...c, medicineId: '' }));
-                    setIsCreatingNewMedicine(false);
-                    setShowMedicineDropdown(true);
-                    setHighlightedIndex(-1);
-                  }}
-                  onFocus={() => {
-                    if (medicineSearch.length < 2 && !formData.medicineId && recentMedicines.length > 0) {
-                      setShowMedicineDropdown(true);
-                    }
-                  }}
-                  onKeyDown={handleMedicineKeyDown}
-                  disabled={!selectedCompanyId}
-                  className={`w-full h-11 text-base ${isCreatingNewMedicine ? 'border-blue-500 ring-1 ring-blue-200' : ''}`}
-                  autoComplete="off"
-                />
-              )}
-              {isSearchingMedicines && (
-                <div className="absolute right-3 top-9 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-white" />
+                <div className="flex min-w-0 gap-2">
+                  <div className="relative min-w-0 flex-1">
+                    <Input
+                      ref={medicineRef}
+                      tabIndex={2}
+                      placeholder="Type 2 chars to search..."
+                      value={medicineSearch}
+                      onChange={(e) => {
+                        setMedicineSearch(e.target.value);
+                        setFormData(c => ({ ...c, medicineId: '' }));
+                        setIsCreatingNewMedicine(false);
+                        setShowMedicineDropdown(true);
+                        setHighlightedIndex(-1);
+                        clearAuto('medicine');
+                      }}
+                      onFocus={() => {
+                        if (medicineSearch.length < 2 && !formData.medicineId && recentMedicines.length > 0) {
+                          setShowMedicineDropdown(true);
+                        }
+                      }}
+                      onKeyDown={handleMedicineKeyDown}
+                      disabled={!selectedCompanyId}
+                      className={`w-full min-w-0 h-11 text-base pr-9 ${isCreatingNewMedicine ? 'border-blue-500 ring-1 ring-blue-200' : ''} ${autoClass('medicine')}`}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="words"
+                      spellCheck={false}
+                      enterKeyHint="next"
+                    />
+                    {isSearchingMedicines && (
+                      <div className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-primary border-t-white" />
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-11 shrink-0 p-0"
+                    onClick={() => labelInputRef.current?.click()}
+                    disabled={scanningLabel}
+                    aria-label="Scan medicine label with camera"
+                    title="Scan label with camera"
+                  >
+                    {scanningLabel ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+                  </Button>
+                  {/* capture="environment" opens the rear camera directly on phones */}
+                  <input
+                    ref={labelInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    tabIndex={-1}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = ''; // allow retaking the same photo
+                      if (file) handleLabelPhoto(file);
+                    }}
+                  />
+                </div>
               )}
               {isCreatingNewMedicine && (
                 <span className="text-xs text-blue-600 font-medium">✨ New medicine will be created</span>
@@ -886,8 +1191,8 @@ export default function AddInventoryModal({
             </div>
           )}
 
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-            <div className="grid gap-2">
+          <div className="grid min-w-0 gap-3 grid-cols-1 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-2">
               <Label className="text-sm">Batch Number *</Label>
               <Input
                 ref={batchRef}
@@ -897,22 +1202,31 @@ export default function AddInventoryModal({
                 onChange={(e) => {
                   setFormData((c) => ({ ...c, batchNumber: e.target.value }));
                   setError(er => ({...er, batchNumber: ''}));
+                  clearAuto('batch');
                 }}
                 onKeyDown={(e) => handleFieldEnter(e, expiryRef)}
-                className="h-11 text-base"
+                className={`w-full min-w-0 h-11 text-base ${autoClass('batch')}`}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                autoComplete="off"
+                enterKeyHint="next"
               />
               {error.batchNumber && <span className="text-xs text-danger font-medium">{error.batchNumber}</span>}
             </div>
             
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label className="text-sm">Expiry Date * <span className="text-[11px] text-muted-foreground font-normal">(type MMYY)</span></Label>
-              <div className="flex gap-2">
+              <div className="flex min-w-0 gap-2">
                 <Input
                   ref={expiryRef}
                   tabIndex={5}
                   placeholder="e.g. 0727"
                   value={expiryText}
-                  onChange={(e) => handleExpiryInput(e.target.value)}
+                  onChange={(e) => {
+                    handleExpiryInput(e.target.value);
+                    clearAuto('expiry');
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -921,17 +1235,27 @@ export default function AddInventoryModal({
                       }
                     }
                   }}
-                  className="flex-1 h-11 text-base"
-                  maxLength={6}
+                  className={`min-w-0 flex-1 h-11 text-base ${autoClass('expiry')}`}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  autoComplete="off"
+                  enterKeyHint="next"
                 />
-                <Input
-                  type="date"
-                  tabIndex={-1}
-                  value={formData.expiryDate}
-                  onChange={(e) => handleExpiryDatePicker(e.target.value)}
-                  className="w-12 h-11 px-1 opacity-60"
-                  title="Or use date picker"
-                />
+                {/* Date picker fallback: an icon-sized box; the native text is hidden
+                    (it cannot fit) and the whole box opens the picker. */}
+                <div className="relative h-11 w-12 shrink-0">
+                  <Input
+                    type="date"
+                    tabIndex={-1}
+                    value={formData.expiryDate}
+                    onChange={(e) => handleExpiryDatePicker(e.target.value)}
+                    className="h-11 w-12 min-w-0 cursor-pointer px-1 text-transparent [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
+                    title="Or use date picker"
+                    aria-label="Pick expiry date"
+                  />
+                  <CalendarDays className="pointer-events-none absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 text-muted-foreground" />
+                </div>
               </div>
               {formData.expiryDate && (
                 <span className="text-[11px] text-primary font-medium">
@@ -947,44 +1271,53 @@ export default function AddInventoryModal({
             </div>
           </div>
 
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-            <div className="grid gap-2">
+          <div className="grid min-w-0 gap-3 grid-cols-1 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-2">
               <Label className="text-sm">Quantity *</Label>
               <Input
                 ref={qtyRef}
                 tabIndex={6}
-                type="number"
-                min="1"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="off"
+                enterKeyHint="next"
                 placeholder="Enter quantity"
                 value={formData.stockQty}
                 onChange={(e) => {
-                  setFormData((c) => ({ ...c, stockQty: e.target.value }));
+                  setFormData((c) => ({ ...c, stockQty: e.target.value.replace(/\D/g, '') }));
                   setError(er => ({...er, stockQty: ''}));
                 }}
                 onKeyDown={(e) => handleFieldEnter(e, mrpRef)}
-                className="h-11 text-base"
+                className="w-full min-w-0 h-11 text-base"
               />
               {error.stockQty && <span className="text-xs text-danger font-medium">{error.stockQty}</span>}
             </div>
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label className="text-sm">MRP *</Label>
               <Input
                 ref={mrpRef}
                 tabIndex={8}
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                enterKeyHint="next"
                 placeholder="Enter MRP"
                 value={formData.mrp}
                 onChange={(e) => {
-                  setFormData((c) => ({ ...c, mrp: e.target.value }));
+                  // Digits and one decimal point (iOS decimal pad, or pasted text).
+                  const [whole, ...rest] = e.target.value.replace(/[^0-9.]/g, '').split('.');
+                  const mrp = rest.length ? `${whole}.${rest.join('').slice(0, 2)}` : whole;
+                  setFormData((c) => ({ ...c, mrp }));
                   setError(er => ({...er, mrp: ''}));
+                  clearAuto('mrp');
                 }}
                 onKeyDown={(e) => handleFieldEnter(e, packingRef)}
-                className="h-11 text-base"
+                className={`w-full min-w-0 h-11 text-base ${autoClass('mrp')}`}
               />
               {error.mrp && <span className="text-xs text-danger font-medium">{error.mrp}</span>}
             </div>
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label className="text-sm">Packing</Label>
               <Input
                 ref={packingRef}
@@ -994,9 +1327,18 @@ export default function AddInventoryModal({
                 value={formData.packing}
                 onChange={(e) => {
                   setFormData((c) => ({ ...c, packing: e.target.value }));
+                  clearAuto('packing');
                 }}
-                onKeyDown={(e) => handleFieldEnter(e, rackRef)}
-                className="h-11 text-base"
+                onKeyDown={(e) => {
+                  // Last field of the keyboard flow: Done / Enter = Add & Next.
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!isSubmitDisabled) handleSubmit();
+                  }
+                }}
+                className={`w-full min-w-0 h-11 text-base ${autoClass('packing')}`}
+                autoComplete="off"
+                enterKeyHint="done"
               />
               <datalist id="packing-options">
                 {packingSuggestions.map((opt) => (
@@ -1004,12 +1346,12 @@ export default function AddInventoryModal({
                 ))}
               </datalist>
             </div>
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label className="text-sm">Rack Location *</Label>
               <select
                 ref={rackRef}
                 tabIndex={10}
-                className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
                 value={formData.rackLocation}
                 onChange={(e) => {
                   setFormData((c) => ({ ...c, rackLocation: e.target.value }));
@@ -1030,9 +1372,9 @@ export default function AddInventoryModal({
               {error.rackLocation && <span className="text-xs text-danger font-medium">{error.rackLocation}</span>}
             </div>
             
-            <div className="grid gap-2 sm:col-span-2">
+            <div className="grid min-w-0 gap-2 sm:col-span-2">
               <Label className="text-sm">GST Rate *</Label>
-              <div className="flex gap-2">
+              <div className="grid min-w-0 grid-cols-3 gap-2">
                 {GST_OPTIONS.map((opt, idx) => (
                   <button
                     key={opt.value}
@@ -1048,23 +1390,23 @@ export default function AddInventoryModal({
                         submitRef.current?.focus();
                       }
                     }}
-                    className={`flex-1 flex flex-col items-center justify-center rounded-md border p-3 py-4 transition-all min-h-[60px] ${
+                    className={`min-w-0 flex flex-col items-center justify-center rounded-md border px-1 py-3 sm:p-3 sm:py-4 transition-all min-h-[60px] ${
                       Number(formData.gstPercent) === Number(opt.value)
                         ? 'bg-primary border-primary text-white'
                         : 'border-input bg-background text-muted-foreground hover:bg-primary/10'
                     }`}
                   >
-                    <span className="text-base font-bold">{opt.label}</span>
-                    <span className="text-xs opacity-80 font-normal mt-0.5">{opt.category}</span>
+                    <span className="text-sm sm:text-base font-bold">{opt.label}</span>
+                    <span className="max-w-full truncate text-[11px] sm:text-xs opacity-80 font-normal mt-0.5">{opt.category}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label className="text-sm">Distributor <span className="text-[11px] text-muted-foreground font-normal">(optional)</span></Label>
               <select
-                className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                className="flex h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
                 value={purchaseSupplierId}
                 onChange={(e) => setPurchaseSupplierId(e.target.value)}
               >
@@ -1075,14 +1417,24 @@ export default function AddInventoryModal({
               </select>
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label className="text-sm">Invoice No <span className="text-[11px] text-muted-foreground font-normal">(optional)</span></Label>
               <Input
                 value={purchaseInvoiceNo}
                 onChange={(e) => setPurchaseInvoiceNo(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  }
+                }}
                 placeholder="Auto-generated if blank"
-                className="h-11"
+                className="w-full min-w-0 h-11 text-base"
                 maxLength={60}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="done"
               />
             </div>
           </div>
@@ -1091,9 +1443,9 @@ export default function AddInventoryModal({
 
         {/* Success bar with "Same Medicine +" */}
         {batchesAdded > 0 && (
-          <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
             <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-primary text-white text-xs font-bold shrink-0">{batchesAdded}</span>
-            <span className="text-primary font-medium flex-1 truncate">
+            <span className="text-primary font-medium min-w-0 flex-1 truncate">
               {batchesAdded === 1 ? 'batch' : 'batches'} added{lastAddedName ? ` — ${lastAddedName}` : ''}
             </span>
             {lockedMedicine && !sameMedicineMode && (
@@ -1101,7 +1453,7 @@ export default function AddInventoryModal({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="shrink-0 gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary h-8 text-xs font-semibold"
+                className="w-full sm:w-auto shrink-0 gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary h-9 sm:h-8 text-xs font-semibold"
                 onClick={handleSameMedicine}
               >
                 <Copy className="h-3.5 w-3.5" />
@@ -1113,16 +1465,16 @@ export default function AddInventoryModal({
 
         {/* Show "Same Medicine +" from previous session (no batches added yet) */}
         {batchesAdded === 0 && lockedMedicine && !sameMedicineMode && !formData.medicineId && (
-          <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
             <Copy className="h-4 w-4 text-blue-600 shrink-0" />
-            <span className="text-blue-800 font-medium flex-1 truncate">
+            <span className="text-blue-800 font-medium min-w-0 flex-1 basis-[10rem] truncate">
               Quick add: continue with <strong>{lockedMedicine.name}</strong>?
             </span>
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="shrink-0 gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-100 hover:text-blue-800 h-8 text-xs font-semibold"
+              className="w-full sm:w-auto shrink-0 gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-100 hover:text-blue-800 h-9 sm:h-8 text-xs font-semibold"
               onClick={handleSameMedicine}
             >
               Same Medicine +
@@ -1144,6 +1496,9 @@ export default function AddInventoryModal({
             ref={submitRef}
             tabIndex={14}
             onClick={handleSubmit} 
+            // Keep focus (and the iPhone keyboard) in the current field while
+            // tapping; after a successful add focus moves to Medicine Name.
+            onMouseDown={(e) => e.preventDefault()}
             disabled={isSubmitDisabled} 
             className="w-full sm:w-auto h-11 text-base bg-primary hover:bg-primary-hover"
             onKeyDown={(e) => {

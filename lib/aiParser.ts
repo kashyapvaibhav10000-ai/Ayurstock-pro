@@ -1011,6 +1011,48 @@ export async function parseImageWithGeminiVision(imageBuffer: Buffer, mimeType: 
   };
 }
 
+// ─── runVisionPrompt: one image + a caller's prompt ───────────────────────────
+/**
+ * Send one image with a caller-supplied prompt through the same image-capable
+ * chain as invoice vision (AI keys page instances + routing, daily limits,
+ * AiCallLog). Returns the first reply `accept` takes, or null when every
+ * provider failed or none is configured. The image stays in memory.
+ */
+export async function runVisionPrompt(
+  imageBuffer: Buffer,
+  mimeType: string,
+  prompt: string,
+  ctx: AiCallContext,
+  accept: (content: string) => boolean
+): Promise<{ content: string; provider: string } | null> {
+  await loadAiKeys();
+  const usage = await getDailyUsage();
+  const chain = buildChain(ctx.feature).filter((tier) => tier.supportsImage);
+  const log = attemptLogger(ctx);
+  const data = imageBuffer.toString('base64');
+
+  for (const tier of chain) {
+    if (!tier.available(usage)) continue;
+    const started = Date.now();
+    try {
+      const content = await tier.call({ user: prompt, timeoutMs: VISION_TIMEOUT_MS }, [{ mimeType, data }]);
+      if (accept(content)) {
+        await log.record(tier, started, true);
+        await incrementUsage(tier.usageField);
+        return { content, provider: tier.label };
+      }
+      await log.record(tier, started, false, 'unusable reply');
+    } catch (err) {
+      const msg = scrubKey(err instanceof Error ? err.message : String(err), tier.key);
+      console.warn(`  ❌ ${tier.label} vision prompt failed: ${msg}`);
+      await log.record(tier, started, false, msg);
+    }
+  }
+
+  await log.finish(chain.length ? 'No provider was available' : 'No image-capable AI provider configured');
+  return null;
+}
+
 // ─── Legacy export (kept for backward compatibility) ──────────────────────────
 export async function parseMedicinesWithAI(rawOcrText: string, ctx: AiCallContext): Promise<ParseResult> {
   return parseTextWithAI(rawOcrText, ctx);

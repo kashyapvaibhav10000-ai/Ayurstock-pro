@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import './globals.css';
 import Providers from './providers';
@@ -11,6 +11,13 @@ import { ACCENT_BOOT_SCRIPT } from '@/lib/accent';
 export const metadata: Metadata = {
   title: 'AyurStock Pro - Management System',
   description: 'Ayurvedic Pharmacy Management System',
+};
+
+// Explicit so it is never lost: device width, no initial zoom. User zoom is
+// deliberately left enabled (no maximumScale / userScalable).
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default async function RootLayout({

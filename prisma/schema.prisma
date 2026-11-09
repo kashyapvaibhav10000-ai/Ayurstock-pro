@@ -711,6 +711,7 @@ enum AiFeature {
   INVOICE_IMPORT
   MEDICINE_IMPORT
   MEDICINE_BATCH_REPARSE
+  LABEL_SCAN
 }
 
 // Platform-wide AI provider instances (not shop-scoped: the AI parser is

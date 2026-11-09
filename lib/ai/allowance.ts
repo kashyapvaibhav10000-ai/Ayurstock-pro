@@ -17,12 +17,20 @@ function dailyCap(): number {
  * provider calls (AiCallLog rows, AI_DAILY_CALLS_PER_SHOP, default 200).
  * Returns the error response to send, or null when the call may proceed.
  */
-export async function aiAllowanceError(user: AuthUser): Promise<NextResponse | null> {
+export interface AiBurstLimit {
+  key: string;
+  limit: number;
+  windowMs: number;
+}
+
+const DEFAULT_BURST: AiBurstLimit = { key: 'ai', limit: 10, windowMs: 10 * 60_000 };
+
+export async function aiAllowanceError(user: AuthUser, burstLimit: AiBurstLimit = DEFAULT_BURST): Promise<NextResponse | null> {
   if (!['ADMIN', 'MANAGER'].includes(user.role)) {
     return NextResponse.json({ success: false, message: 'Forbidden - Insufficient permissions' }, { status: 403 });
   }
 
-  const burst = await rateLimit(`ai:${user.id}`, 10, 10 * 60_000);
+  const burst = await rateLimit(`${burstLimit.key}:${user.id}`, burstLimit.limit, burstLimit.windowMs);
   if (!burst.allowed) {
     return NextResponse.json(
       { success: false, message: `Too many AI imports. Try again in ${burst.retryAfterSeconds}s.` },
