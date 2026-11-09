@@ -135,6 +135,12 @@ export async function POST(req: NextRequest) {
 
     const returnExpiry = normalizeExpiry(returnExpiryInput);
 
+    // Only link a company of this shop; another shop's id (or a made-up one) is dropped.
+    const ownCompany =
+      typeof companyId === 'string' && companyId
+        ? await prisma.company.findFirst({ where: { id: companyId, shopId: auth.user.shopId }, select: { id: true } })
+        : null;
+
     // Execute the return registration and stock logic transactionally
     const result = await prisma.$transaction(async (tx) => {
       if (saleItemId) {
@@ -153,7 +159,7 @@ export async function POST(req: NextRequest) {
         data: {
           shopId: auth.user.shopId,
           medicineId: verifiedMedicineId,
-          companyId: typeof companyId === 'string' && companyId ? companyId : null,
+          companyId: ownCompany?.id ?? null,
           batchNumber: returnBatchNumber || 'RETURN_BATCH',
           batchId: verifiedBatchId,
           expiryDate: returnExpiry,
