@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { toast } from 'sonner';
@@ -22,6 +22,11 @@ import {
 import ImportPriceList from '@/components/medicine/import-price-list';
 
 import { batchIdentityKey, batchLabel } from '@/lib/batch';
+import { packingOptionsFor } from '@/lib/stock-entry';
+import { MedicineCombobox } from '@/components/purchases/MedicineCombobox';
+import { ExpiryField } from '@/components/purchases/ExpiryField';
+import { DecimalInput } from '@/components/purchases/DecimalInput';
+
 interface PurchaseStats {
   todayPurchases: number;
   monthPurchases: number;
@@ -41,6 +46,31 @@ interface MedicineOption {
   name: string;
   company: string;
   category?: string;
+  packing?: string | null;
+}
+
+/** An existing batch of a medicine, used to suggest and complete batch rows. */
+interface BatchHint {
+  batchNumber: string;
+  expiryDate: string;
+  mrp: number;
+  packing?: string | null;
+  rackLocation?: string | null;
+  stockQty: number;
+}
+
+/** Fields of a purchase row the user can move through with Enter. */
+const ROW_FIELDS = ['medicine', 'batch', 'expiry', 'quantity', 'price', 'mrp', 'packing'] as const;
+type RowField = (typeof ROW_FIELDS)[number];
+
+/** Focus a row field; the row is rendered twice (phone cards / table), so take the visible one. */
+function focusRowField(tempId: string, field: RowField) {
+  setTimeout(() => {
+    const nodes = document.querySelectorAll<HTMLInputElement>(`[data-row="${tempId}"][data-field="${field}"]`);
+    const visible = Array.from(nodes).find((node) => node.offsetParent !== null);
+    visible?.focus();
+    visible?.select?.();
+  }, 30);
 }
 
 interface PurchaseItemForm {
@@ -172,6 +202,7 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [batchesByMedicine, setBatchesByMedicine] = useState<Record<string, BatchHint[]>>({});
   const [showNewMedicineDialog, setShowNewMedicineDialog] = useState(false);
   const [newMedicineName, setNewMedicineName] = useState('');
   const [newMedicineCategory, setNewMedicineCategory] = useState('');
@@ -335,21 +366,95 @@ export default function PurchasesPage() {
     }));
   };
 
-  const handleMedicineSelect = (tempId: string, medicineId: string) => {
-    const selectedMedicine = medicines.find((medicine) => medicine.id === medicineId);
-
+  const updateRow = (tempId: string, change: (item: PurchaseItemForm) => PurchaseItemForm) => {
     setPurchaseForm((current) => ({
       ...current,
-      items: current.items.map((item) =>
-        item.tempId === tempId
-          ? {
-              ...item,
-              medicineId,
-              medicineSearch: selectedMedicine ? selectedMedicine.name : item.medicineSearch,
-            }
-          : item
-      ),
+      items: current.items.map((item) => (item.tempId === tempId ? change(item) : item)),
     }));
+  };
+
+  /**
+   * Like Add Inventory: after a medicine is chosen, fill what the shop
+   * already knows from its latest batch (MRP, packing, rack, last purchase
+   * rate) and load its batches for the Batch suggestions. Only empty fields
+   * are filled, so typed or scanned values win.
+   */
+  const autofillFromHistory = async (tempId: string, medicineId: string) => {
+    const [last, batches] = await Promise.all([
+      axios.get(`/api/medicines/${medicineId}/last-mrp`).then((r) => (r.data.success ? r.data.data : null)).catch(() => null),
+      axios
+        .get('/api/inventory/batches', { params: { medicineId } })
+        .then((r) => (r.data.success && Array.isArray(r.data.data) ? (r.data.data as BatchHint[]) : []))
+        .catch(() => [] as BatchHint[]),
+    ]);
+    setBatchesByMedicine((current) => ({ ...current, [medicineId]: batches }));
+    if (!last) return;
+    updateRow(tempId, (item) =>
+      item.medicineId !== medicineId
+        ? item
+        : {
+            ...item,
+            mrp: item.mrp > 0 ? item.mrp : Number(last.mrp) || 0,
+            packing: item.packing.trim() ? item.packing : last.packing || '',
+            rackLocation: item.rackLocation.trim() ? item.rackLocation : last.rackLocation || '',
+            purchaseRate: item.purchaseRate > 0 ? item.purchaseRate : Number(last.purchaseRate) || 0,
+          }
+    );
+  };
+
+  const handleMedicineSelect = (tempId: string, medicine: MedicineOption) => {
+    updateRow(tempId, (item) => ({
+      ...item,
+      medicineId: medicine.id,
+      medicineSearch: medicine.name,
+      packing: item.packing.trim() ? item.packing : medicine.packing || '',
+    }));
+    focusRowField(tempId, 'batch');
+    void autofillFromHistory(tempId, medicine.id);
+  };
+
+  /** Typing an existing batch number completes the row from that batch. */
+  const handleBatchChange = (item: PurchaseItemForm, batchNumber: string) => {
+    const existing = (batchesByMedicine[item.medicineId] || []).find(
+      (batch) => batch.batchNumber.trim().toUpperCase() === batchNumber.trim().toUpperCase()
+    );
+    updateRow(item.tempId, (row) =>
+      existing
+        ? {
+            ...row,
+            batchNumber,
+            expiryDate: String(existing.expiryDate).slice(0, 10),
+            mrp: Number(existing.mrp) || row.mrp,
+            packing: existing.packing || row.packing,
+            rackLocation: row.rackLocation.trim() ? row.rackLocation : existing.rackLocation || '',
+          }
+        : { ...row, batchNumber }
+    );
+  };
+
+  /** Enter on a field moves to the next one; on Packing it starts a new row. */
+  const handleRowEnter = (item: PurchaseItemForm, field: RowField) => {
+    const next = ROW_FIELDS[ROW_FIELDS.indexOf(field) + 1];
+    if (next) {
+      focusRowField(item.tempId, next);
+      return;
+    }
+    const items = purchaseForm.items;
+    const index = items.findIndex((row) => row.tempId === item.tempId);
+    const following = items[index + 1];
+    if (following) {
+      focusRowField(following.tempId, 'medicine');
+      return;
+    }
+    const fresh = createEmptyPurchaseItem();
+    setPurchaseForm((current) => ({ ...current, items: [...current.items, fresh] }));
+    focusRowField(fresh.tempId, 'medicine');
+  };
+
+  const enterKey = (item: PurchaseItemForm, field: RowField) => (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    handleRowEnter(item, field);
   };
 
   const handleCompanyChange = (companyName: string) => {
@@ -577,6 +682,10 @@ export default function PurchasesPage() {
     setScanSummary({ matched: 0, possible: 0, newItems: 0 });
     setAppliedScanMeta(meta);
     setAppliedDocumentId(scanDocumentId);
+    // Matched lines get the shop's known MRP/packing/rack where the invoice had none.
+    scanPreview.forEach((item) => {
+      if (item.medicineId) void autofillFromHistory(item.tempId, item.medicineId);
+    });
     toast.success('OCR results applied to purchase form. Please verify and save.');
   };
 
@@ -723,43 +832,35 @@ export default function PurchasesPage() {
     const rowMedicineOptions = getMedicineOptionsForRow(item);
     const rowSearch = item.medicineSearch?.trim() || '';
     const canCreateMedicine = Boolean(rowSearch) && !item.medicineId && !hasExactMedicineName(rowSearch);
+    const rowMedicine = item.medicineId ? medicines.find((medicine) => medicine.id === item.medicineId) : undefined;
+    const rowBatches = item.medicineId ? batchesByMedicine[item.medicineId] || [] : [];
+    const existingBatch = item.batchNumber.trim()
+      ? rowBatches.find((batch) => batch.batchNumber.trim().toUpperCase() === item.batchNumber.trim().toUpperCase())
+      : undefined;
+    // Packing suggestions: this medicine's known packings, then its category's usual sizes.
+    const rowPackings = Array.from(
+      new Set(
+        [rowMedicine?.packing, ...rowBatches.map((batch) => batch.packing), ...packingOptionsFor(rowMedicine?.category)]
+          .map((option) => (option || '').trim())
+          .filter(Boolean)
+      )
+    );
+    const isLastRow = purchaseForm.items[purchaseForm.items.length - 1]?.tempId === item.tempId;
 
     return {
       medicine: (
         <div>
-          <Input
+          <MedicineCombobox
             value={item.medicineSearch || ''}
-            className={`mb-2 ${fieldClass}`}
-            placeholder="Search or type medicine name"
-            autoComplete="off"
-            autoCapitalize="characters"
-            enterKeyHint="next"
-            onChange={(event) =>
-              setPurchaseForm((current) => ({
-                ...current,
-                items: current.items.map((row) =>
-                  row.tempId === item.tempId
-                    ? { ...row, medicineSearch: event.target.value, medicineId: '' }
-                    : row
-                ),
-              }))
-            }
+            selectedId={item.medicineId}
+            options={rowMedicineOptions}
+            className={fieldClass}
+            data-row={item.tempId}
+            data-field="medicine"
+            onTextChange={(text) => updateRow(item.tempId, (row) => ({ ...row, medicineSearch: text, medicineId: '' }))}
+            onSelect={(medicine) => handleMedicineSelect(item.tempId, medicine as MedicineOption)}
+            onEnterNext={() => (item.medicineId ? handleRowEnter(item, 'medicine') : undefined)}
           />
-          <select
-            className={selectClass}
-            value={item.medicineId}
-            aria-label="Medicine"
-            onChange={(event) => handleMedicineSelect(item.tempId, event.target.value)}
-          >
-            <option value="">
-              {rowMedicineOptions.length ? `Select medicine (${rowMedicineOptions.length})` : 'No match — add as new'}
-            </option>
-            {rowMedicineOptions.map((medicine) => (
-              <option key={medicine.id} value={medicine.id}>
-                {medicine.name} ({medicine.company})
-              </option>
-            ))}
-          </select>
           {meta && (
             <div className="mt-1 text-[11px] font-medium text-muted-foreground">
               Scan: {meta.status} ({Math.round(meta.score * 100)}%)
@@ -779,71 +880,112 @@ export default function PurchasesPage() {
         </div>
       ),
       batch: (
-        <Input
-          value={item.batchNumber}
-          className={fieldClass}
-          placeholder="Batch no."
-          autoComplete="off"
-          autoCapitalize="characters"
-          onChange={(event) => handlePurchaseItemChange(item.tempId, 'batchNumber', event.target.value)}
-        />
+        <div>
+          <Input
+            value={item.batchNumber}
+            className={fieldClass}
+            placeholder="Batch no."
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            enterKeyHint="next"
+            list={rowBatches.length ? `batches-${item.tempId}` : undefined}
+            data-row={item.tempId}
+            data-field="batch"
+            onKeyDown={enterKey(item, 'batch')}
+            onChange={(event) => handleBatchChange(item, event.target.value)}
+          />
+          {rowBatches.length > 0 && (
+            <datalist id={`batches-${item.tempId}`}>
+              {rowBatches.map((batch) => (
+                <option key={`${batch.batchNumber}-${batch.expiryDate}`} value={batch.batchNumber}>
+                  {`Exp ${String(batch.expiryDate).slice(5, 7)}/${String(batch.expiryDate).slice(2, 4)} · MRP ${batch.mrp} · stock ${batch.stockQty}`}
+                </option>
+              ))}
+            </datalist>
+          )}
+          {existingBatch && (
+            <div className="mt-1 text-[11px] font-medium text-primary">Adds to existing batch (stock {existingBatch.stockQty})</div>
+          )}
+        </div>
       ),
       expiry: (
-        <Input
-          type="date"
+        <ExpiryField
           value={item.expiryDate}
-          className={fieldClass}
-          onChange={(event) => handlePurchaseItemChange(item.tempId, 'expiryDate', event.target.value)}
+          className="h-11 md:h-9 rounded-xl"
+          data-row={item.tempId}
+          data-field="expiry"
+          onChange={(iso) => handlePurchaseItemChange(item.tempId, 'expiryDate', iso)}
+          onEnterNext={() => handleRowEnter(item, 'expiry')}
         />
       ),
       pack: (
-        <Input
-          value={item.packing}
-          className={fieldClass}
-          placeholder="e.g. 10x10 Strips, 100ml"
-          aria-label="Packing"
-          maxLength={100}
-          autoComplete="off"
-          enterKeyHint="next"
-          onChange={(event) => handlePurchaseItemChange(item.tempId, 'packing', event.target.value)}
-        />
+        <div>
+          <Input
+            value={item.packing}
+            className={fieldClass}
+            placeholder="e.g. 10x10 Strips, 100ml"
+            aria-label="Packing"
+            maxLength={100}
+            autoComplete="off"
+            enterKeyHint={isLastRow ? 'done' : 'next'}
+            list={rowPackings.length ? `packings-${item.tempId}` : undefined}
+            data-row={item.tempId}
+            data-field="packing"
+            onKeyDown={enterKey(item, 'packing')}
+            onChange={(event) => handlePurchaseItemChange(item.tempId, 'packing', event.target.value)}
+          />
+          {rowPackings.length > 0 && (
+            <datalist id={`packings-${item.tempId}`}>
+              {rowPackings.map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
+          )}
+        </div>
       ),
       quantity: (
         <Input
-          type="number"
+          type="text"
           inputMode="numeric"
-          min={0}
-          step={1}
-          value={item.quantity}
-          aria-label="Quantity in packs"
+          pattern="[0-9]*"
+          value={item.quantity ? String(item.quantity) : ''}
+          placeholder="Qty"
+          aria-label="Quantity"
+          enterKeyHint="next"
+          autoComplete="off"
           className={`${fieldClass} text-right`}
+          data-row={item.tempId}
+          data-field="quantity"
+          onKeyDown={enterKey(item, 'quantity')}
           onChange={(event) =>
-            handlePurchaseItemChange(item.tempId, 'quantity', Math.floor(Number(event.target.value)))
+            handlePurchaseItemChange(item.tempId, 'quantity', Number(event.target.value.replace(/\D/g, '').slice(0, 7)) || 0)
           }
         />
       ),
       price: (
-        <Input
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step="0.01"
+        <DecimalInput
           value={item.purchaseRate}
-          aria-label="Price per pack"
+          ariaLabel="Purchase rate"
+          placeholder="Rate"
           className={`${fieldClass} text-right`}
-          onChange={(event) => handlePurchaseItemChange(item.tempId, 'purchaseRate', Number(event.target.value))}
+          row={item.tempId}
+          field="price"
+          onKeyDown={enterKey(item, 'price')}
+          onChange={(value) => handlePurchaseItemChange(item.tempId, 'purchaseRate', value)}
         />
       ),
       mrp: (
-        <Input
-          type="number"
-          inputMode="decimal"
-          min={0}
-          step="0.01"
+        <DecimalInput
           value={item.mrp}
-          aria-label="MRP per unit"
+          ariaLabel="MRP"
+          placeholder="MRP"
           className={`${fieldClass} text-right`}
-          onChange={(event) => handlePurchaseItemChange(item.tempId, 'mrp', Number(event.target.value))}
+          row={item.tempId}
+          field="mrp"
+          onKeyDown={enterKey(item, 'mrp')}
+          onChange={(value) => handlePurchaseItemChange(item.tempId, 'mrp', value)}
         />
       ),
       rack: (
