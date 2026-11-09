@@ -61,3 +61,5 @@ __pycache__/
 *.pyc
 test-pdf.mjs
 .gstack/
+.next-old/
+.next-new/
