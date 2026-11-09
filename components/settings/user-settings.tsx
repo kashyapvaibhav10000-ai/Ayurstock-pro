@@ -101,6 +101,11 @@ export default function UserSettings() {
     isEditOpen ? editingUser?.id : undefined
   )
 
+  // Permanent delete confirmation (admin re-enters their password).
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
+  const [deletePassword, setDeletePassword] = useState("")
+  const [deleting, setDeleting] = useState(false)
+
   // Initial Fetch
   useEffect(() => {
     fetchUsers()
@@ -309,6 +314,48 @@ export default function UserSettings() {
     }
   }
 
+  const handleForceLogout = async (user: User) => {
+    if (!confirm(`Log ${user.name} out of every device now? They can sign in again with their password.`)) return
+    try {
+      const res = await fetch(`/api/users/${user.id}/logout`, { method: "POST" })
+      const result = await res.json()
+      if (!result.success) toast.error(result.message || "Failed to log out user")
+      else toast.success(result.message || `${user.name} has been logged out`)
+    } catch {
+      toast.error("Network error while logging out user.")
+    }
+  }
+
+  const openPermanentDelete = (user: User) => {
+    setDeletePassword("")
+    setDeleteTarget(user)
+  }
+
+  const handlePermanentDelete = async () => {
+    if (!deleteTarget || !deletePassword) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/users/${deleteTarget.id}?permanent=1`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: deletePassword }),
+      })
+      const result = await res.json()
+      if (!result.success) {
+        toast.error(result.message || "Failed to delete user")
+        return
+      }
+      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id))
+      toast.success(`${deleteTarget.name} deleted permanently. Past bills keep their record.`)
+      setDeleteTarget(null)
+    } catch {
+      toast.error("Network error while deleting user.")
+    } finally {
+      setDeleting(false)
+      setDeletePassword("")
+    }
+  }
+
   const handleReactivate = async (user: User) => {
     try {
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isActive: true } : u))
@@ -405,18 +452,24 @@ export default function UserSettings() {
                     </span>
                   </td>
                   <td className="p-3 text-right">
+                    <div className="flex flex-wrap items-center justify-end gap-x-1 gap-y-0.5">
                     <button onClick={() => openEditModal(user)} className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Edit</button>
-                    <span className="text-muted-foreground">|</span>
                     <button onClick={() => openPasswordModal(user)} className="text-warning hover:text-warning hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Reset Password</button>
-                    <span className="text-muted-foreground">|</span>
+                    {user.isActive && !isSelf && user.role !== 'ADMIN' && (
+                      <button onClick={() => handleForceLogout(user)} className="text-foreground hover:underline text-xs font-medium px-2 py-1 transition-all">Log out</button>
+                    )}
                     {user.isActive ? (
                       // Wrapped so the tooltip shows even though the button is disabled.
-                      <span title={isSelf ? "You can't delete your own account" : undefined}>
-                        <button onClick={() => handleDelete(user)} disabled={isSelf} className="text-danger hover:text-danger hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Delete</button>
+                      <span title={isSelf ? "You can't deactivate your own account" : undefined}>
+                        <button onClick={() => handleDelete(user)} disabled={isSelf} className="text-danger hover:text-danger hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Deactivate</button>
                       </span>
                     ) : (
                       <button onClick={() => handleReactivate(user)} disabled={isSelf} className="text-primary hover:text-primary hover:underline text-xs font-medium px-2 py-1 transition-all disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed">Reactivate</button>
                     )}
+                    {!isSelf && user.role !== 'ADMIN' && (
+                      <button onClick={() => openPermanentDelete(user)} className="text-danger hover:underline text-xs font-semibold px-2 py-1 transition-all">Delete permanently</button>
+                    )}
+                    </div>
                   </td>
                 </tr>
               )})}
@@ -613,6 +666,45 @@ export default function UserSettings() {
               </DialogFooter>
             </form>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* PERMANENT DELETE DIALOG */}
+        <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !deleting) setDeleteTarget(null) }}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="text-danger">Delete {deleteTarget?.name} permanently?</DialogTitle>
+            </DialogHeader>
+            <form
+              onSubmit={(event) => { event.preventDefault(); void handlePermanentDelete() }}
+              className="space-y-4"
+            >
+              <div className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-xs text-foreground space-y-1">
+                <p>This cannot be undone. The account is wiped and cannot be reactivated:</p>
+                <ul className="list-disc pl-4 text-muted-foreground">
+                  <li>They are logged out everywhere and can never sign in again.</li>
+                  <li>Email, username, phone, password and PIN are erased; the email and username can be reused.</li>
+                  <li>Past bills and purchases stay, shown as &quot;Deleted user ({deleteTarget?.name})&quot;.</li>
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-delete-password">Your password</Label>
+                <Input
+                  id="confirm-delete-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  placeholder="Enter your admin password"
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" disabled={deleting} onClick={() => setDeleteTarget(null)}>Cancel</Button>
+                <Button type="submit" disabled={deleting || !deletePassword} className="bg-danger hover:bg-danger/90 text-white">
+                  {deleting ? "Deleting..." : "Delete permanently"}
+                </Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
 

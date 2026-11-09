@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     const users = await prisma.user.findMany({
       where: {
         shopId: auth.user.shopId,
+        deletedAt: null,
       },
       select: {
         id: true,

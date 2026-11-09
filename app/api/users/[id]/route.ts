@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
-import { verifyAuth, verifyPassword } from '@/lib/auth';
+import { randomBytes } from 'crypto';
+import { hashPassword, verifyAuth, verifyPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { USERNAME_TAKEN, isUsernameConflict, parseUsernameInput } from '@/lib/username';
 import {
@@ -9,6 +10,7 @@ import {
   LastAdminError,
   PIN_TAKEN,
   parsePinInput,
+  passwordConfirms,
   pinData,
   pinTakenInShop,
   updateUserKeepingAnAdmin,
@@ -71,10 +73,12 @@ export async function PUT(
     }
 
     // Security: Fetch target user and ensure they belong to the same shop!
+    // A permanently deleted account cannot be edited or reactivated.
     const targetUser = await prisma.user.findFirst({
       where: {
         id: userId,
-        shopId: auth.user.shopId
+        shopId: auth.user.shopId,
+        deletedAt: null,
       }
     });
 
@@ -207,7 +211,8 @@ export async function DELETE(
     const targetUser = await prisma.user.findFirst({
       where: {
         id: userId,
-        shopId: auth.user.shopId
+        shopId: auth.user.shopId,
+        deletedAt: null,
       }
     });
 
@@ -220,7 +225,44 @@ export async function DELETE(
       return fail('Cannot delete another Admin account', 403);
     }
 
-    // HARD DELETE PREVENTED: We do a Soft Delete instead so any previous invoices linked to this user don't break.
+    // ?permanent=1: wipe the account for good (admin re-enters their password).
+    // The row stays, renamed, so past sales/purchases keep their author;
+    // email and username are freed and nothing can sign in or reactivate it.
+    if (req.nextUrl.searchParams.get('permanent') === '1') {
+      const body = await req.json().catch(() => ({}));
+      if (!(await passwordConfirms(auth.user.id, body?.password))) {
+        return fail('Your password is incorrect.', 403);
+      }
+      const unusablePassword = await hashPassword(randomBytes(32).toString('hex'));
+      await updateUserKeepingAnAdmin(auth.user.shopId, 'delete', (tx) =>
+        tx.user.update({
+          where: { id: userId },
+          data: {
+            name: `Deleted user (${targetUser.name})`.slice(0, 120),
+            email: `deleted-${targetUser.id}@deleted.invalid`,
+            username: null,
+            phone: null,
+            avatarUrl: null,
+            pinHash: null,
+            passwordHash: unusablePassword,
+            isActive: false,
+            deletedAt: new Date(),
+            tokenVersion: { increment: 1 },
+          },
+        })
+      );
+      await prisma.activityLog.create({
+        data: {
+          shopId: auth.user.shopId,
+          userId: auth.user.id,
+          action: 'PERMANENT_DELETE_USER',
+          meta: JSON.stringify({ targetUserId: targetUser.id, targetRole: targetUser.role }),
+        },
+      });
+      return NextResponse.json({ success: true, message: 'User deleted permanently' });
+    }
+
+    // Default: soft delete (deactivate) so any previous invoices linked to this user don't break.
     // Last-admin check kept as a safety net in case the admin rules above change.
     await updateUserKeepingAnAdmin(auth.user.shopId, 'delete', (tx) =>
       tx.user.update({ where: { id: userId }, data: { isActive: false, tokenVersion: { increment: 1 } } })
