@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const limit = rateLimit(`pos-pair:${ip}`, 10, 10 * 60_000);
+    const limit = await rateLimit(`pos-pair:${ip}`, 10, 10 * 60_000);
     if (!limit.allowed) {
       return createErrorResponse(`Too many pairing attempts. Try again in ${limit.retryAfterSeconds}s.`, 429);
     }

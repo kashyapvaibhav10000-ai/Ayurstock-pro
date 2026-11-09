@@ -204,6 +204,15 @@ model RevokedSession {
   @@index([expiresAt])
 }
 
+/// Rate-limit buckets (lib/rate-limit.ts), shared by every app instance.
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
 model Supplier {
   id            String     @id @default(cuid())
   shopId        String

@@ -4,12 +4,16 @@ import bcrypt from 'bcryptjs';
 import { BCRYPT_COST, generateToken, setAuthCookie, verifyPassword } from '@/lib/auth';
 import { LoginSchema } from '@/lib/schemas';
 import { createErrorResponse } from '@/middleware/auth';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
+import { rateLimit, rateLimitExceeded, getClientIp } from '@/lib/rate-limit';
 import { normalizeUsername, usernameError } from '@/lib/username';
 import { UserRole } from '@/types';
 
 // Never say which part was wrong.
 const INVALID_CREDENTIALS = 'Invalid credentials';
+
+// Failed logins per account before it is locked for the rest of the window.
+const ACCOUNT_FAILURE_LIMIT = 20;
+const ACCOUNT_FAILURE_WINDOW_MS = 15 * 60_000;
 
 // Compared against when no user matches, so an unknown identifier costs the
 // same bcrypt time as a wrong password.
@@ -32,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     // Throttle repeated login attempts from the same IP to slow brute-forcing.
     const ip = getClientIp(request);
-    const limit = rateLimit(`login:${ip}`, 10, 60_000);
+    const limit = await rateLimit(`login:${ip}`, 10, 60_000);
     if (!limit.allowed) {
       return createErrorResponse(
         `Too many login attempts. Try again in ${limit.retryAfterSeconds}s.`,
@@ -51,9 +55,13 @@ export async function POST(request: NextRequest) {
     const { password } = validation.data;
     const identifier = (validation.data.identifier || validation.data.email)!.trim().toLowerCase();
 
-    // Also throttle per account, so attempts spread over many IPs still slow down.
-    const accountLimit = rateLimit(`login-id:${identifier}`, 20, 15 * 60_000);
-    if (!accountLimit.allowed) {
+    // Also throttle per account, so attempts spread over many IPs still slow
+    // down. Only failed attempts count (see countFailure), so a user's own
+    // successful logins never lock them out.
+    const accountKey = `login-id:${identifier}`;
+    const countFailure = () => rateLimit(accountKey, ACCOUNT_FAILURE_LIMIT, ACCOUNT_FAILURE_WINDOW_MS);
+    const accountLimit = await rateLimitExceeded(accountKey, ACCOUNT_FAILURE_LIMIT);
+    if (accountLimit) {
       return createErrorResponse(
         `Too many login attempts. Try again in ${accountLimit.retryAfterSeconds}s.`,
         429
@@ -64,6 +72,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       await verifyPassword(password, DUMMY_HASH);
+      await countFailure();
       // Record the typed identifier (never the password) so guessing at
       // accounts shows up; no user, so no shop either.
       await prisma.loginHistory
@@ -89,6 +98,7 @@ export async function POST(request: NextRequest) {
     // Verify password
     const passwordValid = await verifyPassword(password, user.passwordHash);
     if (!passwordValid) {
+      await countFailure();
       await logAttempt('failed').catch(console.error);
       return createErrorResponse(INVALID_CREDENTIALS, 401);
     }

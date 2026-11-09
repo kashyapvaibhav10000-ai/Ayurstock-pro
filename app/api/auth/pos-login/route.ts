@@ -27,7 +27,7 @@ function lockedResponse(until: Date) {
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const limit = rateLimit(`pos-login:${ip}`, 10, 60_000);
+    const limit = await rateLimit(`pos-login:${ip}`, 10, 60_000);
     if (!limit.allowed) {
       return createErrorResponse(`Too many PIN attempts. Try again in ${limit.retryAfterSeconds}s.`, 429);
     }

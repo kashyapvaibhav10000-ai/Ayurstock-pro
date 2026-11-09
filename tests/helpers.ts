@@ -9,7 +9,7 @@ export { prisma };
 
 /** Empty every table (keeps the migration history). */
 export async function resetDb() {
-  resetRateLimits();
+  await resetRateLimits();
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
   if (tables.length) {

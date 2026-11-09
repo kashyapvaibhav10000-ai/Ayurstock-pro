@@ -147,11 +147,11 @@ describe('#2 Critical — POS PIN brute force across all shops', () => {
     const device = await pairDevice(A);
     const statuses: number[] = [];
     for (let i = 0; i < 5; i++) {
-      resetRateLimits(); // isolate the device lock from the per-IP limit
+      await resetRateLimits(); // isolate the device lock from the per-IP limit
       statuses.push((await pinLogin(device, String(5000 + i))).status);
     }
     expect(statuses).toEqual([401, 401, 401, 401, 429]);
-    resetRateLimits();
+    await resetRateLimits();
     expect((await pinLogin(device, '1111')).status).toBe(429);
     const row = await prisma.posDevice.findFirstOrThrow({ where: { shopId: A.shop.id } });
     expect(row.lockedUntil!.getTime()).toBeGreaterThan(Date.now());

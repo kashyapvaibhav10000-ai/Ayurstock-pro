@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Slows down using this endpoint to list usernames.
-    const limit = rateLimit(`username-check:${auth.user.id}`, 60, 60_000);
+    const limit = await rateLimit(`username-check:${auth.user.id}`, 60, 60_000);
     if (!limit.allowed) {
       return NextResponse.json({ success: false, message: 'Too many checks. Slow down.' }, { status: 429 });
     }

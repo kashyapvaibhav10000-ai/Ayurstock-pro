@@ -22,7 +22,7 @@ export async function aiAllowanceError(user: AuthUser): Promise<NextResponse | n
     return NextResponse.json({ success: false, message: 'Forbidden - Insufficient permissions' }, { status: 403 });
   }
 
-  const burst = rateLimit(`ai:${user.id}`, 10, 10 * 60_000);
+  const burst = await rateLimit(`ai:${user.id}`, 10, 10 * 60_000);
   if (!burst.allowed) {
     return NextResponse.json(
       { success: false, message: `Too many AI imports. Try again in ${burst.retryAfterSeconds}s.` },
