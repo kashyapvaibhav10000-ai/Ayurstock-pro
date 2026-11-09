@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { FileScan, ListPlus, Loader2, Plus, Printer, RefreshCw, RotateCcw } from 'lucide-react';
+import { FileScan, ListPlus, Loader2, Plus, Smartphone, Printer, RefreshCw, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,10 +22,18 @@ import {
 import ImportPriceList from '@/components/medicine/import-price-list';
 
 import { batchIdentityKey, batchLabel } from '@/lib/batch';
-import { packingOptionsFor } from '@/lib/stock-entry';
 import { MedicineCombobox } from '@/components/purchases/MedicineCombobox';
 import { ExpiryField } from '@/components/purchases/ExpiryField';
 import { DecimalInput } from '@/components/purchases/DecimalInput';
+import { PhonePurchaseSheet } from '@/components/purchases/PhonePurchaseSheet';
+import {
+  BatchHint,
+  createEmptyPurchaseItem,
+  findBatch,
+  MedicineHistory,
+  packingSuggestions,
+  PurchaseItemForm,
+} from '@/components/purchases/types';
 
 interface PurchaseStats {
   todayPurchases: number;
@@ -49,15 +57,7 @@ interface MedicineOption {
   packing?: string | null;
 }
 
-/** An existing batch of a medicine, used to suggest and complete batch rows. */
-interface BatchHint {
-  batchNumber: string;
-  expiryDate: string;
-  mrp: number;
-  packing?: string | null;
-  rackLocation?: string | null;
-  stockQty: number;
-}
+
 
 /** Fields of a purchase row the user can move through with Enter. */
 const ROW_FIELDS = ['medicine', 'batch', 'expiry', 'quantity', 'price', 'mrp', 'packing'] as const;
@@ -73,24 +73,6 @@ function focusRowField(tempId: string, field: RowField) {
   }, 30);
 }
 
-interface PurchaseItemForm {
-  tempId: string;
-  medicineId: string;
-  medicineSearch?: string;
-  batchNumber: string;
-  expiryDate: string;
-  quantity: number;
-  freeQty: number;
-  purchaseRate: number;
-  mrp: number;
-  discount: number;
-  gst: number;
-  scheme: string;
-  rackLocation: string;
-  // Free-text packing (e.g. "10x10 Strips", "100ml"), saved on the batch
-  // like Add Inventory. Quantity and rate are per stock unit.
-  packing: string;
-}
 
 interface ScanPreviewItem extends PurchaseItemForm {
   medicineName: string;
@@ -161,22 +143,6 @@ interface PurchaseDetail {
   }>;
 }
 
-const createEmptyPurchaseItem = (): PurchaseItemForm => ({
-  tempId: crypto.randomUUID(),
-  medicineId: '',
-  medicineSearch: '',
-  batchNumber: '',
-  expiryDate: '',
-  quantity: 1,
-  freeQty: 0,
-  purchaseRate: 0,
-  mrp: 0,
-  discount: 0,
-  gst: 0,
-  scheme: '',
-  rackLocation: '',
-  packing: '',
-});
 
 export default function PurchasesPage() {
   const scanInputRef = useRef<HTMLInputElement | null>(null);
@@ -204,6 +170,9 @@ export default function PurchasesPage() {
   const [scanning, setScanning] = useState(false);
   const [batchesByMedicine, setBatchesByMedicine] = useState<Record<string, BatchHint[]>>({});
   const [showNewMedicineDialog, setShowNewMedicineDialog] = useState(false);
+  const [showPhoneSheet, setShowPhoneSheet] = useState(false);
+  // Resolves the phone sheet's "add as new medicine" with the created medicine (or null).
+  const phoneCreateResolve = useRef<((medicine: MedicineOption | null) => void) | null>(null);
   const [newMedicineName, setNewMedicineName] = useState('');
   const [newMedicineCategory, setNewMedicineCategory] = useState('');
   const [newMedicineCompany, setNewMedicineCompany] = useState('');
@@ -379,7 +348,7 @@ export default function PurchasesPage() {
    * rate) and load its batches for the Batch suggestions. Only empty fields
    * are filled, so typed or scanned values win.
    */
-  const autofillFromHistory = async (tempId: string, medicineId: string) => {
+  const loadMedicineHistory = async (medicineId: string): Promise<MedicineHistory> => {
     const [last, batches] = await Promise.all([
       axios.get(`/api/medicines/${medicineId}/last-mrp`).then((r) => (r.data.success ? r.data.data : null)).catch(() => null),
       axios
@@ -388,6 +357,11 @@ export default function PurchasesPage() {
         .catch(() => [] as BatchHint[]),
     ]);
     setBatchesByMedicine((current) => ({ ...current, [medicineId]: batches }));
+    return { last, batches };
+  };
+
+  const autofillFromHistory = async (tempId: string, medicineId: string) => {
+    const { last } = await loadMedicineHistory(medicineId);
     if (!last) return;
     updateRow(tempId, (item) =>
       item.medicineId !== medicineId
@@ -415,9 +389,7 @@ export default function PurchasesPage() {
 
   /** Typing an existing batch number completes the row from that batch. */
   const handleBatchChange = (item: PurchaseItemForm, batchNumber: string) => {
-    const existing = (batchesByMedicine[item.medicineId] || []).find(
-      (batch) => batch.batchNumber.trim().toUpperCase() === batchNumber.trim().toUpperCase()
-    );
+    const existing = findBatch(batchesByMedicine[item.medicineId] || [], batchNumber);
     updateRow(item.tempId, (row) =>
       existing
         ? {
@@ -488,14 +460,14 @@ export default function PurchasesPage() {
     }));
   };
 
-  const handleSavePurchase = async () => {
+  const handleSavePurchase = async (): Promise<boolean> => {
     setSaving(true);
 
     try {
       if (!purchaseForm.supplierId || !purchaseForm.invoiceNumber.trim()) {
         toast.error('Supplier and invoice number are required.');
         setSaving(false);
-        return;
+        return false;
       }
       const invalidRow = purchaseForm.items.find(
         (item) =>
@@ -509,7 +481,7 @@ export default function PurchasesPage() {
       if (invalidRow) {
         toast.error('Please fill medicine, batch, expiry, quantity, rate, and MRP for all rows.');
         setSaving(false);
-        return;
+        return false;
       }
 
       // Check for duplicate batches (same medicine + batch number + expiry +
@@ -524,7 +496,7 @@ export default function PurchasesPage() {
             `Duplicate batch detected: ${batchLabel(item)} for the same medicine appears in row ${firstIndex + 1} and row ${i + 1}`
           );
           setSaving(false);
-          return;
+          return false;
         }
         batchMap.set(batchKey, i);
       }
@@ -557,11 +529,13 @@ export default function PurchasesPage() {
       setAppliedDocumentId(null);
       setAppliedScanMeta({});
       await loadAll();
+      return true;
     } catch (saveError) {
       const messageText = axios.isAxiosError(saveError)
         ? saveError.response?.data?.message
         : 'Failed to save purchase';
       toast.error(messageText || 'Failed to save purchase');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -732,6 +706,17 @@ export default function PurchasesPage() {
           category: newMedicine.category,
         }]);
 
+        if (phoneCreateResolve.current) {
+          phoneCreateResolve.current({
+            id: newMedicine.id,
+            name: newMedicine.name,
+            company: newMedicine.company,
+            category: newMedicine.category,
+            packing: newMedicine.packing ?? null,
+          });
+          phoneCreateResolve.current = null;
+        }
+
         // Update the row with the new medicine
         if (newMedicineForRow) {
           setPurchaseForm((current) => ({
@@ -766,6 +751,34 @@ export default function PurchasesPage() {
     }
   };
 
+  const createMedicineFromPhone = (name: string) =>
+    new Promise<MedicineOption | null>((resolve) => {
+      phoneCreateResolve.current = resolve;
+      setNewMedicineName(name.toUpperCase());
+      setNewMedicineCompany(selectedCompany);
+      setNewCompanyName('');
+      setNewMedicineForRow(null);
+      setShowNewMedicineDialog(true);
+    });
+
+  /** Phone sheet line → invoice; blank placeholder rows are dropped. */
+  const addPhoneItem = (item: PurchaseItemForm) => {
+    setPurchaseForm((current) => ({
+      ...current,
+      items: [
+        ...current.items.filter((row) => row.medicineId || row.medicineSearch?.trim() || row.batchNumber.trim()),
+        item,
+      ],
+    }));
+  };
+
+  const removePhoneItem = (tempId: string) => {
+    setPurchaseForm((current) => {
+      const items = current.items.filter((row) => row.tempId !== tempId);
+      return { ...current, items: items.length ? items : [createEmptyPurchaseItem()] };
+    });
+  };
+
   const handleMedicineNotFound = (tempId: string, searchValue: string) => {
     setNewMedicineName(searchValue.toUpperCase());
     setNewMedicineCompany(selectedCompany);
@@ -775,6 +788,8 @@ export default function PurchasesPage() {
   };
 
   const closeNewMedicineDialog = () => {
+    phoneCreateResolve.current?.(null);
+    phoneCreateResolve.current = null;
     setShowNewMedicineDialog(false);
     setNewMedicineName('');
     setNewMedicineCategory('');
@@ -834,17 +849,8 @@ export default function PurchasesPage() {
     const canCreateMedicine = Boolean(rowSearch) && !item.medicineId && !hasExactMedicineName(rowSearch);
     const rowMedicine = item.medicineId ? medicines.find((medicine) => medicine.id === item.medicineId) : undefined;
     const rowBatches = item.medicineId ? batchesByMedicine[item.medicineId] || [] : [];
-    const existingBatch = item.batchNumber.trim()
-      ? rowBatches.find((batch) => batch.batchNumber.trim().toUpperCase() === item.batchNumber.trim().toUpperCase())
-      : undefined;
-    // Packing suggestions: this medicine's known packings, then its category's usual sizes.
-    const rowPackings = Array.from(
-      new Set(
-        [rowMedicine?.packing, ...rowBatches.map((batch) => batch.packing), ...packingOptionsFor(rowMedicine?.category)]
-          .map((option) => (option || '').trim())
-          .filter(Boolean)
-      )
-    );
+    const existingBatch = findBatch(rowBatches, item.batchNumber);
+    const rowPackings = packingSuggestions(rowMedicine, rowBatches);
     const isLastRow = purchaseForm.items[purchaseForm.items.length - 1]?.tempId === item.tempId;
 
     return {
@@ -1119,6 +1125,10 @@ export default function PurchasesPage() {
                   >
                     <ListPlus className="h-4 w-4" />
                     Price List
+                  </Button>
+                  <Button className="col-span-2 h-12 gap-2 md:hidden" onClick={() => setShowPhoneSheet(true)}>
+                    <Smartphone className="h-4 w-4" />
+                    Add items one by one
                   </Button>
                   <Button className="col-span-2 sm:col-span-1 h-11 sm:h-10 gap-2" onClick={addPurchaseRow}>
                     <Plus className="h-4 w-4" />
@@ -1635,6 +1645,26 @@ export default function PurchasesPage() {
       />
 
       {/* New Medicine Dialog: bottom sheet on phones, centred card on larger screens. */}
+      <PhonePurchaseSheet
+        open={showPhoneSheet}
+        onClose={() => setShowPhoneSheet(false)}
+        header={{
+          supplierId: purchaseForm.supplierId,
+          invoiceNumber: purchaseForm.invoiceNumber,
+          invoiceDate: purchaseForm.invoiceDate,
+        }}
+        onHeaderChange={(change) => setPurchaseForm((current) => ({ ...current, ...change }))}
+        suppliers={suppliers}
+        medicines={companyFilteredMedicines}
+        items={purchaseForm.items.filter((item) => item.medicineId)}
+        onAddItem={addPhoneItem}
+        onRemoveItem={removePhoneItem}
+        loadMedicineHistory={loadMedicineHistory}
+        onCreateMedicine={createMedicineFromPhone}
+        onSave={handleSavePurchase}
+        saving={saving}
+      />
+
       {showNewMedicineDialog && (
         <div
           className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
