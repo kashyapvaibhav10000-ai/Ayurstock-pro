@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateRequest, createErrorResponse } from '@/middleware/auth';
+import { authenticateRequest, canSeeCost, createErrorResponse } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
 import { startOfTodayUtc } from '@/lib/batch';
 
@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
     const query = (request.nextUrl.searchParams.get('q') || '').trim();
     const company = (request.nextUrl.searchParams.get('company') || '').trim();
     const limit = Math.min(parseInt(request.nextUrl.searchParams.get('limit') || '10', 10), 20);
+    // Cost goes to a cashier only for wholesale/transfer pricing.
+    const showCost = canSeeCost(auth.user.role, request.nextUrl.searchParams.get('saleType'));
 
     // Company filter is applied as an exact match on Medicine.company (a plain
     // string field, not a relation) — see Requirement 2.1.
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
             stockQty: batch.stockQty,
             mrp: Number(batch.mrp),
             rate: Number(batch.sellingRate),
-            purchaseRate: Number(batch.purchaseRate || 0),
+            ...(showCost ? { purchaseRate: Number(batch.purchaseRate || 0) } : {}),
             rackLocation: batch.rackLocation,
             expiryDate: batch.expiryDate,
           })),
@@ -175,7 +177,7 @@ export async function GET(request: NextRequest) {
         stockQty: batch.stockQty,
         mrp: Number(batch.mrp),
         rate: Number(batch.sellingRate),
-        purchaseRate: Number(batch.purchaseRate || 0),
+        ...(showCost ? { purchaseRate: Number(batch.purchaseRate || 0) } : {}),
         rackLocation: batch.rackLocation,
         expiryDate: batch.expiryDate,
       })),

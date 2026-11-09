@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { authenticateRequest, createApiResponse, createErrorResponse, createPaginatedResponse } from '@/middleware/auth';
+import { authenticateRequest, canSeeCost, createApiResponse, createErrorResponse, createPaginatedResponse, hideCost } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
 import { findOrCreateBatch, getAvailableBatches, getLowStockMedicines, getNearExpiryMedicines } from '@/services/inventory';
 import { CreateBatchSchema } from '@/lib/schemas';
@@ -23,12 +23,14 @@ export async function GET(request: NextRequest) {
     const company = searchParams.get('company')?.trim();
     const tab = searchParams.get('tab'); // 'all' | 'lowStock' | 'expiring30' | 'expiring60' | 'expired'
     const includeStats = searchParams.get('includeStats') === 'true';
+    // Cost goes to a cashier only for wholesale/transfer pricing.
+    const costView = <T,>(rows: T): T => (canSeeCost(auth.user.role, searchParams.get('saleType')) ? rows : hideCost(rows));
 
     // Low stock report
     if (reportType === 'low-stock') {
       const medicines = await getLowStockMedicines(auth.user.shopId, 10);
       return createPaginatedResponse(
-        medicines,
+        costView(medicines),
         medicines.length,
         1,
         medicines.length
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
     if (reportType === 'near-expiry') {
       const medicines = await getNearExpiryMedicines(auth.user.shopId, 30);
       return createPaginatedResponse(
-        medicines,
+        costView(medicines),
         medicines.length,
         1,
         medicines.length
@@ -49,7 +51,7 @@ export async function GET(request: NextRequest) {
     // Get batches for a medicine
     if (medicineId) {
       const batches = await getAvailableBatches(auth.user.shopId, medicineId);
-      return createPaginatedResponse(batches, batches.length, 1, batches.length);
+      return createPaginatedResponse(costView(batches), batches.length, 1, batches.length);
     }
 
     // Get all batches for the shop (with optional server-side search/company/tab
@@ -147,7 +149,7 @@ export async function GET(request: NextRequest) {
     }
 
     return createApiResponse(true, {
-      batches,
+      batches: costView(batches),
       total,
       page: Math.floor(offset / limit) + 1,
       pageSize: limit,

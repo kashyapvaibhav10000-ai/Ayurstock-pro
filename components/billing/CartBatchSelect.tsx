@@ -18,19 +18,21 @@ export interface CartBatchOption {
 // One request per medicine per page session; cleared on reload.
 const batchCache = new Map<string, Promise<CartBatchOption[]>>();
 
-function loadBatches(medicineId: string): Promise<CartBatchOption[]> {
-  let pending = batchCache.get(medicineId);
+function loadBatches(medicineId: string, saleType?: string): Promise<CartBatchOption[]> {
+  // saleType decides whether cost (purchaseRate) comes back, so it is part of the key.
+  const cacheKey = `${medicineId}:${saleType ?? ''}`;
+  let pending = batchCache.get(cacheKey);
   if (!pending) {
     // The endpoint returns only non-expired batches with stock, FEFO-ordered,
     // so an expired batch can never be offered.
     pending = axios
-      .get('/api/inventory/batches', { params: { medicineId } })
+      .get('/api/inventory/batches', { params: { medicineId, saleType } })
       .then((res) => (res.data?.data || []) as CartBatchOption[])
       .catch(() => {
-        batchCache.delete(medicineId);
+        batchCache.delete(cacheKey);
         return [];
       });
-    batchCache.set(medicineId, pending);
+    batchCache.set(cacheKey, pending);
   }
   return pending;
 }
@@ -45,24 +47,25 @@ interface Props {
   value: string;
   fallbackLabel: string;
   onChange: (batch: CartBatchOption) => void;
+  saleType?: string;
 }
 
 /**
  * Batch picker for a cart line. Defaults to the FEFO batch chosen when the
  * item was added; the cashier can override it here.
  */
-export default function CartBatchSelect({ medicineId, value, fallbackLabel, onChange }: Props) {
+export default function CartBatchSelect({ medicineId, value, fallbackLabel, onChange, saleType }: Props) {
   const [batches, setBatches] = useState<CartBatchOption[] | null>(null);
 
   useEffect(() => {
     let active = true;
-    loadBatches(medicineId).then((rows) => {
+    loadBatches(medicineId, saleType).then((rows) => {
       if (active) setBatches(rows);
     });
     return () => {
       active = false;
     };
-  }, [medicineId]);
+  }, [medicineId, saleType]);
 
   if (!batches || batches.length <= 1) {
     return (

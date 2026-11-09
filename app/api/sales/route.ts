@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
+import { authenticateRequest, canSeeCost, createErrorResponse, createApiResponse, hideCost, staffOnlyResponse } from '@/middleware/auth';
 import { CreateSaleSchema, validationMessage } from '@/lib/schemas';
 import { BillingError, createSale, SellerRole } from '@/services/billing';
 import { prisma } from '@/lib/db';
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return createApiResponse(true, sale, undefined, 201);
+    return createApiResponse(true, canSeeCost(auth.user.role) ? sale : hideCost(sale), undefined, 201);
   } catch (error) {
     console.error('Create sale error:', error);
     if (
@@ -180,6 +180,10 @@ export async function GET(request: NextRequest) {
     if (!auth) {
       return createErrorResponse('Unauthorized', 401);
     }
+
+    // Every sale with customer names and phones is back-office data.
+    const notStaff = staffOnlyResponse(auth.user.role);
+    if (notStaff) return notStaff;
 
     const searchParams = request.nextUrl.searchParams;
     const startDate = new Date(searchParams.get('startDate') || new Date().toISOString());

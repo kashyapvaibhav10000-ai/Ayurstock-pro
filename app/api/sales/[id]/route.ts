@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { authenticateRequest, createErrorResponse, createApiResponse } from '@/middleware/auth';
+import { authenticateRequest, canSeeCost, createErrorResponse, createApiResponse, hideCost } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
 import { getSaleDetails } from '@/services/billing';
 
@@ -21,7 +21,7 @@ export async function GET(
       return createErrorResponse('Sale not found', 404);
     }
 
-    return createApiResponse(true, saleDetails);
+    return createApiResponse(true, canSeeCost(auth.user.role) ? saleDetails : hideCost(saleDetails));
   } catch {
     return createErrorResponse('Internal server error', 500);
   }

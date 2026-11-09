@@ -73,6 +73,27 @@ export function staffOnlyResponse(role: string): NextResponse | null {
   return NextResponse.json({ success: false, error: 'Forbidden - Insufficient permissions' }, { status: 403 });
 }
 
+/**
+ * Cost prices (purchaseRate) are back-office data. A cashier sees them only
+ * while pricing a wholesale/transfer sale, which bills at trade price.
+ */
+export function canSeeCost(role: string, saleType?: string | null): boolean {
+  return role === 'ADMIN' || role === 'MANAGER' || saleType === 'WHOLESALE' || saleType === 'TRANSFER';
+}
+
+/** Copy of `value` with every purchaseRate key removed (plain objects and arrays only). */
+export function hideCost<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => hideCost(item)) as T;
+  if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => key !== 'purchaseRate')
+        .map(([key, item]) => [key, hideCost(item)])
+    ) as T;
+  }
+  return value;
+}
+
 export async function validateShopAccess(
   requestShopId: string,
   userShopId: string

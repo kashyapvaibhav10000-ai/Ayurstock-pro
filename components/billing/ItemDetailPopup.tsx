@@ -119,7 +119,7 @@ export default function ItemDetailPopup({
     let cancelled = false;
     setLoadingBatches(true);
     axios
-      .get('/api/inventory/batches', { params: { medicineId: suggestion.medicineId } })
+      .get('/api/inventory/batches', { params: { medicineId: suggestion.medicineId, saleType } })
       .then((res) => {
         if (cancelled) return;
         if (res.data?.success && Array.isArray(res.data.data)) {

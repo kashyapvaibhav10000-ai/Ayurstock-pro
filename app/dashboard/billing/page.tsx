@@ -248,7 +248,7 @@ export default function BillingPage() {
       try {
         const response = await axios.get('/api/billing/search', {
           // Requirement 2.1/2.2: company filter scopes results when active
-          params: { q: searchQuery, limit: 10, ...(companyFilter ? { company: companyFilter } : {}) },
+          params: { q: searchQuery, limit: 10, saleType, ...(companyFilter ? { company: companyFilter } : {}) },
         });
 
         if (response.data.success) {
@@ -368,7 +368,7 @@ export default function BillingPage() {
         event.preventDefault();
         try {
           const response = await axios.get('/api/billing/search', {
-            params: { q: searchQuery.trim(), limit: 5, ...(companyFilter ? { company: companyFilter } : {}) },
+            params: { q: searchQuery.trim(), limit: 5, saleType, ...(companyFilter ? { company: companyFilter } : {}) },
           });
 
           if (response.data.success) {
@@ -643,7 +643,7 @@ export default function BillingPage() {
     setTimeout(() => setScannerActive(false), 800);
     try {
       const response = await axios.get('/api/billing/search', {
-        params: { q: barcode.trim(), limit: 5 },
+        params: { q: barcode.trim(), limit: 5, saleType },
       });
       if (response.data.success) {
         const results: BillingSuggestion[] = response.data.data || [];
@@ -831,6 +831,7 @@ export default function BillingPage() {
                             value={item.batchId}
                             fallbackLabel={batchLabel(item)}
                             onChange={(batch) => changeCartItemBatch(index, batch)}
+                            saleType={saleType}
                           />
                           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">₹{getItemUnitPrice(item).toFixed(2)} / unit</span>
                           <span title="GST is set on the medicine" className="rounded-full bg-fill-strong px-2 py-0.5 text-[11px] font-medium text-muted-foreground">GST {item.gstPercent}%</span>
