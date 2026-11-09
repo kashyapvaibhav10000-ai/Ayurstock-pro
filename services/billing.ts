@@ -435,6 +435,15 @@ export async function createSale(params: {
             ? discountLeft
             : new Decimal(discount).times(qty * rate).dividedBy(lineTotal || 1).toDecimalPlaces(2);
         discountLeft = discountLeft.minus(share);
+        // Wholesale/transfer floor on what is actually charged: rate minus this
+        // batch's share of the line discount, per unit. Cost is not shown.
+        if (params.saleType !== 'RETAIL') {
+          const cost = Number(batch.purchaseRate || 0);
+          const effective = new Decimal(qty * rate).minus(share).dividedBy(qty).toNumber();
+          if (cost > 0 && effective < cost - PRICE_EPSILON) {
+            throw new BillingError(`Discount on ${medicine.name} takes the price below the lowest allowed wholesale price.`);
+          }
+        }
         expandedItems.push({
           medicineId: item.medicineId,
           batchId: batch.id,
