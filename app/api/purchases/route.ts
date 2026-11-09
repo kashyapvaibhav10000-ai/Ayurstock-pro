@@ -214,14 +214,13 @@ export async function POST(req: NextRequest) {
         const purchaseRate = pricePerPack.dividedBy(unitsPerPack);
         const mrp = Number(item.mrp); // MRP is entered per base unit
 
-        // Batch identity = medicine + batch number + expiry + MRP (+ packing,
-        // which invoices don't carry, so any packing matches). Any difference
-        // becomes a separate batch.
+        // Batch identity = medicine + batch number + expiry + MRP + packing
+        // (blank packing matches any). Any difference becomes a separate batch.
         const expiryDate = normalizeExpiry(item.expiryDate);
         const rackLocation = item.rackLocation?.trim() || null;
         const { batch } = await findOrCreateBatch(
           tx,
-          { shopId, medicineId: item.medicineId, batchNumber: item.batchNumber, expiryDate, mrp },
+          { shopId, medicineId: item.medicineId, batchNumber: item.batchNumber, expiryDate, mrp, packing: item.packing },
           { sellingRate: mrp, purchaseRate, rackLocation },
           { purchaseRate, sellingRate: mrp, ...(rackLocation ? { rackLocation } : {}) }
         );

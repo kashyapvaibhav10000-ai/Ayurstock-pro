@@ -22,7 +22,6 @@ import {
 import ImportPriceList from '@/components/medicine/import-price-list';
 
 import { batchIdentityKey, batchLabel } from '@/lib/batch';
-import { normalizeUnitsPerPack, PACK_TYPE_LABEL, PACK_TYPES, PackTypeValue, packPreview } from '@/lib/packaging';
 interface PurchaseStats {
   todayPurchases: number;
   monthPurchases: number;
@@ -58,10 +57,9 @@ interface PurchaseItemForm {
   gst: number;
   scheme: string;
   rackLocation: string;
-  // Packaging: quantity / freeQty are packs and purchaseRate is the price
-  // per pack. Stock is stored as quantity x unitsPerPack base units.
-  packType: PackTypeValue;
-  unitsPerPack: number;
+  // Free-text packing (e.g. "10x10 Strips", "100ml"), saved on the batch
+  // like Add Inventory. Quantity and rate are per stock unit.
+  packing: string;
 }
 
 interface ScanPreviewItem extends PurchaseItemForm {
@@ -147,8 +145,7 @@ const createEmptyPurchaseItem = (): PurchaseItemForm => ({
   gst: 0,
   scheme: '',
   rackLocation: '',
-  packType: 'STRIP',
-  unitsPerPack: 1,
+  packing: '',
 });
 
 export default function PurchasesPage() {
@@ -410,12 +407,12 @@ export default function PurchasesPage() {
         return;
       }
 
-      // Check for duplicate batches (same medicine + batch number + expiry).
-      // Same batch number with a different expiry is a separate batch.
+      // Check for duplicate batches (same medicine + batch number + expiry +
+      // packing). A different expiry or packing is a separate batch.
       const batchMap = new Map<string, number>();
       for (let i = 0; i < purchaseForm.items.length; i++) {
         const item = purchaseForm.items[i];
-        const batchKey = batchIdentityKey(item.medicineId, item.batchNumber, item.expiryDate);
+        const batchKey = `${batchIdentityKey(item.medicineId, item.batchNumber, item.expiryDate)}|${item.packing.trim().replace(/\s+/g, ' ').toLowerCase()}`;
         if (batchMap.has(batchKey)) {
           const firstIndex = batchMap.get(batchKey)!;
           toast.error(
@@ -430,10 +427,9 @@ export default function PurchasesPage() {
       const response = await axios.post('/api/purchases', {
         ...purchaseForm,
         documentId: appliedDocumentId,
-        items: purchaseForm.items.map(({ tempId, medicineSearch, purchaseRate, ...item }) => ({
+        items: purchaseForm.items.map(({ tempId, medicineSearch, packing, ...item }) => ({
           ...item,
-          unitsPerPack: normalizeUnitsPerPack(item.unitsPerPack),
-          pricePerPack: purchaseRate,
+          packing: packing.trim() || undefined,
         })),
       });
 
@@ -573,8 +569,7 @@ export default function PurchasesPage() {
         gst: item.gst,
         scheme: item.scheme,
         rackLocation: item.rackLocation,
-        packType: 'STRIP' as PackTypeValue,
-        unitsPerPack: 1,
+        packing: item.packing || '',
       })),
     }));
 
@@ -802,39 +797,16 @@ export default function PurchasesPage() {
         />
       ),
       pack: (
-        <div className="flex items-center gap-1.5">
-          <select
-            value={item.packType}
-            aria-label="Pack type"
-            className={`${selectClass} md:w-auto px-2`}
-            onChange={(event) => {
-              const packType = event.target.value as PackTypeValue;
-              handlePurchaseItemChange(item.tempId, 'packType', packType);
-              if (packType === 'LOOSE') handlePurchaseItemChange(item.tempId, 'unitsPerPack', 1);
-            }}
-          >
-            {PACK_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {PACK_TYPE_LABEL[type]}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-muted-foreground">×</span>
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            step={1}
-            value={item.unitsPerPack}
-            aria-label="Units per pack"
-            title="Units per pack"
-            disabled={item.packType === 'LOOSE'}
-            className={`${fieldClass} w-24 md:w-16 shrink-0 text-right`}
-            onChange={(event) =>
-              handlePurchaseItemChange(item.tempId, 'unitsPerPack', Math.floor(Number(event.target.value)) || 1)
-            }
-          />
-        </div>
+        <Input
+          value={item.packing}
+          className={fieldClass}
+          placeholder="e.g. 10x10 Strips, 100ml"
+          aria-label="Packing"
+          maxLength={100}
+          autoComplete="off"
+          enterKeyHint="next"
+          onChange={(event) => handlePurchaseItemChange(item.tempId, 'packing', event.target.value)}
+        />
       ),
       quantity: (
         <Input
@@ -849,11 +821,6 @@ export default function PurchasesPage() {
             handlePurchaseItemChange(item.tempId, 'quantity', Math.floor(Number(event.target.value)))
           }
         />
-      ),
-      quantityHint: (
-        <div className="mt-1 text-[11px] font-bold text-muted-foreground md:whitespace-nowrap">
-          {packPreview(item.quantity, item.unitsPerPack, item.purchaseRate)}
-        </div>
       ),
       price: (
         <Input
@@ -1210,24 +1177,23 @@ export default function PurchasesPage() {
                           </div>
                         </div>
                         <div>
-                          <Label className="mb-1.5 block text-xs text-muted-foreground">Pack</Label>
+                          <Label className="mb-1.5 block text-xs text-muted-foreground">Packing</Label>
                           {f.pack}
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                           <div>
-                            <Label className="mb-1.5 block text-xs text-muted-foreground">Qty (packs)</Label>
+                            <Label className="mb-1.5 block text-xs text-muted-foreground">Quantity</Label>
                             {f.quantity}
                           </div>
                           <div>
-                            <Label className="mb-1.5 block text-xs text-muted-foreground">Price / Pack</Label>
+                            <Label className="mb-1.5 block text-xs text-muted-foreground">Rate</Label>
                             {f.price}
                           </div>
                           <div>
-                            <Label className="mb-1.5 block text-xs text-muted-foreground">MRP / Unit</Label>
+                            <Label className="mb-1.5 block text-xs text-muted-foreground">MRP</Label>
                             {f.mrp}
                           </div>
                         </div>
-                        {f.quantityHint}
                         <div>
                           <Label className="mb-1.5 block text-xs text-muted-foreground">Rack (optional)</Label>
                           {f.rack}
@@ -1251,10 +1217,10 @@ export default function PurchasesPage() {
                       <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Medicine</TableHead>
                       <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Batch</TableHead>
                       <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Expiry</TableHead>
-                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Pack</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground text-[11px] py-3">Qty (packs)</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground text-[11px] py-3">Price / Pack</TableHead>
-                      <TableHead className="text-right font-bold text-muted-foreground text-[11px] py-3">MRP / Unit</TableHead>
+                      <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Packing</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground text-[11px] py-3">Quantity</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground text-[11px] py-3">Rate</TableHead>
+                      <TableHead className="text-right font-bold text-muted-foreground text-[11px] py-3">MRP</TableHead>
                       <TableHead className="font-bold text-muted-foreground text-[11px] py-3">Rack (Optional)</TableHead>
                       <TableHead />
                     </TableRow>
@@ -1267,11 +1233,8 @@ export default function PurchasesPage() {
                           <TableCell className="min-w-[250px]">{f.medicine}</TableCell>
                           <TableCell className="min-w-[130px]">{f.batch}</TableCell>
                           <TableCell className="min-w-[150px]">{f.expiry}</TableCell>
-                          <TableCell>{f.pack}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="w-20 ml-auto">{f.quantity}</div>
-                            {f.quantityHint}
-                          </TableCell>
+                          <TableCell className="min-w-[170px]">{f.pack}</TableCell>
+                          <TableCell className="text-right"><div className="w-20 ml-auto">{f.quantity}</div></TableCell>
                           <TableCell className="text-right"><div className="w-24 ml-auto">{f.price}</div></TableCell>
                           <TableCell className="text-right"><div className="w-24 ml-auto">{f.mrp}</div></TableCell>
                           <TableCell><div className="w-24">{f.rack}</div></TableCell>

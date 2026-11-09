@@ -169,6 +169,9 @@ export const CreatePurchaseSchema = z.strictObject({
       discount: z.number().min(0).max(10_000_000).default(0),
       gst: z.number().min(0).max(100).default(0),
       rackLocation: z.string().trim().max(100).optional(),
+      // Free-text packing (e.g. "10x10 Strips", "100ml"), saved on the batch
+      // like Add Inventory. Part of the batch identity; blank matches any.
+      packing: z.string().trim().max(100).optional(),
       // Packaging: quantity / freeQty are in packs and pricePerPack is per
       // pack when unitsPerPack > 1. Omitted = entered in base units.
       packType: z.enum(['BOX', 'STRIP', 'BOTTLE', 'JAR', 'PACKET', 'LOOSE']).optional().nullable(),

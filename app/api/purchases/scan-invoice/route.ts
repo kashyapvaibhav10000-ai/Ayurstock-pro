@@ -51,6 +51,7 @@ interface ScannedRow {
   batchNumber?: string;
   expiryDate?: string;
   quantity?: number;
+  packing?: string;
 }
 
 const positive = (value: unknown) =>
@@ -67,6 +68,7 @@ function fromAi(m: ParsedMedicine): ScannedRow {
     batchNumber: batch,
     expiryDate: expiry,
     quantity: positive(m.quantity),
+    packing: typeof m.packing === 'string' && m.packing.trim() ? m.packing.trim().slice(0, 100) : undefined,
   };
 }
 
@@ -307,6 +309,7 @@ export async function POST(req: NextRequest) {
         gst: 0,
         scheme: '',
         rackLocation: '',
+        packing: row.packing || '',
       };
     });
 
