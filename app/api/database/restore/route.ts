@@ -38,6 +38,15 @@ export async function POST(request: NextRequest) {
       stockLedgers = [],
     } = body?.data || {};
 
+    // Each row is a sequential query; keep one restore within reason.
+    const MAX_RESTORE_ROWS = 20_000;
+    if (medicines.length + sales.length > MAX_RESTORE_ROWS) {
+      return NextResponse.json({
+        success: false,
+        error: `Backup is too large to restore at once (max ${MAX_RESTORE_ROWS} medicines + sales).`
+      }, { status: 400 });
+    }
+
     const summary: Record<string, number> = {
       medicines: medicines.length,
       inventoryBatches: inventoryBatches.length,
