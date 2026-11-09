@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { aiAllowanceError } from '@/lib/ai/allowance';
-import { parsePDFWithAI, parseTextWithAI } from '@/lib/aiParser';
+import { MAX_AI_TEXT_CHARS, parsePDFWithAI, parseTextWithAI } from '@/lib/aiParser';
 import { prisma } from '@/lib/db';
 import { MAX_UPLOAD_BYTES, detectFileType } from '@/lib/upload';
 
@@ -23,6 +23,12 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const extractedText = formData.get('extractedText') as string | null;
+    if (typeof extractedText === 'string' && extractedText.length > MAX_AI_TEXT_CHARS) {
+      return NextResponse.json(
+        { success: false, message: 'Text is too long to process. Split the document and import it in parts.', errorCode: 'TEXT_TOO_LONG' },
+        { status: 400 }
+      );
+    }
 
     if (!file && (!extractedText || extractedText.trim().length === 0)) {
       return NextResponse.json({ success: false, message: 'No file or text provided' }, { status: 400 });

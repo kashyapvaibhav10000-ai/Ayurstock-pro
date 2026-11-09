@@ -69,6 +69,9 @@ const PDF_TIMEOUT_MS = 180000      // whole-document reads
 const VISION_TIMEOUT_MS = 60000
 const REQUEST_INTERVAL_MS = 1000   // 1s delay between chunks
 
+/** Most document text one parse request may send to AI providers (keeps the per-shop daily cap meaningful). */
+export const MAX_AI_TEXT_CHARS = 200_000
+
 // ─── System prompt ────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are a pharmacy data parser for Ayurvedic/herbal medicine documents.
 The text may come from OCR (scanned documents or images) — expect noise, typos, and formatting issues.
@@ -870,7 +873,7 @@ async function runChain(
       if (input.pdf && text.trim()) console.log(`📊 Extracted ${text.length} chars from PDF`);
     }
     if (!text.trim()) continue; // scanned PDF: only PDF-capable providers can help
-    if (remainingText === null) remainingText = text;
+    if (remainingText === null) remainingText = text.slice(0, MAX_AI_TEXT_CHARS);
     if (remainingText.trim().length < 50) break;
 
     const started = Date.now();
@@ -879,15 +882,26 @@ async function runChain(
       const chunks = splitTextIntoChunks(remainingText, tier.chunkSize);
       console.log(`  ${tier.label}: ${chunks.length} chunks`);
 
+      // Every chunk is one provider call and gets its own AiCallLog row, so the
+      // per-shop daily cap counts calls, not requests.
       const result = await processChunks(
         chunks,
-        async (chunk) => parseJsonSafely(await tier.call({ system: SYSTEM_PROMPT, user: TEXT_USER_PROMPT(chunk) })),
+        async (chunk) => {
+          const chunkStarted = Date.now();
+          try {
+            const parsed = parseJsonSafely(await tier.call({ system: SYSTEM_PROMPT, user: TEXT_USER_PROMPT(chunk) }));
+            await log.record(tier, chunkStarted, true);
+            return parsed;
+          } catch (error) {
+            await log.record(tier, chunkStarted, false, error);
+            throw error;
+          }
+        },
         tier.delayMs
       );
       allMedicines.push(...result.medicines);
 
       const success = result.medicines.length > 0;
-      await log.record(tier, started, success, success ? null : result.lastError ?? 'No medicines extracted');
       if (success) {
         usedProviders.push(tier.label);
         await incrementUsage(tier.usageField);

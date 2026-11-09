@@ -3,7 +3,7 @@ import { verifyAuth } from '@/lib/auth';
 import { staffOnlyResponse } from '@/middleware/auth';
 import { aiAllowanceError } from '@/lib/ai/allowance';
 import { prisma } from '@/lib/db';
-import { parseTextWithAI } from '@/lib/aiParser';
+import { MAX_AI_TEXT_CHARS, parseTextWithAI } from '@/lib/aiParser';
 
 /**
  * GET /api/medicines/import/batch/[id]
@@ -84,6 +84,12 @@ export async function PATCH(
 
     if (!job.pdfText) {
       return NextResponse.json({ success: false, message: 'No text available to process' }, { status: 400 });
+    }
+    if (job.pdfText.length > MAX_AI_TEXT_CHARS) {
+      return NextResponse.json(
+        { success: false, message: 'Text is too long to process. Split the document and import it in parts.', errorCode: 'TEXT_TOO_LONG' },
+        { status: 400 }
+      );
     }
 
     // Update status to processing

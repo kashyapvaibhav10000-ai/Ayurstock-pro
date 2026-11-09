@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { staffOnlyResponse } from '@/middleware/auth';
 import { prisma } from '@/lib/db';
+import { MAX_AI_TEXT_CHARS } from '@/lib/aiParser';
 
 /**
  * POST /api/medicines/import/batch
@@ -22,6 +23,12 @@ export async function POST(req: NextRequest) {
 
     if (!fileName) {
       return NextResponse.json({ success: false, message: 'File name is required' }, { status: 400 });
+    }
+    if (typeof pdfText === 'string' && pdfText.length > MAX_AI_TEXT_CHARS) {
+      return NextResponse.json(
+        { success: false, message: 'Text is too long to process. Split the document and import it in parts.', errorCode: 'TEXT_TOO_LONG' },
+        { status: 400 }
+      );
     }
 
     const job = await prisma.pdfImportJob.create({
