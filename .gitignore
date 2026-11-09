@@ -60,3 +60,4 @@ medec/
 __pycache__/
 *.pyc
 test-pdf.mjs
+.gstack/
