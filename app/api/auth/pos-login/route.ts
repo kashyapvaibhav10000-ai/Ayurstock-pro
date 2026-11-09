@@ -39,14 +39,25 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-    if (device.lockedUntil && device.lockedUntil > new Date()) {
-      return lockedResponse(device.lockedUntil);
-    }
-
     const body = await request.json().catch(() => null);
     const validation = POSLoginSchema.safeParse(body);
     if (!validation.success) {
       return createErrorResponse(INVALID_PIN, 401);
+    }
+
+    // Reserve this attempt before checking the PIN: one conditional UPDATE, so
+    // parallel guesses cannot all slip in before the lock is written.
+    const reserved = await prisma.posDevice.updateMany({
+      where: {
+        id: device.id,
+        failedPinCount: { lt: PIN_MAX_FAILURES },
+        OR: [{ lockedUntil: null }, { lockedUntil: { lte: new Date() } }],
+      },
+      data: { failedPinCount: { increment: 1 } },
+    });
+    if (reserved.count === 0) {
+      const current = await prisma.posDevice.findUnique({ where: { id: device.id }, select: { lockedUntil: true } });
+      return lockedResponse(current?.lockedUntil && current.lockedUntil > new Date() ? current.lockedUntil : new Date(Date.now() + PIN_LOCKOUT_MS));
     }
 
     const user = await prisma.user.findFirst({
@@ -66,10 +77,9 @@ export async function POST(request: NextRequest) {
           },
         })
         .catch(console.error);
-      // Count atomically; the request that reaches the limit sets the lock.
-      const updated = await prisma.posDevice.update({
+      // The attempt was counted when reserved; the one that reaches the limit sets the lock.
+      const updated = await prisma.posDevice.findUniqueOrThrow({
         where: { id: device.id },
-        data: { failedPinCount: { increment: 1 } },
         select: { failedPinCount: true },
       });
       if (updated.failedPinCount >= PIN_MAX_FAILURES) {
@@ -87,6 +97,11 @@ export async function POST(request: NextRequest) {
         return lockedResponse(lockedUntil);
       }
       return createErrorResponse(INVALID_PIN, 401);
+    }
+
+    // Admins sign in with their password; a 4-digit PIN must not open an admin session.
+    if (user.role === 'ADMIN') {
+      return createErrorResponse('Admins must sign in with their password.', 403);
     }
 
     await prisma.posDevice.update({
