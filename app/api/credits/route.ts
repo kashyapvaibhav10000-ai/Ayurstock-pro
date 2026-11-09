@@ -94,13 +94,19 @@ export async function PATCH(request: NextRequest) {
     if (!sale) return createErrorResponse('Sale not found', 404);
 
     const currentDue = Number(sale.creditDue ?? 0);
-    const payAmount = typeof amount === 'number' ? Math.min(amount, currentDue) : currentDue;
-    const newDue = Math.max(0, Math.round((currentDue - payAmount) * 100) / 100);
+    const payAmount = Math.round((typeof amount === 'number' ? Math.min(amount, currentDue) : currentDue) * 100) / 100;
 
-    const updated = await prisma.sale.update({
-      where: { id: saleId },
-      data: { creditDue: newDue },
+    // One conditional UPDATE: a payment racing another one cannot overwrite it
+    // with a stale balance. If the balance no longer covers it, refuse.
+    const applied = await prisma.sale.updateMany({
+      where: { id: sale.id, shopId: auth.user.shopId, creditDue: { gte: payAmount } },
+      data: { creditDue: { decrement: payAmount } },
     });
+    if (applied.count === 0) {
+      return createErrorResponse('The balance changed while saving. Refresh and try again.', 409);
+    }
+    const updated = await prisma.sale.findUniqueOrThrow({ where: { id: sale.id }, select: { creditDue: true } });
+    const newDue = Number(updated.creditDue ?? 0);
 
     await prisma.activityLog.create({
       data: {
