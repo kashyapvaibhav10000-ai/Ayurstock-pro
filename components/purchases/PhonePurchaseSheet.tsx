@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -87,7 +88,7 @@ export function PhonePurchaseSheet({
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
   const medicine = draft.medicineId ? medicines.find((m) => m.id === draft.medicineId) : undefined;
   const existingBatch = findBatch(batches, draft.batchNumber);
@@ -214,12 +215,14 @@ export function PhonePurchaseSheet({
     next(field);
   };
 
-  return (
+  // Portal: page containers can be transformed, which would trap a fixed
+  // element; z-[55] sits above the app bars, below dialogs and the picker list.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label="Add purchase items"
-      className="fixed inset-0 z-40 flex flex-col bg-background md:hidden"
+      className="fixed inset-0 z-[55] flex flex-col bg-background md:hidden"
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
         <div className="min-w-0">
@@ -491,6 +494,7 @@ export function PhonePurchaseSheet({
           Save Purchase · ₹{total.toFixed(2)}
         </Button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
