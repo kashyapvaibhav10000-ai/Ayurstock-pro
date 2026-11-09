@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { toast } from 'sonner';
 import axios from 'axios';
-import { FileScan, Plus, Printer, RefreshCw, RotateCcw } from 'lucide-react';
+import { FileScan, ListPlus, Loader2, Plus, Printer, RefreshCw, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -889,7 +889,7 @@ export default function PurchasesPage() {
       <input
         ref={scanInputRef}
         type="file"
-        accept="application/pdf,image/png,image/jpeg"
+        accept="application/pdf,image/png,image/jpeg,image/webp"
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0] || null;
@@ -964,12 +964,21 @@ export default function PurchasesPage() {
                   <Button
                     variant="outline"
                     className="h-11 sm:h-10 gap-2"
+                    disabled={scanning}
+                    onClick={() => scanInputRef.current?.click()}
+                  >
+                    {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileScan className="h-4 w-4" />}
+                    {scanning ? 'Scanning…' : 'Scan Invoice'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-11 sm:h-10 gap-2"
                     onClick={() => setShowPriceListModal(true)}
                   >
-                    <FileScan className="h-4 w-4" />
-                    Scan Invoice
+                    <ListPlus className="h-4 w-4" />
+                    Price List
                   </Button>
-                  <Button className="h-11 sm:h-10 gap-2" onClick={addPurchaseRow}>
+                  <Button className="col-span-2 sm:col-span-1 h-11 sm:h-10 gap-2" onClick={addPurchaseRow}>
                     <Plus className="h-4 w-4" />
                     <span className="sm:hidden">Add Row</span>
                     <span className="hidden sm:inline">Add Medicine Row</span>
