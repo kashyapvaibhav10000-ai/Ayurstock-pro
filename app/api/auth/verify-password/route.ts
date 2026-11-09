@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createErrorResponse } from '@/middleware/auth';
 import { verifyPassword } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request);
     if (!auth) {
       return createErrorResponse('Unauthorized', 401);
+    }
+
+    // An open session must not become an unthrottled password oracle.
+    const limit = await rateLimit(`verify-pw:${auth.user.id}`, 5, 15 * 60_000);
+    if (!limit.allowed) {
+      return createErrorResponse(`Too many password checks. Try again in ${limit.retryAfterSeconds}s.`, 429);
     }
 
     const body = await request.json();
