@@ -37,6 +37,10 @@ export async function POST(req: NextRequest) {
 
     // Your own password: prove you know the current one (an open session alone is not enough).
     const isSelf = targetUser.id === auth.user.id;
+    // Same rule as PUT/DELETE /api/users/[id]: never another admin's account.
+    if (!isSelf && targetUser.role === 'ADMIN') {
+      return NextResponse.json({ success: false, message: "Cannot change another Admin's password" }, { status: 403 });
+    }
     if (isSelf) {
       if (!currentPassword) {
         return NextResponse.json({ success: false, message: 'Enter your current password.' }, { status: 400 });
