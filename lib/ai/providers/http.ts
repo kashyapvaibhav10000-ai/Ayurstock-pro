@@ -1,4 +1,6 @@
-import { assertPublicHttpsUrl } from '@/lib/net-guard';
+import { lookup as dnsLookup, type LookupAddress, type LookupOptions } from 'dns';
+import { Agent, fetch as undiciFetch } from 'undici';
+import { assertPublicHttpsUrl, isPrivateAddress, UnsafeUrlError } from '@/lib/net-guard';
 import { AiFile, AiPrompt, DEFAULT_TIMEOUT_MS, RateLimitError, TEST_TIMEOUT_MS, TestResult } from './types';
 
 /**
@@ -6,12 +8,40 @@ import { AiFile, AiPrompt, DEFAULT_TIMEOUT_MS, RateLimitError, TEST_TIMEOUT_MS, 
  * URLs are admin-configured, so the target must be public https and
  * redirects are never followed (a 3xx comes back as a failed response).
  */
+type LookupCallback = (error: NodeJS.ErrnoException | null, address: string | LookupAddress[], family?: number) => void;
+
+/**
+ * DNS lookup used for the actual connection. assertPublicHttpsUrl checks the
+ * name first, but fetch would resolve it again; a rebinding answer in between
+ * could reach a private address. Checking here, on the addresses the socket
+ * will use, closes that window.
+ */
+function publicOnlyLookup(hostname: string, options: LookupOptions, callback: LookupCallback) {
+  dnsLookup(hostname, { ...options, all: true }, (error, addresses) => {
+    if (error) return callback(error, '');
+    const list = addresses as LookupAddress[];
+    if (list.length === 0 || list.some((entry) => isPrivateAddress(entry.address))) {
+      return callback(new UnsafeUrlError('URL points to a private address'), '');
+    }
+    if (options.all) return callback(null, list);
+    callback(null, list[0].address, list[0].family);
+  });
+}
+
+const publicOnlyAgent = new Agent({ connect: { lookup: publicOnlyLookup as never } });
+
 export async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   await assertPublicHttpsUrl(url);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...init, redirect: 'manual', signal: controller.signal });
+    const response = await undiciFetch(url, {
+      ...(init as Parameters<typeof undiciFetch>[1]),
+      redirect: 'manual',
+      signal: controller.signal,
+      dispatcher: publicOnlyAgent,
+    });
+    return response as unknown as Response;
   } finally {
     clearTimeout(timer);
   }
