@@ -143,7 +143,9 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: [{ expiryDate: 'asc' }, { createdAt: 'asc' }],
-      take: limit,
+      // Over-fetch: several batches of one pack size must not crowd the other
+      // pack sizes out of the result before the FEFO collapse below.
+      take: Math.min(limit * 10, 200),
     });
 
     const normalizedQuery = query.toLowerCase();
@@ -151,14 +153,25 @@ export async function GET(request: NextRequest) {
       batch.batchNumber.toLowerCase().startsWith(normalizedQuery)
     );
 
-    const fefoResults = hasBatchNumberMatch
-      ? results
-      : results.filter((batch, index) => {
-          const firstIndex = results.findIndex(
-            (candidate) => candidate.medicineId === batch.medicineId
-          );
-          return firstIndex === index;
-        });
+    // FEFO: one row per medicine *per pack size* (earliest expiry wins). Pack
+    // size lives on the batch, so 30ml / 60ml / 100ml of one medicine are
+    // separate sellable items and must each show up.
+    const packKey = (batch: (typeof results)[number]) =>
+      `${batch.medicineId}|${(batch.packing || batch.medicine.packing || '')
+        .toLowerCase()
+        .replace(/\s+/g, '')}`;
+
+    const seen = new Set<string>();
+    const fefoResults = (
+      hasBatchNumberMatch
+        ? results
+        : results.filter((batch) => {
+            const key = packKey(batch);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+    ).slice(0, limit);
 
     return NextResponse.json({
       success: true,
