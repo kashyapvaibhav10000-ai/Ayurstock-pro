@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
-import { hashPassword, verifyAuth, verifyPassword } from '@/lib/auth';
+import { hashPassword, verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { USERNAME_TAKEN, isUsernameConflict, parseUsernameInput } from '@/lib/username';
 import {
@@ -9,8 +9,9 @@ import {
   CURRENT_PASSWORD_WRONG,
   LastAdminError,
   PIN_TAKEN,
+  confirmPassword,
   parsePinInput,
-  passwordConfirms,
+  reauthLockedMessage,
   pinData,
   pinTakenInShop,
   updateUserKeepingAnAdmin,
@@ -135,7 +136,8 @@ export async function PUT(
     const usernameChanged = username !== undefined && username !== targetUser.username;
     if (isSelf && (emailChanged || usernameChanged)) {
       if (typeof currentPassword !== 'string' || !currentPassword) return fail(CURRENT_PASSWORD_REQUIRED);
-      if (!(await verifyPassword(currentPassword, targetUser.passwordHash))) return fail(CURRENT_PASSWORD_WRONG);
+      const reauth = await confirmPassword(auth.user.id, currentPassword, targetUser.passwordHash);
+      if (!reauth.ok) return reauth.retryAfterSeconds ? fail(reauthLockedMessage(reauth.retryAfterSeconds), 429) : fail(CURRENT_PASSWORD_WRONG);
     }
 
     // Explicitly doing a targeted update of ONLY safe fields. Password is NEVER updated here.
@@ -230,8 +232,11 @@ export async function DELETE(
     // email and username are freed and nothing can sign in or reactivate it.
     if (req.nextUrl.searchParams.get('permanent') === '1') {
       const body = await req.json().catch(() => ({}));
-      if (!(await passwordConfirms(auth.user.id, body?.password))) {
-        return fail('Your password is incorrect.', 403);
+      const reauth = await confirmPassword(auth.user.id, body?.password);
+      if (!reauth.ok) {
+        return reauth.retryAfterSeconds
+          ? fail(reauthLockedMessage(reauth.retryAfterSeconds), 429)
+          : fail('Your password is incorrect.', 403);
       }
       const unusablePassword = await hashPassword(randomBytes(32).toString('hex'));
       await updateUserKeepingAnAdmin(auth.user.shopId, 'delete', (tx) =>

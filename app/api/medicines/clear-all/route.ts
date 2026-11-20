@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { passwordConfirms } from '@/lib/user-guards';
+import { confirmPassword, reauthLockedMessage } from '@/lib/user-guards';
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -17,7 +17,11 @@ export async function DELETE(req: NextRequest) {
 
     // Re-check the password here: the browser's own check can be skipped.
     const { password } = (await req.json().catch(() => null)) ?? {};
-    if (!(await passwordConfirms(auth.user.id, password))) {
+    const reauth = await confirmPassword(auth.user.id, password);
+    if (!reauth.ok && reauth.retryAfterSeconds) {
+      return NextResponse.json({ success: false, message: reauthLockedMessage(reauth.retryAfterSeconds) }, { status: 429 });
+    }
+    if (!reauth.ok) {
       return NextResponse.json({ success: false, message: 'Password is incorrect' }, { status: 403 });
     }
 

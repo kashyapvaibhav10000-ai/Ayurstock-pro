@@ -2,11 +2,13 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { authenticateRequest, createApiResponse, createErrorResponse } from '@/middleware/auth';
 import { ProfileSettingsSchema, validationMessage } from '@/lib/schemas';
-import { extractRequestToken, generateToken, hashPassword, revokeSession, setAuthCookie, verifyPassword, verifyToken } from '@/lib/auth';
+import { extractRequestToken, generateToken, hashPassword, revokeSession, setAuthCookie, verifyToken } from '@/lib/auth';
 import {
   CURRENT_PASSWORD_REQUIRED,
   CURRENT_PASSWORD_WRONG,
   PIN_TAKEN,
+  confirmPassword,
+  reauthLockedMessage,
   parsePinInput,
   pinData,
   pinTakenInShop,
@@ -103,7 +105,12 @@ export async function PUT(request: NextRequest) {
     if (emailChanged || usernameChanged || password) {
       const currentPassword = validation.data.currentPassword;
       if (!currentPassword) return createErrorResponse(CURRENT_PASSWORD_REQUIRED, 400);
-      if (!(await verifyPassword(currentPassword, current.passwordHash))) return createErrorResponse(CURRENT_PASSWORD_WRONG, 400);
+      const reauth = await confirmPassword(auth.user.id, currentPassword, current.passwordHash);
+      if (!reauth.ok) {
+        return reauth.retryAfterSeconds
+          ? createErrorResponse(reauthLockedMessage(reauth.retryAfterSeconds), 429)
+          : createErrorResponse(CURRENT_PASSWORD_WRONG, 400);
+      }
     }
 
     // Emails are unique across all shops.

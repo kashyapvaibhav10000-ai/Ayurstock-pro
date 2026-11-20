@@ -77,23 +77,26 @@ export async function rateLimit(key: string, limit = 10, windowMs = 60_000): Pro
 }
 
 /**
- * Whether `key` is already over `limit`, without recording a hit. Lets a
- * route refuse a locked caller up front but count only failed attempts.
+ * Gives back one hit recorded by rateLimit() for `key`. Lets a route count
+ * only failed attempts without a check-then-count race: record the hit first
+ * (atomic, so parallel requests can't all slip under the limit), do the
+ * check, and refund the hit when it succeeded.
  */
-export async function rateLimitExceeded(key: string, limit: number): Promise<RateLimitResult | null> {
-  const now = Date.now();
+export async function rateLimitRefund(key: string): Promise<void> {
+  const now = new Date();
   try {
-    const row = await prisma.rateLimitBucket.findUnique({ where: { key } });
-    if (!row || row.resetAt.getTime() <= now || row.count < limit) return null;
-    return { allowed: false, remaining: 0, retryAfterSeconds: Math.max(1, Math.ceil((row.resetAt.getTime() - now) / 1000)) };
+    await prisma.$executeRaw`
+      UPDATE "RateLimitBucket" SET "count" = GREATEST("count" - 1, 0)
+      WHERE "key" = ${key} AND "resetAt" > ${now}`;
   } catch {
     const bucket = fallbackBuckets.get(key);
-    if (!bucket || bucket.resetAt <= now || bucket.count < limit) return null;
-    return { allowed: false, remaining: 0, retryAfterSeconds: Math.max(1, Math.ceil((bucket.resetAt - now) / 1000)) };
+    if (bucket && bucket.resetAt > now.getTime() && bucket.count > 0) bucket.count -= 1;
   }
 }
 
 const IP_PATTERN = /^[0-9a-fA-F:.]{2,45}$/;
+
+let warnedNoClientIp = false;
 
 /**
  * Client IP for rate limiting and login history.
@@ -105,7 +108,9 @@ const IP_PATTERN = /^[0-9a-fA-F:.]{2,45}$/;
  * is the sole way in (see DEPLOYMENT.md). With TRUST_PROXY unset on Vercel
  * (VERCEL=1), the platform's x-vercel-forwarded-for is used: Vercel's edge
  * sets it and clients cannot override it. Otherwise there is no reliable
- * address and every caller shares the 'unknown' bucket.
+ * address and every caller shares the 'unknown' bucket, so one client can
+ * throttle logins for everyone; production logs a warning once when that
+ * happens.
  */
 export function getClientIp(request: Request): string {
   if (process.env.TRUST_PROXY === 'cloudflare') {
@@ -114,6 +119,13 @@ export function getClientIp(request: Request): string {
   } else if (!process.env.TRUST_PROXY && process.env.VERCEL === '1') {
     const ip = request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim();
     if (ip && IP_PATTERN.test(ip)) return ip;
+  }
+  if (!process.env.TRUST_PROXY && process.env.VERCEL !== '1' && process.env.NODE_ENV === 'production' && !warnedNoClientIp) {
+    warnedNoClientIp = true;
+    console.warn(
+      'SECURITY: client IP unknown (TRUST_PROXY unset, not on Vercel). Every caller shares one rate-limit bucket, ' +
+        'so one client can lock out logins for all shops. Set TRUST_PROXY=cloudflare behind Cloudflare Tunnel (see DEPLOYMENT.md).'
+    );
   }
   return 'unknown';
 }

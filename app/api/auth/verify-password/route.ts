@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 import { authenticateRequest, createErrorResponse } from '@/middleware/auth';
-import { verifyPassword } from '@/lib/auth';
-import { rateLimit } from '@/lib/rate-limit';
+import { confirmPassword, reauthLockedMessage } from '@/lib/user-guards';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,31 +9,21 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Unauthorized', 401);
     }
 
-    // An open session must not become an unthrottled password oracle.
-    const limit = await rateLimit(`verify-pw:${auth.user.id}`, 5, 15 * 60_000);
-    if (!limit.allowed) {
-      return createErrorResponse(`Too many password checks. Try again in ${limit.retryAfterSeconds}s.`, 429);
-    }
-
-    const body = await request.json();
-    const { password } = body;
+    const body = await request.json().catch(() => null);
+    const password = body?.password;
 
     if (!password || typeof password !== 'string') {
       return NextResponse.json({ success: false, error: 'Password is required' }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: auth.user.id },
-      select: { passwordHash: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    // An open session must not become an unthrottled password oracle: this
+    // shares the per-user re-auth limit with every other password re-check.
+    const reauth = await confirmPassword(auth.user.id, password);
+    if (!reauth.ok && reauth.retryAfterSeconds) {
+      return createErrorResponse(reauthLockedMessage(reauth.retryAfterSeconds), 429);
     }
 
-    const isValid = await verifyPassword(password, user.passwordHash);
-
-    return NextResponse.json({ success: isValid });
+    return NextResponse.json({ success: reauth.ok });
   } catch (error) {
     console.error('Verify password error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

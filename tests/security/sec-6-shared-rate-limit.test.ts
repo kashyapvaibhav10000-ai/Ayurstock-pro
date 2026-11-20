@@ -63,8 +63,21 @@ describe('#6 per-account login limit counts failures only', () => {
     }
   });
 
-  it('20 failures lock the account, even for the right password', async () => {
-    for (let i = 0; i < 20; i++) expect((await attempt('wrong-password', i)).status).toBe(401);
+  it('10 failures lock the account, even for the right password', async () => {
+    for (let i = 0; i < 10; i++) expect((await attempt('wrong-password', i)).status).toBe(401);
     expect((await attempt(PASSWORD, 99)).status).toBe(429);
+  });
+
+  it('a parallel burst of wrong passwords cannot exceed the limit', async () => {
+    const results = await Promise.all(Array.from({ length: 20 }, (_, i) => attempt('wrong-password', i)));
+    expect(results.filter((r) => r.status === 401).length).toBe(10);
+    expect(results.filter((r) => r.status === 429).length).toBe(10);
+  });
+
+  it('successes between failures give their attempt back', async () => {
+    for (let i = 0; i < 9; i++) expect((await attempt('wrong-password', i)).status).toBe(401);
+    for (let i = 0; i < 5; i++) expect((await attempt(PASSWORD, i)).status).toBe(200);
+    expect((await attempt('wrong-password', 50)).status).toBe(401);
+    expect((await attempt(PASSWORD, 51)).status).toBe(429);
   });
 });

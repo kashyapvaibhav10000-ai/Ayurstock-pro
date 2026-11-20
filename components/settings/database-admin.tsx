@@ -167,8 +167,8 @@ export default function DatabaseAdmin() {
         toast.error('Incorrect password');
         setClearPasswordVerified(false);
       }
-    } catch {
-      toast.error('Password verification failed');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Password verification failed');
       setClearPasswordVerified(false);
     } finally {
       setVerifyingPassword(false);

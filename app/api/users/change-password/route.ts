@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth, extractRequestToken, generateToken, hashPassword, revokeSession, setAuthCookie, verifyPassword, verifyToken } from '@/lib/auth';
+import { verifyAuth, extractRequestToken, generateToken, hashPassword, revokeSession, setAuthCookie, verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { confirmPassword as confirmOwnPassword, reauthLockedMessage } from '@/lib/user-guards';
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,7 +46,11 @@ export async function POST(req: NextRequest) {
       if (!currentPassword) {
         return NextResponse.json({ success: false, message: 'Enter your current password.' }, { status: 400 });
       }
-      if (!(await verifyPassword(currentPassword, targetUser.passwordHash))) {
+      const reauth = await confirmOwnPassword(auth.user.id, currentPassword, targetUser.passwordHash);
+      if (!reauth.ok && reauth.retryAfterSeconds) {
+        return NextResponse.json({ success: false, message: reauthLockedMessage(reauth.retryAfterSeconds) }, { status: 429 });
+      }
+      if (!reauth.ok) {
         return NextResponse.json({ success: false, message: 'Current password is incorrect.' }, { status: 400 });
       }
     }

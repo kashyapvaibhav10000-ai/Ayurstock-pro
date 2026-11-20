@@ -29,6 +29,14 @@ can reach the app:
 
 `X-Forwarded-For` is never read; clients can set it to anything.
 
+> **Warning: self-hosting without `TRUST_PROXY` (and not on Vercel) leaves the
+> app with no client IP.** Every caller then shares one `unknown` rate-limit
+> bucket, so a single client — even someone mistyping a password — can lock
+> out logins for every user of every shop. The server logs a `SECURITY:`
+> warning on the first such request in production. Behind any proxy other
+> than Cloudflare Tunnel, put Cloudflare Tunnel in front or extend
+> `getClientIp()` in `lib/rate-limit.ts` for that proxy's trusted header.
+
 ## Request protections in `proxy.ts`
 
 Every `/api` request passes the proxy:

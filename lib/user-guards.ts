@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { hashPin } from '@/lib/pin';
 import { verifyPassword } from '@/lib/auth';
+import { rateLimit, rateLimitRefund } from '@/lib/rate-limit';
 
 /**
  * Account-management rules shared by Team (/api/users) and My Profile.
@@ -70,9 +71,36 @@ export const PIN_TAKEN = 'Another user in this shop already uses this PIN.';
 export const CURRENT_PASSWORD_REQUIRED = 'Enter your current password to change your email, username or password.';
 export const CURRENT_PASSWORD_WRONG = 'Current password is incorrect.';
 
-/** True when `password` is this user's current password (re-auth for destructive actions). */
-export async function passwordConfirms(userId: string, password: unknown): Promise<boolean> {
-  if (typeof password !== 'string' || !password) return false;
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
-  return Boolean(user && (await verifyPassword(password, user.passwordHash)));
+// Wrong current-password entries per user before every re-auth check is
+// refused for the rest of the window.
+export const REAUTH_FAILURE_LIMIT = 5;
+export const REAUTH_WINDOW_MS = 15 * 60_000;
+
+export type ReauthResult = { ok: true } | { ok: false; retryAfterSeconds?: number };
+
+export const reauthLockedMessage = (retryAfterSeconds: number) =>
+  `Too many wrong passwords. Try again in ${retryAfterSeconds}s.`;
+
+/**
+ * Re-checks a signed-in user's own password (destructive actions, changing
+ * login details). Every caller shares one per-user bucket, so an open session
+ * can't be used to guess the password at bcrypt speed through any route.
+ *
+ * The attempt is counted before bcrypt runs, so parallel requests can't all
+ * slip under the limit; a correct password gets its attempt back, so only
+ * wrong ones count. A missing password is refused without counting.
+ * `retryAfterSeconds` is set when the user is locked out.
+ */
+export async function confirmPassword(userId: string, password: unknown, passwordHash?: string): Promise<ReauthResult> {
+  if (typeof password !== 'string' || !password) return { ok: false };
+  const key = `reauth:${userId}`;
+  const limit = await rateLimit(key, REAUTH_FAILURE_LIMIT, REAUTH_WINDOW_MS);
+  if (!limit.allowed) return { ok: false, retryAfterSeconds: limit.retryAfterSeconds };
+  const hash =
+    passwordHash ?? (await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } }))?.passwordHash;
+  if (hash && (await verifyPassword(password, hash))) {
+    await rateLimitRefund(key);
+    return { ok: true };
+  }
+  return { ok: false };
 }
